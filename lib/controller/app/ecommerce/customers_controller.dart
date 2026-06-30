@@ -1,5 +1,5 @@
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/models/customer_model.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/models/customer_model.dart';
 
 class CustomersController extends MyController {
   List<CustomerModel> customers = [];

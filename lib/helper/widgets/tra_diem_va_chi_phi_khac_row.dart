@@ -58,10 +58,10 @@ class _TraDiemVaChiPhiKhacRowState extends State<TraDiemVaChiPhiKhacRow> {
 
     if (data == null || khach == null) return;
 
-    final String? trongTai = widget.trongTai;
+    final String trongTai = widget.trongTai;
     final List<dynamic>? traThemList = data['tra_them_diem'];
 
-    if (trongTai == null || traThemList == null) return;
+    if (traThemList == null) return;
 
     double total = 0;
 

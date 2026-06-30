@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:kho555/widgets/thousands_separator_input_formatter.dart';
+import 'package:ttk_logistics/widgets/thousands_separator_input_formatter.dart';
 
 class ChiPhiCoDinhVaLaiXeWidget extends StatefulWidget {
   final Map<String, dynamic> thongTinJson;
@@ -39,7 +39,7 @@ class ChiPhiCoDinhVaLaiXeWidgetState
     // Lọc chỉ lấy các trường chi phí cố định
     final Map<String, dynamic> chiPhiCoDinh = {};
 
-    print('thongTin get data ${thongTin}');
+// print('thongTin get data $thongTin'); // TODO: remove debug
     for (final key in _keysChiPhiCoDinh) {
       chiPhiCoDinh[key] = thongTin['chi_phi_co_dinh'][key] ?? 0;
     }

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/models/chat_model.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/models/chat_model.dart';
 import 'package:flutter/material.dart';
 
 class ChatController extends MyController {

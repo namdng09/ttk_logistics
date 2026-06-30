@@ -1,4 +1,4 @@
-import 'package:kho555/models/identifier_model.dart';
+import 'package:ttk_logistics/models/identifier_model.dart';
 
 class User extends IdentifierModel {
   final String email, firstName, lastName;

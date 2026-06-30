@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:kho555/helper/theme/admin_theme.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/helper/widgets/my_spacing.dart';
-import 'package:kho555/helper/widgets/my_text.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/theme/admin_theme.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/helper/widgets/my_text.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 
 import '../../../../controller/kho555/phieu_nhap_vat_tu_controller.dart';
 import '../../../../models/kho555/phieu_nhap_vat_tu.dart';
@@ -275,7 +275,7 @@ class _TonKhoVatTuTheoThangPageScreenState
       child: SingleChildScrollView(
         child: DataTable(
           columnSpacing: 18,
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
           columns: [
             DataColumn(label: _headerCell('STT', width: 60)),
             DataColumn(label: _headerCell('Kho', width: 220)),
@@ -324,7 +324,7 @@ class _TonKhoVatTuTheoThangPageScreenState
                     );
                   }),
                   DataRow(
-                    color: MaterialStateProperty.all(Colors.blueGrey.shade50),
+                    color: WidgetStateProperty.all(Colors.blueGrey.shade50),
                     cells: [
                       DataCell(_cellText('', width: 60)),
                       DataCell(
@@ -450,7 +450,7 @@ class _TonKhoVatTuTheoThangPageScreenState
         const SizedBox(height: 6),
         DropdownButtonFormField<int>(
           dropdownColor: Colors.white,
-          value: selectedMonth,
+          initialValue: selectedMonth,
           isExpanded: true,
           items: List.generate(12, (index) {
             final month = index + 1;
@@ -484,7 +484,7 @@ class _TonKhoVatTuTheoThangPageScreenState
         const SizedBox(height: 6),
         DropdownButtonFormField<int>(
           dropdownColor: Colors.white,
-          value: selectedYear,
+          initialValue: selectedYear,
           isExpanded: true,
           items: _buildYearItems(),
           onChanged: (value) {
@@ -514,7 +514,7 @@ class _TonKhoVatTuTheoThangPageScreenState
         const SizedBox(height: 6),
         DropdownButtonFormField<int>(
           dropdownColor: Colors.white,
-          value: currentLimit,
+          initialValue: currentLimit,
           isExpanded: true,
           items: const [
             DropdownMenuItem<int>(value: 10, child: Text('10')),
@@ -555,7 +555,7 @@ class _TonKhoVatTuTheoThangPageScreenState
         const SizedBox(height: 6),
         DropdownButtonFormField<int>(
           dropdownColor: Colors.white,
-          value: _safeDropdownValue(value, options),
+          initialValue: _safeDropdownValue(value, options),
           isExpanded: true,
           items: _buildDropdownItems(options),
           onChanged: (value) => onChanged(value == 0 ? null : value),

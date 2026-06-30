@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/helper/extensions/date_time_extension.dart';
-import 'package:kho555/helper/widgets/my_form_validator.dart';
-import 'package:kho555/helper/widgets/my_validators.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/helper/extensions/date_time_extension.dart';
+import 'package:ttk_logistics/helper/widgets/my_form_validator.dart';
+import 'package:ttk_logistics/helper/widgets/my_validators.dart';
 
 class FormWizardController extends MyController {
   int selectedTab = 0;

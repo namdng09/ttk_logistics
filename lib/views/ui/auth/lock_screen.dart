@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/controller/ui/auth/lock_controller.dart';
-import 'package:kho555/helper/theme/app_theme.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/views/layout/auth_layout.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/helper/widgets/my_spacing.dart';
-import 'package:kho555/helper/widgets/my_text.dart';
-import 'package:kho555/helper/widgets/my_text_style.dart';
-import 'package:kho555/images.dart';
+import 'package:ttk_logistics/controller/ui/auth/lock_controller.dart';
+import 'package:ttk_logistics/helper/theme/app_theme.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/views/layout/auth_layout.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/helper/widgets/my_text.dart';
+import 'package:ttk_logistics/helper/widgets/my_text_style.dart';
+import 'package:ttk_logistics/images.dart';
 
 class LockScreen extends StatefulWidget {
   const LockScreen({super.key});

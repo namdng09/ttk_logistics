@@ -1,6 +1,6 @@
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/helper/utils/app_toast.dart';
-import 'package:kho555/views/ui/pages/bap2/cau_hinh_hop_dong_nha_xe_screen.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/cau_hinh_hop_dong_nha_xe_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/bap/nha_xe.dart';

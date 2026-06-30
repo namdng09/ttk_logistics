@@ -1,10 +1,10 @@
-import 'package:kho555/controller/pages/cau_hinh_hop_dong_ca_nhan_controller.dart';
+import 'package:ttk_logistics/controller/pages/cau_hinh_hop_dong_ca_nhan_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/utils/my_shadow.dart';
-import 'package:kho555/helper/widgets/my_card.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/utils/my_shadow.dart';
+import 'package:ttk_logistics/helper/widgets/my_card.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 
 class CauHinhLenhDieuDongScreen extends StatefulWidget {

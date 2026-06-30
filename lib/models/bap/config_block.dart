@@ -6,7 +6,7 @@ class ConfigBlock {
   ConfigBlock({required this.data});
 
   factory ConfigBlock.fromJson(Map<String, dynamic> json) {
-    print('json ConfigBlock ${json}');
+// print('json ConfigBlock $json'); // TODO: remove debug
     // field_mo_ta_slider chứa JSON gốc
     final raw = json;
     dynamic parsed;

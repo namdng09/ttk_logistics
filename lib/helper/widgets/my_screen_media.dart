@@ -1,5 +1,5 @@
-import 'package:kho555/helper/widgets/my_display_type.dart';
-import 'package:kho555/helper/widgets/my_screen_media_type.dart';
+import 'package:ttk_logistics/helper/widgets/my_display_type.dart';
+import 'package:ttk_logistics/helper/widgets/my_screen_media_type.dart';
 
 class MyScreenMedia {
   static int flexColumns = 12;

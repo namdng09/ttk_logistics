@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/helper/widgets/my_field_validator.dart';
-import 'package:kho555/helper/widgets/my_form_validator.dart';
-import 'package:kho555/helper/widgets/my_validators.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/helper/widgets/my_field_validator.dart';
+import 'package:ttk_logistics/helper/widgets/my_form_validator.dart';
+import 'package:ttk_logistics/helper/widgets/my_validators.dart';
 
 class FormValidationController extends MyController {
   MyFormValidator basicValidator = MyFormValidator();

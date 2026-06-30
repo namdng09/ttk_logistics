@@ -1,10 +1,10 @@
 // ignore_for_file: unrelated_type_equality_checks
 
-import 'package:kho555/helper/theme/app_theme.dart';
-import 'package:kho555/helper/widgets/my_bottom_navigation_bar_item.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/helper/widgets/my_spacing.dart';
-import 'package:kho555/helper/widgets/my_text_style.dart';
+import 'package:ttk_logistics/helper/theme/app_theme.dart';
+import 'package:ttk_logistics/helper/widgets/my_bottom_navigation_bar_item.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/helper/widgets/my_text_style.dart';
 import 'package:flutter/material.dart';
 
 enum MyBottomNavigationBarType {

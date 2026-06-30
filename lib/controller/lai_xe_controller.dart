@@ -1,4 +1,4 @@
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/bap/lai_xe.dart';

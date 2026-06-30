@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/models/product_model.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/models/product_model.dart';
 
 class ProductController extends MyController {
   List<ProductModel> allProducts = [];

@@ -50,7 +50,7 @@ class Images {
   /// Static Assets
   static const String authenticationBg = '$_base/authentication-bg.jpg';
   static const String comingSoonBg = '$_base/coming-soon.png';
-  static const String logoDark = '$_base/kho555-logo.jpg';
+  static const String logoDark = '$_base/ttk_logistics-logo.jpg';
   static const String logoLight = '$_base/logo-light.png';
   static const String logoLightColored = '$_base/logo-light-colored.png';
   static const String logoSm = '$_base/logo-sm.png';

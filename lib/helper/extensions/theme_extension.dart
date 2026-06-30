@@ -1,4 +1,4 @@
-import 'package:kho555/helper/theme/theme_type.dart';
+import 'package:ttk_logistics/helper/theme/theme_type.dart';
 
 extension ThemeExtension on ThemeType {
   String get toText {

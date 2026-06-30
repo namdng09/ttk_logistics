@@ -1,13 +1,12 @@
 import 'package:amount_input_formatter/amount_input_formatter.dart';
-import 'package:kho555/controller/nha_xe_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:intl/intl.dart';
 import 'package:remixicon/remixicon.dart';
-import 'package:kho555/controller/lai_xe_controller.dart';
+import 'package:ttk_logistics/controller/lai_xe_controller.dart';
 import '../../../../helper/constants/customer_labels.dart';
 import '../../../../helper/theme/admin_theme.dart';
 import '../../../../helper/widgets/my_spacing.dart';
@@ -25,7 +24,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
  // 👈 khai báo controller
   Widget buildTable(List<dynamic> jsonData) {
     final Set<String> dynamicCols = {};
-    print('jsonData ${jsonData}');
+// print('jsonData $jsonData'); // TODO: remove debug
     for (var item in jsonData) {
       if (item is Map) {
         for (var k in item.keys) {
@@ -56,7 +55,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
         scrollDirection: Axis.vertical,
         child: DataTable(
           columnSpacing: 16,
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
           columns: [
             ...cols.map(
                   (c) => DataColumn(
@@ -219,7 +218,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
 
   String shortenLabel(String label, {int maxLength = 20}) {
     if (label.length <= maxLength) return label;
-    return label.substring(0, maxLength) + "...";
+    return "${label.substring(0, maxLength)}...";
   }
 
   void showLaiXeDialog(
@@ -228,7 +227,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
       })
   {
     final Map<String, dynamic> data = Map<String, dynamic>.from(existingData ?? {});
-    print('field_ngay_sinh_time ${existingData?['field_ngay_sinh_time']}');
+// print('field_ngay_sinh_time ${existingData?['field_ngay_sinh_time']}'); // TODO: remove debug
 
     final tenLaiXeCtrl =
     TextEditingController(text: existingData?['field_ten_lai_xe'] ?? '');

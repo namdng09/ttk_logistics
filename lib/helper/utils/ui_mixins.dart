@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:kho555/helper/theme/admin_theme.dart';
-import 'package:kho555/helper/theme/app_theme.dart';
-import 'package:kho555/helper/widgets/my_dashed_divider.dart';
-import 'package:kho555/helper/widgets/my_navigation_mixin.dart';
+import 'package:ttk_logistics/helper/theme/admin_theme.dart';
+import 'package:ttk_logistics/helper/theme/app_theme.dart';
+import 'package:ttk_logistics/helper/widgets/my_dashed_divider.dart';
+import 'package:ttk_logistics/helper/widgets/my_navigation_mixin.dart';
 
 mixin UIMixin {
   LeftBarTheme get leftBarTheme => AdminTheme.theme.leftBarTheme;

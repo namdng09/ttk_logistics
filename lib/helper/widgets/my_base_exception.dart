@@ -1,6 +1,6 @@
 import 'dart:developer';
 
-import 'package:kho555/helper/widgets/my_exception.dart';
+import 'package:ttk_logistics/helper/widgets/my_exception.dart';
 
 class BaseException extends MyException {
   StackTrace? stackTrace;

@@ -1,4 +1,4 @@
-import 'package:kho555/widgets/xe_info_form.dart';
+import 'package:ttk_logistics/widgets/xe_info_form.dart';
 import 'package:flutter/material.dart';
 
 class XeSection extends StatelessWidget {

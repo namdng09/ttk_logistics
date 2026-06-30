@@ -1,8 +1,7 @@
-import 'dart:convert';
-import 'package:kho555/controller/pages/luong_lai_xe_controller.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/controller/pages/luong_lai_xe_controller.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -140,7 +139,7 @@ class _LuongLaiXeScreenState extends State<LuongLaiXeScreen> with UIMixin {
                           children: [
                             DropdownButtonFormField<int>(
                               dropdownColor: Colors.white,
-                              value: hasSelected ? controller.selectedLaiXeId.value : null,
+                              initialValue: hasSelected ? controller.selectedLaiXeId.value : null,
                               hint: const Text('Chọn lái xe'),
                               decoration: InputDecoration(
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -273,7 +272,7 @@ class _LuongLaiXeScreenState extends State<LuongLaiXeScreen> with UIMixin {
                                       dataRowMaxHeight: 36,
                                       headingRowHeight: 40,
                                       headingRowColor:
-                                      MaterialStateProperty.all(Colors.blueGrey.shade50),
+                                      WidgetStateProperty.all(Colors.blueGrey.shade50),
                                       border: TableBorder.all(color: Colors.grey.shade300),
                                       columns: const [
                                         DataColumn(label: Text("")), // ✅ thêm cột đầu tiên

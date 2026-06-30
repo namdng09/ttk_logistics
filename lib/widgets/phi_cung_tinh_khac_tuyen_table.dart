@@ -6,6 +6,7 @@ import 'package:amount_input_formatter/amount_input_formatter.dart';
 
 class PhiCungTinhKhacTuyenTable extends StatefulWidget {
   final Map<String, dynamic> customer;
+  @override
   final GlobalKey<PhiCungTinhKhacTuyenTableState> key;
 
   const PhiCungTinhKhacTuyenTable({
@@ -59,7 +60,7 @@ class PhiCungTinhKhacTuyenTableState
           child: DataTable(
             border: TableBorder.all(color: Colors.grey.shade300, width: 1),
             headingRowColor:
-            MaterialStateProperty.all(Colors.grey.shade100),
+            WidgetStateProperty.all(Colors.grey.shade100),
             columns: const [
               DataColumn(
                 label: Text(

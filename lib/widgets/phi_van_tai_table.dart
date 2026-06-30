@@ -6,6 +6,7 @@ import 'package:amount_input_formatter/amount_input_formatter.dart';
 
 class PhiVanTaiTable extends StatefulWidget {
   final Map<String, dynamic> customer;
+  @override
   final GlobalKey<PhiVanTaiTableState> key;
 
   const PhiVanTaiTable({
@@ -94,7 +95,7 @@ class PhiVanTaiTableState extends State<PhiVanTaiTable> {
                 child: DataTable(
                   columnSpacing: 12,
                   border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-                  headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+                  headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
                   columns: [
                     const DataColumn(
                       label: Text(

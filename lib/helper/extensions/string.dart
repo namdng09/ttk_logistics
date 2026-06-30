@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:kho555/helper/localization/translator.dart';
+import 'package:ttk_logistics/helper/localization/translator.dart';
 
 extension StringUtil on String {
   Color get toColor {

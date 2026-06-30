@@ -1,19 +1,18 @@
-import 'package:kho555/controller/nha_xe_controller.dart';
-import 'package:kho555/views/ui/pages/bap2/cau_hinh_bao_hiem_screen.dart';
-import 'package:kho555/views/ui/pages/bap2/cau_hinh_cuoc_van_chuyen_thue_ngoai_page_screen.dart';
-import 'package:kho555/views/ui/pages/bap2/cau_hinh_phi_luu_ca_screen.dart';
-import 'package:kho555/views/ui/pages/bap2/cau_hinh_qua_kho_qua_tai_page_screen.dart';
-import 'package:kho555/views/ui/pages/bap2/chi_phi_hai_quan_tong_hop_screen.dart';
-import 'package:kho555/views/ui/pages/bap2/tra_xe_cung_tinh_page_screen.dart';
-import 'package:kho555/views/ui/pages/bap2/tra_xe_cung_tuyen_page_screen.dart';
+import 'package:ttk_logistics/controller/nha_xe_controller.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/cau_hinh_bao_hiem_screen.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/cau_hinh_cuoc_van_chuyen_thue_ngoai_page_screen.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/cau_hinh_phi_luu_ca_screen.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/cau_hinh_qua_kho_qua_tai_page_screen.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/chi_phi_hai_quan_tong_hop_screen.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/tra_xe_cung_tinh_page_screen.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/tra_xe_cung_tuyen_page_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:intl/intl.dart';
 import 'package:remixicon/remixicon.dart';
-import '../../../../helper/constants/customer_labels.dart';
 import '../../../../helper/theme/admin_theme.dart';
 import '../../../../helper/widgets/my_spacing.dart';
 import '../../../../helper/widgets/my_text.dart';
@@ -44,7 +43,7 @@ class _NhaXePageScreenState extends State<NhaXePageScreen> {
         scrollDirection: Axis.vertical,
         child: DataTable(
           columnSpacing: 16,
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
           columns: const [
             // ---------------------------------------
             // 🧩 Cột chức năng (đưa lên đầu tiên)

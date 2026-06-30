@@ -1,8 +1,8 @@
-import 'package:kho555/helper/widgets/my_flex_item.dart';
-import 'package:kho555/helper/widgets/my_list_extension.dart';
-import 'package:kho555/helper/widgets/my_responsive.dart';
-import 'package:kho555/helper/widgets/my_spacing.dart';
-import 'package:kho555/helper/widgets/responsive.dart';
+import 'package:ttk_logistics/helper/widgets/my_flex_item.dart';
+import 'package:ttk_logistics/helper/widgets/my_list_extension.dart';
+import 'package:ttk_logistics/helper/widgets/my_responsive.dart';
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/helper/widgets/responsive.dart';
 import 'package:flutter/material.dart';
 
 class MyFlex extends StatelessWidget {

@@ -1,7 +1,7 @@
 // ignore_for_file: annotate_overrides, overridden_fields
 
 import 'package:flutter/material.dart';
-import 'package:kho555/helper/widgets/my_text_style.dart';
+import 'package:ttk_logistics/helper/widgets/my_text_style.dart';
 
 class MyText extends StatelessWidget {
   final String text;

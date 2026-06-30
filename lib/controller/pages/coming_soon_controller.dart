@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 
 class ComingSoonController extends MyController {
   Duration myDuration = Duration(days: 8);

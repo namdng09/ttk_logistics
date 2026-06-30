@@ -39,7 +39,7 @@ Widget buildChiPhiHaiQuanForm(Map<String, dynamic> item, dynamic controller) {
       item["phiHaiQuanChiTiet"] as Map<String, dynamic>? ?? {};
   if (item["haiQuan"] != true || phiHaiQuanChiTiet.isEmpty) return const SizedBox();
 
-  final Map<String, TextEditingController> _controllers = {};
+  final Map<String, TextEditingController> controllers = {};
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,7 +86,7 @@ Widget buildChiPhiHaiQuanForm(Map<String, dynamic> item, dynamic controller) {
               }
 
               // ✅ Controller chỉ khởi tạo 1 lần
-              _controllers[key] = _controllers[key] ??
+              controllers[key] = controllers[key] ??
                   TextEditingController(
                     text: kieuDuLieu == "Số" && value.isNotEmpty
                         ? NumberFormat.decimalPattern('vi_VN')
@@ -97,7 +97,7 @@ Widget buildChiPhiHaiQuanForm(Map<String, dynamic> item, dynamic controller) {
               return SizedBox(
                 width: itemWidth,
                 child: TextField(
-                  controller: _controllers[key],
+                  controller: controllers[key],
                   keyboardType: kieuDuLieu == "Số"
                       ? TextInputType.number
                       : TextInputType.text,

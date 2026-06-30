@@ -1,4 +1,4 @@
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 import 'package:syncfusion_flutter_maps/maps.dart';
 
 class ShopController extends MyController {

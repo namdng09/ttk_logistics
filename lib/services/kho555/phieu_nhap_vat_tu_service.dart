@@ -1,11 +1,11 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:kho555/helper/services/auth_services.dart';
-import 'package:kho555/helper/storage/local_storage.dart';
-import 'package:kho555/models/api_response.dart';
-import 'package:kho555/models/kho555/phieu_nhap_vat_tu.dart';
-import 'package:kho555/models/kho555/ton_kho_thang_vat_tu.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/storage/local_storage.dart';
+import 'package:ttk_logistics/models/api_response.dart';
+import 'package:ttk_logistics/models/kho555/phieu_nhap_vat_tu.dart';
+import 'package:ttk_logistics/models/kho555/ton_kho_thang_vat_tu.dart';
 
 import '../../models/kho555/ton_kho_vat_tu.dart';
 
@@ -329,7 +329,7 @@ class PhieuNhapVatTuService {
       body: jsonEncode({
         'url': url,
         'method': 'POST',
-        if (params != null) 'params': params,
+        'params': ?params,
       }),
     );
 

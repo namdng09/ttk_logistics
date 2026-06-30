@@ -1,15 +1,14 @@
 import 'dart:convert';
-import 'package:kho555/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
 import 'package:http/http.dart' as http;
 import '../helper/storage/local_storage.dart';
 import '../models/api_response.dart';
-import '../models/bap/khach_hang.dart';
 import '../models/bap/nha_xe.dart';
 
 class NhaXeService {
   static Future<List<NhaXe>> fetchNhaXe() async {
     try {
-      print('AuthService.getListNhaXe ${AuthService.getListNhaXe}');
+// print('AuthService.getListNhaXe ${AuthService.getListNhaXe}'); // TODO: remove debug
       final response = await http.post(
         Uri.parse(AuthService.workerUrl),
         headers: {"Content-Type": "application/json"},
@@ -58,8 +57,9 @@ class NhaXeService {
 
       if (response.statusCode == 200) {
         final res = jsonDecode(response.body);
-        if(res['success'])
+        if(res['success']) {
           return ApiResponse.fromJson(res);
+        }
         return ApiResponse(
           success: false,
           message: res['content']

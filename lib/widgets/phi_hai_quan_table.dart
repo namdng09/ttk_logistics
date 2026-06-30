@@ -6,6 +6,7 @@ import 'package:amount_input_formatter/amount_input_formatter.dart';
 
 class PhiHaiQuanTable extends StatefulWidget {
   final Map<String, dynamic> customer;
+  @override
   final GlobalKey<PhiHaiQuanTableState> key;
 
   const PhiHaiQuanTable({
@@ -108,7 +109,7 @@ class PhiHaiQuanTableState extends State<PhiHaiQuanTable> {
                 child: DataTable(
                   columnSpacing: 12,
                   border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-                  headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+                  headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
                   columns: [
                     const DataColumn(
                       label: Text(
@@ -120,7 +121,7 @@ class PhiHaiQuanTableState extends State<PhiHaiQuanTable> {
                       label: Tooltip(
                         message: c,
                         child: Text(
-                          c.length > 10 ? c.substring(0, 10) + "..." : c,
+                          c.length > 10 ? "${c.substring(0, 10)}..." : c,
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),

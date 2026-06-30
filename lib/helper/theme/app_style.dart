@@ -3,11 +3,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kho555/helper/theme/admin_theme.dart';
-import 'package:kho555/helper/widgets/my.dart';
-import 'package:kho555/helper/widgets/my_breadcrumb_item.dart';
-import 'package:kho555/helper/widgets/my_constant.dart';
-import 'package:kho555/helper/widgets/my_text_style.dart';
+import 'package:ttk_logistics/helper/theme/admin_theme.dart';
+import 'package:ttk_logistics/helper/widgets/my.dart';
+import 'package:ttk_logistics/helper/widgets/my_breadcrumb_item.dart';
+import 'package:ttk_logistics/helper/widgets/my_constant.dart';
+import 'package:ttk_logistics/helper/widgets/my_text_style.dart';
 
 class MaterialRadius {
   double xs, small, medium, large;

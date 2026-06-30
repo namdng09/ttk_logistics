@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/helper/services/auth_services.dart';
-import 'package:kho555/helper/storage/local_storage.dart';
-import 'package:kho555/helper/utils/app_toast.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/storage/local_storage.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -119,7 +119,7 @@ class DoanhThuChuyenXeController extends MyController {
     isLoading.value = true;
     update();
 
-    print('AuthService.getDoanhThuPhuongTienList ${AuthService.getDoanhThuPhuongTienList}');
+// print('AuthService.getDoanhThuPhuongTienList ${AuthService.getDoanhThuPhuongTienList}'); // TODO: remove debug
 
     final token = await LocalStorage.getUserToken();
     final email = await LocalStorage.getUserEmail();
@@ -207,7 +207,7 @@ class DoanhThuChuyenXeController extends MyController {
       final token = await LocalStorage.getUserToken();
       final email = await LocalStorage.getUserEmail();
 
-      print('AuthService.updateDoanhThuXe ${AuthService.updateDoanhThuXe}');
+// print('AuthService.updateDoanhThuXe ${AuthService.updateDoanhThuXe}'); // TODO: remove debug
 
       final response = await http.post(
         Uri.parse(AuthService.workerUrl),

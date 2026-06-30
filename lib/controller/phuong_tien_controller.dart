@@ -1,14 +1,8 @@
-import 'dart:convert';
 
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../models/api_response.dart';
-import '../models/bap/khach_hang.dart';
-import '../models/bap/nha_xe.dart';
 import '../models/bap/phuong_tien.dart';
-import '../services/khach_hang_service.dart';
-import '../services/nha_xe_service.dart';
 import '../services/phuong_tien_service.dart';
 
 class PhuongTienController extends MyController {

@@ -21,7 +21,7 @@ class ThongTinCoBanSection extends StatelessWidget {
   final List<String> diemDiList;
   final List<String> trongTaiList;
 
-  ThongTinCoBanSection({
+  const ThongTinCoBanSection({
     super.key,
     required this.khachHangList,
     required this.khachHangId,

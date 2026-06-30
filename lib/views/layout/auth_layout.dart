@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/controller/layout/auth_layout_controller.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_flex.dart';
-import 'package:kho555/helper/widgets/my_flex_item.dart';
-import 'package:kho555/helper/widgets/my_responsive.dart';
-import 'package:kho555/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/controller/layout/auth_layout_controller.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_flex.dart';
+import 'package:ttk_logistics/helper/widgets/my_flex_item.dart';
+import 'package:ttk_logistics/helper/widgets/my_responsive.dart';
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
 
 class AuthLayout extends StatelessWidget with UIMixin{
   final Widget? child;

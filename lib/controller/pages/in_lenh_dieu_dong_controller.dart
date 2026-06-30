@@ -1,14 +1,12 @@
 import 'dart:core';
 import 'dart:html' as html;
 import 'dart:convert';
-import 'package:kho555/helper/services/auth_services.dart';
-import 'package:kho555/helper/storage/local_storage.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/storage/local_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:http/http.dart' as http;
-import 'package:printing/printing.dart';
 
 class InLenhDieuDongController extends GetxController {
   final HtmlEditorController htmlController = HtmlEditorController();
@@ -17,7 +15,7 @@ class InLenhDieuDongController extends GetxController {
   var isLoading = false.obs;
   /// 🧩 Hàm lưu lệnh điều động
   Future<bool> luuLenhDieuDongTheoChuyenXe(int nidChuyenXe) async {
-    print('luuLenhDieuDongTheoChuyenXe ${luuLenhDieuDongTheoChuyenXe}');
+// print('luuLenhDieuDongTheoChuyenXe $luuLenhDieuDongTheoChuyenXe'); // TODO: remove debug
     if (isSaving.value) return false;
     isSaving.value = true;
 
@@ -73,7 +71,7 @@ class InLenhDieuDongController extends GetxController {
   }
 
   Future<void> inLenhDieuDong(int nidChuyenXe) async {
-    print('in lenh dieu dong nid chuyen xe ${nidChuyenXe}');
+// print('in lenh dieu dong nid chuyen xe $nidChuyenXe'); // TODO: remove debug
     try {
       Get.dialog(const Center(child: CircularProgressIndicator()),
           barrierDismissible: false);

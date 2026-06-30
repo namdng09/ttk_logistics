@@ -1,9 +1,9 @@
 import 'package:amount_input_formatter/amount_input_formatter.dart';
-import 'package:kho555/controller/pages/config_block_page_controller.dart';
-import 'package:kho555/helper/services/auth_services.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/controller/pages/config_block_page_controller.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -34,7 +34,7 @@ class _CauHinhBaoHiemPageScreenState
     if (match != null) {
       return "${match.group(1)} (${match.group(2)})"; // ví dụ: "1.5–2.4 tấn (9 CBM)"
     }
-    return label.length > 10 ? label.substring(0, 10) + "…" : label;
+    return label.length > 10 ? "${label.substring(0, 10)}…" : label;
   }
 
   bool isVehicleColumn(String key) {

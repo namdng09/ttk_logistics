@@ -1,16 +1,14 @@
-import 'package:kho555/controller/nha_xe_controller.dart';
-import 'package:kho555/controller/phuong_tien_controller.dart';
+import 'package:ttk_logistics/controller/phuong_tien_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:remixicon/remixicon.dart';
 import '../../../../helper/constants/customer_labels.dart';
 import '../../../../helper/theme/admin_theme.dart';
 import '../../../../helper/widgets/my_spacing.dart';
 import '../../../../helper/widgets/my_text.dart';
-import 'package:kho555/widgets/cau_hinh_chi_phi_khach_hang.dart';
 
 import '../../../../services/phuong_tien_service.dart';
 
@@ -60,7 +58,7 @@ class _PhuongTienPageScreen extends State<PhuongTienPageScreen> {
         scrollDirection: Axis.vertical,
         child: DataTable(
           columnSpacing: 16,
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
           columns: [
             ...cols.map(
                   (c) => DataColumn(
@@ -255,7 +253,7 @@ class _PhuongTienPageScreen extends State<PhuongTienPageScreen> {
 
   String shortenLabel(String label, {int maxLength = 20}) {
     if (label.length <= maxLength) return label;
-    return label.substring(0, maxLength) + "...";
+    return "${label.substring(0, maxLength)}...";
   }
 
   int? parseNid(dynamic value) {
@@ -324,7 +322,7 @@ class _PhuongTienPageScreen extends State<PhuongTienPageScreen> {
 
                     // Nhà xe
                     DropdownButtonFormField<int>(
-                      value: selectedNhaXe,
+                      initialValue: selectedNhaXe,
                       dropdownColor: Colors.white,
                       decoration: const InputDecoration(
                         labelText: "Nhà xe",
@@ -349,7 +347,7 @@ class _PhuongTienPageScreen extends State<PhuongTienPageScreen> {
                     // Lái xe
                     DropdownButtonFormField<int>(
                       dropdownColor: Colors.white,
-                      value: selectedLaiXe,
+                      initialValue: selectedLaiXe,
                       decoration: const InputDecoration(
                         isDense: true, // 👈 giảm chiều cao
                         contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12), // 👈 chỉnh padding
@@ -373,7 +371,7 @@ class _PhuongTienPageScreen extends State<PhuongTienPageScreen> {
                     // Loại xe
                     DropdownButtonFormField<String>(
                       dropdownColor: Colors.white,
-                      value: selectedLoaiXe,
+                      initialValue: selectedLoaiXe,
                       decoration: const InputDecoration(
                         isDense: true, // 👈 giảm chiều cao
                         contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12), // 👈 chỉnh padding

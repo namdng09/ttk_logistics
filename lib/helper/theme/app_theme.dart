@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kho555/helper/theme/theme_type.dart';
-import 'package:kho555/helper/widgets/my_text_style.dart';
+import 'package:ttk_logistics/helper/theme/theme_type.dart';
+import 'package:ttk_logistics/helper/widgets/my_text_style.dart';
 
 ThemeData get theme => AppTheme.theme;
 

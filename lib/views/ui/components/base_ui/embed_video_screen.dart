@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/controller/ui/components/base_ui/embed_video_controller.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/helper/widgets/my_flex.dart';
-import 'package:kho555/helper/widgets/my_flex_item.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/controller/ui/components/base_ui/embed_video_controller.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/helper/widgets/my_flex.dart';
+import 'package:ttk_logistics/helper/widgets/my_flex_item.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:video_player/video_player.dart';
 
 

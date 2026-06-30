@@ -2,10 +2,10 @@ import 'package:amount_input_formatter/amount_input_formatter.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/controller/pages/blank_page_controller.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/controller/pages/blank_page_controller.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:intl/intl.dart';
 import '../../../../services/don_hang_service.dart';
 
@@ -163,7 +163,7 @@ class _ThemDonHangPageScreenState extends State<ThemDonHangPageScreen>
                         flex: 2,
                         child: DropdownButtonFormField<int>(
                           dropdownColor: Colors.white,
-                          value: selectedKhachHang,
+                          initialValue: selectedKhachHang,
                           decoration: const InputDecoration(
                             labelText: "Khách hàng",
                             border: OutlineInputBorder(),
@@ -263,7 +263,7 @@ class _ThemDonHangPageScreenState extends State<ThemDonHangPageScreen>
                             showSearchBox: true,
                             constraints: BoxConstraints(maxHeight: 300),
                           ),
-                          onChanged: (val) {
+                          onSelected: (val) {
                             setState(() {
                               selectedDiemDi = val;
                             });
@@ -296,7 +296,7 @@ class _ThemDonHangPageScreenState extends State<ThemDonHangPageScreen>
                             showSearchBox: true,
                             constraints: BoxConstraints(maxHeight: 300),
                           ),
-                          onChanged: (val) {
+                          onSelected: (val) {
                             setState(() {
                               selectedDiemDen = val;
                             });
@@ -317,7 +317,7 @@ class _ThemDonHangPageScreenState extends State<ThemDonHangPageScreen>
                         flex: 2,
                         child: DropdownButtonFormField<int>(
                           dropdownColor: Colors.white,
-                          value: selectedNhaXe,
+                          initialValue: selectedNhaXe,
                           decoration: const InputDecoration(
                             labelText: "Nhà xe",
                             border: OutlineInputBorder(),
@@ -351,7 +351,7 @@ class _ThemDonHangPageScreenState extends State<ThemDonHangPageScreen>
                         flex: 4,
                         child: DropdownButtonFormField<String>(
                           dropdownColor: Colors.white,
-                          value: selectedLoaiXe,
+                          initialValue: selectedLoaiXe,
                           decoration: const InputDecoration(
                             labelText: "Loại xe",
                             border: OutlineInputBorder(),
@@ -393,7 +393,7 @@ class _ThemDonHangPageScreenState extends State<ThemDonHangPageScreen>
                             ),
                           )
                               : DropdownButtonFormField<int>(
-                            value: selectedBienKiemSoat,
+                            initialValue: selectedBienKiemSoat,
                             dropdownColor: Colors.white,
                             decoration: const InputDecoration(
                               labelText: "Biển kiểm soát",
@@ -430,7 +430,7 @@ class _ThemDonHangPageScreenState extends State<ThemDonHangPageScreen>
                           flex: 2,
                           child: DropdownButtonFormField<int>(
                             dropdownColor: Colors.white,
-                            value: selectedTaiXe,
+                            initialValue: selectedTaiXe,
                             decoration: const InputDecoration(
                               labelText: "Tài xế",
                               border: OutlineInputBorder(),

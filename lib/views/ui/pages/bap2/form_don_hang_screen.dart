@@ -1,14 +1,12 @@
-import 'dart:convert';
 
-import 'package:amount_input_formatter/amount_input_formatter.dart';
-import 'package:kho555/controller/pages/form_don_hang_controller.dart';
-import 'package:kho555/widgets/date_picker_field.dart';
-import 'package:kho555/widgets/thousands_separator_input_formatter.dart';
+import 'package:ttk_logistics/controller/pages/form_don_hang_controller.dart';
+import 'package:ttk_logistics/widgets/date_picker_field.dart';
+import 'package:ttk_logistics/widgets/thousands_separator_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:intl/intl.dart';
 
 class FormDonHangScreen extends StatefulWidget {
@@ -80,7 +78,7 @@ class _FormDonHangScreenState extends State<FormDonHangScreen> with UIMixin {
                                     children: [
                                       DropdownButtonFormField<String>(
                                         dropdownColor: Colors.white,
-                                        value: controller.selectedKhachHang,
+                                        initialValue: controller.selectedKhachHang,
                                         isExpanded: true,
                                         onChanged: controller.isLoadingKhachHangDetail
                                             ? null // 🔒 disable khi loading
@@ -395,7 +393,7 @@ class _FormDonHangScreenState extends State<FormDonHangScreen> with UIMixin {
                   child: DropdownButtonFormField<String>(
                     dropdownColor: Colors.white,
                     isExpanded: true,
-                    value: controller.diemDiList.contains(item["diemDi"])
+                    initialValue: controller.diemDiList.contains(item["diemDi"])
                         ? item["diemDi"]
                         : null,
                     decoration: const InputDecoration(
@@ -433,7 +431,7 @@ class _FormDonHangScreenState extends State<FormDonHangScreen> with UIMixin {
                   child: DropdownButtonFormField<String>(
                     dropdownColor: Colors.white,
                     isExpanded: true,
-                    value: controller.diemDenList.contains(item["diemDen"])
+                    initialValue: controller.diemDenList.contains(item["diemDen"])
                         ? item["diemDen"]
                         : null,
                     decoration: const InputDecoration(
@@ -463,7 +461,7 @@ class _FormDonHangScreenState extends State<FormDonHangScreen> with UIMixin {
                   child: DropdownButtonFormField<String>(
                     dropdownColor: Colors.white,
                     isExpanded: true,
-                    value: controller.trongTaiList.contains(item["trongTai"])
+                    initialValue: controller.trongTaiList.contains(item["trongTai"])
                         ? item["trongTai"]
                         : null,
                     decoration: const InputDecoration(

@@ -5,10 +5,10 @@ packages:
     dependency: "direct main"
     description:
       name: amount_input_formatter
-      sha256: "828d343f453461e9333533b4186e6886c73988ef0db813a3f5fbc2fd491a593a"
+      sha256: b37faac0e72123ed3fe1f00d0358cf94eaf19be14a2c562cd59d90a7b49688a8
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.0"
+    version: "0.2.1"
   archive:
     dependency: transitive
     description:
@@ -90,7 +90,7 @@ packages:
     source: hosted
     version: "1.2.1"
   collection:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: collection
       sha256: "2f5709ae4d3d59dd8f7cd309b4e023046b57d8a6c82130785d2b0e5868084e76"
@@ -157,10 +157,10 @@ packages:
     dependency: "direct main"
     description:
       name: dropdown_search
-      sha256: c29b3e5147a82a06a4a08b3b574c51cb48cc17ad89893d53ee72a6f86643622e
+      sha256: f9414cca28d6414fdc1250f78a052bcb7ddb596f5a1affbca8e79737a979a60a
       url: "https://pub.dev"
     source: hosted
-    version: "6.0.2"
+    version: "7.0.0"
   fake_async:
     dependency: transitive
     description:
@@ -457,10 +457,10 @@ packages:
     dependency: "direct main"
     description:
       name: google_fonts
-      sha256: ba03d03bcaa2f6cb7bd920e3b5027181db75ab524f8891c8bc3aa603885b8055
+      sha256: "4e9391085e524954a51e3625b7c9c7e9851dc3f376603208bb45c24b9a66255d"
       url: "https://pub.dev"
     source: hosted
-    version: "6.3.3"
+    version: "8.1.0"
   google_maps:
     dependency: transitive
     description:
@@ -542,7 +542,7 @@ packages:
     source: hosted
     version: "2.0.0"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -1041,10 +1041,10 @@ packages:
     dependency: "direct main"
     description:
       name: remixicon
-      sha256: "9a0e6a67d622a1d6ddc5e5cff4898f9711ec8880fc2ebeb720f6e0bc268ea905"
+      sha256: "4b8e334b78b0fbf05fb7abe1b48f3c3df9e4a11ab767e3f3e7f1cc36dc1e046e"
       url: "https://pub.dev"
     source: hosted
-    version: "1.4.1"
+    version: "4.9.3"
   sanitize_html:
     dependency: transitive
     description:
@@ -1166,58 +1166,58 @@ packages:
     dependency: "direct main"
     description:
       name: syncfusion_flutter_calendar
-      sha256: "8e8a4eef01d6a82ae2c17e76d497ff289ded274de014c9f471ffabc12d1e2e71"
+      sha256: "984fe1abd9ac38d50557c978eea5ca74c1601e221975eb06088e3b77a3fd69e6"
       url: "https://pub.dev"
     source: hosted
-    version: "30.2.7"
+    version: "33.2.15"
   syncfusion_flutter_charts:
     dependency: "direct main"
     description:
       name: syncfusion_flutter_charts
-      sha256: "68fdb029dad34a46e4c9cfad8ad66fe29db7b303bd96849261ab2b23a168d0e8"
+      sha256: "3c312fe43a7c014b4fc778230c769ad0ef8c7c160af24d851b93fb171006b382"
       url: "https://pub.dev"
     source: hosted
-    version: "30.2.7"
+    version: "33.2.15"
   syncfusion_flutter_core:
     dependency: "direct main"
     description:
       name: syncfusion_flutter_core
-      sha256: bfd026c0f9822b49ff26fed11cd3334519acb6a6ad4b0c81d9cd18df6af1c4c0
+      sha256: f054f5636c618dbf1a155409d0b5f3e70f8e9beb7ac7a8fdc870653968875e7d
       url: "https://pub.dev"
     source: hosted
-    version: "30.2.7"
+    version: "33.2.15"
   syncfusion_flutter_datepicker:
     dependency: transitive
     description:
       name: syncfusion_flutter_datepicker
-      sha256: b5f35cc808e91b229d41613efe71dadab1549a35bfd493f922fc06ccc2fe908c
+      sha256: "85ed94df2aab81c290e68a8dc67fd8b138d6d7a447ae3098e59d5e1f5da4abc0"
       url: "https://pub.dev"
     source: hosted
-    version: "30.2.7"
+    version: "33.2.15"
   syncfusion_flutter_maps:
     dependency: "direct main"
     description:
       name: syncfusion_flutter_maps
-      sha256: "55e58f505530bf9b5ac9bc73cbe03ff537348419099391db822b8f2ed598f5df"
+      sha256: "2b799adef285ac4390a71d16b84523a4f5b7908623266befe647db59da9c37e5"
       url: "https://pub.dev"
     source: hosted
-    version: "30.2.7"
+    version: "33.2.15"
   syncfusion_flutter_sliders:
     dependency: "direct main"
     description:
       name: syncfusion_flutter_sliders
-      sha256: e64e1a2770472eda2a51e017e3cf451e5ce73f260cb854b5f0ae01e885541b6c
+      sha256: aa4ea216fb9290caac2e2f3e9b24f061ae3df19d4b1581d8fceefc2ac9e54c4c
       url: "https://pub.dev"
     source: hosted
-    version: "30.2.7"
+    version: "33.2.15"
   syncfusion_localizations:
     dependency: transitive
     description:
       name: syncfusion_localizations
-      sha256: bb32b07879b4c1dee5d4c8ad1c57343a4fdae55d65a87f492727c11b68f23164
+      sha256: "489624cd1481198d1460edb988b8959532ee346e0aed220b8df9288fbd463409"
       url: "https://pub.dev"
     source: hosted
-    version: "30.2.7"
+    version: "33.2.15"
   term_glyph:
     dependency: transitive
     description:
@@ -1238,18 +1238,18 @@ packages:
     dependency: "direct main"
     description:
       name: timelines_plus
-      sha256: d621d8724bc8f64957127c1195436996548e166296682d081bedcdb0abe1b638
+      sha256: b23214b9ac98f4533ead6c46998bc189ce176aede9e7bb7a3d096f1b85dc8dee
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.8"
+    version: "2.0.0"
   timezone:
     dependency: transitive
     description:
       name: timezone
-      sha256: dd14a3b83cfd7cb19e7888f1cbc20f258b8d71b54c06f79ac585f14093a287d1
+      sha256: "981d1020d6ef8fe1e7b3de5054e5b25579ae7c403d7734adc508ffc47668e9cb"
       url: "https://pub.dev"
     source: hosted
-    version: "0.10.1"
+    version: "0.11.1"
   typed_data:
     dependency: transitive
     description:

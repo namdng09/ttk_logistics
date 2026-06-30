@@ -1,4 +1,4 @@
-import 'package:kho555/helper/theme/theme_customizer.dart';
+import 'package:ttk_logistics/helper/theme/theme_customizer.dart';
 import 'package:get/get_state_manager/get_state_manager.dart';
 
 abstract class MyController extends GetxController {

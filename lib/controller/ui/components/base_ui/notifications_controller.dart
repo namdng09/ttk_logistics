@@ -4,12 +4,12 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
-import 'package:kho555/helper/extensions/string.dart';
-import 'package:kho555/helper/theme/admin_theme.dart';
-import 'package:kho555/helper/widgets/my_button.dart';
-import 'package:kho555/helper/widgets/my_spacing.dart';
-import 'package:kho555/helper/widgets/my_text.dart';
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/helper/extensions/string.dart';
+import 'package:ttk_logistics/helper/theme/admin_theme.dart';
+import 'package:ttk_logistics/helper/widgets/my_button.dart';
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/helper/widgets/my_text.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 
 class NotificationsController extends MyController {
   bool isShowBasicNotification = false;

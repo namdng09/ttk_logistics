@@ -1,8 +1,8 @@
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/helper/widgets/my_text_style.dart';
-import 'package:kho555/models/email_model.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/helper/widgets/my_text_style.dart';
+import 'package:ttk_logistics/models/email_model.dart';
 
 class InboxController extends MyController {
   List<EmailModel> emails = [];

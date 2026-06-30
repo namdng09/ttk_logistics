@@ -1,9 +1,7 @@
-import 'dart:ui';
 
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_rx/src/rx_types/rx_types.dart';
 
 import '../../models/bap/config_block.dart';
 import '../../services/config_block_service.dart';
@@ -18,7 +16,7 @@ class ConfigBlockPageController extends MyController {
       isLoading.value = true;
       update(); // báo UI rebuild
       config.value = await ConfigBlockService.fetchConfigBlock(url, data);
-      print('config.value ${config.value}');
+// print('config.value ${config.value}'); // TODO: remove debug
     } catch (e) {
       Get.snackbar("Lỗi", "Không tải được config $url: $e");
     } finally {

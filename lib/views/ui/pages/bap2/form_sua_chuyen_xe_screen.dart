@@ -1,24 +1,20 @@
 import 'dart:convert';
 
-import 'package:kho555/helper/utils/app_toast.dart';
-import 'package:kho555/helper/utils/utils.dart';
-import 'package:kho555/helper/widgets/my_cost_row.dart';
-import 'package:kho555/helper/widgets/my_datetime_field.dart';
-import 'package:kho555/helper/widgets/my_dropdown_field.dart';
-import 'package:kho555/helper/widgets/tra_diem_va_chi_phi_khac_row.dart';
-import 'package:kho555/widgets/chi_phi_co_dinh_lai_xe_widget.dart';
-import 'package:kho555/widgets/date_picker_field.dart';
-import 'package:kho555/widgets/thousands_separator_input_formatter.dart';
-import 'package:kho555/widgets/xe_info_form.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
+import 'package:ttk_logistics/helper/utils/utils.dart';
+import 'package:ttk_logistics/helper/widgets/my_datetime_field.dart';
+import 'package:ttk_logistics/helper/widgets/my_dropdown_field.dart';
+import 'package:ttk_logistics/widgets/date_picker_field.dart';
+import 'package:ttk_logistics/widgets/thousands_separator_input_formatter.dart';
+import 'package:ttk_logistics/widgets/xe_info_form.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/controller/pages/chuyen_xe_controller.dart';
-import 'package:kho555/controller/pages/form_don_hang_controller.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/controller/pages/chuyen_xe_controller.dart';
+import 'package:ttk_logistics/controller/pages/form_don_hang_controller.dart';
 
 class FormSuaChuyenXeScreen extends StatefulWidget {
   const FormSuaChuyenXeScreen({super.key});
@@ -38,7 +34,7 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
   final TextEditingController _phiLuuCaCtrl = TextEditingController();
 
   Map<String, dynamic> thongTinNhaXeNgoai = {};
-  Map<String, TextEditingController> _controllersBaoHiem = {};
+  final Map<String, TextEditingController> _controllersBaoHiem = {};
   final TextEditingController _quaKhoQuaTaiCtrl = TextEditingController();
 
   double phiCuocXeNCC = 0;
@@ -92,7 +88,7 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
 
   double phiBaoHiemNCC = 0;
   Map<String, dynamic> phiBaoHiemChiTietNCC = {};
-  Map<String, TextEditingController> _controllersBaoHiemNCC = {};
+  final Map<String, TextEditingController> _controllersBaoHiemNCC = {};
 
   // ====================
 // 🔹 DỊCH VỤ / TOGGLE
@@ -347,7 +343,7 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
 
       // ✅ Nếu đã có điểm đi của chuyến xe, lọc danh sách điểm đến tương ứng
       List<String> diemDen = [];
-      print('diemDiCtrl.text ${diemDiCtrl.text}');
+// print('diemDiCtrl.text ${diemDiCtrl.text}'); // TODO: remove debug
       if (diemDiCtrl.text.isNotEmpty) {
         final Set<String> diemDenSet = {};
         for (final item in cuocList) {
@@ -517,7 +513,7 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
                                               controller.currentChuyenXe!["field_thong_tin_json_khach_hang"]['field_phi_cung_tuyen_khac_tinh'] = khachHangDetail['field_thong_tin_json_khach_hang']['field_phi_cung_tuyen_khac_tinh'];
                                               controller.currentChuyenXe!["field_thong_tin_json_khach_hang"]['field_cau_hinh_gio_luu_ca'] = khachHangDetail['field_thong_tin_json_khach_hang']['field_cau_hinh_gio_luu_ca'];
 
-                                              print('cuoc van tai moi ${controller.currentChuyenXe!['field_cuoc_van_chuyen_khach_hang']}');
+// print('cuoc van tai moi ${controller.currentChuyenXe!['field_cuoc_van_chuyen_khach_hang']}'); // TODO: remove debug
                                             });
                                             _extractDiemDiVaDiemDen();
                                             // 🔁 Re-calc các phí phụ thuộc KH
@@ -608,7 +604,7 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
                                     index: 0,
                                     tag: 'form-sua-chuyen-xe', // ✅ Truyền tag vào
                                     onXeChanged: (xe, isXeNha) {
-                                      print('xe ${xe}');
+// print('xe $xe'); // TODO: remove debug
                                       if (xe["bks"] != null) bksCtrl.text = xe["bks"];
                                       if (xe["loai_xe"] != null) trongTaiCtrl.text = xe["loai_xe"];
 
@@ -1582,8 +1578,9 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
                                                   onChanged: (v) {
                                                     setState(() {
                                                       controller.currentChuyenXe?['field_thong_tin_json']!['tra_them_diem'][i]["cungTinhKhacTuyen"] = v;
-                                                      if (v == true)
+                                                      if (v == true) {
                                                         controller.currentChuyenXe?['field_thong_tin_json']!['tra_them_diem'][i]["cungTuyenKhacTinh"] = false;
+                                                      }
                                                     });
                                                     _tinhPhiThem(i);
                                                   },
@@ -1620,7 +1617,7 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
                                                               controller.currentChuyenXe!['field_thong_tin_json']['tra_them_diem'][i]['phiThem'] = value;
                                                             } else {
                                                               controller.currentChuyenXe!['field_thong_tin_json']['tra_them_diem'][i]['phiThemNCC'] = value;
-                                                              print('phi them ncc ${controller.currentChuyenXe!['field_thong_tin_json']['tra_them_diem'][i]['phiThemNCC']}');
+// print('phi them ncc ${controller.currentChuyenXe!['field_thong_tin_json']['tra_them_diem'][i]['phiThemNCC']}'); // TODO: remove debug
                                                             }
                                                           });
 
@@ -1876,31 +1873,33 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
 
   void TinhCuocXeChung(isChonKhach){
     final jsonCuocVanChuyen = isChonKhach ? controller.currentChuyenXe!['field_cuoc_van_chuyen_khach_hang']: controller.currentChuyenXe!['field_cuoc_van_chuyen_nha_cc'];
-    print('jsonCuocVanChuyen ${jsonCuocVanChuyen}');
+// print('jsonCuocVanChuyen $jsonCuocVanChuyen'); // TODO: remove debug
     for (final item in jsonCuocVanChuyen) {
       if (item["Điểm đi"] == diemDiCtrl.text && (item["Điểm đến mới"] == diemDenCtrl.text || item["Điểm đến cũ"] == diemDenCtrl.text)) {
         // final trongTaiKey = trongTaiCtrl.text;
         final cuocValue = item[controller.currentChuyenXe?["field_thong_tin_json"]?["trong_tai"]];
-        print('cuocValue ${cuocValue}');
+// print('cuocValue $cuocValue'); // TODO: remove debug
         if (cuocValue != null) {
           final parsed = double.tryParse(cuocValue.toString().replaceAll('.', '').replaceAll(',', '.')) ?? 0;
 
           setState(() {
-            if(isChonKhach)
+            if(isChonKhach) {
               controller.currentChuyenXe?['field_thong_tin_json']['phi_cuoc_xe'] = parsed;
-            else
+            } else {
               controller.currentChuyenXe?['field_thong_tin_json']['chi_phi_ncc']['phi_cuoc_xe'] = parsed;
+            }
           });
-          print('parsed ${parsed}');
+// print('parsed $parsed'); // TODO: remove debug
           return;
         }
       }
     }
     setState(() {
-      if(isChonKhach)
+      if(isChonKhach) {
         controller.currentChuyenXe?['field_thong_tin_json']['phi_cuoc_xe'] = 0;
-      else
+      } else {
         controller.currentChuyenXe?['field_thong_tin_json']['chi_phi_ncc']['phi_cuoc_xe'] = 0;
+      }
     });
   }
 
@@ -1960,10 +1959,11 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
       _commitCuocXe();
     }else{
       setState(() {
-        if(isTinhPhiKhach)
+        if(isTinhPhiKhach) {
           controller.currentChuyenXe?['field_thong_tin_json']['phi_cuoc_xe'] = 0;
-        else
+        } else {
           controller.currentChuyenXe?['field_thong_tin_json']['chi_phi_ncc']['phi_cuoc_xe'] = 0;
+        }
       });
       phiCuocXeCtrl.text = '0';
     }
@@ -2032,10 +2032,11 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
       _commitPhiQuaKhoQuaTai();
     }else{
       setState(() {
-        if(isTinhPhiKhach)
+        if(isTinhPhiKhach) {
           controller.currentChuyenXe?['field_thong_tin_json']['qua_kho_qua_tai'] = 0;
-        else
+        } else {
           controller.currentChuyenXe?['field_thong_tin_json']['chi_phi_ncc']['qua_kho_qua_tai'] = 0;
+        }
       });
       _quaKhoQuaTaiCtrl.text = '0';
     }
@@ -2182,10 +2183,11 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
     // ====================================================
     setState(() {
       phiLuuCa = phi;
-      if(isKhachHang)
+      if(isKhachHang) {
         controller.currentChuyenXe?['field_thong_tin_json']?['phi_luu_ca'] = phi;
-      else
+      } else {
         controller.currentChuyenXe?['field_thong_tin_json']?['chi_phi_ncc']['phi_luu_ca'] = phi;
+      }
 
       controller.currentChuyenXe?['field_thong_tin_json']?['so_ngay_luu_ca'] = soNgayLuuCa;
     });
@@ -2424,7 +2426,7 @@ class _FormSuaChuyenXeScreenState extends State<FormSuaChuyenXeScreen> with UIMi
       result[label] = item[trongTai];
     }
 
-    print('result ${result}');
+// print('result $result'); // TODO: remove debug
     return result;
   }
   // 🔁 2️⃣ Hàm REFILL controller Hải quan (QUAN TRỌNG NHẤT)

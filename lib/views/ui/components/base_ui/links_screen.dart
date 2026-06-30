@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/controller/ui/components/base_ui/links_controller.dart';
-import 'package:kho555/helper/utils/my_shadow.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_card.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/helper/widgets/my_flex.dart';
-import 'package:kho555/helper/widgets/my_flex_item.dart' show MyFlexItem;
-import 'package:kho555/helper/widgets/my_spacing.dart';
-import 'package:kho555/helper/widgets/my_text.dart';
-import 'package:kho555/helper/widgets/my_text_style.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/controller/ui/components/base_ui/links_controller.dart';
+import 'package:ttk_logistics/helper/utils/my_shadow.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_card.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/helper/widgets/my_flex.dart';
+import 'package:ttk_logistics/helper/widgets/my_flex_item.dart' show MyFlexItem;
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/helper/widgets/my_text.dart';
+import 'package:ttk_logistics/helper/widgets/my_text_style.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 
 
 class LinksScreen extends StatefulWidget {

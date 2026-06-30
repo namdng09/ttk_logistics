@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:kho555/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
 
 class CauHinhGioLuuCaController extends GetxController {
   /// Danh sách dữ liệu cấu hình
@@ -34,7 +34,7 @@ class CauHinhGioLuuCaController extends GetxController {
       if (response.statusCode == 200) {
         final res = jsonDecode(response.body);
         dynamic content = res["content"];
-        print('content ${content}');
+// print('content $content'); // TODO: remove debug
 
         // Nếu content là chuỗi JSON -> decode
         if (content is String) {

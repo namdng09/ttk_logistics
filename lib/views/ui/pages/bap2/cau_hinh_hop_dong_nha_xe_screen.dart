@@ -1,10 +1,10 @@
-import 'package:kho555/controller/pages/cau_hinh_hop_dong_nha_xe_controller.dart';
+import 'package:ttk_logistics/controller/pages/cau_hinh_hop_dong_nha_xe_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/utils/my_shadow.dart';
-import 'package:kho555/helper/widgets/my_card.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/utils/my_shadow.dart';
+import 'package:ttk_logistics/helper/widgets/my_card.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 
 class CauHinhHopDongNhaXeScreen extends StatefulWidget {
@@ -75,10 +75,10 @@ class _CauHinhHopDongNhaXeScreenState
                     callbacks: Callbacks(onInit: () async {
                       // Đảm bảo setText chỉ khi editor đã sẵn sàng và có nội dung
                       final currentContent = controller.initialContent.value;
-                      print("🧩 Editor onInit, nội dung initial: ${currentContent.isNotEmpty ? 'Có nội dung' : 'Trống'}");
+// print("🧩 Editor onInit, nội dung initial: ${currentContent.isNotEmpty ? 'Có nội dung' : 'Trống'}"); // TODO: remove debug
                       if (currentContent.isNotEmpty) {
                         controller.htmlController.setText(currentContent);
-                        print("✅ Đã chèn nội dung hợp đồng vào editor");
+// print("✅ Đã chèn nội dung hợp đồng vào editor"); // TODO: remove debug
                       }
                     }),
                     htmlEditorOptions: const HtmlEditorOptions(

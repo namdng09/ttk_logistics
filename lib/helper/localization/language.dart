@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:kho555/helper/storage/local_storage.dart';
-import 'package:kho555/helper/theme/theme_customizer.dart';
+import 'package:ttk_logistics/helper/storage/local_storage.dart';
+import 'package:ttk_logistics/helper/theme/theme_customizer.dart';
 
 class Language {
   final Locale locale;

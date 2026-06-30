@@ -1,11 +1,10 @@
-import 'package:kho555/helper/services/navigation_service.dart';
-import 'package:kho555/helper/storage/local_storage.dart';
-import 'package:kho555/helper/theme/app_style.dart';
-import 'package:kho555/helper/localization/language.dart';
-import 'package:kho555/helper/theme/app_notifier.dart';
-import 'package:kho555/helper/theme/app_theme.dart';
-import 'package:kho555/helper/theme/theme_customizer.dart';
-import 'package:kho555/routes.dart';
+import 'package:ttk_logistics/helper/services/navigation_service.dart';
+import 'package:ttk_logistics/helper/storage/local_storage.dart';
+import 'package:ttk_logistics/helper/theme/app_style.dart';
+import 'package:ttk_logistics/helper/theme/app_notifier.dart';
+import 'package:ttk_logistics/helper/theme/app_theme.dart';
+import 'package:ttk_logistics/helper/theme/theme_customizer.dart';
+import 'package:ttk_logistics/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -29,7 +28,7 @@ Future<void> main() async {
   await ThemeCustomizer.init();
 
   // Load trạng thái đăng nhập từ LocalStorage
-  AuthService.isLoggedIn = await LocalStorage.getLoggedInUser() ?? false;
+  AuthService.isLoggedIn = LocalStorage.getLoggedInUser() ?? false;
 
   // runApp(
   //   ChangeNotifierProvider<AppNotifier>(
@@ -57,7 +56,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<AppNotifier>(
-      builder: (_, notifier, __) {
+      builder: (_, notifier, _) {
         return GetMaterialApp(
           debugShowCheckedModeBanner: false,
 

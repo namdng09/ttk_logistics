@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'package:kho555/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
 import 'package:http/http.dart' as http;
 import '../helper/storage/local_storage.dart';
 import '../models/api_response.dart';
-import '../models/bap/khach_hang.dart';
-import '../models/bap/nha_xe.dart';
 import '../models/bap/phuong_tien.dart';
 
 class PhuongTienService {
@@ -42,7 +40,7 @@ class PhuongTienService {
       final token = await LocalStorage.getUserToken();
       final email = await LocalStorage.getUserEmail();
 
-      print('AuthService.savePhuongTien ${AuthService.savePhuongTien}');
+// print('AuthService.savePhuongTien ${AuthService.savePhuongTien}'); // TODO: remove debug
       final response = await http.post(
         Uri.parse(AuthService.workerUrl),
         headers: {"Content-Type": "application/json"},
@@ -57,11 +55,12 @@ class PhuongTienService {
         }),
       );
 
-      print("response.body Luu phuong tien ${response.body}");
+// print("response.body Luu phuong tien ${response.body}"); // TODO: remove debug
       if (response.statusCode == 200) {
         final res = jsonDecode(response.body);
-        if(res['success'])
+        if(res['success']) {
           return ApiResponse.fromJson(res);
+        }
         return ApiResponse(
           success: false,
           message: res['content']

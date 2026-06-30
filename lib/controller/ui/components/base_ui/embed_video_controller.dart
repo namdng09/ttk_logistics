@@ -1,4 +1,4 @@
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 import 'package:video_player/video_player.dart';
 
 class EmbedVideoController extends MyController {

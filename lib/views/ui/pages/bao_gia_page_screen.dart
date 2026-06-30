@@ -1,12 +1,11 @@
-import 'package:kho555/controller/pages/bao_gia_page_controller.dart';
+import 'package:ttk_logistics/controller/pages/bao_gia_page_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import '../../../helper/widgets/my_spacing.dart';
 import '../../../helper/widgets/my_text.dart';
-import '../../../services/bao_gia_service.dart';
 
 class BaoGiaPageScreen extends StatefulWidget {
   const BaoGiaPageScreen({super.key});
@@ -49,7 +48,7 @@ class _BaoGiaPageScreenState extends State<BaoGiaPageScreen> with UIMixin {
     return SizedBox(
       width: width,
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         hint: MyText.bodyMedium(hint, fontWeight: 600),
         isExpanded: true,
         dropdownColor: contentTheme.onPrimary,
@@ -76,7 +75,7 @@ class _BaoGiaPageScreenState extends State<BaoGiaPageScreen> with UIMixin {
         Expanded(
           flex: 1,
           child: DropdownButtonFormField<String>(
-            value: row.danhMuc,
+            initialValue: row.danhMuc,
             hint: const Text("Chọn danh mục"),
             isExpanded: true,
             dropdownColor: contentTheme.onPrimary,
@@ -175,7 +174,7 @@ class _BaoGiaPageScreenState extends State<BaoGiaPageScreen> with UIMixin {
         cells: [
           DataCell(
             DropdownButtonFormField<String>(
-              value: row.danhMucPhi,
+              initialValue: row.danhMucPhi,
               hint: const Text("Chọn"),
               isExpanded: true,
               items: ["Phí mở tờ khai", "Phí dịch vụ", "Phí xử lý"]
@@ -202,7 +201,7 @@ class _BaoGiaPageScreenState extends State<BaoGiaPageScreen> with UIMixin {
                 onChanged: (val) => row.giaTheoLoaiXe[e] = val,
               ),
             );
-          }).toList(),
+          }),
           DataCell(
             IconButton(
               onPressed: () => onAdd(),
@@ -230,7 +229,7 @@ class _BaoGiaPageScreenState extends State<BaoGiaPageScreen> with UIMixin {
             columnSpacing: 12,
             columns: [
               const DataColumn(label: Text("Danh mục phí")),
-              ...loaiXe.map((e) => DataColumn(label: Text(e))).toList(),
+              ...loaiXe.map((e) => DataColumn(label: Text(e))),
               const DataColumn(label: Text("Thêm")),
               const DataColumn(label: Text("Xoá")),
             ],

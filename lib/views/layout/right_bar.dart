@@ -1,7 +1,7 @@
-import 'package:kho555/helper/theme/theme_customizer.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_spacing.dart';
-import 'package:kho555/helper/widgets/my_text.dart';
+import 'package:ttk_logistics/helper/theme/theme_customizer.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/helper/widgets/my_text.dart';
 import 'package:flutter/material.dart';
 
 // typedef void OnLeftBarColorSchemeChange(LeftBarThemeType leftBarThemeType);

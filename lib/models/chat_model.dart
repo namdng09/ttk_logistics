@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
-import 'package:kho555/helper/services/json_decoder.dart';
-import 'package:kho555/models/identifier_model.dart';
+import 'package:ttk_logistics/helper/services/json_decoder.dart';
+import 'package:ttk_logistics/models/identifier_model.dart';
 
 class ChatModel extends IdentifierModel {
   final String firstName, image, email;

@@ -6,6 +6,7 @@ import 'package:amount_input_formatter/amount_input_formatter.dart';
 
 class ChiPhiHangNangTable extends StatefulWidget {
   final Map<String, dynamic> customer;
+  @override
   final GlobalKey<ChiPhiHangNangTableState> key;
 
   const ChiPhiHangNangTable({
@@ -39,9 +40,9 @@ class ChiPhiHangNangTableState
     super.initState();
     final rawJson = widget.customer['field_phi_hang_nang'] ?? '[]';
     final fixedJson = fixToJson(rawJson);
-    print("fixedJson $fixedJson"); // sẽ thành JSON hợp lệ
+//     print("fixedJson $fixedJson"); // sẽ thành JSON hợp lệ
     final parsed = jsonDecode(fixedJson);
-    print('rawJson ${rawJson}');
+// print('rawJson $rawJson'); // TODO: remove debug
     // final List<dynamic> parsed = jsonDecode(rawJson);
 
     // Tách phần dữ liệu loại xe và phần config
@@ -71,7 +72,7 @@ class ChiPhiHangNangTableState
           child: DataTable(
             border: TableBorder.all(color: Colors.grey.shade300, width: 1),
             headingRowColor:
-            MaterialStateProperty.all(Colors.grey.shade100),
+            WidgetStateProperty.all(Colors.grey.shade100),
             columns: const [
               DataColumn(
                 label: Text(

@@ -1,12 +1,9 @@
 import 'dart:convert';
-import 'package:kho555/controller/pages/chuyen_xe_controller.dart';
-import 'package:kho555/helper/extensions/extensions.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
-import 'package:kho555/views/ui/pages/bap2/form_sua_chuyen_xe_screen.dart';
-import 'package:kho555/widgets/dialog_sua_chuyen_xe.dart';
-import 'package:kho555/widgets/thousands_separator_input_formatter.dart';
+import 'package:ttk_logistics/controller/pages/chuyen_xe_controller.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
+import 'package:ttk_logistics/widgets/dialog_sua_chuyen_xe.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -382,8 +379,8 @@ class _ChuyenXeScreenState extends State<ChuyenXeScreen> with UIMixin {
 
       // ======== Dòng dữ liệu ========
       return DataRow(
-          color: MaterialStateProperty.resolveWith<Color?>(
-                (Set<MaterialState> states) {
+          color: WidgetStateProperty.resolveWith<Color?>(
+                (Set<WidgetState> states) {
               final isHighlighted = controller.highlightedRowId?.value == item["nid"].toString();
               return isHighlighted ? Colors.yellow.shade100 : null;
             },
@@ -594,7 +591,7 @@ class _ChuyenXeScreenState extends State<ChuyenXeScreen> with UIMixin {
                         controller: _verticalController,
                         scrollDirection: Axis.vertical,
                         child: DataTable(
-                          headingRowColor: MaterialStateProperty.all(
+                          headingRowColor: WidgetStateProperty.all(
                               Colors.grey.shade200),
                           headingRowHeight: 50,
                           dataRowHeight: 56,

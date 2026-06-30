@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
-import 'package:kho555/helper/widgets/editable_cell.dart';
-import 'package:kho555/controller/pages/cau_hinh_phi_luu_ca_controller.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/widgets/editable_cell.dart';
+import 'package:ttk_logistics/controller/pages/cau_hinh_phi_luu_ca_controller.dart';
 
 class CauHinhPhiLuuCaScreen extends StatefulWidget {
   const CauHinhPhiLuuCaScreen({super.key});
@@ -253,7 +253,7 @@ class _CauHinhPhiLuuCaScreenState extends State<CauHinhPhiLuuCaScreen> {
 
   Widget _buildTable(List<Map<String, dynamic>> rows, List<String> columns) {
     return DataTable(
-      headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
+      headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
       headingRowHeight: 72,
       dataRowHeight: 44,
       columns: [

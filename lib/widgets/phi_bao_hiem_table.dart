@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 class PhiBaoHiemTable extends StatefulWidget {
   final Map<String, dynamic> customer;
+  @override
   final GlobalKey<PhiBaoHiemTableState> key;
 
   const PhiBaoHiemTable({required this.customer, required this.key})
@@ -55,7 +56,7 @@ class PhiBaoHiemTableState extends State<PhiBaoHiemTable> {
       scrollDirection: Axis.horizontal,
       child: DataTable(
         border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-        headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+        headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
         columns: columns
             .map((c) => DataColumn(
           label: Text(

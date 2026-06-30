@@ -1,6 +1,6 @@
-import 'package:kho555/helper/widgets/my_display_type.dart';
-import 'package:kho555/helper/widgets/my_screen_media.dart';
-import 'package:kho555/helper/widgets/my_screen_media_type.dart';
+import 'package:ttk_logistics/helper/widgets/my_display_type.dart';
+import 'package:ttk_logistics/helper/widgets/my_screen_media.dart';
+import 'package:ttk_logistics/helper/widgets/my_screen_media_type.dart';
 import 'package:flutter/material.dart';
 
 class MyFlexItem extends StatelessWidget {

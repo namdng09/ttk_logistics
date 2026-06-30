@@ -1,4 +1,4 @@
-import 'package:kho555/helper/widgets/my_screen_media.dart';
+import 'package:ttk_logistics/helper/widgets/my_screen_media.dart';
 
 export 'my_display_type.dart';
 export 'my_screen_media.dart';

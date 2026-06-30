@@ -1,5 +1,5 @@
-import 'package:kho555/helper/utils/my_string_utils.dart';
-import 'package:kho555/helper/widgets/my_field_validator.dart';
+import 'package:ttk_logistics/helper/utils/my_string_utils.dart';
+import 'package:ttk_logistics/helper/widgets/my_field_validator.dart';
 
 class MyEmailValidator extends MyFieldValidatorRule<String> {
   @override

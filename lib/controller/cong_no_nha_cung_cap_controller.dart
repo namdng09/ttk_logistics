@@ -1,13 +1,11 @@
 import 'dart:convert';
 
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/helper/services/auth_services.dart';
-import 'package:kho555/helper/storage/local_storage.dart';
-import 'package:kho555/helper/utils/app_toast.dart';
-import 'package:kho555/widgets/dialog_lich_su_thanh_toan_theo_chuyen_xe.dart';
-import 'package:kho555/widgets/dialog_thu_tien_cong_no.dart';
-import 'package:kho555/widgets/dialog_thu_tien_cong_no_ncc.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/storage/local_storage.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
+import 'package:ttk_logistics/widgets/dialog_lich_su_thanh_toan_theo_chuyen_xe.dart';
+import 'package:ttk_logistics/widgets/dialog_thu_tien_cong_no_ncc.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -100,10 +98,6 @@ class CongNoNhaCungCapController extends MyController {
     super.onClose();
   }
 
-  @override
-  void onInit() {
-    super.onInit();
-  }
 
   /// ===============================
   /// HÀM CHÍNH – LOAD CÔNG NỢ
@@ -189,7 +183,7 @@ class CongNoNhaCungCapController extends MyController {
       tongTienConLai =
           double.tryParse(summary["tong_tien_con_lai"]?.toString() ?? "0") ?? 0;
 
-      print('tongTienCongNo ${tongTienCongNo}');
+// print('tongTienCongNo $tongTienCongNo'); // TODO: remove debug
     } catch (e) {
       debugPrint("⚠️ fetchCongNo error: $e");
       AppToast.error(e.toString());
@@ -200,7 +194,7 @@ class CongNoNhaCungCapController extends MyController {
   }
 
   Future<void> fetchUserList() async {
-    print('AuthService.getUserList ${AuthService.getUserList}');
+// print('AuthService.getUserList ${AuthService.getUserList}'); // TODO: remove debug
 
     final token = await LocalStorage.getUserToken();
     final email = await LocalStorage.getUserEmail();
@@ -225,12 +219,12 @@ class CongNoNhaCungCapController extends MyController {
   }
 
   Future<void> fetchChuyenXeChuaThanhToanHet(int khachHangNid) async {
-    print('AuthService.getChuyenXeChuaThanhToanNCC ${AuthService.getChuyenXeChuaThanhToanNCC}');
+// print('AuthService.getChuyenXeChuaThanhToanNCC ${AuthService.getChuyenXeChuaThanhToanNCC}'); // TODO: remove debug
 
     final token = await LocalStorage.getUserToken();
     final email = await LocalStorage.getUserEmail();
 
-    print('khachHangNid ${khachHangNid}');
+// print('khachHangNid $khachHangNid'); // TODO: remove debug
     final response = await http.post(
       Uri.parse(AuthService.workerUrl),
       headers: {"Content-Type": "application/json"},
@@ -267,8 +261,8 @@ class CongNoNhaCungCapController extends MyController {
     /// 🔥 lấy uid người đăng nhập
     currentUserUid = await LocalStorage.getUserID();
 
-    print('currentUserUid ${currentUserUid}');
-    print('khachHangNid ${khachHangNid}');
+// print('currentUserUid $currentUserUid'); // TODO: remove debug
+// print('khachHangNid $khachHangNid'); // TODO: remove debug
 
     await Future.wait([
       fetchUserList(),
@@ -468,7 +462,7 @@ class CongNoNhaCungCapController extends MyController {
         throw Exception("Server lỗi ${response.statusCode}");
       }
 
-      print('response.body xem lich su thanh toan ${response.body}');
+// print('response.body xem lich su thanh toan ${response.body}'); // TODO: remove debug
 
       final res = jsonDecode(response.body);
 

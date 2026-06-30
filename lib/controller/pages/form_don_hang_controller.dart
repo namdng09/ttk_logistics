@@ -1,12 +1,12 @@
 import 'dart:convert';
-import 'package:kho555/controller/pages/chuyen_xe_controller.dart';
-import 'package:kho555/helper/storage/local_storage.dart';
+import 'package:ttk_logistics/controller/pages/chuyen_xe_controller.dart';
+import 'package:ttk_logistics/helper/storage/local_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:kho555/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
 import 'package:intl/intl.dart';
-import 'package:kho555/helper/utils/app_toast.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
 
 class FormDonHangController extends GetxController {
   bool isLoadingKhachHangDetail = false;
@@ -60,7 +60,7 @@ class FormDonHangController extends GetxController {
   // 🧩 Gọi API danh sách khách hàng
   // -------------------------
   Future<void> loadKhachHang() async {
-    print('AuthService.getListKhachHang ${AuthService.getListKhachHang}');
+// print('AuthService.getListKhachHang ${AuthService.getListKhachHang}'); // TODO: remove debug
     try {
       isLoading.value = true;
       update();
@@ -208,8 +208,9 @@ class FormDonHangController extends GetxController {
 
       if (rawCuoc is String && rawCuoc.isNotEmpty) {
         final parsed = jsonDecode(rawCuoc);
-        if (parsed is List) cuocList = parsed;
-        else if (parsed is Map) cuocList = [parsed];
+        if (parsed is List) {
+          cuocList = parsed;
+        } else if (parsed is Map) cuocList = [parsed];
       } else if (rawCuoc is List) {
         cuocList = rawCuoc;
       }
@@ -253,8 +254,9 @@ class FormDonHangController extends GetxController {
 
       if (rawHaiQuan is String && rawHaiQuan.isNotEmpty) {
         final parsed = jsonDecode(rawHaiQuan);
-        if (parsed is List) haiQuanList = parsed;
-        else if (parsed is Map) haiQuanList = [parsed];
+        if (parsed is List) {
+          haiQuanList = parsed;
+        } else if (parsed is Map) haiQuanList = [parsed];
       } else if (rawHaiQuan is List) {
         haiQuanList = rawHaiQuan;
       }
@@ -468,7 +470,7 @@ class FormDonHangController extends GetxController {
 
       case "baoHiem":
         if (value) {
-          print('phi bao hiem chi tiet ${item["phiBaoHiemChiTiet"]}');
+// print('phi bao hiem chi tiet ${item["phiBaoHiemChiTiet"]}'); // TODO: remove debug
           // 🔹 Nếu đã có dữ liệu nhập trước → giữ nguyên
           if (item["phiBaoHiemChiTiet"] != null &&
               (item["phiBaoHiemChiTiet"] as Map).isNotEmpty) {
@@ -534,14 +536,15 @@ class FormDonHangController extends GetxController {
     }
 
     dynamic raw = khachHang["field_phi_hai_quan"];
-    print('phi hai quan raw ${raw}');
+// print('phi hai quan raw $raw'); // TODO: remove debug
 
     List<dynamic> phiHaiQuanList = [];
     if (raw is String && raw.isNotEmpty) {
       try {
         final parsed = jsonDecode(raw);
-        if (parsed is List) phiHaiQuanList = parsed;
-        else if (parsed is Map) phiHaiQuanList = [parsed];
+        if (parsed is List) {
+          phiHaiQuanList = parsed;
+        } else if (parsed is Map) phiHaiQuanList = [parsed];
       } catch (e) {
         debugPrint("⚠️ Không parse được field_phi_hai_quan: $e");
       }
@@ -638,7 +641,7 @@ class FormDonHangController extends GetxController {
   }
 
   Future<void> loadPhuongTien() async {
-    print('AuthService.getListPhuongTien ${AuthService.getListPhuongTien}');
+// print('AuthService.getListPhuongTien ${AuthService.getListPhuongTien}'); // TODO: remove debug
     try {
       final response = await http.post(
         Uri.parse(AuthService.workerUrl),
@@ -649,14 +652,15 @@ class FormDonHangController extends GetxController {
         }),
       );
 
-      print('response.statusCode ${response.statusCode}');
+// print('response.statusCode ${response.statusCode}'); // TODO: remove debug
       if (response.statusCode == 200) {
         final res = jsonDecode(response.body);
         if (res["success"] == true && res["content"] is List) {
           phuongTienList = List<Map<String, dynamic>>.from(res["content"]);
         }
-      }else
+      }else {
         AppToast.warning(response.body);
+      }
     } catch (e) {
       debugPrint("⚠️ loadPhuongTien error: $e");
     }
@@ -685,7 +689,7 @@ class FormDonHangController extends GetxController {
   }
   void updateChiPhiBaoHiemTheoTrongTai(int index) {
     final xe = xeList[index];
-    print('xe ${xe}');
+// print('xe $xe'); // TODO: remove debug
     final trongTai = xe["trongTai"];
     if (selectedKhachHang == null || trongTai == null || trongTai.toString().isEmpty) {
       xe["phiBaoHiemChiTiet"] = {};
@@ -711,8 +715,9 @@ class FormDonHangController extends GetxController {
     if (raw is String && raw.isNotEmpty) {
       try {
         final parsed = jsonDecode(raw);
-        if (parsed is List) phiBaoHiemList = parsed;
-        else if (parsed is Map) phiBaoHiemList = [parsed];
+        if (parsed is List) {
+          phiBaoHiemList = parsed;
+        } else if (parsed is Map) phiBaoHiemList = [parsed];
       } catch (e) {
         debugPrint("⚠️ Không parse được field_phi_bao_hiem: $e");
       }
@@ -1018,7 +1023,7 @@ class FormDonHangController extends GetxController {
                                 flex: 3,
                                 child: DropdownButtonFormField<int>(
                                   dropdownColor: Colors.white,
-                                  value: laiXeList.firstWhereOrNull(
+                                  initialValue: laiXeList.firstWhereOrNull(
                                         (lx) => lx["field_ten_lai_xe"] == currentLaiXe,
                                   )?["nid"],
                                   isExpanded: true,
@@ -1137,7 +1142,7 @@ class FormDonHangController extends GetxController {
 
     final int currentXeNha = (item["xeNha"] as List?)?.length ?? 0;
 
-    print('currentXeNha ${currentXeNha}');
+// print('currentXeNha $currentXeNha'); // TODO: remove debug
     // ✅ Lưu kết quả trả về từ showDialog
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -1174,7 +1179,7 @@ class FormDonHangController extends GetxController {
                                 flex: 3,
                                 child: DropdownButtonFormField<int>(
                                   dropdownColor: Colors.white,
-                                  value: xe["nid"] != null
+                                  initialValue: xe["nid"] != null
                                       ? int.tryParse(xe["nid"].toString())
                                       : null,
                                   isExpanded: true,
@@ -1590,7 +1595,7 @@ class FormDonHangController extends GetxController {
     // ====================================================
     // 🔹 Gửi API về Drupal
     // ====================================================
-    print('AuthService.saveDonHang ${AuthService.saveDonHang}');
+// print('AuthService.saveDonHang ${AuthService.saveDonHang}'); // TODO: remove debug
     final response = await http.post(
       Uri.parse(AuthService.workerUrl),
       headers: {"Content-Type": "application/json"},
@@ -1646,8 +1651,9 @@ class FormDonHangController extends GetxController {
     if (raw is String && raw.isNotEmpty) {
       try {
         final parsed = jsonDecode(raw);
-        if (parsed is List) phiBaoHiemList = parsed;
-        else if (parsed is Map) phiBaoHiemList = [parsed];
+        if (parsed is List) {
+          phiBaoHiemList = parsed;
+        } else if (parsed is Map) phiBaoHiemList = [parsed];
       } catch (e) {
         debugPrint("⚠️ Không parse được field_phi_bao_hiem: $e");
         return;
@@ -1690,7 +1696,7 @@ class FormDonHangController extends GetxController {
     // 🔹 Cập nhật lại JSON trong khachHangList
     kh["field_phi_bao_hiem"] = jsonEncode(phiBaoHiemList);
     debugPrint(
-        "💾 Đã cập nhật ${key} = $newValue vào field_phi_bao_hiem[${trongTai}] cho khách hàng ${kh["nid"]}");
+        "💾 Đã cập nhật $key = $newValue vào field_phi_bao_hiem[$trongTai] cho khách hàng ${kh["nid"]}");
   }
   void updatePhiHaiQuanKhachHang(
       String? khachId,
@@ -1712,8 +1718,9 @@ class FormDonHangController extends GetxController {
     if (raw is String && raw.isNotEmpty) {
       try {
         final parsed = jsonDecode(raw);
-        if (parsed is List) phiHaiQuanList = parsed;
-        else if (parsed is Map) phiHaiQuanList = [parsed];
+        if (parsed is List) {
+          phiHaiQuanList = parsed;
+        } else if (parsed is Map) phiHaiQuanList = [parsed];
       } catch (e) {
         debugPrint("⚠️ Không parse được field_phi_hai_quan: $e");
         return;

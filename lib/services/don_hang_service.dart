@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:kho555/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
 import 'package:http/http.dart' as http;
 import '../helper/storage/local_storage.dart';
 import '../models/api_response.dart';
@@ -56,8 +56,9 @@ class DonHangService {
 
       if (response.statusCode == 200) {
         final res = jsonDecode(response.body);
-        if(res['success'])
+        if(res['success']) {
           return ApiResponse.fromJson(res);
+        }
         return ApiResponse(
           success: false,
           message: res['content']
@@ -225,7 +226,7 @@ class DonHangService {
       final token = await LocalStorage.getUserToken();
       final email = await LocalStorage.getUserEmail();
 
-      print('params ${params}');
+// print('params $params'); // TODO: remove debug
       final response = await http.post(
         Uri.parse(AuthService.workerUrl), // Worker URL (tránh CORS)
         headers: {"Content-Type": "application/json"},

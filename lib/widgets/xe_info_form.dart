@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/widgets/xe_dialog_helper.dart';
+import 'package:ttk_logistics/helper/widgets/xe_dialog_helper.dart';
 import '../controller/pages/chuyen_xe_controller.dart';
 import '../controller/pages/form_don_hang_controller.dart';
 
@@ -66,7 +66,7 @@ class _XeInfoFormState extends State<XeInfoForm> {
       c.currentChuyenXe ??= {};
       c.currentChuyenXe!["field_thong_tin_json"] ??= {};
 
-      print('xeMap ${xeMap}');
+// print('xeMap $xeMap'); // TODO: remove debug
       if(isXeNha){
         c.currentChuyenXe!["field_thong_tin_json"]['xe_nha'] = xeMap;
         c.currentChuyenXe!['field_loai_xe'] = 'xe_nha';
@@ -147,7 +147,7 @@ class _XeInfoFormState extends State<XeInfoForm> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Thông tin xe (${loaiXe})",
+                "Thông tin xe ($loaiXe)",
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

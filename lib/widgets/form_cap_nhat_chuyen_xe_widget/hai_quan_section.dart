@@ -1,4 +1,4 @@
-import 'package:kho555/widgets/thousands_separator_input_formatter.dart';
+import 'package:ttk_logistics/widgets/thousands_separator_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 

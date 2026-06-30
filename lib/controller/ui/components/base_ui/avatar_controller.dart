@@ -1,6 +1,6 @@
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 
-import 'package:kho555/images.dart';
+import 'package:ttk_logistics/images.dart';
 
 class AvatarController extends MyController {
   List<String> images =[

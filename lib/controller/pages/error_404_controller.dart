@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 
 class Error404Controller extends MyController {
   void goToHome() {

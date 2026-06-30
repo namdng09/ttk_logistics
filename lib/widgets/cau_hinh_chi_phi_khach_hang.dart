@@ -1,12 +1,12 @@
-import 'package:kho555/widgets/chi_phi_hang_nang_table.dart';
-import 'package:kho555/widgets/phi_cung_tinh_khac_tuyen_table.dart';
-import 'package:kho555/widgets/phi_cung_tuyen_khac_tinh_table.dart';
-import 'package:kho555/widgets/phi_hai_quan_table.dart';
-import 'package:kho555/widgets/phi_van_tai_table.dart';
+import 'package:ttk_logistics/widgets/chi_phi_hang_nang_table.dart';
+import 'package:ttk_logistics/widgets/phi_cung_tinh_khac_tuyen_table.dart';
+import 'package:ttk_logistics/widgets/phi_cung_tuyen_khac_tinh_table.dart';
+import 'package:ttk_logistics/widgets/phi_hai_quan_table.dart';
+import 'package:ttk_logistics/widgets/phi_van_tai_table.dart';
 import 'package:flutter/material.dart';
-import 'package:kho555/services/khach_hang_service.dart';
-import 'package:kho555/widgets/phi_bao_hiem_table.dart';
-import 'package:kho555/widgets/phi_luu_ca_table.dart';
+import 'package:ttk_logistics/services/khach_hang_service.dart';
+import 'package:ttk_logistics/widgets/phi_bao_hiem_table.dart';
+import 'package:ttk_logistics/widgets/phi_luu_ca_table.dart';
 
 class CauHinhChiPhiPage extends StatefulWidget {
   final String title;

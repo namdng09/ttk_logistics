@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/helper/widgets/my_text_utils.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/helper/widgets/my_text_utils.dart';
 
 class CarouselController extends MyController {
   List<String> dummyTexts =

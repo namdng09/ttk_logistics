@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kho555/helper/localization/language.dart';
-import 'package:kho555/helper/services/auth_services.dart';
-import 'package:kho555/helper/theme/theme_customizer.dart';
+import 'package:ttk_logistics/helper/localization/language.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/theme/theme_customizer.dart';
 
 class LocalStorage {
   static const String _loggedInUserKey = "user";

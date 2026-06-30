@@ -6,6 +6,7 @@ import 'package:amount_input_formatter/amount_input_formatter.dart';
 
 class PhiLuuCaTable extends StatefulWidget {
   final Map<String, dynamic> customer;
+  @override
   final GlobalKey<PhiLuuCaTableState> key;
 
   const PhiLuuCaTable({required this.customer, required this.key})
@@ -58,7 +59,7 @@ class PhiLuuCaTableState extends State<PhiLuuCaTable> {
       scrollDirection: Axis.horizontal,
       child: DataTable(
         border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-        headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+        headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
         columns: columns,
         rows: loaiXeList.map((xe) {
           return DataRow(

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/controller/pages/chuyen_xe_controller.dart';
-import 'package:kho555/controller/pages/form_don_hang_controller.dart';
-import 'package:kho555/views/ui/pages/bap2/form_sua_chuyen_xe_screen.dart';
+import 'package:ttk_logistics/controller/pages/chuyen_xe_controller.dart';
+import 'package:ttk_logistics/controller/pages/form_don_hang_controller.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/form_sua_chuyen_xe_screen.dart';
 
 class DialogSuaChuyenXe extends StatefulWidget {
   final int nid;

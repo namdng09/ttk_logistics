@@ -1,4 +1,4 @@
-import 'package:kho555/helper/widgets/my_base_exception.dart';
+import 'package:ttk_logistics/helper/widgets/my_base_exception.dart';
 
 class RouteException extends BaseException {
   final String message;

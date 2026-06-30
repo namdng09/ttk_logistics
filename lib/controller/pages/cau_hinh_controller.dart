@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'package:kho555/helper/services/auth_services.dart';
-import 'package:kho555/helper/utils/app_toast.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 import 'package:http/http.dart' as http;
-import 'package:kho555/helper/storage/local_storage.dart'; // Đảm bảo đã import LocalStorage
+import 'package:ttk_logistics/helper/storage/local_storage.dart'; // Đảm bảo đã import LocalStorage
 
 class CauHinhController extends MyController {
   TextEditingController thoiGianHanController = TextEditingController();
@@ -38,7 +38,7 @@ class CauHinhController extends MyController {
 
       final res = jsonDecode(response.body);
 
-      print('cau hinh thoi gian cong no ${response.body}');
+// print('cau hinh thoi gian cong no ${response.body}'); // TODO: remove debug
       if (res["success"] == true) {
         // Nếu API trả về thành công, lấy dữ liệu cấu hình
         final thongTinCauHinh = res["noi_dung_html"];
@@ -64,7 +64,7 @@ class CauHinhController extends MyController {
       isLoading.value = true;
       update(); // Cập nhật UI khi bắt đầu lưu cấu hình
 
-      print('thoiGianHan ${thoiGianHan}');
+// print('thoiGianHan $thoiGianHan'); // TODO: remove debug
       final token = await LocalStorage.getUserToken();
       final email = await LocalStorage.getUserEmail();
 

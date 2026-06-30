@@ -45,7 +45,7 @@ class ChiPhiTable extends StatelessWidget {
                 border: TableBorder.all(color: Colors.grey.shade300),
                 columnSpacing: 16,
                 headingRowColor:
-                MaterialStateProperty.all(Colors.grey.shade200),
+                WidgetStateProperty.all(Colors.grey.shade200),
                 columns: const [
                   DataColumn(label: Text("Loại xe (VI)")),
                   DataColumn(label: Text("Loại xe (EN)")),

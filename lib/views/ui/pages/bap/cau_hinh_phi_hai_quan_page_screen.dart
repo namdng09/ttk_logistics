@@ -1,20 +1,19 @@
-import 'dart:convert';
 
 import 'package:amount_input_formatter/amount_input_formatter.dart';
-import 'package:kho555/controller/pages/config_block_page_controller.dart';
-import 'package:kho555/helper/services/auth_services.dart';
+import 'package:ttk_logistics/controller/pages/config_block_page_controller.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:intl/intl.dart';
 import '../../../../helper/widgets/my_text.dart';
 
 class CauHinhPhiHaiQuanPageScreen extends StatefulWidget {
   final String type;
 
-  CauHinhPhiHaiQuanPageScreen({required this.type});
+  const CauHinhPhiHaiQuanPageScreen({super.key, required this.type});
 
   @override
   State<CauHinhPhiHaiQuanPageScreen> createState() => _CauHinhPhiHaiQuanPageScreenState();
@@ -36,9 +35,9 @@ class _CauHinhPhiHaiQuanPageScreenState extends State<CauHinhPhiHaiQuanPageScree
     controller.loadConfig(AuthService.getCauHinhPhiHaiQuan, {
       'type': widget.type
     });
-    if(widget.type == 'huu-nghi')
+    if(widget.type == 'huu-nghi') {
       tenCuaKhau = 'Hữu Nghị';
-    else if(widget.type == 'chi-ma')
+    } else if(widget.type == 'chi-ma')
       tenCuaKhau = 'Chi Ma';
     else if(widget.type == 'coc-nam')
       tenCuaKhau = 'Cốc Nam';
@@ -54,7 +53,7 @@ class _CauHinhPhiHaiQuanPageScreenState extends State<CauHinhPhiHaiQuanPageScree
     if (match != null) {
       return "${match.group(1)} (${match.group(2)})"; // ví dụ: "1.5–2.4t (9 CBM)"
     }
-    return label.length > 10 ? label.substring(0, 10) + "…" : label;
+    return label.length > 10 ? "${label.substring(0, 10)}…" : label;
   }
 
 
@@ -73,16 +72,16 @@ class _CauHinhPhiHaiQuanPageScreenState extends State<CauHinhPhiHaiQuanPageScree
     final cols = dynamicCols.toList();
 
     // Controller để cuộn ngang khi kéo
-    final ScrollController _scrollController = ScrollController();
+    final ScrollController scrollController = ScrollController();
 
     return GestureDetector(
       onHorizontalDragUpdate: (details) {
-        _scrollController.jumpTo(
-          _scrollController.offset - details.delta.dx,
+        scrollController.jumpTo(
+          scrollController.offset - details.delta.dx,
         );
       },
       child: SingleChildScrollView(
-        controller: _scrollController,
+        controller: scrollController,
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columnSpacing: 12,
@@ -92,7 +91,7 @@ class _CauHinhPhiHaiQuanPageScreenState extends State<CauHinhPhiHaiQuanPageScree
               label: Tooltip(
                 message: c,
                 child: Text(
-                  c.length > 10 ? c.substring(0, 10) + "..." : c,
+                  c.length > 10 ? "${c.substring(0, 10)}..." : c,
                   style: const TextStyle(fontSize: 12),
                 ),
               ),
@@ -163,13 +162,13 @@ class _CauHinhPhiHaiQuanPageScreenState extends State<CauHinhPhiHaiQuanPageScree
   @override
   Widget build(BuildContext context) {
     return GetBuilder<ConfigBlockPageController>(
-      tag: 'cau-hinh-phi-hai-quan-'+widget.type,
+      tag: 'cau-hinh-phi-hai-quan-${widget.type}',
       init: controller,
       builder: (controller) {
         final jsonData = controller.config.value?.data as List<dynamic>? ?? [];
         return Layout(
           mainScreenName: 'Cấu hình',
-          subScreenName: 'Phí hải quan ${tenCuaKhau}',
+          subScreenName: 'Phí hải quan $tenCuaKhau',
           actions: [
             Obx(() => MyContainer(
               onTap: controller.isSaving.value

@@ -38,7 +38,7 @@ class MyDropdownField extends StatelessWidget {
           return DropdownButtonFormField<String>(
             dropdownColor: Colors.white,
             isExpanded: true, // ✅ full chiều ngang
-            value: safeValue,
+            initialValue: safeValue,
             onChanged: onChanged,
             items: uniqueOptions.map((opt) {
               final display = displayBuilder != null ? displayBuilder!(opt) : opt;

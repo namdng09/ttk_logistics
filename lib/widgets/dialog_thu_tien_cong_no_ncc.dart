@@ -1,7 +1,6 @@
-import 'package:kho555/controller/cong_no_nha_cung_cap_controller.dart';
-import 'package:kho555/helper/utils/app_toast.dart';
-import 'package:kho555/widgets/thousands_separator_input_formatter.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:ttk_logistics/controller/cong_no_nha_cung_cap_controller.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
+import 'package:ttk_logistics/widgets/thousands_separator_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -386,7 +385,7 @@ class DialogThuTienCongNoNcc extends StatelessWidget {
                   const SizedBox(height: 4),
                   DropdownButtonFormField<String>(
                     dropdownColor: Colors.white,
-                    value: controller.nguoiThucHienId,
+                    initialValue: controller.nguoiThucHienId,
                     items: controller.userList.map((u) {
                       return DropdownMenuItem(
                         value: u["uid"].toString(),

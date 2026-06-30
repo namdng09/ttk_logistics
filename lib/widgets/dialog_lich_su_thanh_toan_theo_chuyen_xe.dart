@@ -1,5 +1,4 @@
-import 'package:kho555/controller/cong_no_controller.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:ttk_logistics/controller/cong_no_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -33,7 +32,7 @@ class DialogLichSuThanhToanTheoChuyenXe extends StatelessWidget {
             return ListView.separated(
               shrinkWrap: true,
               itemCount: controller.lichSuThanhToanTheoChuyen.length,
-              separatorBuilder: (_, __) => const Divider(),
+              separatorBuilder: (_, _) => const Divider(),
               itemBuilder: (_, i) {
                 final item = controller.lichSuThanhToanTheoChuyen[i];
                 final thuChi = item["thu_chi"] ?? {};

@@ -3,14 +3,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:kho555/controller/kho555/phieu_nhap_vat_tu_controller.dart';
-import 'package:kho555/helper/theme/admin_theme.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/helper/widgets/my_spacing.dart';
-import 'package:kho555/helper/widgets/my_text.dart';
-import 'package:kho555/models/kho555/phieu_nhap_vat_tu.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/controller/kho555/phieu_nhap_vat_tu_controller.dart';
+import 'package:ttk_logistics/helper/theme/admin_theme.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/helper/widgets/my_text.dart';
+import 'package:ttk_logistics/models/kho555/phieu_nhap_vat_tu.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 
 import 'nhap_vat_tu_page_screen.dart';
 
@@ -36,7 +36,7 @@ class _PhieuNhapVatTuPageScreenState extends State<PhieuNhapVatTuPageScreen> {
         scrollDirection: Axis.vertical,
         child: DataTable(
           columnSpacing: 16,
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
           columns: [
             DataColumn(label: _headerCell('Mã phiếu', width: 140)),
             DataColumn(label: _headerCell('Nhà cung cấp', width: 240)),
@@ -513,7 +513,7 @@ class _PhieuNhapVatTuPageScreenState extends State<PhieuNhapVatTuPageScreen> {
       scrollDirection: Axis.horizontal,
       child: DataTable(
         columnSpacing: 12,
-        headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+        headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
         columns: const [
           DataColumn(label: Text('Vật tư')),
           DataColumn(label: Text('Số lượng')),
@@ -533,7 +533,7 @@ class _PhieuNhapVatTuPageScreenState extends State<PhieuNhapVatTuPageScreen> {
                 SizedBox(
                   width: 220,
                   child: DropdownButtonFormField<int>(
-                    value: row.nidVatTu,
+                    initialValue: row.nidVatTu,
                     isExpanded: true,
                     items: controller.vatTuList.map((item) {
                       return DropdownMenuItem<int>(
@@ -570,7 +570,7 @@ class _PhieuNhapVatTuPageScreenState extends State<PhieuNhapVatTuPageScreen> {
                       SizedBox(
                         width: 70,
                         child: DropdownButtonFormField<String>(
-                          value: row.loaiVat,
+                          initialValue: row.loaiVat,
                           items: const ['%', 'Số tiền']
                               .map(
                                 (item) => DropdownMenuItem<String>(
@@ -683,7 +683,7 @@ class _PhieuNhapVatTuPageScreenState extends State<PhieuNhapVatTuPageScreen> {
           MyText.labelMedium(label),
           const SizedBox(height: 6),
           DropdownButtonFormField<int>(
-            value: value,
+            initialValue: value,
             isExpanded: true,
             items: options.map((item) {
               return DropdownMenuItem<int>(
@@ -717,7 +717,7 @@ class _PhieuNhapVatTuPageScreenState extends State<PhieuNhapVatTuPageScreen> {
           MyText.labelMedium(label),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
-            value: value,
+            initialValue: value,
             items: options
                 .map((item) => DropdownMenuItem(value: item, child: Text(item)))
                 .toList(),

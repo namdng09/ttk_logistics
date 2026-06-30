@@ -1,9 +1,9 @@
-import 'package:kho555/controller/pages/cuoc_van_chuyen_thue_ngoai.controller.dart';
+import 'package:ttk_logistics/controller/pages/cuoc_van_chuyen_thue_ngoai.controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
-import 'package:kho555/helper/widgets/editable_cell.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/widgets/editable_cell.dart';
 import 'package:intl/intl.dart';
 
 class CauHinhCuocVanChuyenThueNgoaiPageScreen extends StatefulWidget {
@@ -308,7 +308,7 @@ class _CauHinhCuocVanChuyenThueNgoaiPageScreenState
     ];
 
     return DataTable(
-      headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
+      headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
       headingRowHeight: 72,
       dataRowHeight: 44,
       columns: [

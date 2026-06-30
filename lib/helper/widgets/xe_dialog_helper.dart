@@ -1,10 +1,9 @@
 import 'dart:convert';
-import 'package:kho555/helper/utils/app_toast.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:kho555/helper/services/auth_services.dart';
-import 'package:oktoast/oktoast.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
 
 class XeDialogHelper {
   /// ===============================================================
@@ -72,7 +71,7 @@ class XeDialogHelper {
                         final loaiXe = xe["field_loai_xe"] ?? "";
                         final tenLaiXe = xe["ten_lai_xe"] ?? "";
                         final idLaiXe = xe["field_lai_xe"];
-                        final field_nha_xe = xe['field_nha_xe'];
+                        final fieldNhaXe = xe['field_nha_xe'];
                         final isChecked = tempSelected.any((sel) => sel["nid"] == nid);
 
                         final currentLaiXe = tempSelected
@@ -96,7 +95,7 @@ class XeDialogHelper {
                                       }
 
                                       tempSelected.add({
-                                        "field_nha_xe": field_nha_xe,
+                                        "field_nha_xe": fieldNhaXe,
                                         "nid": nid,
                                         "bks": bks,
                                         "nhaXe": nhaXe,
@@ -126,7 +125,7 @@ class XeDialogHelper {
                                 flex: 3,
                                 child: DropdownButtonFormField<int>(
                                   dropdownColor: Colors.white,
-                                  value: laiXeList.firstWhereOrNull(
+                                  initialValue: laiXeList.firstWhereOrNull(
                                           (lx) =>
                                       lx["field_ten_lai_xe"] ==
                                           currentLaiXe)?["nid"],
@@ -193,7 +192,7 @@ class XeDialogHelper {
                     return;
                   }
 
-                  print('tempSelected.first ${tempSelected.first}');
+// print('tempSelected.first ${tempSelected.first}'); // TODO: remove debug
                   Navigator.pop(context, tempSelected.first);
                 },
               ),
@@ -203,7 +202,7 @@ class XeDialogHelper {
       },
     );
 
-    print('selectedXe ${selectedXe}');
+// print('selectedXe $selectedXe'); // TODO: remove debug
     return selectedXe;
   }
 
@@ -271,7 +270,7 @@ class XeDialogHelper {
                                 flex: 3,
                                 child: DropdownButtonFormField<int>(
                                   dropdownColor: Colors.white,
-                                  value: xe["nid"] != null
+                                  initialValue: xe["nid"] != null
                                       ? int.tryParse(xe["nid"].toString())
                                       : null,
                                   isExpanded: true,
@@ -415,7 +414,7 @@ class XeDialogHelper {
                       return;
                     }
                   }
-                  print('tempList.first ${tempList.first}');
+// print('tempList.first ${tempList.first}'); // TODO: remove debug
                   Navigator.pop(context, tempList.first);
                 },
               ),
@@ -432,7 +431,7 @@ class XeDialogHelper {
   /// 🧩 API tiện ích (load danh sách)
   /// ===============================================================
   static Future<List<Map<String, dynamic>>> getPhuongTien() async {
-    print('AuthService.getListPhuongTien ${AuthService.getListPhuongTien}');
+// print('AuthService.getListPhuongTien ${AuthService.getListPhuongTien}'); // TODO: remove debug
     final res = await http.post(
       Uri.parse(AuthService.workerUrl),
       headers: {"Content-Type": "application/json"},
@@ -451,7 +450,7 @@ class XeDialogHelper {
   }
 
   static Future<List<Map<String, dynamic>>> getLaiXe() async {
-    print('AuthService.getListLaiXe ${AuthService.getListLaiXe}');
+// print('AuthService.getListLaiXe ${AuthService.getListLaiXe}'); // TODO: remove debug
     final res = await http.post(
       Uri.parse(AuthService.workerUrl),
       headers: {"Content-Type": "application/json"},
@@ -516,7 +515,7 @@ class XeDialogHelper {
 
       if (xe == null) return null;
 
-      print('dialog chon xe ${xe}');
+// print('dialog chon xe $xe'); // TODO: remove debug
       // 🔹 Chuẩn hóa kết quả trả về (dạng giống FormDonHangController)
       return {
         'nid_nha_xe': xe['field_nha_xe'],

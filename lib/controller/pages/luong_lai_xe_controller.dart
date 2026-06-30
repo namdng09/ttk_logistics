@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'package:kho555/controller/my_controller.dart';
-import 'package:kho555/helper/services/auth_services.dart';
-import 'package:kho555/helper/storage/local_storage.dart';
-import 'package:kho555/helper/utils/app_toast.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/storage/local_storage.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -161,7 +160,7 @@ class LuongLaiXeController extends MyController {
       // 🔹 Parse danh sách và tổng
       final List<dynamic> items = data["items"] ?? [];
 
-      print('items luong lai xe ${items}');
+// print('items luong lai xe $items'); // TODO: remove debug
       final int total = data["total"] ?? items.length;
 
       // 🔹 Gán vào biến controller
@@ -190,7 +189,7 @@ class LuongLaiXeController extends MyController {
       isUpdating.value = true;
       update();
 
-      print('AuthService.updateChiPhiLuongLaiXe ${AuthService.updateChiPhiLuongLaiXe}');
+// print('AuthService.updateChiPhiLuongLaiXe ${AuthService.updateChiPhiLuongLaiXe}'); // TODO: remove debug
       final response = await http.post(
         Uri.parse(AuthService.workerUrl),
         headers: {"Content-Type": "application/json"},

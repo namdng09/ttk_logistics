@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'package:kho555/helper/extensions/extensions.dart';
 import 'package:http/http.dart' as http;
-import 'package:kho555/helper/storage/local_storage.dart';
-import 'package:kho555/models/user.dart';
+import 'package:ttk_logistics/helper/storage/local_storage.dart';
 
 class AuthService {
   static bool isLoggedIn = false;
@@ -192,7 +190,7 @@ class AuthService {
       if (res['status'] == 'success') {
         // Đánh dấu đăng nhập thành công
         isLoggedIn = true;
-        print('res login ${res}');
+// print('res login $res'); // TODO: remove debug
         await LocalStorage.setLoggedInUser(true);
         await LocalStorage.setUserToken(res['token']); // lưu token
         await LocalStorage.setUserEmail(res['email'] ?? '');

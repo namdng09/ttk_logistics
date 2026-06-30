@@ -2,14 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/controller/kho555/phieu_nhap_vat_tu_controller.dart';
-import 'package:kho555/helper/theme/admin_theme.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/helper/widgets/my_spacing.dart';
-import 'package:kho555/helper/widgets/my_text.dart';
-import 'package:kho555/models/kho555/phieu_nhap_vat_tu.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/controller/kho555/phieu_nhap_vat_tu_controller.dart';
+import 'package:ttk_logistics/helper/theme/admin_theme.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/helper/widgets/my_text.dart';
+import 'package:ttk_logistics/models/kho555/phieu_nhap_vat_tu.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 
 class NhapVatTuPageScreen extends StatefulWidget with UIMixin {
   final PhieuNhapVatTu? existingData;
@@ -253,7 +253,7 @@ class _NhapVatTuPageScreenState extends State<NhapVatTuPageScreen> {
       scrollDirection: Axis.horizontal,
       child: DataTable(
         columnSpacing: 12,
-        headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+        headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
         columns: const [
           DataColumn(label: Text('Vật tư')),
           DataColumn(label: Text('Số lượng')),
@@ -274,7 +274,7 @@ class _NhapVatTuPageScreenState extends State<NhapVatTuPageScreen> {
                   width: 220,
                   child: DropdownButtonFormField<int>(
                     dropdownColor: Colors.white,
-                    value: _safeDropdownValue(row.nidVatTu, controller.vatTuList),
+                    initialValue: _safeDropdownValue(row.nidVatTu, controller.vatTuList),
                     isExpanded: true,
                     items: controller.vatTuList.map((item) {
                       return DropdownMenuItem<int>(
@@ -310,7 +310,7 @@ class _NhapVatTuPageScreenState extends State<NhapVatTuPageScreen> {
                         width: 80,
                         child: DropdownButtonFormField<String>(
                           dropdownColor: Colors.white,
-                          value: row.loaiVat,
+                          initialValue: row.loaiVat,
                           items: const ['%', 'Số tiền']
                               .map((item) => DropdownMenuItem<String>(
                                     value: item,
@@ -482,7 +482,7 @@ class _NhapVatTuPageScreenState extends State<NhapVatTuPageScreen> {
           const SizedBox(height: 6),
           DropdownButtonFormField<int>(
             dropdownColor: Colors.white,
-            value: _safeDropdownValue(value, options),
+            initialValue: _safeDropdownValue(value, options),
             isExpanded: true,
             items: options.map((item) {
               return DropdownMenuItem<int>(
@@ -517,7 +517,7 @@ class _NhapVatTuPageScreenState extends State<NhapVatTuPageScreen> {
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             dropdownColor: Colors.white,
-            value: value,
+            initialValue: value,
             items: options
                 .map((item) => DropdownMenuItem(value: item, child: Text(item)))
                 .toList(),

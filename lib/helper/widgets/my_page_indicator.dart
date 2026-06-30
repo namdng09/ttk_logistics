@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:kho555/helper/widgets/my_pages.dart';
+import 'package:ttk_logistics/helper/widgets/my_pages.dart';
 import 'package:flutter/material.dart';
 
 class MyPagerIndicator extends StatelessWidget {

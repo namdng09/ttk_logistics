@@ -4,7 +4,7 @@ import 'dart:developer';
 import 'package:flutter/services.dart';
 import 'package:get/get_utils/get_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kho555/helper/localization/language.dart';
+import 'package:ttk_logistics/helper/localization/language.dart';
 
 class Translator {
   static Map<String, String>? _localizedStrings;

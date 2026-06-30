@@ -1,10 +1,10 @@
-import 'package:kho555/controller/cong_no_controller.dart';
-import 'package:kho555/controller/cong_no_nha_cung_cap_controller.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/controller/cong_no_controller.dart';
+import 'package:ttk_logistics/controller/cong_no_nha_cung_cap_controller.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:intl/intl.dart';
 
 class CongNoNhaCungCapScreen extends StatefulWidget {
@@ -321,7 +321,7 @@ class _CongNoNhaCungCapScreenState extends State<CongNoNhaCungCapScreen> with UI
                                   height: 41, // 👈 ép chiều cao
                                   child: DropdownButtonFormField<String>(
                                     dropdownColor: Colors.white,
-                                    value: controller.trangThaiCongNo,
+                                    initialValue: controller.trangThaiCongNo,
                                     decoration: const InputDecoration(
                                       isDense: true,
                                       border: OutlineInputBorder(),
@@ -438,7 +438,7 @@ class _CongNoNhaCungCapScreenState extends State<CongNoNhaCungCapScreen> with UI
                       scrollDirection: Axis.vertical,
                       child: DataTable(
                         headingRowColor:
-                        MaterialStateProperty.all(
+                        WidgetStateProperty.all(
                             Colors.grey.shade200),
                         headingRowHeight: 48,
                         dataRowHeight: 56,

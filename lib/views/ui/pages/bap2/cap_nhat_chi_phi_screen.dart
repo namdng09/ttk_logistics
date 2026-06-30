@@ -1,5 +1,5 @@
-import 'package:kho555/controller/pages/luong_lai_xe_controller.dart';
-import 'package:kho555/widgets/thousands_separator_input_formatter.dart';
+import 'package:ttk_logistics/controller/pages/luong_lai_xe_controller.dart';
+import 'package:ttk_logistics/widgets/thousands_separator_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -213,7 +213,7 @@ class _CapNhatChiPhiScreenState extends State<CapNhatChiPhiScreen> {
     // =============================
     // ADD / REMOVE ROW CHI PHÍ PHÁT SINH
     // =============================
-    void _addRow() {
+    void addRow() {
       setState(() {
         chiPhiPhatSinh.add({
           "ten": "",
@@ -227,7 +227,7 @@ class _CapNhatChiPhiScreenState extends State<CapNhatChiPhiScreen> {
       });
     }
 
-    void _removeRow(int index) {
+    void removeRow(int index) {
       setState(() {
         chiPhiPhatSinh.removeAt(index);
       });
@@ -244,7 +244,7 @@ class _CapNhatChiPhiScreenState extends State<CapNhatChiPhiScreen> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             ElevatedButton.icon(
-              onPressed: _addRow,
+              onPressed: addRow,
               icon: const Icon(Icons.add),
               label: const Text("Thêm dòng"),
             )
@@ -292,7 +292,7 @@ class _CapNhatChiPhiScreenState extends State<CapNhatChiPhiScreen> {
                     DataCell(
                       IconButton(
                         icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _removeRow(index),
+                        onPressed: () => removeRow(index),
                       ),
                     ),
                   ],

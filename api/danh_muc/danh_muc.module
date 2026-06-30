@@ -1,0 +1,50 @@
+<?php
+
+/**
+ * @file
+ * REST API cho content type danh_muc (danh mục tổng hợp).
+ * Endpoint prefix: /danh-muc
+ * Drupal tại subdirectory /api/ → URL đầy đủ: https://site.com/api/danh-muc
+ */
+
+module_load_include('inc', 'danh_muc', 'danh_muc.helpers');
+module_load_include('inc', 'danh_muc', 'danh_muc.controller');
+module_load_include('inc', 'danh_muc', 'danh_muc.service');
+
+/**
+ * Implements hook_init().
+ * Xử lý CORS preflight sớm.
+ */
+function danh_muc_init() {
+  $path = current_path();
+  if ($path === 'danh-muc' || strpos($path, 'danh-muc/') === 0) {
+    danh_muc_add_cors_headers();
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      danh_muc_cors_preflight();
+    }
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function danh_muc_menu() {
+  $items = array();
+
+  $items['danh-muc'] = array(
+    'title' => 'Danh sách / tạo danh mục',
+    'page callback' => 'danh_muc_route_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['danh-muc/%'] = array(
+    'title' => 'Chi tiết / cập nhật / xoá danh mục',
+    'page callback' => 'danh_muc_route_item',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}

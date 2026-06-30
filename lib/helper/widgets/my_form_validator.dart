@@ -1,4 +1,4 @@
-import 'package:kho555/helper/widgets/my_field_validator.dart';
+import 'package:ttk_logistics/helper/widgets/my_field_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get_utils/get_utils.dart';
 

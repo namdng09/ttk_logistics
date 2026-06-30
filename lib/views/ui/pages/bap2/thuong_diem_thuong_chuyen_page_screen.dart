@@ -1,13 +1,13 @@
 import 'dart:convert';
 
 import 'package:amount_input_formatter/amount_input_formatter.dart';
-import 'package:kho555/controller/pages/config_block_page_controller.dart';
-import 'package:kho555/helper/services/auth_services.dart';
+import 'package:ttk_logistics/controller/pages/config_block_page_controller.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../helper/widgets/my_text.dart';

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:kho555/widgets/thousands_separator_input_formatter.dart';
+import 'package:ttk_logistics/widgets/thousands_separator_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -90,7 +90,7 @@ class _TraThemDiemWidgetState extends State<TraThemDiemWidget> {
       final list = _parsePhiList(widget.data?['field_thong_tin_json_khach_hang']["field_phi_cung_tuyen_khac_tinh"]);
       if (list.isNotEmpty) {
         final match = list.firstWhere(
-              (e) => e["Trọng tải"]?.toString()?.trim() == trongTai,
+              (e) => e["Trọng tải"]?.toString().trim() == trongTai,
           orElse: () => {},
         );
         if (match.isNotEmpty) {
@@ -101,7 +101,7 @@ class _TraThemDiemWidgetState extends State<TraThemDiemWidget> {
       final listNCC = _parsePhiList(widget.data?['field_thong_tin_json_ncc']["field_phi_cung_tuyen_khac_tinh"]);
       if (listNCC.isNotEmpty) {
         final match = listNCC.firstWhere(
-              (e) => e["Trọng tải"]?.toString()?.trim() == trongTai,
+              (e) => e["Trọng tải"]?.toString().trim() == trongTai,
           orElse: () => {},
         );
         if (match.isNotEmpty) {
@@ -119,14 +119,14 @@ class _TraThemDiemWidgetState extends State<TraThemDiemWidget> {
       ) ?? item["khoangCach"]);
 
       for (final e in list) {
-        final trongTaiMatch = e["Trọng tải"]?.toString()?.trim() == trongTai;
+        final trongTaiMatch = e["Trọng tải"]?.toString().trim() == trongTai;
         if (!trongTaiMatch) continue;
 
         final minKm = double.tryParse(e["KM gần nhất"].toString()) ?? 0;
         final maxKm = double.tryParse(e["KM xa nhất"].toString()) ?? 0;
         final donGia = double.tryParse(e["Chi phí"].toString()) ?? 0;
 
-        print('min ${minKm} max ${maxKm} donGia ${donGia}');
+// print('min $minKm max $maxKm donGia $donGia'); // TODO: remove debug
         if (km >= minKm && km <= maxKm) {
           final soKmTinhCuoc = km - minKm;
           phi = donGia * soKmTinhCuoc;
@@ -138,7 +138,7 @@ class _TraThemDiemWidgetState extends State<TraThemDiemWidget> {
       // Tính chi phí cho nhà cung cấp
       final listNCC = _parsePhiList(widget.data?['field_thong_tin_json_ncc']["field_phi_cung_tinh_khac_tuyen"]);
       for (final e in listNCC) {
-        final trongTaiMatch = e["Trọng tải"]?.toString()?.trim() == trongTai;
+        final trongTaiMatch = e["Trọng tải"]?.toString().trim() == trongTai;
         if (!trongTaiMatch) continue;
 
         final minKm = double.tryParse(e["KM gần nhất"].toString()) ?? 0;
@@ -397,7 +397,7 @@ class _TraThemDiemWidgetState extends State<TraThemDiemWidget> {
                               : double.tryParse(v.toString().replaceAll(',', '').trim()) ?? 0;
 
                           item["khoangCach"] = km;
-                          print('Khoảng cách đã nhập: $km');
+// print('Khoảng cách đã nhập: $km'); // TODO: remove debug
 
                           if (item["cungTinhKhacTuyen"] == true) {
                             _tinhPhiThem(item);

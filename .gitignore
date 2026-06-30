@@ -72,8 +72,6 @@ __MACOSX/
 !/lib/**
 !/assets
 !/assets/**
-!/web
-!/web/**
 .codex/
 
 # Ignore Codex marker/state files inside lib/

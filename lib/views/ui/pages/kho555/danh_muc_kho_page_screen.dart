@@ -2,14 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kho555/controller/kho555/danh_muc_kho_controller.dart';
-import 'package:kho555/helper/theme/admin_theme.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/helper/widgets/my_spacing.dart';
-import 'package:kho555/helper/widgets/my_text.dart';
-import 'package:kho555/models/kho555/danh_muc_kho.dart';
-import 'package:kho555/views/layout/layout.dart';
+import 'package:ttk_logistics/controller/kho555/danh_muc_kho_controller.dart';
+import 'package:ttk_logistics/helper/theme/admin_theme.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
+import 'package:ttk_logistics/helper/widgets/my_text.dart';
+import 'package:ttk_logistics/models/kho555/danh_muc_kho.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
 
 class DanhMucKhoPageScreen extends StatefulWidget with UIMixin {
   const DanhMucKhoPageScreen({super.key});
@@ -29,7 +29,7 @@ class _DanhMucKhoPageScreenState extends State<DanhMucKhoPageScreen> {
         scrollDirection: Axis.vertical,
         child: DataTable(
           columnSpacing: 16,
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
           columns: [
             DataColumn(label: _headerCell('Mã kho', width: 110)),
             DataColumn(label: _headerCell('Tên kho', width: 220)),

@@ -1,14 +1,14 @@
 import 'dart:convert';
-import 'package:kho555/helper/storage/local_storage.dart';
-import 'package:kho555/helper/utils/app_toast.dart';
-import 'package:kho555/views/ui/pages/bap2/chi_tiet_chuyen_xe_screen.dart';
-import 'package:kho555/views/ui/pages/bap2/form_sua_chuyen_xe_screen.dart';
-import 'package:kho555/views/ui/pages/bap2/in_hop_dong_ca_nhan_screen.dart';
-import 'package:kho555/views/ui/pages/bap2/in_lenh_dieu_dong_screen.dart';
+import 'package:ttk_logistics/helper/storage/local_storage.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/chi_tiet_chuyen_xe_screen.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/form_sua_chuyen_xe_screen.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/in_hop_dong_ca_nhan_screen.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/in_lenh_dieu_dong_screen.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:kho555/helper/services/auth_services.dart';
+import 'package:ttk_logistics/helper/services/auth_services.dart';
 
 import '../../helper/widgets/xe_dialog_helper.dart';
 
@@ -40,7 +40,7 @@ class ChuyenXeController extends GetxController {
 
   /// ✅ Load danh sách chuyến xe (phân trang)
   Future<void> fetchChuyenXeList({int page = 1}) async {
-    print('AuthService.getChuyenXeList ${AuthService.getChuyenXeList}');
+// print('AuthService.getChuyenXeList ${AuthService.getChuyenXeList}'); // TODO: remove debug
 
     final token = await LocalStorage.getUserToken();
     final email = await LocalStorage.getUserEmail();
@@ -163,7 +163,7 @@ class ChuyenXeController extends GetxController {
       final token = await LocalStorage.getUserToken();
       final email = await LocalStorage.getUserEmail();
 
-      print('AuthService.updateTrangThaiChuyenXe ${AuthService.updateTrangThaiChuyenXe}');
+// print('AuthService.updateTrangThaiChuyenXe ${AuthService.updateTrangThaiChuyenXe}'); // TODO: remove debug
       final response = await http.post(
         Uri.parse(AuthService.workerUrl),
         headers: {"Content-Type": "application/json"},
@@ -319,8 +319,8 @@ class ChuyenXeController extends GetxController {
       barrierColor: Colors.black54,
     );
 
-    print('AuthService.getChuyenXeDetail ${AuthService.getChuyenXeDetail}');
-    print('nid view detail ${id}');
+// print('AuthService.getChuyenXeDetail ${AuthService.getChuyenXeDetail}'); // TODO: remove debug
+// print('nid view detail $id'); // TODO: remove debug
     try {
       // ===============================
       // 🧩 CALL API
@@ -421,7 +421,7 @@ class ChuyenXeController extends GetxController {
       return;
     }
 
-    print('AuthService.updateChuyenXe ${AuthService.updateChuyenXe}');
+// print('AuthService.updateChuyenXe ${AuthService.updateChuyenXe}'); // TODO: remove debug
     try {
       isUpdating.value = true; // ✅ Hiển thị spinner “Đang lưu...”
 
@@ -749,7 +749,7 @@ class ChuyenXeController extends GetxController {
 
       final noiDungMau = (res["noi_dung"] ?? "").toString();
       final soHopDong = (res["so_hop_dong"] ?? "").toString();
-      print('noiDungMau ${noiDungMau}');
+// print('noiDungMau $noiDungMau'); // TODO: remove debug
 
       // 🔹 Nếu nội dung trống
       if (noiDungMau.isEmpty) {
@@ -791,7 +791,7 @@ class ChuyenXeController extends GetxController {
     try {
       final token = await LocalStorage.getUserToken();
       final email = await LocalStorage.getUserEmail();
-      print('AuthService.getKhachHangDetail ${AuthService.getKhachHangDetail}');
+// print('AuthService.getKhachHangDetail ${AuthService.getKhachHangDetail}'); // TODO: remove debug
 
       final response = await http.post(
         Uri.parse(AuthService.workerUrl),
@@ -836,7 +836,7 @@ class ChuyenXeController extends GetxController {
 
       // 🔥 API backend tương ứng
       final String apiUrl = AuthService.getInfoThongTinNhaXe;
-      print('AuthService.getInfoThongTinNhaXe ${AuthService.getInfoThongTinNhaXe}');
+// print('AuthService.getInfoThongTinNhaXe ${AuthService.getInfoThongTinNhaXe}'); // TODO: remove debug
 
       final response = await http.post(
         Uri.parse(AuthService.workerUrl),

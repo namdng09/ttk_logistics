@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:kho555/helper/localization/language.dart';
-import 'package:kho555/helper/localization/translator.dart';
-import 'package:kho555/helper/services/json_decoder.dart';
-import 'package:kho555/helper/services/navigation_service.dart';
-import 'package:kho555/helper/theme/admin_theme.dart';
-import 'package:kho555/helper/theme/app_notifier.dart';
+import 'package:ttk_logistics/helper/localization/language.dart';
+import 'package:ttk_logistics/helper/localization/translator.dart';
+import 'package:ttk_logistics/helper/services/json_decoder.dart';
+import 'package:ttk_logistics/helper/services/navigation_service.dart';
+import 'package:ttk_logistics/helper/theme/admin_theme.dart';
+import 'package:ttk_logistics/helper/theme/app_notifier.dart';
 
 typedef ThemeChangeCallback = void Function(ThemeCustomizer oldVal, ThemeCustomizer newVal);
 

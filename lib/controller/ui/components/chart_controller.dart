@@ -1,9 +1,9 @@
 import 'dart:ui' as ui;
 
-import 'package:kho555/models/chart_model.dart';
+import 'package:ttk_logistics/models/chart_model.dart';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
-import 'package:kho555/controller/my_controller.dart';
+import 'package:ttk_logistics/controller/my_controller.dart';
 
 class ChartController extends MyController {
   List<ChartData>? chartData;

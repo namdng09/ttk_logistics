@@ -1,8 +1,8 @@
-import 'package:kho555/controller/pages/doanh_thu_chuyen_xe_controller.dart';
-import 'package:kho555/helper/utils/ui_mixins.dart';
-import 'package:kho555/helper/widgets/my_container.dart';
-import 'package:kho555/views/layout/layout.dart';
-import 'package:kho555/views/ui/pages/bap2/cap_nhat_doanh_thu_screen.dart';
+import 'package:ttk_logistics/controller/pages/doanh_thu_chuyen_xe_controller.dart';
+import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
+import 'package:ttk_logistics/helper/widgets/my_container.dart';
+import 'package:ttk_logistics/views/layout/layout.dart';
+import 'package:ttk_logistics/views/ui/pages/bap2/cap_nhat_doanh_thu_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -123,7 +123,7 @@ class _DoanhThuXeScreenState extends State<DoanhThuXeScreen> with UIMixin {
                           children: [
                             DropdownButtonFormField<int>(
                               dropdownColor: Colors.white,
-                              value: hasSelected ? controller.selectedXeId.value : null,
+                              initialValue: hasSelected ? controller.selectedXeId.value : null,
                               hint: const Text('Chọn xe'),
                               decoration: InputDecoration(
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -240,7 +240,7 @@ class _DoanhThuXeScreenState extends State<DoanhThuXeScreen> with UIMixin {
                                       dataRowMinHeight: 34,
                                       headingRowHeight: 36,
                                       columnSpacing: 14, // 🔹 giảm khoảng cách giữa các cột
-                                      headingRowColor: MaterialStateProperty.all(Colors.blueGrey.shade50),
+                                      headingRowColor: WidgetStateProperty.all(Colors.blueGrey.shade50),
                                       border: TableBorder.all(color: Colors.grey.shade300, width: 0.8),
                                       columns: const [
                                         DataColumn(label: Text("")),
