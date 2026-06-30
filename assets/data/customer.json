@@ -1,0 +1,86 @@
+[
+  {
+    "customer": "Carolyn Harvey",
+    "email": "CarolynHarvey@rhyta.com",
+    "phone": "580-464-4694",
+    "walletBalance": 3245,
+    "joiningDate": "06 Apr, 2020"
+  },
+  {
+    "customer": "Angelyn Hardin",
+    "email": "AngelynHardin@dayrep.com",
+    "phone": "913-248-2690",
+    "walletBalance": 2435,
+    "joiningDate": "05 Apr, 2020"
+  },
+  {
+    "customer": "Carrie Thompson",
+    "email": "CarrieThompson@rhyta.com",
+    "phone": "734-819-9286",
+    "walletBalance": 2653,
+    "joiningDate": "04 Apr, 2020"
+  },
+  {
+    "customer": "Kathleen Haller",
+    "email": "KathleenHaller@dayrep.com",
+    "phone": "313-742-3333",
+    "walletBalance": 2135,
+    "joiningDate": "03 Apr, 2020"
+  },
+  {
+    "customer": "Martha Beasley",
+    "email": "MarthaBeasley@teleworm.us",
+    "phone": "301-330-5745",
+    "walletBalance": 2698,
+    "joiningDate": "02 Apr, 2020"
+  },
+  {
+    "customer": "Kathryn Hudson",
+    "email": "KathrynHudson@armyspy.com",
+    "phone": "414-453-5725",
+    "walletBalance": 2758,
+    "joiningDate": "02 Apr, 2020"
+  },
+  {
+    "customer": "Robert Bott",
+    "email": "RobertBott@armyspy.com",
+    "phone": "712-237-9899",
+    "walletBalance": 2836,
+    "joiningDate": "01 Apr, 2020"
+  },
+  {
+    "customer": "Mary McDonald",
+    "email": "MaryMcDonald@armyspy.com",
+    "phone": "317-510-25554",
+    "walletBalance": 3245,
+    "joiningDate": "31 Mar, 2020"
+  },
+  {
+    "customer": "Keith Rainey",
+    "email": "KeithRainey@jourrapide.com",
+    "phone": "214-712-1810",
+    "walletBalance": 3125,
+    "joiningDate": "30 Mar, 2020"
+  },
+  {
+    "customer": "Anthony Russo",
+    "email": "AnthonyRusso@jourrapide.com",
+    "phone": "412-371-8864",
+    "walletBalance": 2456,
+    "joiningDate": "30 Mar, 2020"
+  },
+  {
+    "customer": "Donna Betz",
+    "email": "DonnaBetz@jourrapide.com",
+    "phone": "626-583-5779",
+    "walletBalance": 3423,
+    "joiningDate": "29 Mar, 2020"
+  },
+  {
+    "customer": "Angie Andres",
+    "email": "AngieAndres@armyspy.com",
+    "phone": "213-494-4527",
+    "walletBalance": 3245,
+    "joiningDate": "28 Apr, 2020"
+  }
+]

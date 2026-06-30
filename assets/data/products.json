@@ -1,0 +1,83 @@
+[
+  {
+    "name": "Home & Office Chair Green",
+    "price": 200,
+    "originalPrice": 240,
+    "discount": "25% Off",
+    "image": "assets/product/img-7.png",
+    "rating": 4.5,
+    "category": "Chairs"
+  },
+  {
+    "name": "Home & Office Chair Crime",
+    "price": 280,
+    "originalPrice": null,
+    "discount": null,
+    "image": "assets/product/img-8.png",
+    "rating": 4.0,
+    "category": "Chairs"
+  },
+  {
+    "name": "Home & Office Chair White",
+    "price": 380,
+    "originalPrice": 420,
+    "discount": "25% Off",
+    "image": "assets/product/img-9.png",
+    "rating": 4.5,
+    "category": "Chairs"
+  },
+  {
+    "name": "Home & Office Chair Coffee",
+    "price": 520,
+    "originalPrice": null,
+    "discount": null,
+    "image": "assets/product/img-10.png",
+    "rating": 5.0,
+    "category": "Chairs"
+  },
+  {
+    "name": "Home & Office Chair Blue",
+    "price": 280,
+    "originalPrice": 320,
+    "discount": "25% Off",
+    "image": "assets/product/img-11.png",
+    "rating": 3.5,
+    "category": "Chairs"
+  },
+  {
+    "name": "Home & Office Chair Black",
+    "price": 330,
+    "originalPrice": null,
+    "discount": null,
+    "image": "assets/product/img-12.png",
+    "rating": 3.0,
+    "category": "Chairs"
+  },
+  {
+    "name": "Home & Office Chair Coffee",
+    "price": 430,
+    "originalPrice": null,
+    "discount": null,
+    "image": "assets/product/img-14.png",
+    "rating": 5.0,
+    "category": "Chairs"
+  },
+  {
+    "name": "Home & Office Chair Black",
+    "price": 130,
+    "originalPrice": null,
+    "discount": null,
+    "image": "assets/product/img-13.png",
+    "rating": 3.0,
+    "category": "Chairs"
+  },
+  {
+    "name": "Home & Office Chair Dark",
+    "price": 220,
+    "originalPrice": 320,
+    "discount": "25% Off",
+    "image": "assets/product/img-6.png",
+    "rating": 3.5,
+    "category": "Chairs"
+  }
+]
