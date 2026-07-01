@@ -1,0 +1,4 @@
+name = "User Login API"
+description = "Login API and token validation for API modules (danh_muc, ben_thu_ba, ...)."
+core = 7.x
+package = ANDIN JSC API

@@ -1,0 +1,184 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function user_login_api_menu() {
+    $items['auth/user/login'] = array(
+        'title' => 'API user login',
+        'page callback' => 'user_login_api_callback',
+        'access callback' => TRUE,
+        'type' => MENU_CALLBACK,
+    );
+
+    return $items;
+}
+
+/**
+ * Implements hook_init().
+ * CORS headers for auth endpoints, handle OPTIONS preflight.
+ */
+function user_login_api_init() {
+    $path = isset($_GET['q']) ? $_GET['q'] : '';
+    if (strpos($path, 'auth/') === 0) {
+        drupal_add_http_header('Access-Control-Allow-Origin', '*');
+        drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        drupal_add_http_header('Access-Control-Max-Age', '86400');
+
+        if (strtoupper($_SERVER['REQUEST_METHOD']) === 'OPTIONS') {
+            drupal_add_http_header('Status', '204 No Content');
+            drupal_exit();
+        }
+    }
+}
+
+/**
+ * Implements hook_schema().
+ */
+function user_login_api_schema() {
+    $schema['api_user_token'] = array(
+        'description' => 'Stores user authentication tokens.',
+        'fields' => array(
+            'utid' => array(
+                'description' => 'Primary key: auto-increment.',
+                'type' => 'serial',
+                'unsigned' => TRUE,
+                'not null' => TRUE,
+            ),
+            'uid' => array(
+                'description' => 'User ID.',
+                'type' => 'int',
+                'unsigned' => TRUE,
+                'not null' => TRUE,
+            ),
+            'token' => array(
+                'description' => 'Authentication token (MD5 hash).',
+                'type' => 'varchar',
+                'length' => 255,
+                'not null' => TRUE,
+            ),
+            'created' => array(
+                'description' => 'Unix timestamp when token was created.',
+                'type' => 'int',
+                'unsigned' => TRUE,
+                'not null' => TRUE,
+                'default' => 0,
+            ),
+        ),
+        'primary key' => array('utid'),
+        'indexes' => array(
+            'uid_token' => array('uid', 'token'),
+        ),
+    );
+
+    return $schema;
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function user_login_api_uninstall() {
+    drupal_uninstall_schema('user_login_api');
+}
+
+/**
+ * API callback: Xử lý đăng nhập.
+ */
+function user_login_api_callback() {
+    require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
+
+    $input = file_get_contents("php://input");
+    $data = drupal_json_decode($input);
+
+    $username = isset($data['username']) ? $data['username'] : '';
+    $password = isset($data['password']) ? $data['password'] : '';
+
+    if (empty($username) || empty($password)) {
+        drupal_json_output(array(
+            'status' => 'error',
+            'message' => 'Thiếu username hoặc password',
+        ));
+        drupal_exit();
+    }
+
+    $account = user_load_by_name($username);
+    if (!$account) {
+        drupal_json_output(array(
+            'status' => 'error',
+            'message' => 'Sai tên đăng nhập',
+        ));
+        drupal_exit();
+    }
+
+    if (!user_check_password($password, $account)) {
+        drupal_json_output(array(
+            'status' => 'error',
+            'message' => 'Sai mật khẩu',
+        ));
+        drupal_exit();
+    }
+
+    // Generate new token
+    $new_token = md5(uniqid(mt_rand(), true));
+
+    // Store token in custom table
+    db_insert('api_user_token')
+        ->fields(array(
+            'uid' => $account->uid,
+            'token' => $new_token,
+            'created' => REQUEST_TIME,
+        ))
+        ->execute();
+
+    watchdog('user_login_api', 'New token created for user @uid', array('@uid' => $account->uid));
+
+    // Return success
+    drupal_json_output(array(
+        'status' => 'success',
+        'uid'    => $account->uid,
+        'name'   => $account->name,
+        'email'  => $account->mail,
+        'token'  => $new_token,
+    ));
+    drupal_exit();
+}
+
+/**
+ * Validate an authentication token.
+ *
+ * @param string $token
+ *   The token to validate.
+ * @param string $email
+ *   The user's email address.
+ *
+ * @return object|false
+ *   The user object if valid, FALSE otherwise.
+ */
+function api_check_token($token, $email) {
+    $token = trim((string) $token);
+    $email = trim((string) $email);
+
+    if ($token === '' || $email === '') {
+        return FALSE;
+    }
+
+    $account = user_load_by_mail($email);
+    if (!$account || empty($account->uid)) {
+        return FALSE;
+    }
+
+    $found = db_select('api_user_token', 't')
+        ->fields('t', array('utid'))
+        ->condition('t.uid', $account->uid)
+        ->condition('t.token', $token)
+        ->range(0, 1)
+        ->execute()
+        ->fetchField();
+
+    if ($found) {
+        return $account;
+    }
+
+    return FALSE;
+}

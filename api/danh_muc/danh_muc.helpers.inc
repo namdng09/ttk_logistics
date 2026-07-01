@@ -10,6 +10,7 @@
  */
 define('DANH_MUC_HTTP_OK', 200);
 define('DANH_MUC_HTTP_BAD_REQUEST', 400);
+define('DANH_MUC_HTTP_UNAUTHORIZED', 401);
 define('DANH_MUC_HTTP_METHOD_NOT_ALLOWED', 405);
 define('DANH_MUC_HTTP_INTERNAL_ERROR', 500);
 
@@ -50,17 +51,17 @@ function danh_muc_require_auth($params) {
   $token = isset($params['token']) ? trim($params['token']) : '';
 
   if ($email === '' || $token === '') {
-    throw new Exception('Thiếu thông tin xác thực');
+    danh_muc_respond_unauthorized('Thiếu thông tin xác thực');
   }
 
   module_load_include('module', 'user_login_api', 'user_login_api');
   if (!function_exists('api_check_token')) {
-    throw new Exception('Hệ thống xác thực chưa được bật');
+    danh_muc_respond_unauthorized('Hệ thống xác thực chưa được bật');
   }
 
   $result = api_check_token($token, $email);
   if ($result === FALSE) {
-    throw new Exception('Token không hợp lệ');
+    danh_muc_respond_unauthorized('Token không hợp lệ');
   }
 
   return $result;
@@ -281,6 +282,10 @@ function danh_muc_respond_failed($message) {
   danh_muc_respond('failed', $message, NULL, DANH_MUC_HTTP_BAD_REQUEST);
 }
 
+function danh_muc_respond_unauthorized($message) {
+  danh_muc_respond('failed', $message, NULL, DANH_MUC_HTTP_UNAUTHORIZED);
+}
+
 function danh_muc_respond_error($message) {
   danh_muc_respond('error', $message, NULL, DANH_MUC_HTTP_INTERNAL_ERROR);
 }
@@ -295,6 +300,7 @@ function _danh_muc_status_text($code) {
   $map = array(
     200 => 'OK',
     400 => 'Bad Request',
+    401 => 'Unauthorized',
     405 => 'Method Not Allowed',
     500 => 'Internal Server Error',
   );

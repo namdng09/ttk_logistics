@@ -2,3 +2,4 @@ name = "Quản lý danh mục"
 description = "REST API CRUD cho content type danh_muc (danh mục tổng hợp)."
 core = 7.x
 package = ANDIN JSC API
+dependencies[] = user_login_api

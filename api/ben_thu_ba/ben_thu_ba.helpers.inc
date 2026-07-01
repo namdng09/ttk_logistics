@@ -2,6 +2,7 @@
 
 define('BEN_THU_BA_HTTP_OK', 200);
 define('BEN_THU_BA_HTTP_BAD_REQUEST', 400);
+define('BEN_THU_BA_HTTP_UNAUTHORIZED', 401);
 define('BEN_THU_BA_HTTP_METHOD_NOT_ALLOWED', 405);
 define('BEN_THU_BA_HTTP_INTERNAL_ERROR', 500);
 
@@ -32,17 +33,17 @@ function ben_thu_ba_require_auth($params) {
   $token = isset($params['token']) ? trim($params['token']) : '';
 
   if ($email === '' || $token === '') {
-    throw new Exception('Thiếu thông tin xác thực');
+    ben_thu_ba_respond_unauthorized('Thiếu thông tin xác thực');
   }
 
   module_load_include('module', 'user_login_api', 'user_login_api');
   if (!function_exists('api_check_token')) {
-    throw new Exception('Hệ thống xác thực chưa được bật');
+    ben_thu_ba_respond_unauthorized('Hệ thống xác thực chưa được bật');
   }
 
   $result = api_check_token($token, $email);
   if ($result === FALSE) {
-    throw new Exception('Token không hợp lệ');
+    ben_thu_ba_respond_unauthorized('Token không hợp lệ');
   }
 
   return $result;
@@ -232,6 +233,10 @@ function ben_thu_ba_respond_failed($message) {
   ben_thu_ba_respond('failed', $message, NULL, BEN_THU_BA_HTTP_BAD_REQUEST);
 }
 
+function ben_thu_ba_respond_unauthorized($message) {
+  ben_thu_ba_respond('failed', $message, NULL, BEN_THU_BA_HTTP_UNAUTHORIZED);
+}
+
 function ben_thu_ba_respond_error($message) {
   ben_thu_ba_respond('error', $message, NULL, BEN_THU_BA_HTTP_INTERNAL_ERROR);
 }
@@ -246,6 +251,7 @@ function _ben_thu_ba_status_text($code) {
   $map = array(
     200 => 'OK',
     400 => 'Bad Request',
+    401 => 'Unauthorized',
     405 => 'Method Not Allowed',
     500 => 'Internal Server Error',
   );
