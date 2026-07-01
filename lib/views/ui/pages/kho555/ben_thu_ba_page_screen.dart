@@ -28,12 +28,69 @@ class _BenThuBaPageScreenState extends State<BenThuBaPageScreen> {
     'Khách hàng',
   ];
 
+  final ScrollController _horizontalScroll = ScrollController();
+  final ScrollController _verticalScroll = ScrollController();
+  bool _isDragging = false;
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    _horizontalScroll.jumpTo(
+      (_horizontalScroll.offset - details.delta.dx).clamp(
+        0,
+        _horizontalScroll.position.maxScrollExtent,
+      ),
+    );
+    _verticalScroll.jumpTo(
+      (_verticalScroll.offset - details.delta.dy).clamp(
+        0,
+        _verticalScroll.position.maxScrollExtent,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _horizontalScroll.dispose();
+    _verticalScroll.dispose();
+    super.dispose();
+  }
+
   Widget buildBenThuBaTable(List<BenThuBa> data) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: DataTable(
+    return MouseRegion(
+      cursor: _isDragging
+          ? SystemMouseCursors.grabbing
+          : SystemMouseCursors.grab,
+      child: Listener(
+        onPointerMove: (event) {
+          if (event.buttons != 1) return;
+          if (!_isDragging) {
+            setState(() => _isDragging = true);
+          }
+          _handleDragUpdate(DragUpdateDetails(
+            delta: event.delta,
+            globalPosition: event.position,
+          ));
+        },
+        onPointerUp: (_) {
+          if (_isDragging) setState(() => _isDragging = false);
+        },
+        onPointerCancel: (_) {
+          if (_isDragging) setState(() => _isDragging = false);
+        },
+        child: Scrollbar(
+            controller: _horizontalScroll,
+            notificationPredicate: (notification) =>
+                notification.depth == 0,
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              controller: _horizontalScroll,
+              child: Scrollbar(
+                controller: _verticalScroll,
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  controller: _verticalScroll,
+                  child: DataTable(
           columnSpacing: 16,
           headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
           columns: [
@@ -114,8 +171,12 @@ class _BenThuBaPageScreenState extends State<BenThuBaPageScreen> {
                     ],
                   );
                 }).toList(),
+              ),
+            ),
+          ),
         ),
       ),
+    ),
     );
   }
 

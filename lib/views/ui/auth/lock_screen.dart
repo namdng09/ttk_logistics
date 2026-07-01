@@ -79,7 +79,7 @@ class _LockScreenState extends State<LockScreen> with UIMixin {
               ),
               MySpacing.height(16),
               MyText.bodyMedium(
-                '© ${DateTime.now().year} HENG XING 555',
+                '© ${DateTime.now().year} TTK',
                 color: contentTheme.onPrimary,
               )
             ],

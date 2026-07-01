@@ -49,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> with UIMixin {
                       MySpacing.height(24),
                       Center(child: MyText.titleMedium("Xin chào!", fontWeight: 600, muted: true,color: contentTheme.primary,)),
                       MySpacing.height(12),
-                      Center(child: MyText.bodyMedium("Đăng nhập quản lý hệ thống HENG XING 555.")),
+                      Center(child: MyText.bodyMedium("Đăng nhập quản lý hệ thống TTK.")),
                       MySpacing.height(12),
                       MyText.bodyMedium("Tên đăng nhập", fontWeight: 600),
                       MySpacing.height(8),
