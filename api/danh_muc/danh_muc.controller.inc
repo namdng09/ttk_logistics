@@ -78,6 +78,7 @@ function danh_muc_route_item($nid) {
  * Controller: GET list.
  */
 function danh_muc_controller_list($params) {
+  danh_muc_require_auth($params);
   $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
   $limit = isset($_GET['limit']) ? max(1, intval($_GET['limit'])) : DANH_MUC_DEFAULT_LIMIT;
   $limit = min($limit, DANH_MUC_MAX_LIMIT);
@@ -118,7 +119,7 @@ function danh_muc_controller_list($params) {
  * Controller: GET detail.
  */
 function danh_muc_controller_detail($nid, $params) {
-
+  danh_muc_require_auth($params);
 
   $query = db_select('node', 'n')
     ->fields('n', array('nid', 'title', 'created', 'changed'))
@@ -150,7 +151,7 @@ function danh_muc_controller_detail($nid, $params) {
  * Controller: POST create.
  */
 function danh_muc_controller_create($params) {
-
+  danh_muc_require_auth($params);
 
   $title = isset($params['title']) ? trim((string) $params['title']) : '';
   if ($title === '') {
@@ -181,7 +182,7 @@ function danh_muc_controller_create($params) {
  * Controller: PUT update.
  */
 function danh_muc_controller_update($nid, $params) {
-
+  danh_muc_require_auth($params);
 
   $node = node_load(intval($nid));
   if (!$node || $node->type !== DANH_MUC_BUNDLE) {
@@ -212,7 +213,7 @@ function danh_muc_controller_update($nid, $params) {
  * Controller: DELETE soft-delete.
  */
 function danh_muc_controller_delete($nid, $params) {
-
+  danh_muc_require_auth($params);
 
   $node = node_load(intval($nid));
   if (!$node || $node->type !== DANH_MUC_BUNDLE) {

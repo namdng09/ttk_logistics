@@ -1,32 +1,19 @@
 <?php
 
-/**
- * @file
- * Helper functions cho module danh_muc.
- */
+define('BEN_THU_BA_HTTP_OK', 200);
+define('BEN_THU_BA_HTTP_BAD_REQUEST', 400);
+define('BEN_THU_BA_HTTP_METHOD_NOT_ALLOWED', 405);
+define('BEN_THU_BA_HTTP_INTERNAL_ERROR', 500);
 
-/**
- * HTTP status code constants.
- */
-define('DANH_MUC_HTTP_OK', 200);
-define('DANH_MUC_HTTP_BAD_REQUEST', 400);
-define('DANH_MUC_HTTP_METHOD_NOT_ALLOWED', 405);
-define('DANH_MUC_HTTP_INTERNAL_ERROR', 500);
+define('BEN_THU_BA_BUNDLE', 'ben_thu_ba');
+define('BEN_THU_BA_DEFAULT_LIMIT', 20);
+define('BEN_THU_BA_MAX_LIMIT', 500);
 
-define('DANH_MUC_BUNDLE', 'danh_muc');
-define('DANH_MUC_DEFAULT_LIMIT', 20);
-define('DANH_MUC_MAX_LIMIT', 500);
-
-/**
- * Parse request params từ JSON body, GET, POST.
- */
-function danh_muc_get_params() {
+function ben_thu_ba_get_params() {
   $params = array();
-
   foreach ($_GET as $key => $value) {
     $params[$key] = $value;
   }
-
   $raw = file_get_contents('php://input');
   if ($raw !== '') {
     $decoded = json_decode($raw, TRUE);
@@ -34,18 +21,13 @@ function danh_muc_get_params() {
       $params = array_merge($params, $decoded);
     }
   }
-
   foreach ($_POST as $key => $value) {
     $params[$key] = $value;
   }
-
   return $params;
 }
 
-/**
- * Validate authentication token.
- */
-function danh_muc_require_auth($params) {
+function ben_thu_ba_require_auth($params) {
   $email = isset($params['created_email']) ? trim($params['created_email']) : '';
   $token = isset($params['token']) ? trim($params['token']) : '';
 
@@ -66,20 +48,14 @@ function danh_muc_require_auth($params) {
   return $result;
 }
 
-/**
- * Get single field value từ node Drupal.
- */
-function danh_muc_field_value($node, $field_name, $default = '') {
+function ben_thu_ba_field_value($node, $field_name, $default = '') {
   if (isset($node->{$field_name}[LANGUAGE_NONE][0]['value']) && $node->{$field_name}[LANGUAGE_NONE][0]['value'] !== '') {
     return $node->{$field_name}[LANGUAGE_NONE][0]['value'];
   }
   return $default;
 }
 
-/**
- * Decode JSON string, trả về array rỗng nếu lỗi.
- */
-function danh_muc_decode_json($value) {
+function ben_thu_ba_decode_json($value) {
   if (empty($value)) {
     return array();
   }
@@ -87,11 +63,7 @@ function danh_muc_decode_json($value) {
   return is_array($decoded) ? $decoded : array();
 }
 
-/**
- * Encode field_thong_tin_json về string để lưu vào Drupal.
- * Chấp nhận cả JSON string (cũ) lẫn array/object (mới từ Flutter).
- */
-function danh_muc_encode_json_value($value) {
+function ben_thu_ba_encode_json_value($value) {
   if (is_string($value) && $value !== '') {
     $decoded = json_decode($value, TRUE);
     if (is_array($decoded)) {
@@ -104,10 +76,7 @@ function danh_muc_encode_json_value($value) {
   return '';
 }
 
-/**
- * Parse boolean/active value từ input.
- */
-function danh_muc_parse_active($value) {
+function ben_thu_ba_parse_active($value) {
   if ($value === NULL || $value === '') {
     return 1;
   }
@@ -118,11 +87,7 @@ function danh_muc_parse_active($value) {
   return 1;
 }
 
-/**
- * Alias: node còn hoạt động không.
- * Chấp nhận cả node object từ node_load và row từ db_select.
- */
-function danh_muc_node_is_active($entity) {
+function ben_thu_ba_node_is_active($entity) {
   if (isset($entity->hoat_dong)) {
     return intval($entity->hoat_dong) === 1;
   }
@@ -132,46 +97,40 @@ function danh_muc_node_is_active($entity) {
   return TRUE;
 }
 
-/**
- * Format một row từ db_select thành array trả về.
- */
-function danh_muc_format_row($row) {
+function ben_thu_ba_format_row($row) {
   return array(
     'nid' => intval($row->nid),
     'title' => (string) $row->title,
-    'field_thong_tin_json' => isset($row->thong_tin_json) ? danh_muc_decode_json($row->thong_tin_json) : new stdClass(),
+    'field_thong_tin_json' => isset($row->thong_tin_json) ? ben_thu_ba_decode_json($row->thong_tin_json) : new stdClass(),
     'field_hoat_dong' => isset($row->hoat_dong) ? intval($row->hoat_dong) : 1,
-    'field_so_luong' => isset($row->so_luong) ? floatval($row->so_luong) : 0,
+    'field_phan_loai' => isset($row->phan_loai) ? (string) $row->phan_loai : '',
+    'field_dob' => isset($row->dob) ? intval($row->dob) : 0,
     'created' => isset($row->created) ? intval($row->created) : 0,
     'changed' => isset($row->changed) ? intval($row->changed) : 0,
   );
 }
 
-/**
- * Format một node Drupal thành array trả về.
- */
-function danh_muc_format_node($node) {
+function ben_thu_ba_format_node($node) {
   return array(
     'nid' => intval($node->nid),
     'title' => (string) $node->title,
-    'field_thong_tin_json' => danh_muc_decode_json(danh_muc_field_value($node, 'field_thong_tin_json', '')),
+    'field_thong_tin_json' => ben_thu_ba_decode_json(ben_thu_ba_field_value($node, 'field_thong_tin_json', '')),
     'field_hoat_dong' => isset($node->field_hoat_dong[LANGUAGE_NONE][0]['value']) ? intval($node->field_hoat_dong[LANGUAGE_NONE][0]['value']) : 1,
-    'field_so_luong' => !empty($node->field_so_luong[LANGUAGE_NONE][0]['value']) ? floatval($node->field_so_luong[LANGUAGE_NONE][0]['value']) : 0,
+    'field_phan_loai' => ben_thu_ba_field_value($node, 'field_phan_loai', ''),
+    'field_dob' => isset($node->field_dob[LANGUAGE_NONE][0]['value']) ? intval($node->field_dob[LANGUAGE_NONE][0]['value']) : 0,
     'created' => !empty($node->created) ? intval($node->created) : 0,
     'changed' => !empty($node->changed) ? intval($node->changed) : 0,
   );
 }
 
-/**
- * Build query cơ sở cho danh_muc, dùng db_select.
- */
-function danh_muc_build_list_query($params) {
+function ben_thu_ba_build_list_query($params) {
   $query = db_select('node', 'n');
-  $query->condition('n.type', DANH_MUC_BUNDLE, '=');
+  $query->condition('n.type', BEN_THU_BA_BUNDLE, '=');
 
   $query->leftJoin('field_data_field_thong_tin_json', 'ftj', "n.nid = ftj.entity_id AND ftj.entity_type = 'node' AND ftj.deleted = 0");
   $query->leftJoin('field_data_field_hoat_dong', 'fhd', "n.nid = fhd.entity_id AND fhd.entity_type = 'node' AND fhd.deleted = 0");
-  $query->leftJoin('field_data_field_so_luong', 'fsl', "n.nid = fsl.entity_id AND fsl.entity_type = 'node' AND fsl.deleted = 0");
+  $query->leftJoin('field_data_field_phan_loai', 'fpl', "n.nid = fpl.entity_id AND fpl.entity_type = 'node' AND fpl.deleted = 0");
+  $query->leftJoin('field_data_field_dob', 'fdb', "n.nid = fdb.entity_id AND fdb.entity_type = 'node' AND fdb.deleted = 0");
 
   $keyword = isset($params['keyword']) ? trim((string) $params['keyword']) : '';
   if ($keyword !== '') {
@@ -179,7 +138,7 @@ function danh_muc_build_list_query($params) {
   }
 
   if (isset($params['field_hoat_dong']) && $params['field_hoat_dong'] !== '' && $params['field_hoat_dong'] !== 'all') {
-    $query->condition('fhd.field_hoat_dong_value', danh_muc_parse_active($params['field_hoat_dong']), '=');
+    $query->condition('fhd.field_hoat_dong_value', ben_thu_ba_parse_active($params['field_hoat_dong']), '=');
   }
   elseif (!isset($params['include_inactive']) || !$params['include_inactive']) {
     $or = db_or();
@@ -188,13 +147,14 @@ function danh_muc_build_list_query($params) {
     $query->condition($or);
   }
 
+  if (isset($params['field_phan_loai']) && trim((string) $params['field_phan_loai']) !== '') {
+    $query->condition('fpl.field_phan_loai_value', trim((string) $params['field_phan_loai']), '=');
+  }
+
   return $query;
 }
 
-/**
- * Apply sort vào query.
- */
-function danh_muc_apply_sort(&$query, $params) {
+function ben_thu_ba_apply_sort(&$query, $params) {
   $sort_by = isset($_GET['sort_by']) ? trim((string) $_GET['sort_by']) : 'title';
   $sort_dir = isset($_GET['sort_dir']) ? strtoupper(trim((string) $_GET['sort_dir'])) : 'ASC';
   if ($sort_dir !== 'ASC' && $sort_dir !== 'DESC') {
@@ -207,7 +167,8 @@ function danh_muc_apply_sort(&$query, $params) {
     'created' => 'n.created',
     'changed' => 'n.changed',
     'field_hoat_dong' => 'fhd.field_hoat_dong_value',
-    'field_so_luong' => 'fsl.field_so_luong_value',
+    'field_phan_loai' => 'fpl.field_phan_loai_value',
+    'field_dob' => 'fdb.field_dob_value',
   );
 
   $query->orderBy(isset($map[$sort_by]) ? $map[$sort_by] : 'n.title', $sort_dir);
@@ -216,13 +177,10 @@ function danh_muc_apply_sort(&$query, $params) {
   }
 }
 
-/**
- * Kiểm tra title đã tồn tại chưa (tránh trùng tên).
- */
-function danh_muc_title_exists($title, $exclude_nid = 0) {
+function ben_thu_ba_title_exists($title, $exclude_nid = 0) {
   $query = db_select('node', 'n');
   $query->fields('n', array('nid'));
-  $query->condition('n.type', DANH_MUC_BUNDLE, '=');
+  $query->condition('n.type', BEN_THU_BA_BUNDLE, '=');
   $query->condition('n.title', $title, '=');
   $query->leftJoin('field_data_field_hoat_dong', 'fhd', "n.nid = fhd.entity_id AND fhd.entity_type = 'node' AND fhd.deleted = 0");
 
@@ -239,32 +197,25 @@ function danh_muc_title_exists($title, $exclude_nid = 0) {
   return (bool) $query->execute()->fetchField();
 }
 
-// ---------------------------------------------------------------------------
-// Response helpers
-// ---------------------------------------------------------------------------
-
-function danh_muc_add_cors_headers() {
+function ben_thu_ba_add_cors_headers() {
   drupal_add_http_header('Access-Control-Allow-Origin', '*');
   drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   drupal_add_http_header('Access-Control-Max-Age', '86400');
 }
 
-function danh_muc_cors_preflight() {
-  danh_muc_add_cors_headers();
+function ben_thu_ba_cors_preflight() {
+  ben_thu_ba_add_cors_headers();
   drupal_add_http_header('Status', '204 No Content');
   drupal_exit();
 }
 
-function danh_muc_respond($status, $message, $data = NULL, $http_code = DANH_MUC_HTTP_OK) {
-  danh_muc_add_cors_headers();
+function ben_thu_ba_respond($status, $message, $data = NULL, $http_code = BEN_THU_BA_HTTP_OK) {
+  ben_thu_ba_add_cors_headers();
   drupal_add_http_header('Content-Type', 'application/json; charset=utf-8');
-  drupal_add_http_header('Status', $http_code . ' ' . _danh_muc_status_text($http_code));
+  drupal_add_http_header('Status', $http_code . ' ' . _ben_thu_ba_status_text($http_code));
 
-  $response = array(
-    'status' => $status,
-    'message' => $message,
-  );
+  $response = array('status' => $status, 'message' => $message);
   if ($data !== NULL) {
     $response['data'] = $data;
   }
@@ -273,25 +224,25 @@ function danh_muc_respond($status, $message, $data = NULL, $http_code = DANH_MUC
   drupal_exit();
 }
 
-function danh_muc_respond_success($message, $data = NULL) {
-  danh_muc_respond('success', $message, $data, DANH_MUC_HTTP_OK);
+function ben_thu_ba_respond_success($message, $data = NULL) {
+  ben_thu_ba_respond('success', $message, $data, BEN_THU_BA_HTTP_OK);
 }
 
-function danh_muc_respond_failed($message) {
-  danh_muc_respond('failed', $message, NULL, DANH_MUC_HTTP_BAD_REQUEST);
+function ben_thu_ba_respond_failed($message) {
+  ben_thu_ba_respond('failed', $message, NULL, BEN_THU_BA_HTTP_BAD_REQUEST);
 }
 
-function danh_muc_respond_error($message) {
-  danh_muc_respond('error', $message, NULL, DANH_MUC_HTTP_INTERNAL_ERROR);
+function ben_thu_ba_respond_error($message) {
+  ben_thu_ba_respond('error', $message, NULL, BEN_THU_BA_HTTP_INTERNAL_ERROR);
 }
 
-function danh_muc_respond_method_not_allowed($allowed) {
-  danh_muc_add_cors_headers();
+function ben_thu_ba_respond_method_not_allowed($allowed) {
+  ben_thu_ba_add_cors_headers();
   drupal_add_http_header('Allow', $allowed);
-  danh_muc_respond('error', 'Method không được hỗ trợ. Allowed: ' . $allowed, NULL, DANH_MUC_HTTP_METHOD_NOT_ALLOWED);
+  ben_thu_ba_respond('error', 'Method không được hỗ trợ. Allowed: ' . $allowed, NULL, BEN_THU_BA_HTTP_METHOD_NOT_ALLOWED);
 }
 
-function _danh_muc_status_text($code) {
+function _ben_thu_ba_status_text($code) {
   $map = array(
     200 => 'OK',
     400 => 'Bad Request',

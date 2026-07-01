@@ -1,0 +1,42 @@
+<?php
+
+/**
+ * @file
+ * REST API cho content type ben_thu_ba.
+ * Endpoint: /ben-thu-ba
+ */
+
+module_load_include('inc', 'ben_thu_ba', 'ben_thu_ba.helpers');
+module_load_include('inc', 'ben_thu_ba', 'ben_thu_ba.controller');
+module_load_include('inc', 'ben_thu_ba', 'ben_thu_ba.service');
+
+function ben_thu_ba_init() {
+  $path = current_path();
+  if ($path === 'ben-thu-ba' || strpos($path, 'ben-thu-ba/') === 0) {
+    ben_thu_ba_add_cors_headers();
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      ben_thu_ba_cors_preflight();
+    }
+  }
+}
+
+function ben_thu_ba_menu() {
+  $items = array();
+
+  $items['ben-thu-ba'] = array(
+    'title' => 'Danh sách / tạo bên thứ ba',
+    'page callback' => 'ben_thu_ba_route_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['ben-thu-ba/%'] = array(
+    'title' => 'Chi tiết / cập nhật / xoá bên thứ ba',
+    'page callback' => 'ben_thu_ba_route_item',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}

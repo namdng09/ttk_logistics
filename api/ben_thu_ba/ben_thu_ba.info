@@ -1,0 +1,4 @@
+name = "Quản lý bên thứ ba"
+description = "REST API CRUD cho content type ben_thu_ba."
+core = 7.x
+package = ANDIN JSC API

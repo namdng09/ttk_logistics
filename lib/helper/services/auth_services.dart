@@ -8,7 +8,7 @@ class AuthService {
   static const String workerUrlGetFile = "https://get-file.hungddvimaru.workers.dev";
 
   /// URL API login (Drupal 7)
-  static const String baseUrl = "https://kho.andinjsc.com"; // đổi domain
+  static const String baseUrl = "https://ttk.andinjsc.com"; // đổi domain
   static const String loginEndpoint = "$baseUrl/api/auth/user/login";
   static const String getListVatTu = '$baseUrl/api/get-list-vat-tu';
   static const String saveVatTu = '$baseUrl/api/save-vat-tu';
