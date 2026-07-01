@@ -6,6 +6,19 @@
  */
 
 /**
+ * Resolve HTTP method từ params _method (worker override) hoặc SERVER.
+ */
+function _danh_muc_resolve_method($params) {
+  if (isset($params['_method'])) {
+    $m = strtoupper(trim($params['_method']));
+    if (in_array($m, array('GET', 'POST', 'PUT', 'PATCH', 'DELETE'))) {
+      return $m;
+    }
+  }
+  return $_SERVER['REQUEST_METHOD'];
+}
+
+/**
  * Route: /api/danh-muc
  */
 function danh_muc_route_collection() {
@@ -18,6 +31,7 @@ function danh_muc_route_collection() {
 
   try {
     $params = danh_muc_get_params();
+    $method = _danh_muc_resolve_method($params);
 
     if ($method === 'GET') {
       danh_muc_controller_list($params);
@@ -50,6 +64,7 @@ function danh_muc_route_item($nid) {
 
   try {
     $params = danh_muc_get_params();
+    $method = _danh_muc_resolve_method($params);
 
     if ($method === 'GET') {
       danh_muc_controller_detail($nid, $params);
@@ -79,8 +94,8 @@ function danh_muc_route_item($nid) {
  */
 function danh_muc_controller_list($params) {
   danh_muc_require_auth($params);
-  $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-  $limit = isset($_GET['limit']) ? max(1, intval($_GET['limit'])) : DANH_MUC_DEFAULT_LIMIT;
+  $page = isset($params['page']) ? max(1, intval($params['page'])) : 1;
+  $limit = isset($params['limit']) ? max(1, intval($params['limit'])) : DANH_MUC_DEFAULT_LIMIT;
   $limit = min($limit, DANH_MUC_MAX_LIMIT);
   $offset = ($page - 1) * $limit;
 

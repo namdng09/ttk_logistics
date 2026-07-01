@@ -14,6 +14,7 @@ import 'views/ui/pages/kho555/danh_muc_kho_page_screen.dart';
 import 'views/ui/pages/kho555/nhap_vat_tu_page_screen.dart';
 import 'views/ui/pages/kho555/phieu_nhap_vat_tu_page_screen.dart';
 import 'views/ui/pages/kho555/vat_tu_page_screen.dart';
+import 'views/ui/pages/kho555/danh_muc_page_screen.dart';
 
 class AuthMiddleware extends GetMiddleware {
   @override
@@ -89,11 +90,6 @@ List<GetPage> getPageRoute() {
     // GetPage(name: '/pages/pricing', page: () => PricingScreen()),
     // GetPage(name: '/pages/timeline', page: () => TimelineScreen()),
     // // new
-    // GetPage(
-    //     name: '/danh-muc',
-    //     page: () => DanhMucPageScreen(),
-    //     middlewares: [AuthMiddleware()],
-    // ),
     // // GetPage(name: '/loai-xe', page: () => LoaiXePageScreen(),middlewares: [AuthMiddleware()]),
     // GetPage(name: '/them-bao-gia', page: () => BaoGiaPageScreen(),middlewares: [AuthMiddleware()]),
     // GetPage(name: '/tra-xe-cung-tinh', page: () => TraXeCungTinhPageScreen(),middlewares: [AuthMiddleware()]),
@@ -131,6 +127,7 @@ List<GetPage> getPageRoute() {
     // Quản lý kho
     GetPage(name: '/vat-tu', page: () => VatTuPageScreen(),middlewares: [AuthMiddleware()]),
     GetPage(name: '/ben-thu-ba', page: () => BenThuBaPageScreen(),middlewares: [AuthMiddleware()]),
+    GetPage(name: '/danh-muc', page: () => DanhMucPageScreen(),middlewares: [AuthMiddleware()]),
     GetPage(name: '/kho-vat-tu', page: () => DanhMucKhoPageScreen(),middlewares: [AuthMiddleware()]),
     GetPage(name: '/nhap-vat-tu', page: () => NhapVatTuPageScreen(),middlewares: [AuthMiddleware()]),
     GetPage(name: '/phieu-nhap', page: () => PhieuNhapVatTuPageScreen(),middlewares: [AuthMiddleware()]),
