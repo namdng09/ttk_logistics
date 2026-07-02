@@ -1,0 +1,49 @@
+<?php
+
+/**
+ * @file
+ * REST API cho content type lai_xe (lái xe).
+ * Endpoint prefix: /lai-xe
+ * Drupal tại subdirectory /api/ → URL đầy đủ: https://site.com/api/lai-xe
+ */
+
+module_load_include('inc', 'lai_xe', 'lai_xe.helpers');
+module_load_include('inc', 'lai_xe', 'lai_xe.controller');
+module_load_include('inc', 'lai_xe', 'lai_xe.service');
+
+/**
+ * Implements hook_init().
+ */
+function lai_xe_init() {
+  $path = current_path();
+  if ($path === 'lai-xe' || strpos($path, 'lai-xe/') === 0) {
+    lai_xe_add_cors_headers();
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      lai_xe_cors_preflight();
+    }
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function lai_xe_menu() {
+  $items = array();
+
+  $items['lai-xe'] = array(
+    'title' => 'Danh sách / tạo lái xe',
+    'page callback' => 'lai_xe_route_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['lai-xe/%'] = array(
+    'title' => 'Chi tiết / cập nhật / xoá lái xe',
+    'page callback' => 'lai_xe_route_item',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
