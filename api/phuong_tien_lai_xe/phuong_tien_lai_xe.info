@@ -1,0 +1,5 @@
+name = "Quản lý phương tiện lái xe"
+description = "REST API CRUD cho content type phuong_tien_lai_xe (quan hệ PT-LX)."
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = user_login_api
