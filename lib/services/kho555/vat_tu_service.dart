@@ -107,24 +107,35 @@ class VatTuService {
         }),
       );
 
-      if (response.statusCode == 200) {
+      try {
         final res = _decodeBody(response.body);
-        if (res['success'] == true) {
-          return ApiResponse.fromJson(res);
+
+        if (response.statusCode == 200) {
+          if (res['success'] == true) {
+            return ApiResponse.fromJson(res);
+          }
+
+          return ApiResponse(
+            success: false,
+            message: res['content']?.toString() ??
+                res['message']?.toString() ??
+                fallbackMessage,
+          );
         }
 
+        final message = res['message']?.toString() ??
+            res['content']?.toString() ??
+            'Lỗi server: ${response.statusCode}';
+        return ApiResponse(success: false, message: message);
+      } catch (e) {
+        if (response.statusCode == 200) {
+          return ApiResponse(success: false, message: 'Lỗi xử lý: $e');
+        }
         return ApiResponse(
           success: false,
-          message: res['content']?.toString() ??
-              res['message']?.toString() ??
-              fallbackMessage,
+          message: 'Lỗi server: ${response.statusCode}',
         );
       }
-
-      return ApiResponse(
-        success: false,
-        message: 'Lỗi server: ${response.statusCode}',
-      );
     } catch (e) {
       return ApiResponse(success: false, message: 'Lỗi kết nối: $e');
     }

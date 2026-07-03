@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:remixicon/remixicon.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -221,8 +222,8 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            MyContainer(
-              onTap: () {
+            Obx(() => MyContainer(
+              onTap: controller.isLoading.value ? null : () {
                 controller.clearSearch();
                 controller.fetchPhuongTien();
               },
@@ -230,12 +231,22 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
               paddingAll: 12,
               child: Row(
                 children: [
-                  Icon(Remix.refresh_line, color: Colors.white, size: 18),
+                  if (controller.isLoading.value)
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  else
+                    Icon(Remix.refresh_line, color: Colors.white, size: 18),
                   const SizedBox(width: 6),
                   MyText.labelMedium('Tải lại', color: Colors.white),
                 ],
               ),
-            ),
+            )),
           ],
           child: MyContainer(
             child: controller.isLoading.value
@@ -464,6 +475,44 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setDialogState) {
+          void submitForm() {
+            if (controller.isSaving.value) return;
+            final bks = bksCtrl.text.trim();
+            if (bks.isEmpty) {
+              setDialogState(() => isBksError = true);
+              AppToast.warning('Vui lòng nhập biển kiểm soát');
+              return;
+            }
+
+            final data = {
+              'title': bks,
+              'field_thong_tin_json': {
+                'ma_tai_san': maTsCtrl.text.trim(),
+                'loai_phuong_tien': loaiPtCtrl.text.trim(),
+                'hang_xe': hangXeCtrl.text.trim(),
+                'nam_san_xuat': int.tryParse(namSxCtrl.text.trim()) ?? 0,
+                'gia_mua': _parseCurrency(giaMuaCtrl.text.trim()),
+                'ngay_mua': _toApiDate(ngayMuaCtrl.text.trim()),
+                'so_dang_kiem': soDkCtrl.text.trim(),
+                'han_dang_kiem': _toApiDate(hanDkCtrl.text.trim()),
+                'so_bao_hiem_than_vo': soBhtvCtrl.text.trim(),
+                'han_bao_hiem_than_vo': _toApiDate(hanBhtvCtrl.text.trim()),
+                'so_bao_hiem_tnds': soBhtndsCtrl.text.trim(),
+                'han_bao_hiem_tnds': _toApiDate(hanBhtndsCtrl.text.trim()),
+                'ngay_phu_hieu': _toApiDate(ngayPhCtrl.text.trim()),
+                'han_phu_hieu': _toApiDate(hanPhCtrl.text.trim()),
+              },
+              'field_hoat_dong': 1,
+            };
+
+            if (existingData != null && existingData.nid > 0) {
+              controller.updatePhuongTienOnServer(
+                  existingData.nid, data);
+            } else {
+              controller.savePhuongTien(data);
+            }
+          }
+
           return Dialog(
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -495,6 +544,14 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
                     child: Padding(
                       padding: MySpacing.all(20),
                       child: SingleChildScrollView(
+                        child: Focus(
+                          onKeyEvent: (node, event) {
+                            if (event is KeyDownEvent && (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.space)) {
+                              submitForm();
+                              return KeyEventResult.handled;
+                            }
+                            return KeyEventResult.ignored;
+                          },
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -583,6 +640,7 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
                       ),
                     ),
                   ),
+                  ),
                   const Divider(height: 0),
                   Padding(
                     padding: MySpacing.all(20),
@@ -603,45 +661,7 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
                         Tooltip(
                           message: 'Lưu phương tiện',
                           child: MyContainer(
-                          onTap: () {
-                            final bks = bksCtrl.text.trim();
-                            if (bks.isEmpty) {
-                              setDialogState(() => isBksError = true);
-                              AppToast.error('Vui lòng nhập biển kiểm soát');
-                              return;
-                            }
-
-                            final data = {
-                              'title': bks,
-                              'field_thong_tin_json': {
-                                'ma_tai_san': maTsCtrl.text.trim(),
-                                'loai_phuong_tien': loaiPtCtrl.text.trim(),
-                                'hang_xe': hangXeCtrl.text.trim(),
-                                'nam_san_xuat': int.tryParse(namSxCtrl.text.trim()) ?? 0,
-                                'gia_mua': _parseCurrency(giaMuaCtrl.text.trim()),
-                                'ngay_mua': _toApiDate(ngayMuaCtrl.text.trim()),
-                                'so_dang_kiem': soDkCtrl.text.trim(),
-                                'han_dang_kiem': _toApiDate(hanDkCtrl.text.trim()),
-                                'so_bao_hiem_than_vo': soBhtvCtrl.text.trim(),
-                                'han_bao_hiem_than_vo': _toApiDate(hanBhtvCtrl.text.trim()),
-                                'so_bao_hiem_tnds': soBhtndsCtrl.text.trim(),
-                                'han_bao_hiem_tnds': _toApiDate(hanBhtndsCtrl.text.trim()),
-                                'ngay_phu_hieu': _toApiDate(ngayPhCtrl.text.trim()),
-                                'han_phu_hieu': _toApiDate(hanPhCtrl.text.trim()),
-                              },
-                              'field_hoat_dong': 1,
-                            };
-
-                            if (existingData != null &&
-                                existingData.nid > 0) {
-                              controller.updatePhuongTienOnServer(
-                                existingData.nid,
-                                data,
-                              );
-                            } else {
-                              controller.savePhuongTien(data);
-                            }
-                          },
+                          onTap: submitForm,
                           color: contentTheme.primary,
                           padding: MySpacing.xy(12, 8),
                           child: Obx(() {
@@ -686,56 +706,66 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
           constraints: const BoxConstraints(maxWidth: 460, minWidth: 320),
           child: Padding(
             padding: MySpacing.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    MyText.titleMedium('Tìm kiếm phương tiện', fontWeight: 700),
-                    InkWell(
-                      onTap: () => Get.back(),
-                      child: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                MySpacing.height(16),
-                _buildInput('Từ khóa', searchCtrl),
-                MySpacing.height(12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    MyContainer(
-                      onTap: () {
-                        controller.clearSearch();
-                        Get.back();
-                      },
-                      color: contentTheme.secondary.withAlpha(36),
-                      padding: MySpacing.xy(12, 8),
-                      child: MyText.bodySmall(
-                        'Xóa lọc',
-                        fontWeight: 600,
-                        color: contentTheme.secondary,
+            child: Focus(
+              onKeyEvent: (node, event) {
+                if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
+                  controller.searchPhuongTien(searchCtrl.text);
+                  Get.back();
+                  return KeyEventResult.handled;
+                }
+                return KeyEventResult.ignored;
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      MyText.titleMedium('Tìm kiếm phương tiện', fontWeight: 700),
+                      InkWell(
+                        onTap: () => Get.back(),
+                        child: const Icon(Icons.close),
                       ),
-                    ),
-                    MySpacing.width(12),
-                    MyContainer(
-                      onTap: () {
-                        controller.searchPhuongTien(searchCtrl.text);
-                        Get.back();
-                      },
-                      color: contentTheme.primary,
-                      padding: MySpacing.xy(12, 8),
-                      child: MyText.bodySmall(
-                        'Tìm',
-                        fontWeight: 600,
-                        color: contentTheme.onPrimary,
+                    ],
+                  ),
+                  MySpacing.height(16),
+                  _buildInput('Từ khóa', searchCtrl),
+                  MySpacing.height(12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      MyContainer(
+                        onTap: () {
+                          controller.clearSearch();
+                          Get.back();
+                        },
+                        color: contentTheme.secondary.withAlpha(36),
+                        padding: MySpacing.xy(12, 8),
+                        child: MyText.bodySmall(
+                          'Xóa lọc',
+                          fontWeight: 600,
+                          color: contentTheme.secondary,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      MySpacing.width(12),
+                      MyContainer(
+                        onTap: () {
+                          controller.searchPhuongTien(searchCtrl.text);
+                          Get.back();
+                        },
+                        color: contentTheme.primary,
+                        padding: MySpacing.xy(12, 8),
+                        child: MyText.bodySmall(
+                          'Tìm',
+                          fontWeight: 600,
+                          color: contentTheme.onPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

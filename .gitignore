@@ -58,23 +58,6 @@ __MACOSX/
 /linux/
 /macos/
 /windows/
+/web/
 
 # Strict mode: only track source files
-/*
-!/.gitignore
-!/.metadata
-!/pubspec.yaml
-!/pubspec.lock
-!/analysis_options.yaml
-!/api
-!/api/**
-!/lib
-!/lib/**
-!/assets
-!/assets/**
-.codex/
-
-# Ignore Codex marker/state files inside lib/
-/lib/.codex
-/lib/.codex/
-/lib/.codex*

@@ -122,25 +122,35 @@ class DanhMucService {
         }),
       );
 
-      if (response.statusCode == 200) {
+      try {
         final res = _decodeBody(response.body);
 
         final success = res['success'] == true ||
             res['status'] == 'success';
-        final message = res['content']?.toString() ??
-            res['message']?.toString() ?? fallbackMessage;
+        String message;
+
+        if (response.statusCode == 200) {
+          message = res['content']?.toString() ??
+              res['message']?.toString() ?? fallbackMessage;
+        } else {
+          message = res['message']?.toString() ??
+              'Lỗi server: ${response.statusCode}';
+        }
 
         if (success) {
           return ApiResponse(success: true, message: message);
         }
 
         return ApiResponse(success: false, message: message);
+      } catch (e) {
+        if (response.statusCode == 200) {
+          return ApiResponse(success: false, message: 'Lỗi xử lý: $e');
+        }
+        return ApiResponse(
+          success: false,
+          message: 'Lỗi server: ${response.statusCode}',
+        );
       }
-
-      return ApiResponse(
-        success: false,
-        message: 'Lỗi server: ${response.statusCode}',
-      );
     } catch (e) {
       return ApiResponse(success: false, message: 'Lỗi kết nối: $e');
     }

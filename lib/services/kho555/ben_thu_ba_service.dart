@@ -106,10 +106,18 @@ class BenThuBaService {
         );
       }
 
-      return ApiResponse(
-        success: false,
-        message: 'Lỗi server: ${response.statusCode}',
-      );
+      try {
+        final res = _decodeBody(response.body);
+        final message = res['message']?.toString() ??
+            res['content']?.toString() ??
+            'Lỗi server: ${response.statusCode}';
+        return ApiResponse(success: false, message: message);
+      } catch (_) {
+        return ApiResponse(
+          success: false,
+          message: 'Lỗi server: ${response.statusCode}',
+        );
+      }
     } catch (e) {
       return ApiResponse(success: false, message: 'Lỗi kết nối: $e');
     }
