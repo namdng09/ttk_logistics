@@ -170,7 +170,10 @@ function phuong_tien_build_list_query($params) {
 
   $keyword = isset($params['keyword']) ? trim((string) $params['keyword']) : '';
   if ($keyword !== '') {
-    $query->condition('n.title', '%' . db_like($keyword) . '%', 'LIKE');
+    $or = db_or();
+    $or->condition('n.title', '%' . db_like($keyword) . '%', 'LIKE');
+    $or->condition('ftj.field_thong_tin_json_value', '%' . db_like($keyword) . '%', 'LIKE');
+    $query->condition($or);
   }
 
   if (isset($params['field_hoat_dong']) && $params['field_hoat_dong'] !== '' && $params['field_hoat_dong'] !== 'all') {

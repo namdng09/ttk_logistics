@@ -16,6 +16,7 @@ import 'views/ui/pages/kho555/phieu_nhap_vat_tu_page_screen.dart';
 import 'views/ui/pages/kho555/vat_tu_page_screen.dart';
 import 'views/ui/pages/kho555/danh_muc_page_screen.dart';
 import 'views/ui/pages/kho555/phuong_tien_page_screen.dart';
+import 'views/ui/pages/kho555/lai_xe_page_screen.dart';
 
 class AuthMiddleware extends GetMiddleware {
   @override
@@ -130,6 +131,7 @@ List<GetPage> getPageRoute() {
     GetPage(name: '/ben-thu-ba', page: () => BenThuBaPageScreen(),middlewares: [AuthMiddleware()]),
     GetPage(name: '/danh-muc', page: () => DanhMucPageScreen(),middlewares: [AuthMiddleware()]),
     GetPage(name: '/phuong-tien', page: () => PhuongTienPageScreen(),middlewares: [AuthMiddleware()]),
+    GetPage(name: '/lai-xe', page: () => LaiXePageScreen(),middlewares: [AuthMiddleware()]),
     GetPage(name: '/kho-vat-tu', page: () => DanhMucKhoPageScreen(),middlewares: [AuthMiddleware()]),
     GetPage(name: '/nhap-vat-tu', page: () => NhapVatTuPageScreen(),middlewares: [AuthMiddleware()]),
     GetPage(name: '/phieu-nhap', page: () => PhieuNhapVatTuPageScreen(),middlewares: [AuthMiddleware()]),

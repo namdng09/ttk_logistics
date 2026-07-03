@@ -225,7 +225,6 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
             Obx(() => MyContainer(
               onTap: controller.isLoading.value ? null : () {
                 controller.clearSearch();
-                controller.fetchPhuongTien();
               },
               color: contentTheme.warning,
               paddingAll: 12,
