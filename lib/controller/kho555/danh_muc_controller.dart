@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ttk_logistics/controller/my_controller.dart';
 import 'package:ttk_logistics/helper/utils/app_toast.dart';
@@ -109,30 +108,10 @@ class DanhMucController extends MyController {
   }
 
   void _showSuccess(String message) {
-    Get.snackbar(
-      'Thành công',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.green.shade600,
-      colorText: Colors.white,
-      margin: const EdgeInsets.all(12),
-      borderRadius: 8,
-      duration: const Duration(seconds: 3),
-      icon: const Icon(Icons.check_circle, color: Colors.white),
-    );
+    AppToast.success(message);
   }
 
   void _showError(String title, String message) {
-    Get.snackbar(
-      title,
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red.shade700,
-      colorText: Colors.white,
-      margin: const EdgeInsets.all(12),
-      borderRadius: 8,
-      duration: const Duration(seconds: 4),
-      icon: const Icon(Icons.error_outline, color: Colors.white),
-    );
+    AppToast.error(message);
   }
 }

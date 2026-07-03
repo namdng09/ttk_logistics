@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:remixicon/remixicon.dart';
 import 'package:get/get.dart';
 import 'package:ttk_logistics/controller/kho555/ben_thu_ba_controller.dart' show BenThuBaController;
 import 'package:ttk_logistics/helper/theme/admin_theme.dart';
@@ -227,9 +228,9 @@ class _BenThuBaPageScreenState extends State<BenThuBaPageScreen> {
               paddingAll: 12,
               child: Row(
                 children: [
-                  const Icon(Icons.refresh, color: Colors.white, size: 18),
+                  Icon(Remix.refresh_line, color: Colors.white, size: 18),
                   const SizedBox(width: 6),
-                  MyText.labelMedium('Khôi phục', color: contentTheme.onWarning),
+                  MyText.labelMedium('Tải lại', color: Colors.white),
                 ],
               ),
             ),

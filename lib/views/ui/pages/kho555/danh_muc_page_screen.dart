@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:remixicon/remixicon.dart';
 import 'package:get/get.dart';
 import 'package:ttk_logistics/controller/kho555/danh_muc_controller.dart' show DanhMucController;
 import 'package:ttk_logistics/helper/theme/admin_theme.dart';
+import 'package:ttk_logistics/helper/utils/app_toast.dart';
 import 'package:ttk_logistics/helper/utils/ui_mixins.dart';
 import 'package:ttk_logistics/helper/widgets/my_container.dart';
 import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
@@ -202,9 +204,9 @@ class _DanhMucPageScreenState extends State<DanhMucPageScreen> {
               paddingAll: 12,
               child: Row(
                 children: [
-                  const Icon(Icons.refresh, color: Colors.white, size: 18),
+                  Icon(Remix.refresh_line, color: Colors.white, size: 18),
                   const SizedBox(width: 6),
-                  MyText.labelMedium('Khôi phục', color: contentTheme.onWarning),
+                  MyText.labelMedium('Tải lại', color: Colors.white),
                 ],
               ),
             ),
@@ -519,17 +521,7 @@ class _DanhMucPageScreenState extends State<DanhMucPageScreen> {
   }
 
   void _showError(String title, String message) {
-    Get.snackbar(
-      title,
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red.shade700,
-      colorText: Colors.white,
-      margin: const EdgeInsets.all(12),
-      borderRadius: 8,
-      duration: const Duration(seconds: 4),
-      icon: const Icon(Icons.error_outline, color: Colors.white),
-    );
+    AppToast.error(message);
   }
 
   void showDeleteConfirmDialog(BuildContext context, int nid) {

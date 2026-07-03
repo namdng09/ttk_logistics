@@ -133,6 +133,9 @@ class AuthService {
 
 
   static const String danhMucEndpoint = "$baseUrl/api/danh-muc";
+  static const String phuongTienEndpoint = "$baseUrl/api/phuong-tien";
+  static const String laiXeEndpoint = "$baseUrl/api/lai-xe";
+  static const String phuongTienLaiXeEndpoint = "$baseUrl/api/phuong-tien-lai-xe";
   static const String getListLoaiXe = "$baseUrl/api/loai-xe/get-list-loai-xe";
   static const String updateListLoaiXe = "$baseUrl/api/loai-xe/update";
   static const String saveBaoGia = "$baseUrl/api/bao-gia/save";

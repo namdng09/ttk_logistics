@@ -114,6 +114,7 @@ class _LeftBarState extends State<LeftBar> with SingleTickerProviderStateMixin, 
                     NavigationItem(iconData: RemixIcons.group_line, title: "Kho vật tư", isCondensed: isCondensed, route: '/kho-vat-tu'),
                     NavigationItem(iconData: RemixIcons.group_line, title: "Bên thứ 3", isCondensed: isCondensed, route: '/ben-thu-ba'),
                     NavigationItem(iconData: RemixIcons.group_line, title: "Danh mục", isCondensed: isCondensed, route: '/danh-muc'),
+                    NavigationItem(iconData: RemixIcons.truck_line, title: "Phương tiện", isCondensed: isCondensed, route: '/phuong-tien'),
 
                     MenuWidget(
                       iconData: RemixIcons.tools_line,
