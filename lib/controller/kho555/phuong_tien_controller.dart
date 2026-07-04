@@ -11,6 +11,8 @@ class PhuongTienController extends MyController {
   var errorMessage = ''.obs;
   var searchKeyword = ''.obs;
   var phuongTienList = <PhuongTien>[].obs;
+  var loaiPhuongTienOptions = <String>[].obs;
+  var hangXeOptions = <String>[].obs;
 
   var currentPage = 1.obs;
   var totalPages = 1.obs;
@@ -39,6 +41,7 @@ class PhuongTienController extends MyController {
       final pagination = result['pagination'] as Map<String, dynamic>;
 
       phuongTienList.assignAll(items);
+      _extractFilterOptions();
       currentPage.value = pagination['page'] ?? 1;
       totalPages.value = pagination['total_pages'] ?? 1;
       totalItems.value = pagination['total'] ?? 0;
@@ -146,6 +149,15 @@ class PhuongTienController extends MyController {
     } finally {
       isDeleting.value = false;
     }
+  }
+
+  void _extractFilterOptions() {
+    loaiPhuongTienOptions.assignAll(
+      phuongTienList.map((e) => e.loaiPhuongTien).where((e) => e.isNotEmpty).toSet().toList()..sort(),
+    );
+    hangXeOptions.assignAll(
+      phuongTienList.map((e) => e.hangXe).where((e) => e.isNotEmpty).toSet().toList()..sort(),
+    );
   }
 
   void _showSuccess(String message) {

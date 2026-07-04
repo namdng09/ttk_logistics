@@ -344,6 +344,87 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
     );
   }
 
+  Widget _buildDropdown(
+    String label,
+    TextEditingController ctrl,
+    List<String> options,
+    ValueChanged<String> onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MyText.labelMedium(label),
+        const SizedBox(height: 6),
+        Material(
+          type: MaterialType.transparency,
+          child: Autocomplete<String>(
+            initialValue: TextEditingValue(text: ctrl.text),
+            optionsBuilder: (textEditingValue) {
+              if (textEditingValue.text.isEmpty) return options;
+              return options.where((o) =>
+                o.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+            },
+            onSelected: (selected) {
+              ctrl.text = selected;
+              onChanged(selected);
+            },
+            fieldViewBuilder: (context, fieldCtrl, focusNode, onSubmitted) {
+              return TextFormField(
+                controller: fieldCtrl,
+                focusNode: focusNode,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  fillColor: Colors.white,
+                  hintText: 'Chọn hoặc nhập...',
+                  hintStyle: const TextStyle(color: Colors.black38),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                  ),
+                ),
+              );
+            },
+            optionsViewBuilder: (context, onSelected, opts) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  color: Colors.white,
+                  elevation: 4,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 240, minWidth: 240),
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      children: [
+                        for (final o in opts)
+                          InkWell(
+                            onTap: () => onSelected(o),
+                            child: Container(
+                              color: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              child: Text(o, style: const TextStyle(color: Colors.black)),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   String _toDisplayDate(String apiDate) {
     if (apiDate.isEmpty) return '';
     try {
@@ -562,9 +643,9 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
                             MySpacing.height(12),
                             _buildInput('Mã tài sản', maTsCtrl),
                             MySpacing.height(12),
-                            _buildInput('Loại phương tiện', loaiPtCtrl),
+                            _buildDropdown('Loại phương tiện', loaiPtCtrl, controller.loaiPhuongTienOptions, (v) {}),
                             MySpacing.height(12),
-                            _buildInput('Hãng xe', hangXeCtrl),
+                            _buildDropdown('Hãng xe', hangXeCtrl, controller.hangXeOptions, (v) {}),
                             MySpacing.height(12),
                             Row(
                               children: [
