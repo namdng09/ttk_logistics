@@ -7,6 +7,7 @@ import 'package:ttk_logistics/services/kho555/phuong_tien_service.dart';
 class PhuongTienController extends MyController {
   var isLoading = false.obs;
   var isSaving = false.obs;
+  var isDeleting = false.obs;
   var errorMessage = ''.obs;
   var searchKeyword = ''.obs;
   var phuongTienList = <PhuongTien>[].obs;
@@ -125,11 +126,16 @@ class PhuongTienController extends MyController {
   }
 
   Future<void> deletePhuongTien(int nid) async {
+    if (isDeleting.value) return;
     try {
-      isSaving.value = true;
+      isDeleting.value = true;
       final res = await PhuongTienService.deletePhuongTien(nid);
 
       if (res.success) {
+        Get.back();
+        if (phuongTienList.length <= 1 && currentPage.value > 1) {
+          currentPage.value--;
+        }
         await fetchPhuongTien();
         _showSuccess(res.message);
       } else {
@@ -138,7 +144,7 @@ class PhuongTienController extends MyController {
     } catch (e) {
       _showError('Lỗi', e.toString());
     } finally {
-      isSaving.value = false;
+      isDeleting.value = false;
     }
   }
 

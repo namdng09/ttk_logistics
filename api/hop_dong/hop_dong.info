@@ -1,0 +1,5 @@
+name = "Quản lý hợp đồng"
+description = "REST API CRUD cho content type hop_dong (hợp đồng)."
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = user_login_api

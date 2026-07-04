@@ -7,10 +7,10 @@ class LaiXe {
 
   final String maNhanVien;
   final String sdt;
-  final String cmt;
+  final String cccd;
   final String ngayCap;
   final String noiCap;
-  final String hanCmt;
+  final String hanCccd;
   final String soBangLai;
   final String loaiBangLai;
   final String hanBangLai;
@@ -24,10 +24,10 @@ class LaiXe {
     required this.hoatDong,
     this.maNhanVien = '',
     this.sdt = '',
-    this.cmt = '',
+    this.cccd = '',
     this.ngayCap = '',
     this.noiCap = '',
-    this.hanCmt = '',
+    this.hanCccd = '',
     this.soBangLai = '',
     this.loaiBangLai = '',
     this.hanBangLai = '',
@@ -45,10 +45,10 @@ class LaiXe {
       hoatDong: _toInt(json['field_hoat_dong'], defaultValue: 1),
       maNhanVien: _valueOf(info, ['ma_nhan_vien']),
       sdt: _valueOf(info, ['sdt']),
-      cmt: _valueOf(info, ['cmt']),
+      cccd: _valueOf(info, ['cccd']),
       ngayCap: _valueOf(info, ['ngay_cap']),
       noiCap: _valueOf(info, ['noi_cap']),
-      hanCmt: _valueOf(info, ['han_cmt']),
+      hanCccd: _valueOf(info, ['han_cccd']),
       soBangLai: _valueOf(info, ['so_bang_lai']),
       loaiBangLai: _valueOf(info, ['loai_bang_lai']),
       hanBangLai: _valueOf(info, ['han_bang_lai']),
@@ -71,10 +71,10 @@ class LaiXe {
     return {
       'ma_nhan_vien': maNhanVien,
       'sdt': sdt,
-      'cmt': cmt,
+      'cccd': cccd,
       'ngay_cap': ngayCap,
       'noi_cap': noiCap,
-      'han_cmt': hanCmt,
+      'han_cccd': hanCccd,
       'so_bang_lai': soBangLai,
       'loai_bang_lai': loaiBangLai,
       'han_bang_lai': hanBangLai,
@@ -90,7 +90,7 @@ class LaiXe {
     return title.toLowerCase().contains(q) ||
         maNhanVien.toLowerCase().contains(q) ||
         sdt.toLowerCase().contains(q) ||
-        cmt.toLowerCase().contains(q) ||
+        cccd.toLowerCase().contains(q) ||
         soBangLai.toLowerCase().contains(q);
   }
 

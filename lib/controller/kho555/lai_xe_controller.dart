@@ -7,6 +7,7 @@ import 'package:ttk_logistics/services/kho555/lai_xe_service.dart';
 class LaiXeController extends MyController {
   var isLoading = false.obs;
   var isSaving = false.obs;
+  var isDeleting = false.obs;
   var errorMessage = ''.obs;
   var searchKeyword = ''.obs;
   var laiXeList = <LaiXe>[].obs;
@@ -125,11 +126,16 @@ class LaiXeController extends MyController {
   }
 
   Future<void> deleteLaiXe(int nid) async {
+    if (isDeleting.value) return;
     try {
-      isSaving.value = true;
+      isDeleting.value = true;
       final res = await LaiXeService.deleteLaiXe(nid);
 
       if (res.success) {
+        Get.back();
+        if (laiXeList.length <= 1 && currentPage.value > 1) {
+          currentPage.value--;
+        }
         await fetchLaiXe();
         AppToast.success(res.message);
       } else {
@@ -138,7 +144,7 @@ class LaiXeController extends MyController {
     } catch (e) {
       AppToast.error(e.toString());
     } finally {
-      isSaving.value = false;
+      isDeleting.value = false;
     }
   }
 }

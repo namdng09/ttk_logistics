@@ -214,10 +214,10 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
                               DataCell(_cellText(item.maNhanVien, width: _colNormal)),
                               DataCell(_cellText(item.title, width: _colMed)),
                               DataCell(_cellText(item.sdt, width: _colNormal)),
-                              DataCell(_cellText(item.cmt, width: _colNormal)),
+                              DataCell(_cellText(item.cccd, width: _colNormal)),
                               DataCell(_cellText(item.ngayCap, width: _colNormal)),
                               DataCell(_cellText(item.noiCap, width: _colNormal)),
-                              DataCell(_cellText(item.hanCmt, width: _colNormal)),
+                              DataCell(_cellText(item.hanCccd, width: _colNormal)),
                               DataCell(_cellText(item.soBangLai, width: _colNormal)),
                               DataCell(_cellText(item.loaiBangLai, width: _colNormal)),
                               DataCell(_cellText(item.hanBangLai, width: _colNormal)),
@@ -264,20 +264,57 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
   void _confirmDelete(LaiXe item) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Xác nhận xoá'),
-        content: Text('Bạn có chắc muốn xoá lái xe "${item.title}"?'),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Huỷ')),
-          TextButton(
-            onPressed: () {
-              Get.back();
-              controller.deleteLaiXe(item.nid);
-            },
-            child: const Text('Xoá', style: TextStyle(color: Colors.red)),
+      builder: (_) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 450, minWidth: 250),
+            child: Padding(
+              padding: MySpacing.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.red.shade600, size: 48),
+                  MySpacing.height(20),
+                  MyText.bodyMedium('Xác nhận xoá', fontWeight: 600),
+                  MySpacing.height(20),
+                  MyText.bodyMedium(
+                    'Bạn có chắc chắn muốn xoá lái xe "${item.title}"?',
+                    maxLines: 4,
+                    fontWeight: 600,
+                    textAlign: TextAlign.center,
+                  ),
+                  MySpacing.height(20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      MyContainer(
+                        onTap: controller.isDeleting.value ? null : () => Get.back(),
+                        padding: MySpacing.xy(12, 8),
+                        color: contentTheme.secondary.withOpacity(0.3),
+                        child: MyText.bodySmall('Huỷ',
+                            fontWeight: 600,
+                            color: contentTheme.secondary),
+                      ),
+                      MySpacing.width(12),
+                      MyContainer(
+                        onTap: controller.isDeleting.value ? null : () => controller.deleteLaiXe(item.nid),
+                        padding: MySpacing.xy(12, 8),
+                        color: Colors.red.shade600,
+                        child: Obx(() => controller.isDeleting.value
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : MyText.bodySmall('Xoá', fontWeight: 600, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -455,10 +492,10 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
     final bksCtrl = TextEditingController(text: existingData?.title ?? '');
     final maNvCtrl = TextEditingController(text: existingData?.maNhanVien ?? '');
     final sdtCtrl = TextEditingController(text: existingData?.sdt ?? '');
-    final cmtCtrl = TextEditingController(text: existingData?.cmt ?? '');
+    final cccdCtrl = TextEditingController(text: existingData?.cccd ?? '');
     final ngayCapCtrl = TextEditingController(text: _toDisplayDate(existingData?.ngayCap ?? ''));
     final noiCapCtrl = TextEditingController(text: existingData?.noiCap ?? '');
-    final hanCmtCtrl = TextEditingController(text: _toDisplayDate(existingData?.hanCmt ?? ''));
+    final hanCccdCtrl = TextEditingController(text: _toDisplayDate(existingData?.hanCccd ?? ''));
     final soBlCtrl = TextEditingController(text: existingData?.soBangLai ?? '');
     final loaiBlCtrl = TextEditingController(text: existingData?.loaiBangLai ?? '');
     final hanBlCtrl = TextEditingController(text: _toDisplayDate(existingData?.hanBangLai ?? ''));
@@ -486,10 +523,10 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
               'field_thong_tin_json': {
                 'ma_nhan_vien': maNvCtrl.text.trim(),
                 'sdt': sdtCtrl.text.trim(),
-                'cmt': cmtCtrl.text.trim(),
+                'cccd': cccdCtrl.text.trim(),
                 'ngay_cap': _toApiDate(ngayCapCtrl.text.trim()),
                 'noi_cap': noiCapCtrl.text.trim(),
-                'han_cmt': _toApiDate(hanCmtCtrl.text.trim()),
+                'han_cccd': _toApiDate(hanCccdCtrl.text.trim()),
                 'so_bang_lai': soBlCtrl.text.trim(),
                 'loai_bang_lai': loaiBlCtrl.text.trim(),
                 'han_bang_lai': _toApiDate(hanBlCtrl.text.trim()),
@@ -557,7 +594,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
                                   ),
                                   MySpacing.width(12),
                                   Expanded(
-                                    child: _buildInput('CCCD', cmtCtrl),
+                                    child: _buildInput('CCCD', cccdCtrl),
                                   ),
                                 ],
                               ),
@@ -574,7 +611,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
                                 ],
                               ),
                               MySpacing.height(12),
-                              _buildDateInput('Hạn CCCD', hanCmtCtrl),
+                              _buildDateInput('Hạn CCCD', hanCccdCtrl),
                               MySpacing.height(12),
                               Row(
                                 children: [
@@ -740,7 +777,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
             isDense: true,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            hintText: 'dd/mm/yyyy',
+            hintText: 'dd-mm-yyyy',
             suffixIcon: IconButton(
               icon: const Icon(Icons.calendar_month),
               onPressed: () async {
@@ -751,7 +788,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
                   lastDate: DateTime(2100),
                 );
                 if (picked != null) {
-                  ctrl.text = DateFormat('dd/MM/yyyy').format(picked);
+                  ctrl.text = DateFormat('dd-MM-yyyy').format(picked);
                 }
               },
             ),
@@ -763,7 +800,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
 
   DateTime _parseDateOrNow(String text) {
     try {
-      return DateFormat('dd/MM/yyyy').parse(text);
+      return DateFormat('dd-MM-yyyy').parse(text);
     } catch (_) {}
     return DateTime.now();
   }
@@ -773,10 +810,10 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
     if (digits.length > 8) return value;
 
     if (digits.length >= 5) {
-      return '${digits.substring(0, 2)}/${digits.substring(2, 4)}/${digits.substring(4)}';
+      return '${digits.substring(0, 2)}-${digits.substring(2, 4)}-${digits.substring(4)}';
     }
     if (digits.length >= 3) {
-      return '${digits.substring(0, 2)}/${digits.substring(2)}';
+      return '${digits.substring(0, 2)}-${digits.substring(2)}';
     }
     return digits;
   }
@@ -784,20 +821,22 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
   String _toDisplayDate(String apiDate) {
     if (apiDate.isEmpty) return '';
     try {
+      final parsed = DateFormat('dd-MM-yyyy').parse(apiDate);
+      return DateFormat('dd-MM-yyyy').format(parsed);
+    } catch (_) {}
+    try {
       final parsed = DateFormat('yyyy-MM-dd').parse(apiDate);
-      return DateFormat('dd/MM/yyyy').format(parsed);
-    } catch (_) {
-      return apiDate;
-    }
+      return DateFormat('dd-MM-yyyy').format(parsed);
+    } catch (_) {}
+    return apiDate;
   }
 
   String _toApiDate(String displayDate) {
     if (displayDate.isEmpty) return '';
     try {
-      final parsed = DateFormat('dd/MM/yyyy').parse(displayDate);
-      return DateFormat('yyyy-MM-dd').format(parsed);
-    } catch (_) {
-      return displayDate;
-    }
+      final parsed = DateFormat('dd-MM-yyyy').parse(displayDate);
+      return DateFormat('dd-MM-yyyy').format(parsed);
+    } catch (_) {}
+    return displayDate;
   }
 }

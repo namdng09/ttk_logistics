@@ -70,6 +70,12 @@ function lai_xe_controller_create($params) {
   $title = isset($params['title']) ? trim((string) $params['title']) : '';
   if ($title === '') { lai_xe_respond_failed('Tên lái xe là bắt buộc'); }
 
+  // Kiểm tra duplicate mã nhân viên, SDT, CCCD
+  $thong_tin = isset($params['field_thong_tin_json']) && is_array($params['field_thong_tin_json'])
+    ? $params['field_thong_tin_json']
+    : array();
+  lai_xe_validate_unique_fields($thong_tin);
+
   $node = new stdClass();
   $node->type = LAI_XE_BUNDLE;
   node_object_prepare($node);
@@ -92,6 +98,12 @@ function lai_xe_controller_update($nid, $params) {
 
   $title = isset($params['title']) ? trim((string) $params['title']) : '';
   if ($title === '') { lai_xe_respond_failed('Tên lái xe là bắt buộc'); }
+
+  // Kiểm tra duplicate mã nhân viên, SDT, CCCD (loại trừ node hiện tại)
+  $thong_tin = isset($params['field_thong_tin_json']) && is_array($params['field_thong_tin_json'])
+    ? $params['field_thong_tin_json']
+    : array();
+  lai_xe_validate_unique_fields($thong_tin, intval($nid));
 
   $node->title = $title;
   $node->field_thong_tin_json[LANGUAGE_NONE][0]['value'] = isset($params['field_thong_tin_json']) ? lai_xe_encode_json_value($params['field_thong_tin_json']) : lai_xe_field_value($node, 'field_thong_tin_json', '');

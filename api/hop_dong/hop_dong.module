@@ -1,0 +1,49 @@
+<?php
+
+/**
+ * @file
+ * REST API cho content type hop_dong (hợp đồng).
+ * Endpoint prefix: /hop-dong
+ * Drupal tại subdirectory /api/ → URL đầy đủ: https://site.com/api/hop-dong
+ */
+
+module_load_include('inc', 'hop_dong', 'hop_dong.helpers');
+module_load_include('inc', 'hop_dong', 'hop_dong.controller');
+module_load_include('inc', 'hop_dong', 'hop_dong.service');
+
+/**
+ * Implements hook_init().
+ */
+function hop_dong_init() {
+  $path = current_path();
+  if ($path === 'hop-dong' || strpos($path, 'hop-dong/') === 0) {
+    hop_dong_add_cors_headers();
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      hop_dong_cors_preflight();
+    }
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function hop_dong_menu() {
+  $items = array();
+
+  $items['hop-dong'] = array(
+    'title' => 'Danh sách / tạo hợp đồng',
+    'page callback' => 'hop_dong_route_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['hop-dong/%'] = array(
+    'title' => 'Chi tiết / cập nhật / xoá hợp đồng',
+    'page callback' => 'hop_dong_route_item',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}

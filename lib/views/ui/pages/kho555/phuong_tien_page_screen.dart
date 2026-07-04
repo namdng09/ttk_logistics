@@ -347,8 +347,12 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
   String _toDisplayDate(String apiDate) {
     if (apiDate.isEmpty) return '';
     try {
+      final parsed = DateFormat('dd-MM-yyyy').parse(apiDate);
+      return DateFormat('dd-MM-yyyy').format(parsed);
+    } catch (_) {}
+    try {
       final parsed = DateFormat('yyyy-MM-dd').parse(apiDate);
-      return DateFormat('dd/MM/yyyy').format(parsed);
+      return DateFormat('dd-MM-yyyy').format(parsed);
     } catch (_) {}
     return apiDate;
   }
@@ -356,8 +360,8 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
   String _toApiDate(String displayDate) {
     if (displayDate.isEmpty) return '';
     try {
-      final parsed = DateFormat('dd/MM/yyyy').parse(displayDate);
-      return DateFormat('yyyy-MM-dd').format(parsed);
+      final parsed = DateFormat('dd-MM-yyyy').parse(displayDate);
+      return DateFormat('dd-MM-yyyy').format(parsed);
     } catch (_) {}
     return displayDate;
   }
@@ -367,7 +371,7 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
     if (digits.isEmpty) return '';
     final buffer = StringBuffer();
     for (var i = 0; i < digits.length && i < 8; i++) {
-      if (i == 2 || i == 4) buffer.write('/');
+      if (i == 2 || i == 4) buffer.write('-');
       buffer.write(digits[i]);
     }
     return buffer.toString();
@@ -406,7 +410,7 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
             isDense: true,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            hintText: 'dd/mm/yyyy',
+            hintText: 'dd-mm-yyyy',
             suffixIcon: IconButton(
               icon: const Icon(Icons.calendar_month),
               onPressed: () async {
@@ -417,7 +421,7 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
                   lastDate: DateTime(2100),
                 );
                 if (picked != null) {
-                  ctrl.text = DateFormat('dd/MM/yyyy').format(picked);
+                  ctrl.text = DateFormat('dd-MM-yyyy').format(picked);
                 }
               },
             ),
@@ -429,7 +433,7 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
 
   DateTime _parseDateOrNow(String text) {
     try {
-      return DateFormat('dd/MM/yyyy').parse(text);
+      return DateFormat('dd-MM-yyyy').parse(text);
     } catch (_) {}
     return DateTime.now();
   }
@@ -872,7 +876,7 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       MyContainer(
-                        onTap: () => Get.back(),
+                        onTap: controller.isDeleting.value ? null : () => Get.back(),
                         padding: MySpacing.xy(12, 8),
                         color: contentTheme.secondary.withOpacity(0.3),
                         child: MyText.bodySmall('Huỷ',
@@ -881,14 +885,13 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
                       ),
                       MySpacing.width(12),
                       MyContainer(
-                        onTap: () {
-                          Get.back();
-                          controller.deletePhuongTien(nid);
-                        },
+                        onTap: controller.isDeleting.value ? null : () => controller.deletePhuongTien(nid),
                         padding: MySpacing.xy(12, 8),
                         color: Colors.red.shade600,
-                        child: MyText.bodySmall('Xoá',
-                            fontWeight: 600, color: Colors.white),
+                        child: Obx(() => controller.isDeleting.value
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : MyText.bodySmall('Xoá', fontWeight: 600, color: Colors.white),
+                        ),
                       ),
                     ],
                   ),

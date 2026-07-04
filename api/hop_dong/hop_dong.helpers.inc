@@ -2,20 +2,20 @@
 
 /**
  * @file
- * Helper functions cho module lai_xe.
+ * Helper functions cho module hop_dong.
  */
 
-define('LAI_XE_HTTP_OK', 200);
-define('LAI_XE_HTTP_BAD_REQUEST', 400);
-define('LAI_XE_HTTP_UNAUTHORIZED', 401);
-define('LAI_XE_HTTP_METHOD_NOT_ALLOWED', 405);
-define('LAI_XE_HTTP_INTERNAL_ERROR', 500);
+define('HOP_DONG_HTTP_OK', 200);
+define('HOP_DONG_HTTP_BAD_REQUEST', 400);
+define('HOP_DONG_HTTP_UNAUTHORIZED', 401);
+define('HOP_DONG_HTTP_METHOD_NOT_ALLOWED', 405);
+define('HOP_DONG_HTTP_INTERNAL_ERROR', 500);
 
-define('LAI_XE_BUNDLE', 'lai_xe');
-define('LAI_XE_DEFAULT_LIMIT', 20);
-define('LAI_XE_MAX_LIMIT', 500);
+define('HOP_DONG_BUNDLE', 'hop_dong');
+define('HOP_DONG_DEFAULT_LIMIT', 20);
+define('HOP_DONG_MAX_LIMIT', 500);
 
-function lai_xe_get_params() {
+function hop_dong_get_params() {
   $params = array();
   foreach ($_GET as $key => $value) { $params[$key] = $value; }
   $raw = file_get_contents('php://input');
@@ -27,37 +27,37 @@ function lai_xe_get_params() {
   return $params;
 }
 
-function lai_xe_require_auth($params) {
+function hop_dong_require_auth($params) {
   $email = isset($params['created_email']) ? trim($params['created_email']) : '';
   $token = isset($params['token']) ? trim($params['token']) : '';
   if ($email === '' || $token === '') {
-    lai_xe_respond_unauthorized('Thiếu thông tin xác thực');
+    hop_dong_respond_unauthorized('Thiếu thông tin xác thực');
   }
   module_load_include('module', 'user_login_api', 'user_login_api');
   if (!function_exists('api_check_token')) {
-    lai_xe_respond_unauthorized('Hệ thống xác thực chưa được bật');
+    hop_dong_respond_unauthorized('Hệ thống xác thực chưa được bật');
   }
   $result = api_check_token($token, $email);
   if ($result === FALSE) {
-    lai_xe_respond_unauthorized('Token không hợp lệ');
+    hop_dong_respond_unauthorized('Token không hợp lệ');
   }
   return $result;
 }
 
-function lai_xe_field_value($node, $field_name, $default = '') {
+function hop_dong_field_value($node, $field_name, $default = '') {
   if (isset($node->{$field_name}[LANGUAGE_NONE][0]['value']) && $node->{$field_name}[LANGUAGE_NONE][0]['value'] !== '') {
     return $node->{$field_name}[LANGUAGE_NONE][0]['value'];
   }
   return $default;
 }
 
-function lai_xe_decode_json($value) {
+function hop_dong_decode_json($value) {
   if (empty($value)) { return array(); }
   $decoded = json_decode($value, TRUE);
   return is_array($decoded) ? $decoded : array();
 }
 
-function lai_xe_encode_json_value($value) {
+function hop_dong_encode_json_value($value) {
   if (is_string($value) && $value !== '') {
     $decoded = json_decode($value, TRUE);
     if (is_array($decoded)) { return $value; }
@@ -66,101 +66,44 @@ function lai_xe_encode_json_value($value) {
   return '';
 }
 
-/**
- * Kiểm tra duplicate cho field trong field_thong_tin_json.
- *
- * @param string $json_key   Key trong JSON (vd: 'ma_nhan_vien', 'sdt', 'cmt').
- * @param string $value      Giá trị cần kiểm tra.
- * @param int    $exclude_nid Bỏ qua node này (khi update).
- * @return array|NULL        Node info đã tồn tại, NULL nếu không duplicate.
- */
-function lai_xe_check_duplicate($json_key, $value, $exclude_nid = 0) {
-  if ($json_key === '' || $value === '') { return NULL; }
-
-  $query = db_select('node', 'n');
-  $query->fields('n', array('nid', 'title'));
-  $query->condition('n.type', LAI_XE_BUNDLE);
-  $query->leftJoin('field_data_field_thong_tin_json', 'ftj', "n.nid = ftj.entity_id AND ftj.entity_type = 'node' AND ftj.deleted = 0");
-  $query->leftJoin('field_data_field_hoat_dong', 'fhd', "n.nid = fhd.entity_id AND fhd.entity_type = 'node' AND fhd.deleted = 0");
-
-  // Pattern tìm chính xác key:value trong JSON
-  $pattern = '%"' . db_like($json_key) . '":"' . db_like($value) . '"%';
-  $query->condition('ftj.field_thong_tin_json_value', $pattern, 'LIKE');
-
-  // Chỉ check node đang hoạt động
-  $or = db_or();
-  $or->condition('fhd.field_hoat_dong_value', 1, '=');
-  $or->isNull('fhd.field_hoat_dong_value');
-  $query->condition($or);
-
-  if ($exclude_nid > 0) {
-    $query->condition('n.nid', $exclude_nid, '!=');
-  }
-
-  $query->range(0, 1);
-  $result = $query->execute()->fetchAssoc();
-  return $result ? $result : NULL;
-}
-
-/**
- * Kiểm tra các field unique (ma_nhan_vien, sdt, cmt) từ field_thong_tin_json.
- */
-function lai_xe_validate_unique_fields($thong_tin, $exclude_nid = 0) {
-  $checks = array(
-    'ma_nhan_vien' => 'Mã nhân viên',
-    'sdt'          => 'SDT',
-    'cccd'         => 'CCCD',
-  );
-
-  foreach ($checks as $key => $label) {
-    $value = isset($thong_tin[$key]) ? trim((string) $thong_tin[$key]) : '';
-    if ($value === '') { continue; }
-
-    $dup = lai_xe_check_duplicate($key, $value, $exclude_nid);
-    if ($dup) {
-      lai_xe_respond_failed("{$label} '{$value}' đã tồn tại ở lái xe #{$dup['nid']} ({$dup['title']})");
-    }
-  }
-}
-
-function lai_xe_parse_active($value) {
+function hop_dong_parse_active($value) {
   if ($value === NULL || $value === '') { return 1; }
   $text = drupal_strtolower(trim((string) $value));
   if ($text === '0' || $text === 'false' || $text === 'không' || $text === 'khong' || $text === 'inactive') { return 0; }
   return 1;
 }
 
-function lai_xe_node_is_active($entity) {
+function hop_dong_node_is_active($entity) {
   if (isset($entity->hoat_dong)) { return intval($entity->hoat_dong) === 1; }
   if (isset($entity->field_hoat_dong[LANGUAGE_NONE][0]['value'])) { return intval($entity->field_hoat_dong[LANGUAGE_NONE][0]['value']) === 1; }
   return TRUE;
 }
 
-function lai_xe_format_row($row) {
+function hop_dong_format_row($row) {
   return array(
     'nid' => intval($row->nid),
     'title' => (string) $row->title,
-    'field_thong_tin_json' => isset($row->thong_tin_json) ? lai_xe_decode_json($row->thong_tin_json) : new stdClass(),
+    'field_thong_tin_json' => isset($row->thong_tin_json) ? hop_dong_decode_json($row->thong_tin_json) : new stdClass(),
     'field_hoat_dong' => isset($row->hoat_dong) ? intval($row->hoat_dong) : 1,
     'created' => isset($row->created) ? intval($row->created) : 0,
     'changed' => isset($row->changed) ? intval($row->changed) : 0,
   );
 }
 
-function lai_xe_format_node($node) {
+function hop_dong_format_node($node) {
   return array(
     'nid' => intval($node->nid),
     'title' => (string) $node->title,
-    'field_thong_tin_json' => lai_xe_decode_json(lai_xe_field_value($node, 'field_thong_tin_json', '')),
+    'field_thong_tin_json' => hop_dong_decode_json(hop_dong_field_value($node, 'field_thong_tin_json', '')),
     'field_hoat_dong' => isset($node->field_hoat_dong[LANGUAGE_NONE][0]['value']) ? intval($node->field_hoat_dong[LANGUAGE_NONE][0]['value']) : 1,
     'created' => !empty($node->created) ? intval($node->created) : 0,
     'changed' => !empty($node->changed) ? intval($node->changed) : 0,
   );
 }
 
-function lai_xe_build_list_query($params) {
+function hop_dong_build_list_query($params) {
   $query = db_select('node', 'n');
-  $query->condition('n.type', LAI_XE_BUNDLE, '=');
+  $query->condition('n.type', HOP_DONG_BUNDLE, '=');
   $query->leftJoin('field_data_field_thong_tin_json', 'ftj', "n.nid = ftj.entity_id AND ftj.entity_type = 'node' AND ftj.deleted = 0");
   $query->leftJoin('field_data_field_hoat_dong', 'fhd', "n.nid = fhd.entity_id AND fhd.entity_type = 'node' AND fhd.deleted = 0");
 
@@ -173,7 +116,7 @@ function lai_xe_build_list_query($params) {
   }
 
   if (isset($params['field_hoat_dong']) && $params['field_hoat_dong'] !== '' && $params['field_hoat_dong'] !== 'all') {
-    $query->condition('fhd.field_hoat_dong_value', lai_xe_parse_active($params['field_hoat_dong']), '=');
+    $query->condition('fhd.field_hoat_dong_value', hop_dong_parse_active($params['field_hoat_dong']), '=');
   }
   elseif (!isset($params['include_inactive']) || !$params['include_inactive']) {
     $or = db_or();
@@ -185,7 +128,7 @@ function lai_xe_build_list_query($params) {
   return $query;
 }
 
-function lai_xe_apply_sort(&$query, $params) {
+function hop_dong_apply_sort(&$query, $params) {
   $sort_by = isset($params['sort_by']) ? trim((string) $params['sort_by']) : 'title';
   $sort_dir = isset($params['sort_dir']) ? strtoupper(trim((string) $params['sort_dir'])) : 'ASC';
   if ($sort_dir !== 'ASC' && $sort_dir !== 'DESC') { $sort_dir = 'ASC'; }
@@ -202,10 +145,10 @@ function lai_xe_apply_sort(&$query, $params) {
   if ($sort_by !== 'nid') { $query->orderBy('n.nid', 'ASC'); }
 }
 
-function lai_xe_title_exists($title, $exclude_nid = 0) {
+function hop_dong_title_exists($title, $exclude_nid = 0) {
   $query = db_select('node', 'n');
   $query->fields('n', array('nid'));
-  $query->condition('n.type', LAI_XE_BUNDLE, '=');
+  $query->condition('n.type', HOP_DONG_BUNDLE, '=');
   $query->condition('n.title', $title, '=');
   $query->leftJoin('field_data_field_hoat_dong', 'fhd', "n.nid = fhd.entity_id AND fhd.entity_type = 'node' AND fhd.deleted = 0");
 
@@ -223,41 +166,41 @@ function lai_xe_title_exists($title, $exclude_nid = 0) {
 // Response helpers
 // ---------------------------------------------------------------------------
 
-function lai_xe_add_cors_headers() {
+function hop_dong_add_cors_headers() {
   drupal_add_http_header('Access-Control-Allow-Origin', '*');
   drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   drupal_add_http_header('Access-Control-Max-Age', '86400');
 }
 
-function lai_xe_cors_preflight() {
-  lai_xe_add_cors_headers();
+function hop_dong_cors_preflight() {
+  hop_dong_add_cors_headers();
   drupal_add_http_header('Status', '204 No Content');
   drupal_exit();
 }
 
-function lai_xe_respond($status, $message, $data = NULL, $http_code = LAI_XE_HTTP_OK) {
-  lai_xe_add_cors_headers();
+function hop_dong_respond($status, $message, $data = NULL, $http_code = HOP_DONG_HTTP_OK) {
+  hop_dong_add_cors_headers();
   drupal_add_http_header('Content-Type', 'application/json; charset=utf-8');
-  drupal_add_http_header('Status', $http_code . ' ' . _lai_xe_status_text($http_code));
+  drupal_add_http_header('Status', $http_code . ' ' . _hop_dong_status_text($http_code));
   $response = array('status' => $status, 'message' => $message);
   if ($data !== NULL) { $response['data'] = $data; }
   drupal_json_output($response);
   drupal_exit();
 }
 
-function lai_xe_respond_success($message, $data = NULL) { lai_xe_respond('success', $message, $data, LAI_XE_HTTP_OK); }
-function lai_xe_respond_failed($message) { lai_xe_respond('failed', $message, NULL, LAI_XE_HTTP_BAD_REQUEST); }
-function lai_xe_respond_unauthorized($message) { lai_xe_respond('failed', $message, NULL, LAI_XE_HTTP_UNAUTHORIZED); }
-function lai_xe_respond_error($message) { lai_xe_respond('error', $message, NULL, LAI_XE_HTTP_INTERNAL_ERROR); }
+function hop_dong_respond_success($message, $data = NULL) { hop_dong_respond('success', $message, $data, HOP_DONG_HTTP_OK); }
+function hop_dong_respond_failed($message) { hop_dong_respond('failed', $message, NULL, HOP_DONG_HTTP_BAD_REQUEST); }
+function hop_dong_respond_unauthorized($message) { hop_dong_respond('failed', $message, NULL, HOP_DONG_HTTP_UNAUTHORIZED); }
+function hop_dong_respond_error($message) { hop_dong_respond('error', $message, NULL, HOP_DONG_HTTP_INTERNAL_ERROR); }
 
-function lai_xe_respond_method_not_allowed($allowed) {
-  lai_xe_add_cors_headers();
+function hop_dong_respond_method_not_allowed($allowed) {
+  hop_dong_add_cors_headers();
   drupal_add_http_header('Allow', $allowed);
-  lai_xe_respond('error', 'Method không được hỗ trợ. Allowed: ' . $allowed, NULL, LAI_XE_HTTP_METHOD_NOT_ALLOWED);
+  hop_dong_respond('error', 'Method không được hỗ trợ. Allowed: ' . $allowed, NULL, HOP_DONG_HTTP_METHOD_NOT_ALLOWED);
 }
 
-function _lai_xe_status_text($code) {
+function _hop_dong_status_text($code) {
   $map = array(200 => 'OK', 400 => 'Bad Request', 401 => 'Unauthorized', 405 => 'Method Not Allowed', 500 => 'Internal Server Error');
   return isset($map[$code]) ? $map[$code] : 'Unknown';
 }
