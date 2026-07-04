@@ -118,7 +118,7 @@ function lai_xe_validate_unique_fields($thong_tin, $exclude_nid = 0) {
 
     $dup = lai_xe_check_duplicate($key, $value, $exclude_nid);
     if ($dup) {
-      lai_xe_respond_failed("{$label} '{$value}' đã tồn tại ở lái xe #{$dup['nid']} ({$dup['title']})");
+      lai_xe_respond_failed("{$label} đã tồn tại");
     }
   }
 }

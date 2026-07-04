@@ -504,6 +504,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
     final nganHangCtrl = TextEditingController(text: existingData?.nganHang ?? '');
 
     bool isTenError = false;
+    bool isSdtError = false;
 
     showDialog(
       context: context,
@@ -518,11 +519,18 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
               return;
             }
 
+            final sdt = sdtCtrl.text.trim();
+            if (sdt.isNotEmpty && !RegExp(r'^\d{10}$').hasMatch(sdt)) {
+              setDialogState(() => isSdtError = true);
+              AppToast.warning('SDT phải là 10 chữ số');
+              return;
+            }
+
             final data = {
               'title': ten,
               'field_thong_tin_json': {
                 'ma_nhan_vien': maNvCtrl.text.trim(),
-                'sdt': sdtCtrl.text.trim(),
+                'sdt': sdt,
                 'cccd': cccdCtrl.text.trim(),
                 'ngay_cap': _toApiDate(ngayCapCtrl.text.trim()),
                 'noi_cap': noiCapCtrl.text.trim(),
@@ -590,7 +598,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: _buildInput('SDT', sdtCtrl),
+                                    child: _buildInput('SDT', sdtCtrl, isNumber: true, hasError: isSdtError, onChanged: (_) { if (isSdtError) setDialogState(() => isSdtError = false); }),
                                   ),
                                   MySpacing.width(12),
                                   Expanded(

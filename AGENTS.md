@@ -138,3 +138,5 @@ api/<module>/
 ## Flutter
 
 - Dart/Flutter conventions.
+- Dropdown kiểu combobox: `Autocomplete` — vừa gõ được vừa chọn từ suggestions, `filled: true, fillColor: Colors.white` để nền trắng, `isDense: true`, `contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)` để chiều cao bằng các `TextFormField` khác.
+- Dữ liệu dropdown lấy từ lần fetch đầu vào screen — extract unique values từ list items, bỏ qua giá trị rỗng.
