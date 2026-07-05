@@ -525,3 +525,282 @@ MouseRegion(
 
 - `data` khi response list: `{ "items": [...], "pagination": { "page", "limit", "total", "total_pages" } }`
 - `data` khi detail/create/update: object item
+
+## Dropdown kiểu Autocomplete (combobox vừa gõ vừa chọn)
+
+Dropdown dùng `Autocomplete` với cơ chế Enter select, FocusNode riêng, không submit form khi đang chọn.
+
+### Cấu trúc
+
+- `_buildBenThuBaSelector(...)`: wrapper chứa label + `_BenThuBaDropdown`.
+- `_BenThuBaDropdown`: StatefulWidget chứa `Autocomplete<BenThuBa>` + logic fetch list.
+- Truyền `FocusNode` riêng cho từng dropdown để form biết khi nào dropdown đang focus.
+
+### Code mẫu
+
+```dart
+// ---------- Trong State của screen ----------
+
+// Model cần có tenGanGon, tenCongTy, title, ...
+String _displayFn(BenThuBa p) {
+  final name = p.tenGanGon.isNotEmpty ? p.tenGanGon : p.title;
+  final company = p.tenCongTy.isNotEmpty ? p.tenCongTy : p.title;
+  return '$name - $company';
+}
+
+// ---------- Trong dialog tạo/sửa ----------
+
+// 1. Tạo FocusNode riêng
+final khFocusNode = FocusNode();
+bool justSelectedFromDropdown = false;
+
+// 2. Gọi selector
+_buildBenThuBaSelector(
+  'Khách hàng',
+  selectedValue,
+  phanLoai: '',
+  hasError: isError,
+  required: true,
+  focusNode: khFocusNode,
+  onChanged: (p) {
+    setDialogState(() {
+      selectedValue = p;
+      justSelectedFromDropdown = true;  // ← flag chặn submit cùng Enter
+    });
+    khFocusNode.unfocus();  // ← để lần Enter sau submit được
+  },
+),
+
+// 3. Focus.onKeyEvent bọc form
+Focus(
+  onKeyEvent: (node, event) {
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
+      if (justSelectedFromDropdown) {
+        justSelectedFromDropdown = false;
+        return KeyEventResult.ignored;
+      }
+      if (khFocusNode.hasFocus || nvkdFocusNode.hasFocus) {
+        return KeyEventResult.ignored;  // để Autocomplete xử lý Enter
+      }
+      submitForm();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  },
+  child: Column(children: [...]),
+)
+
+// ---------- Widget dropdown ----------
+
+Widget _buildBenThuBaSelector(
+  String label,
+  BenThuBa? selected, {
+  required String phanLoai,
+  String excludePhanLoai = '',
+  required bool hasError,
+  bool required = false,
+  FocusNode? focusNode,
+  required ValueChanged<BenThuBa?> onChanged,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          MyText.labelMedium(label),
+          if (required)
+            const Text(' *', style: TextStyle(color: Colors.red)),
+        ],
+      ),
+      const SizedBox(height: 6),
+      _BenThuBaDropdown(
+        selected: selected,
+        phanLoai: phanLoai,
+        excludePhanLoai: excludePhanLoai,
+        hasError: hasError,
+        displayFn: _displayFn,           // ← display function
+        focusNode: focusNode,             // ← FocusNode riêng
+        onChanged: onChanged,
+      ),
+    ],
+  );
+}
+
+// ---------- StatefulWidget dropdown ----------
+
+class _BenThuBaDropdown extends StatefulWidget {
+  final BenThuBa? selected;
+  final String phanLoai;
+  final String excludePhanLoai;
+  final bool hasError;
+  final ValueChanged<BenThuBa?> onChanged;
+  final String Function(BenThuBa) displayFn;
+  final FocusNode? focusNode;
+
+  const _BenThuBaDropdown({
+    required this.selected,
+    required this.phanLoai,
+    required this.excludePhanLoai,
+    required this.hasError,
+    required this.onChanged,
+    required this.displayFn,
+    this.focusNode,
+  });
+
+  @override
+  State<_BenThuBaDropdown> createState() => _BenThuBaDropdownState();
+}
+
+class _BenThuBaDropdownState extends State<_BenThuBaDropdown> {
+  final TextEditingController _ctrl = TextEditingController();
+  late final String Function(BenThuBa) _displayFn = widget.displayFn;
+  List<BenThuBa> _list = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.selected != null) {
+      _ctrl.text = _displayFn(widget.selected!);
+    }
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _isLoading = true);
+    try {
+      final list = await SomeService.fetchByPhanLoai(phanLoai: widget.phanLoai);
+      var filtered = list;
+      if (widget.excludePhanLoai.isNotEmpty) {
+        filtered = list.where((p) =>
+          !p.phanLoaiList.any((pl) =>
+            pl.toLowerCase().contains(widget.excludePhanLoai.toLowerCase()))
+        ).toList();
+      }
+      if (!mounted) return;
+      setState(() => _list = filtered);
+    } catch (e) {
+      if (mounted) AppToast.error(e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      type: MaterialType.transparency,
+      child: Autocomplete<BenThuBa>(
+        focusNode: widget.focusNode,               // ← FocusNode từ ngoài
+        textEditingController: _ctrl,               // ← bắt buộc khi dùng focusNode
+        displayStringForOption: (p) => _displayFn(p),
+        optionsBuilder: (textEditingValue) {
+          if (textEditingValue.text.isEmpty) return _list;
+          final q = textEditingValue.text.toLowerCase();
+          return _list.where((p) =>
+            _displayFn(p).toLowerCase().contains(q) ||
+            p.title.toLowerCase().contains(q) ||
+            p.soDienThoai.toLowerCase().contains(q));
+        },
+        onSelected: (p) {
+          _ctrl.text = _displayFn(p);
+          widget.onChanged(p);
+        },
+        fieldViewBuilder: (context, fieldCtrl, focusNode, onSubmitted) {
+          return TextFormField(
+            controller: fieldCtrl,
+            focusNode: focusNode,
+            onFieldSubmitted: (_) => onSubmitted(),  // ← Enter → chọn item
+            decoration: InputDecoration(
+              isDense: true,
+              filled: true,
+              fillColor: Colors.white,
+              hintText: _isLoading ? 'Đang tải...' : 'Chọn hoặc nhập...',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: widget.hasError ? Colors.red : Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: widget.hasError ? Colors.red : Colors.grey.shade300),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderSide: BorderSide(color: Colors.blue, width: 2),
+              ),
+            ),
+          );
+        },
+        optionsViewBuilder: (context, onSelected, opts) {
+          return Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              color: Colors.white,
+              elevation: 4,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 240, minWidth: 360),
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  children: [
+                    for (var i = 0; i < opts.length; i++)
+                      Builder(
+                        builder: (context) {
+                          final highlighted = AutocompleteHighlightedOption.of(context);
+                          final isHi = i == highlighted;
+                          final p = opts.elementAt(i);
+                          return InkWell(
+                            onTap: () => onSelected(p),
+                            child: Container(
+                              color: isHi ? Colors.grey.shade300 : Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _displayFn(p),
+                                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                                  ),
+                                  if (p.fieldPhanLoai.isNotEmpty)
+                                    Text(
+                                      p.fieldPhanLoai,
+                                      style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+```
+
+### Luồng Enter
+
+| Thao tác | `onFieldSubmitted` → `onSubmitted()` | `_handleKeyEvent` | Parent `Focus.onKeyEvent` | Kết quả |
+|----------|--------------------------------------|-------------------|---------------------------|---------|
+| Panel đang mở + Enter | Chọn item, set `justSelectedFromDropdown=true`, `unfocus()` | Panel null → `ignored` | Flag true → clear → `ignored` | **Chọn item, không submit** |
+| Panel đóng + Enter lần sau | No-op | Panel null → `ignored` | Flag false, focus đã mất → `submitForm()` | **Submit form** |
+| Field thường + Enter | — | — | `submitForm()` | **Submit form** |
+
+### Quy tắc
+
+1. Luôn truyền `FocusNode` riêng cho từng dropdown.
+2. Luôn kèm `textEditingController` khi dùng `focusNode` custom (assertion bắt buộc).
+3. `onFieldSubmitted` phải gọi `onSubmitted()` để Autocomplete xử lý chọn item.
+4. Dùng flag `justSelectedFromDropdown` + `unfocus()` để không submit cùng Enter với select.
+5. `displayFn` format `'ten_gan_gon - ten_cong_ty'` (hoặc `'$name - $company'`).
+6. `optionsViewBuilder`: highlight item bằng `AutocompleteHighlightedOption.of(context)`.

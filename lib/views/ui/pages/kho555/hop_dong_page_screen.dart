@@ -383,7 +383,9 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
   }
 
   String _benThuBaDisplay(BenThuBa p) {
-    return p.tenGanGon.isNotEmpty ? p.tenGanGon : p.title;
+    final name = p.tenGanGon.isNotEmpty ? p.tenGanGon : p.title;
+    final company = p.tenCongTy.isNotEmpty ? p.tenCongTy : p.title;
+    return '$name - $company';
   }
 
   Widget _buildInput(String label, TextEditingController ctrl,
@@ -541,10 +543,14 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
           )
         : null;
 
+    final khFocusNode = FocusNode();
+    final nvkdFocusNode = FocusNode();
+
     bool isSoHdError = false;
     bool isNgayKyError = false;
     bool isHanHdError = false;
     bool isKhError = false;
+    bool justSelectedFromDropdown = false;
 
     showDialog(
       context: context,
@@ -625,6 +631,13 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
                         child: Focus(
                           onKeyEvent: (node, event) {
                             if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
+                              if (justSelectedFromDropdown) {
+                                justSelectedFromDropdown = false;
+                                return KeyEventResult.ignored;
+                              }
+                              if (khFocusNode.hasFocus || nvkdFocusNode.hasFocus) {
+                                return KeyEventResult.ignored;
+                              }
                               submitForm();
                               return KeyEventResult.handled;
                             }
@@ -650,11 +663,14 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
                                 excludePhanLoai: 'Nhân viên kinh doanh',
                                 hasError: isKhError,
                                 required: true,
+                                focusNode: khFocusNode,
                                 onChanged: (p) {
                                   setDialogState(() {
                                     selectedKH = p;
                                     isKhError = false;
+                                    justSelectedFromDropdown = true;
                                   });
+                                  khFocusNode.unfocus();
                                 },
                               ),
                               MySpacing.height(12),
@@ -664,8 +680,13 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
                                 phanLoai: 'Nhân viên kinh doanh',
                                 hasError: false,
                                 required: false,
+                                focusNode: nvkdFocusNode,
                                 onChanged: (p) {
-                                  setDialogState(() => selectedNVKD = p);
+                                  setDialogState(() {
+                                    selectedNVKD = p;
+                                    justSelectedFromDropdown = true;
+                                  });
+                                  nvkdFocusNode.unfocus();
                                 },
                               ),
                               MySpacing.height(12),
@@ -720,6 +741,7 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
     String excludePhanLoai = '',
     required bool hasError,
     bool required = false,
+    FocusNode? focusNode,
     required ValueChanged<BenThuBa?> onChanged,
   }) {
     return Column(
@@ -739,6 +761,7 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
           excludePhanLoai: excludePhanLoai,
           hasError: hasError,
           displayFn: _benThuBaDisplay,
+          focusNode: focusNode,
           onChanged: onChanged,
         ),
       ],
@@ -876,6 +899,7 @@ class _BenThuBaDropdown extends StatefulWidget {
   final bool hasError;
   final ValueChanged<BenThuBa?> onChanged;
   final String Function(BenThuBa) displayFn;
+  final FocusNode? focusNode;
 
   const _BenThuBaDropdown({
     required this.selected,
@@ -884,6 +908,7 @@ class _BenThuBaDropdown extends StatefulWidget {
     required this.hasError,
     required this.onChanged,
     required this.displayFn,
+    this.focusNode,
   });
 
   @override
@@ -935,7 +960,8 @@ class _BenThuBaDropdownState extends State<_BenThuBaDropdown> {
     return Material(
       type: MaterialType.transparency,
       child: Autocomplete<BenThuBa>(
-        initialValue: TextEditingValue(text: _ctrl.text),
+        focusNode: widget.focusNode,
+        textEditingController: _ctrl,
         displayStringForOption: (p) => _displayFn(p),
         optionsBuilder: (textEditingValue) {
           if (textEditingValue.text.isEmpty) return _list;
@@ -951,10 +977,10 @@ class _BenThuBaDropdownState extends State<_BenThuBaDropdown> {
           widget.onChanged(p);
         },
         fieldViewBuilder: (context, fieldCtrl, focusNode, onSubmitted) {
-          fieldCtrl.value = TextEditingValue(text: _ctrl.text);
           return TextFormField(
             controller: fieldCtrl,
             focusNode: focusNode,
+            onFieldSubmitted: (_) => onSubmitted(),
             style: const TextStyle(color: Colors.black),
             decoration: InputDecoration(
               isDense: true,
