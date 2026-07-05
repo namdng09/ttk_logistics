@@ -139,4 +139,7 @@ api/<module>/
 
 - Dart/Flutter conventions.
 - Dropdown kiểu combobox: `Autocomplete` — vừa gõ được vừa chọn từ suggestions, `filled: true, fillColor: Colors.white` để nền trắng, `isDense: true`, `contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)` để chiều cao bằng các `TextFormField` khác.
+- Highlight item đang được chọn bằng arrow key: dùng `AutocompleteHighlightedOption.of(context)` trong `Builder` để so sánh `i == highlighted` rồi đổi `color` của `Container` (vd: `Colors.grey.shade300` cho highlight, `Colors.white` cho thường).
+- Khi form có dropdown `Autocomplete`, truyền `FocusNode` riêng cho từng dropdown. Trong `Focus.onKeyEvent` của form, nếu `dropdownFocus.hasFocus` thì bỏ qua Enter (để Autocomplete chọn suggestion), không gọi submit.
+- Form chỉ submit bằng Enter (không dùng Space).
 - Dữ liệu dropdown lấy từ lần fetch đầu vào screen — extract unique values từ list items, bỏ qua giá trị rỗng.

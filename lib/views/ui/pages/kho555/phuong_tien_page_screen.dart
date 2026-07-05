@@ -369,9 +369,14 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
               onChanged(selected);
             },
             fieldViewBuilder: (context, fieldCtrl, focusNode, onSubmitted) {
+              fieldCtrl.value = TextEditingValue(text: ctrl.text);
               return TextFormField(
                 controller: fieldCtrl,
                 focusNode: focusNode,
+                onChanged: (v) {
+                  ctrl.text = v;
+                  onChanged(v);
+                },
                 style: const TextStyle(color: Colors.black),
                 decoration: InputDecoration(
                   isDense: true,
@@ -630,7 +635,7 @@ class _PhuongTienPageScreenState extends State<PhuongTienPageScreen> {
                       child: SingleChildScrollView(
                         child: Focus(
                           onKeyEvent: (node, event) {
-                            if (event is KeyDownEvent && (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.space)) {
+                            if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
                               submitForm();
                               return KeyEventResult.handled;
                             }

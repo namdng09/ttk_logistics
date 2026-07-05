@@ -5,9 +5,12 @@ import 'package:ttk_logistics/helper/services/auth_services.dart';
 import 'package:ttk_logistics/helper/storage/local_storage.dart';
 import 'package:ttk_logistics/models/api_response.dart';
 import 'package:ttk_logistics/models/kho555/lai_xe.dart';
+import 'package:ttk_logistics/models/kho555/phuong_tien.dart';
 
 class LaiXeService {
   static const String _endpoint = AuthService.laiXeEndpoint;
+  static const String _ptlxEndpoint = AuthService.phuongTienLaiXeEndpoint;
+  static const String _ptEndpoint = AuthService.phuongTienEndpoint;
 
   static Future<Map<String, dynamic>> fetchLaiXe({int page = 1, int limit = 20, String keyword = ''}) async {
     try {
@@ -127,6 +130,116 @@ class LaiXeService {
       data: {},
       fallbackMessage: 'Không thể xoá lái xe',
     );
+  }
+
+  static Future<List<PhuongTien>> fetchAvailablePhuongTien({String loaiPhuongTien = 'Đầu kéo'}) async {
+    try {
+      final token = await LocalStorage.getUserToken();
+      final email = await LocalStorage.getUserEmail();
+
+      final response = await http.post(
+        Uri.parse(AuthService.workerUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'url': _ptEndpoint,
+          'method': 'POST',
+          'params': {
+            '_method': 'GET',
+            'page': 1,
+            'limit': 500,
+            'loai_phuong_tien': loaiPhuongTien,
+            'dang_trong': 1,
+            'field_hoat_dong': 1,
+            'created_email': email,
+            'token': token,
+          },
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final res = _decodeBody(response.body);
+        List<dynamic>? items;
+        if (res['data'] is Map && res['data']['items'] is List) {
+          items = res['data']['items'] as List<dynamic>;
+        } else if (res['items'] is List) {
+          items = res['items'] as List<dynamic>;
+        }
+        if (items == null) return <PhuongTien>[];
+        return items
+            .whereType<Map>()
+            .map((e) => PhuongTien.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+      throw Exception('Lỗi server: ${response.statusCode}');
+    } catch (e) {
+      throw Exception('Lỗi tải phương tiện khả dụng: $e');
+    }
+  }
+
+  static Future<ApiResponse> assignPhuongTien(int laiXeNid, int phuongTienNid) async {
+    return _request(
+      url: _ptlxEndpoint,
+      method: 'POST',
+      data: {
+        'field_uid_lai_xe': laiXeNid,
+        'field_nid_phuong_tien': phuongTienNid,
+        'field_hoat_dong': 1,
+      },
+      fallbackMessage: 'Không thể gán phương tiện',
+    );
+  }
+
+  static Future<ApiResponse> unassignPhuongTien(int laiXeNid) async {
+    try {
+      final token = await LocalStorage.getUserToken();
+      final email = await LocalStorage.getUserEmail();
+
+      final listResponse = await http.post(
+        Uri.parse(AuthService.workerUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'url': _ptlxEndpoint,
+          'method': 'POST',
+          'params': {
+            '_method': 'GET',
+            'field_uid_lai_xe': laiXeNid,
+            'field_hoat_dong': 1,
+            'limit': 1,
+            'created_email': email,
+            'token': token,
+          },
+        }),
+      );
+
+      if (listResponse.statusCode != 200) {
+        return ApiResponse(success: false, message: 'Lỗi tìm bản ghi quan hệ');
+      }
+
+      final res = _decodeBody(listResponse.body);
+      List<dynamic>? items;
+      if (res['data'] is Map && res['data']['items'] is List) {
+        items = res['data']['items'] as List<dynamic>;
+      } else if (res['items'] is List) {
+        items = res['items'] as List<dynamic>;
+      }
+      if (items == null || items.isEmpty) {
+        return ApiResponse(success: true, message: 'Lái xe chưa gán phương tiện');
+      }
+
+      final ptlxNid = int.tryParse(items.first['nid']?.toString() ?? '');
+      if (ptlxNid == null || ptlxNid <= 0) {
+        return ApiResponse(success: false, message: 'Không tìm thấy bản ghi quan hệ');
+      }
+
+      return _request(
+        url: '$_ptlxEndpoint/$ptlxNid',
+        method: 'DELETE',
+        data: {},
+        fallbackMessage: 'Không thể bỏ chọn phương tiện',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: 'Lỗi kết nối: $e');
+    }
   }
 
   static Future<ApiResponse> _request({

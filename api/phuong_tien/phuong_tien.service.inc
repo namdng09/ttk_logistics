@@ -14,19 +14,43 @@ function phuong_tien_service_get_list($params = array()) {
   $limit = min($limit, PHUONG_TIEN_MAX_LIMIT);
   $offset = ($page - 1) * $limit;
 
-  $query = phuong_tien_build_list_query($params);
-  $query->fields('n', array('nid', 'title', 'created', 'changed'));
-  $query->addField('ftj', 'field_thong_tin_json_value', 'thong_tin_json');
-  $query->addField('fhd', 'field_hoat_dong_value', 'hoat_dong');
+  $loai_filter = isset($params['loai_phuong_tien']) ? phuong_tien_normalize_vi(trim((string) $params['loai_phuong_tien'])) : '';
+  $has_loai_filter = ($loai_filter !== '');
 
-  phuong_tien_apply_sort($query, $params);
-  $query->range($offset, $limit);
+  $all_rows = array();
+  if ($has_loai_filter) {
+    $full = phuong_tien_build_list_query($params);
+    $full->fields('n', array('nid', 'title', 'created', 'changed'));
+    $full->addField('ftj', 'field_thong_tin_json_value', 'thong_tin_json');
+    $full->addField('fhd', 'field_hoat_dong_value', 'hoat_dong');
+    $all_rows = $full->execute()->fetchAllAssoc('nid');
 
-  $rows = $query->execute()->fetchAllAssoc('nid');
+    $filtered = array();
+    foreach ($all_rows as $nid => $row) {
+      $json = phuong_tien_decode_json($row->thong_tin_json);
+      $value = isset($json['loai_phuong_tien']) ? (string) $json['loai_phuong_tien'] : '';
+      if (phuong_tien_normalize_vi($value) === $loai_filter) {
+        $filtered[$nid] = $row;
+      }
+    }
+    $all_rows = $filtered;
+    uasort($all_rows, function ($a, $b) { return strcmp($a->title, $b->title); });
+    $total = count($all_rows);
+    $rows = array_slice($all_rows, $offset, $limit, TRUE);
+  }
+  else {
+    $query = phuong_tien_build_list_query($params);
+    $query->fields('n', array('nid', 'title', 'created', 'changed'));
+    $query->addField('ftj', 'field_thong_tin_json_value', 'thong_tin_json');
+    $query->addField('fhd', 'field_hoat_dong_value', 'hoat_dong');
+    phuong_tien_apply_sort($query, $params);
+    $query->range($offset, $limit);
+    $rows = $query->execute()->fetchAllAssoc('nid');
 
-  $count_query = phuong_tien_build_list_query($params);
-  $count_query->addExpression('COUNT(DISTINCT n.nid)', 'total');
-  $total = intval($count_query->execute()->fetchField());
+    $count_query = phuong_tien_build_list_query($params);
+    $count_query->addExpression('COUNT(DISTINCT n.nid)', 'total');
+    $total = intval($count_query->execute()->fetchField());
+  }
 
   $items = array();
   foreach ($rows as $row) {

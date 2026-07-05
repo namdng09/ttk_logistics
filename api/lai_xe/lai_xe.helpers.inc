@@ -136,6 +136,76 @@ function lai_xe_node_is_active($entity) {
   return TRUE;
 }
 
+/**
+ * Load phương tiện hiện tại (đang dùng) cho danh sách lái xe.
+ *
+ * Truy vấn bảng quan hệ phuong_tien_lai_xe (chỉ lấy bản ghi active) +
+ * JOIN với node phuong_tien để lấy title, ma_tai_san, hang_xe.
+ *
+ * @param array $lai_xe_nids Danh sách nid lái xe.
+ * @return array Map [lai_xe_nid => {nid, title, ma_tai_san, hang_xe}] (lai_xe chưa gán thì không có key).
+ */
+function lai_xe_load_phuong_tien_hien_tai_map($lai_xe_nids) {
+  $result = array();
+  if (empty($lai_xe_nids)) { return $result; }
+  $lai_xe_nids = array_map('intval', $lai_xe_nids);
+  $lai_xe_nids = array_filter($lai_xe_nids, function ($n) { return $n > 0; });
+  if (empty($lai_xe_nids)) { return $result; }
+
+  $q = db_select('node', 'nrel');
+  $q->condition('nrel.type', 'phuong_tien_lai_xe', '=');
+  $q->leftJoin('field_data_field_uid_lai_xe', 'fuid', "nrel.nid = fuid.entity_id AND fuid.entity_type = 'node' AND fuid.deleted = 0");
+  $q->leftJoin('field_data_field_nid_phuong_tien', 'fnpt', "nrel.nid = fnpt.entity_id AND fnpt.entity_type = 'node' AND fnpt.deleted = 0");
+  $q->leftJoin('field_data_field_hoat_dong', 'fhd', "nrel.nid = fhd.entity_id AND fhd.entity_type = 'node' AND fhd.deleted = 0");
+  $q->addField('fuid', 'field_uid_lai_xe_target_id', 'lai_xe_nid');
+  $q->addField('fnpt', 'field_nid_phuong_tien_target_id', 'pt_nid');
+  $q->condition('fuid.field_uid_lai_xe_target_id', $lai_xe_nids, 'IN');
+  $or = db_or();
+  $or->condition('fhd.field_hoat_dong_value', 1, '=');
+  $or->isNull('fhd.field_hoat_dong_value');
+  $q->condition($or);
+
+  $rows = $q->execute()->fetchAll();
+  if (empty($rows)) { return $result; }
+
+  $pt_nids = array();
+  foreach ($rows as $r) {
+    if (intval($r->pt_nid) > 0) { $pt_nids[] = intval($r->pt_nid); }
+  }
+  $pt_nids = array_unique($pt_nids);
+
+  $pt_info = array();
+  if (!empty($pt_nids)) {
+    $pq = db_select('node', 'npt');
+    $pq->condition('npt.type', 'phuong_tien', '=');
+    $pq->condition('npt.nid', $pt_nids, 'IN');
+    $pq->leftJoin('field_data_field_thong_tin_json', 'ptj', "npt.nid = ptj.entity_id AND ptj.entity_type = 'node' AND ptj.deleted = 0");
+    $pq->addField('npt', 'nid', 'nid');
+    $pq->addField('npt', 'title', 'title');
+    $pq->addField('ptj', 'field_thong_tin_json_value', 'thong_tin_json');
+    $prows = $pq->execute()->fetchAll();
+    foreach ($prows as $pr) {
+      $json = lai_xe_decode_json($pr->thong_tin_json);
+      $pt_info[intval($pr->nid)] = array(
+        'nid' => intval($pr->nid),
+        'title' => (string) $pr->title,
+        'ma_tai_san' => isset($json['ma_tai_san']) ? (string) $json['ma_tai_san'] : '',
+        'hang_xe' => isset($json['hang_xe']) ? (string) $json['hang_xe'] : '',
+      );
+    }
+  }
+
+  foreach ($rows as $r) {
+    $lx = intval($r->lai_xe_nid);
+    $pt = intval($r->pt_nid);
+    if ($lx <= 0 || $pt <= 0 || !isset($pt_info[$pt])) { continue; }
+    if (isset($result[$lx])) { continue; }
+    $result[$lx] = $pt_info[$pt];
+  }
+
+  return $result;
+}
+
 function lai_xe_format_row($row) {
   return array(
     'nid' => intval($row->nid),
@@ -148,6 +218,7 @@ function lai_xe_format_row($row) {
 }
 
 function lai_xe_format_node($node) {
+  $pt_map = lai_xe_load_phuong_tien_hien_tai_map(array(intval($node->nid)));
   return array(
     'nid' => intval($node->nid),
     'title' => (string) $node->title,
@@ -155,6 +226,7 @@ function lai_xe_format_node($node) {
     'field_hoat_dong' => isset($node->field_hoat_dong[LANGUAGE_NONE][0]['value']) ? intval($node->field_hoat_dong[LANGUAGE_NONE][0]['value']) : 1,
     'created' => !empty($node->created) ? intval($node->created) : 0,
     'changed' => !empty($node->changed) ? intval($node->changed) : 0,
+    'phuong_tien_hien_tai' => isset($pt_map[intval($node->nid)]) ? $pt_map[intval($node->nid)] : NULL,
   );
 }
 

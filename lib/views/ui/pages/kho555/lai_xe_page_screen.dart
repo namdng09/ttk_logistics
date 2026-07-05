@@ -11,6 +11,8 @@ import 'package:ttk_logistics/helper/widgets/my_container.dart';
 import 'package:ttk_logistics/helper/widgets/my_spacing.dart';
 import 'package:ttk_logistics/helper/widgets/my_text.dart';
 import 'package:ttk_logistics/models/kho555/lai_xe.dart';
+import 'package:ttk_logistics/models/kho555/phuong_tien.dart';
+import 'package:ttk_logistics/services/kho555/lai_xe_service.dart';
 import 'package:ttk_logistics/views/layout/layout.dart';
 
 class LaiXePageScreen extends StatefulWidget with UIMixin {
@@ -192,6 +194,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
                             DataColumn(label: _headerCell('STT', width: _sttWidth)),
                             DataColumn(label: _headerCell('Mã nhân viên', width: _colNormal)),
                             DataColumn(label: _headerCell('Họ tên', width: _colMed)),
+                            DataColumn(label: _headerCell('Phương tiện', width: _colNormal)),
                             DataColumn(label: _headerCell('SDT', width: _colNormal)),
                             DataColumn(label: _headerCell('CCCD', width: _colNormal)),
                             DataColumn(label: _headerCell('Ngày cấp', width: _colNormal)),
@@ -213,6 +216,10 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
                               DataCell(_cellText('$stt', width: _sttWidth)),
                               DataCell(_cellText(item.maNhanVien, width: _colNormal)),
                               DataCell(_cellText(item.title, width: _colMed)),
+                              DataCell(_cellText(
+                                item.phuongTienHienTai?.title ?? '—',
+                                width: _colNormal,
+                              )),
                               DataCell(_cellText(item.sdt, width: _colNormal)),
                               DataCell(_cellText(item.cccd, width: _colNormal)),
                               DataCell(_cellText(item.ngayCap, width: _colNormal)),
@@ -252,12 +259,25 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
           showLaiXeDialog(context, existingData: item);
         } else if (value == 'delete') {
           _confirmDelete(item);
+        } else if (value == 'assign_pt') {
+          _showAssignPhuongTienDialog(item);
         }
       },
       itemBuilder: (_) => [
+        const PopupMenuItem(
+          value: 'assign_pt',
+          child: ListTile(leading: Icon(Icons.local_shipping, color: Colors.green), title: Text('Chọn phương tiện'), dense: true),
+        ),
         const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit, color: Colors.blue), title: Text('Sửa'), dense: true)),
         const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, color: Colors.red), title: Text('Xoá'), dense: true)),
       ],
+    );
+  }
+
+  void _showAssignPhuongTienDialog(LaiXe laiXe) {
+    showDialog(
+      context: context,
+      builder: (_) => _AssignPhuongTienDialog(laiXe: laiXe),
     );
   }
 
@@ -582,7 +602,7 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
                       child: SingleChildScrollView(
                         child: Focus(
                           onKeyEvent: (node, event) {
-                            if (event is KeyDownEvent && (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.space)) {
+                            if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
                               submitForm();
                               return KeyEventResult.handled;
                             }
@@ -591,9 +611,24 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildInput('Họ tên', bksCtrl, required: true, hasError: isTenError, onChanged: (_) { if (isTenError) setDialogState(() => isTenError = false); }),
+                              _buildReadOnlyInput(
+                                'Phương tiện đang dùng',
+                                existingData?.phuongTienHienTai != null
+                                    ? existingData!.phuongTienHienTai!.displayText
+                                    : 'Chưa gán',
+                              ),
                               MySpacing.height(12),
-                              _buildInput('Mã nhân viên', maNvCtrl),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildInput('Họ tên', bksCtrl, required: true, hasError: isTenError, onChanged: (_) { if (isTenError) setDialogState(() => isTenError = false); }),
+                                  ),
+                                  MySpacing.width(12),
+                                  Expanded(
+                                    child: _buildInput('Mã nhân viên', maNvCtrl),
+                                  ),
+                                ],
+                              ),
                               MySpacing.height(12),
                               Row(
                                 children: [
@@ -752,6 +787,29 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
     );
   }
 
+  Widget _buildReadOnlyInput(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MyText.labelMedium(label),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: MyText.bodyMedium(
+            value.isEmpty ? '—' : value,
+            color: value.isEmpty ? Colors.black38 : Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDateInput(String label, TextEditingController ctrl) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -846,5 +904,334 @@ class _LaiXePageScreenState extends State<LaiXePageScreen> {
       return DateFormat('dd-MM-yyyy').format(parsed);
     } catch (_) {}
     return displayDate;
+  }
+}
+
+class _AssignPhuongTienDialog extends StatefulWidget {
+  final LaiXe laiXe;
+  const _AssignPhuongTienDialog({required this.laiXe});
+
+  @override
+  State<_AssignPhuongTienDialog> createState() => _AssignPhuongTienDialogState();
+}
+
+class _AssignPhuongTienDialogState extends State<_AssignPhuongTienDialog> {
+  final LaiXeController controller = Get.find();
+  final contentTheme = AdminTheme.theme.contentTheme;
+  final _ptCtrl = TextEditingController();
+  PhuongTien? _selected;
+  bool _isLoadingList = false;
+  String? _error;
+  List<PhuongTien> _available = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoadingList = true;
+      _error = null;
+    });
+    try {
+      final list = await LaiXeService.fetchAvailablePhuongTien(loaiPhuongTien: 'Đầu kéo');
+      if (!mounted) return;
+      setState(() {
+        _available = list;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoadingList = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ptCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_selected == null) {
+      AppToast.warning('Vui lòng chọn phương tiện');
+      return;
+    }
+    controller.assignPhuongTien(widget.laiXe.nid, _selected!.nid);
+  }
+
+  void _confirmUnassign() {
+    final pt = widget.laiXe.phuongTienHienTai;
+    if (pt == null) return;
+    showDialog(
+      context: Get.context!,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 450, minWidth: 250),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 48),
+                const SizedBox(height: 16),
+                MyText.bodyMedium('Xác nhận bỏ chọn xe', fontWeight: 600),
+                const SizedBox(height: 12),
+                MyText.bodyMedium(
+                  'Bỏ gán xe "${pt.title}" (${pt.maTaiSan} - ${pt.hangXe}) khỏi lái xe "${widget.laiXe.title}"?',
+                  textAlign: TextAlign.center,
+                  fontWeight: 600,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    MyContainer(
+                      onTap: () => Get.back(),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      color: contentTheme.secondary.withOpacity(0.3),
+                      child: MyText.bodySmall('Huỷ', fontWeight: 600, color: contentTheme.secondary),
+                    ),
+                    const SizedBox(width: 12),
+                    MyContainer(
+                      onTap: () {
+                        Get.back();
+                        controller.unassignPhuongTien(widget.laiXe.nid);
+                      },
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      color: Colors.orange.shade700,
+                      child: MyText.bodySmall('Bỏ chọn', fontWeight: 600, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 600),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  MyText.titleMedium('Chọn phương tiện cho ${widget.laiXe.title}', fontWeight: 700),
+                  InkWell(
+                    onTap: () => Get.back(),
+                    child: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 0),
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: _isLoadingList
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null
+                        ? Center(child: Text(_error!))
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (widget.laiXe.phuongTienHienTai != null) ...[
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade50,
+                                    border: Border.all(color: Colors.orange.shade300),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.local_shipping, size: 18, color: Colors.orange.shade700),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: MyText.bodyMedium(
+                                          'Đang dùng: ${widget.laiXe.phuongTienHienTai!.displayText}',
+                                          color: Colors.black87,
+                                          fontWeight: 600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                              MyText.labelMedium('Phương tiện (loại đầu kéo, còn trống)'),
+                              const SizedBox(height: 6),
+                              Material(
+                                type: MaterialType.transparency,
+                                child: Autocomplete<PhuongTien>(
+                                  initialValue: TextEditingValue(text: _ptCtrl.text),
+                                  displayStringForOption: (p) => p.title,
+                                  optionsBuilder: (textEditingValue) {
+                                    final q = textEditingValue.text.toLowerCase();
+                                    if (q.isEmpty) return _available;
+                                    return _available.where((p) =>
+                                      p != null && (
+                                      p.title.toLowerCase().contains(q) ||
+                                      p.maTaiSan.toLowerCase().contains(q) ||
+                                      p.hangXe.toLowerCase().contains(q)));
+                                  },
+                                  onSelected: (p) {
+                                    setState(() {
+                                      _selected = p;
+                                      _ptCtrl.text = p.title;
+                                    });
+                                  },
+                                  fieldViewBuilder: (context, fieldCtrl, focusNode, onSubmitted) {
+                                    fieldCtrl.value = TextEditingValue(text: _ptCtrl.text);
+                                    return TextFormField(
+                                      controller: fieldCtrl,
+                                      focusNode: focusNode,
+                                      style: const TextStyle(color: Colors.black),
+                                      decoration: InputDecoration(
+                                        isDense: true,
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        hintText: 'Tìm BKS / mã tài sản / hãng xe...',
+                                        hintStyle: const TextStyle(color: Colors.black38),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                        border: OutlineInputBorder(
+                                          borderSide: BorderSide(color: Colors.grey.shade300),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: Colors.grey.shade300),
+                                        ),
+                                        focusedBorder: const OutlineInputBorder(
+                                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  optionsViewBuilder: (context, onSelected, opts) {
+                                    return Align(
+                                      alignment: Alignment.topLeft,
+                                      child: Material(
+                                        color: Colors.white,
+                                        elevation: 4,
+                                        child: ConstrainedBox(
+                                          constraints: const BoxConstraints(maxHeight: 240, minWidth: 360),
+                                          child: ListView(
+                                            padding: EdgeInsets.zero,
+                                            shrinkWrap: true,
+                                            children: [
+                                              for (var i = 0; i < opts.length; i++)
+                                                Builder(
+                                                  builder: (context) {
+                                                    final highlighted = AutocompleteHighlightedOption.of(context);
+                                                    final isHi = i == highlighted;
+                                                    final p = opts.elementAt(i);
+                                                    return InkWell(
+                                                      onTap: () => onSelected(p),
+                                                      child: Container(
+                                                        color: isHi ? Colors.grey.shade300 : Colors.white,
+                                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                                        child: Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: Text(
+                                                                p.title,
+                                                                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                                                              ),
+                                                            ),
+                                                            if (p.maTaiSan.isNotEmpty) ...[
+                                                              const SizedBox(width: 8),
+                                                              Text(p.maTaiSan, style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+                                                            ],
+                                                            if (p.hangXe.isNotEmpty) ...[
+                                                              const SizedBox(width: 8),
+                                                              Text('• ${p.hangXe}', style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+                                                            ],
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              if (_selected != null) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade50,
+                                    border: Border.all(color: Colors.blue.shade200),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Đã chọn: ${_selected!.title} - ${_selected!.maTaiSan} - ${_selected!.hangXe}',
+                                    style: const TextStyle(color: Colors.black87),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+              ),
+            ),
+            const Divider(height: 0),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (widget.laiXe.phuongTienHienTai != null) ...[
+                    Obx(() => MyContainer(
+                      onTap: controller.isAssigning.value ? null : _confirmUnassign,
+                      color: Colors.orange.shade700,
+                      padding: MySpacing.xy(12, 8),
+                      child: controller.isAssigning.value
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : MyText.bodySmall('Bỏ chọn xe', fontWeight: 600, color: Colors.white),
+                    )),
+                    const SizedBox(width: 12),
+                  ],
+                  MyContainer(
+                    onTap: () => Get.back(),
+                    color: contentTheme.secondary.withAlpha(36),
+                    padding: MySpacing.xy(12, 8),
+                    child: MyText.bodySmall('Huỷ', fontWeight: 600, color: contentTheme.secondary),
+                  ),
+                  const SizedBox(width: 12),
+                  Obx(() => MyContainer(
+                    onTap: controller.isAssigning.value ? null : _submit,
+                    color: contentTheme.primary,
+                    padding: MySpacing.xy(12, 8),
+                    child: controller.isAssigning.value
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : MyText.bodySmall('Gán', fontWeight: 600, color: contentTheme.onPrimary),
+                  )),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

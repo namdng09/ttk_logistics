@@ -147,4 +147,44 @@ class LaiXeController extends MyController {
       isDeleting.value = false;
     }
   }
+
+  var isAssigning = false.obs;
+
+  Future<void> assignPhuongTien(int laiXeNid, int phuongTienNid) async {
+    if (isAssigning.value) return;
+    try {
+      isAssigning.value = true;
+      final res = await LaiXeService.assignPhuongTien(laiXeNid, phuongTienNid);
+      if (res.success) {
+        Get.back();
+        await fetchLaiXe();
+        AppToast.success(res.message);
+      } else {
+        AppToast.warning(res.message);
+      }
+    } catch (e) {
+      AppToast.error(e.toString());
+    } finally {
+      isAssigning.value = false;
+    }
+  }
+
+  Future<void> unassignPhuongTien(int laiXeNid) async {
+    if (isAssigning.value) return;
+    try {
+      isAssigning.value = true;
+      final res = await LaiXeService.unassignPhuongTien(laiXeNid);
+      if (res.success) {
+        Get.back();
+        await fetchLaiXe();
+        AppToast.success(res.message);
+      } else {
+        AppToast.warning(res.message);
+      }
+    } catch (e) {
+      AppToast.error(e.toString());
+    } finally {
+      isAssigning.value = false;
+    }
+  }
 }

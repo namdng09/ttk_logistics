@@ -25,8 +25,15 @@ function lai_xe_service_get_list($params = array()) {
   $count_query->addExpression('COUNT(DISTINCT n.nid)', 'total');
   $total = intval($count_query->execute()->fetchField());
 
+  $lai_xe_nids = array_keys($rows);
+  $pt_map = lai_xe_load_phuong_tien_hien_tai_map($lai_xe_nids);
+
   $items = array();
-  foreach ($rows as $row) { $items[] = lai_xe_format_row($row); }
+  foreach ($rows as $row) {
+    $item = lai_xe_format_row($row);
+    $item['phuong_tien_hien_tai'] = isset($pt_map[intval($row->nid)]) ? $pt_map[intval($row->nid)] : NULL;
+    $items[] = $item;
+  }
 
   return array(
     'items' => $items,
@@ -50,7 +57,11 @@ function lai_xe_service_get_detail($nid) {
   $row = $query->execute()->fetchObject();
   if (!$row) { return NULL; }
   if (!lai_xe_node_is_active($row)) { return NULL; }
-  return lai_xe_format_row($row);
+
+  $item = lai_xe_format_row($row);
+  $pt_map = lai_xe_load_phuong_tien_hien_tai_map(array(intval($row->nid)));
+  $item['phuong_tien_hien_tai'] = isset($pt_map[intval($row->nid)]) ? $pt_map[intval($row->nid)] : NULL;
+  return $item;
 }
 
 function lai_xe_service_create($params) {

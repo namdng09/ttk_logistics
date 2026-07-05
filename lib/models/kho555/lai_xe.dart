@@ -1,5 +1,35 @@
 import 'dart:convert';
 
+class PhuongTienHienTai {
+  final int nid;
+  final String title;
+  final String maTaiSan;
+  final String hangXe;
+
+  PhuongTienHienTai({
+    required this.nid,
+    required this.title,
+    this.maTaiSan = '',
+    this.hangXe = '',
+  });
+
+  factory PhuongTienHienTai.fromJson(Map<String, dynamic> json) {
+    return PhuongTienHienTai(
+      nid: int.tryParse(json['nid']?.toString() ?? '') ?? 0,
+      title: json['title']?.toString() ?? '',
+      maTaiSan: json['ma_tai_san']?.toString() ?? '',
+      hangXe: json['hang_xe']?.toString() ?? '',
+    );
+  }
+
+  String get displayText {
+    final parts = <String>[title];
+    if (maTaiSan.isNotEmpty) parts.add(maTaiSan);
+    if (hangXe.isNotEmpty) parts.add(hangXe);
+    return parts.join(' - ');
+  }
+}
+
 class LaiXe {
   final int nid;
   final String title;
@@ -17,6 +47,7 @@ class LaiXe {
   final String ngayNhanViec;
   final String soTkNganHang;
   final String nganHang;
+  final PhuongTienHienTai? phuongTienHienTai;
 
   LaiXe({
     required this.nid,
@@ -34,10 +65,17 @@ class LaiXe {
     this.ngayNhanViec = '',
     this.soTkNganHang = '',
     this.nganHang = '',
+    this.phuongTienHienTai,
   });
 
   factory LaiXe.fromJson(Map<String, dynamic> json) {
     final info = _decodeThongTinJson(json['field_thong_tin_json']);
+
+    PhuongTienHienTai? pt;
+    final ptJson = json['phuong_tien_hien_tai'];
+    if (ptJson is Map) {
+      pt = PhuongTienHienTai.fromJson(Map<String, dynamic>.from(ptJson));
+    }
 
     return LaiXe(
       nid: _toInt(json['nid']),
@@ -55,6 +93,7 @@ class LaiXe {
       ngayNhanViec: _valueOf(info, ['ngay_nhan_viec']),
       soTkNganHang: _valueOf(info, ['so_tk_ngan_hang']),
       nganHang: _valueOf(info, ['ngan_hang']),
+      phuongTienHienTai: pt,
     );
   }
 

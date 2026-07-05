@@ -117,6 +117,40 @@ function phuong_tien_parse_active($value) {
 }
 
 /**
+ * Chuẩn hoá tiếng Việt: bỏ dấu, chuyển về lowercase, gộp khoảng trắng.
+ * Dùng để so sánh 'Đầu kéo' === 'dau keo'.
+ */
+function phuong_tien_normalize_vi($value) {
+  $text = trim((string) $value);
+  if ($text === '') { return ''; }
+
+  $text = preg_replace('/\p{Mn}+/u', '', $text);
+
+  if (function_exists('mb_strtolower')) {
+    $text = mb_strtolower($text, 'UTF-8');
+  } else {
+    $text = drupal_strtolower($text);
+  }
+
+  $text = preg_replace(
+    array(
+      '/[àáạảãâầấậẩẫăằắặẳẵ]/u',
+      '/[èéẹẻẽêềếệểễ]/u',
+      '/[ìíịỉĩ]/u',
+      '/[òóọỏõôồốộổỗơờớợởỡ]/u',
+      '/[ùúụủũưừứựửữ]/u',
+      '/[ỳýỵỷỹ]/u',
+      '/[đĐ]/u',
+    ),
+    array('a', 'e', 'i', 'o', 'u', 'y', 'd'),
+    $text
+  );
+
+  $text = preg_replace('/\s+/', ' ', $text);
+  return trim($text);
+}
+
+/**
  * Alias: node còn hoạt động không.
  * Chấp nhận cả node object từ node_load và row từ db_select.
  */
@@ -184,6 +218,23 @@ function phuong_tien_build_list_query($params) {
     $or->condition('fhd.field_hoat_dong_value', 1, '=');
     $or->isNull('fhd.field_hoat_dong_value');
     $query->condition($or);
+  }
+
+  if (!empty($params['dang_trong'])) {
+    $busy = db_select('node', 'nrel');
+    $busy->condition('nrel.type', 'phuong_tien_lai_xe', '=');
+    $busy->leftJoin('field_data_field_nid_phuong_tien', 'fnpt', "nrel.nid = fnpt.entity_id AND fnpt.entity_type = 'node' AND fnpt.deleted = 0");
+    $busy->leftJoin('field_data_field_hoat_dong', 'fhd2', "nrel.nid = fhd2.entity_id AND fhd2.entity_type = 'node' AND fhd2.deleted = 0");
+    $busy->addField('fnpt', 'field_nid_phuong_tien_target_id', 'pt_nid');
+    $busy_or = db_or();
+    $busy_or->condition('fhd2.field_hoat_dong_value', 1, '=');
+    $busy_or->isNull('fhd2.field_hoat_dong_value');
+    $busy->condition($busy_or);
+    $busy->distinct();
+    $busy_nids = $busy->execute()->fetchCol();
+    if (!empty($busy_nids)) {
+      $query->condition('n.nid', $busy_nids, 'NOT IN');
+    }
   }
 
   return $query;
