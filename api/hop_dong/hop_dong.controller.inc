@@ -70,13 +70,33 @@ function hop_dong_controller_create($params) {
   $title = isset($params['title']) ? trim((string) $params['title']) : '';
   if ($title === '') { hop_dong_respond_failed('Tiêu đề hợp đồng là bắt buộc'); }
 
+  $thong_tin = array();
+  if (isset($params['field_thong_tin_json'])) {
+    if (is_array($params['field_thong_tin_json'])) {
+      $thong_tin = $params['field_thong_tin_json'];
+    } else {
+      $decoded = json_decode((string) $params['field_thong_tin_json'], TRUE);
+      if (is_array($decoded)) { $thong_tin = $decoded; }
+    }
+  }
+
+  $nid_kh = isset($thong_tin['nid_ben_thu_ba']) ? intval($thong_tin['nid_ben_thu_ba']) : 0;
+  if ($nid_kh > 0) {
+    hop_dong_validate_khach_hang($nid_kh);
+  }
+
+  $nid_nvkd = isset($thong_tin['nid_nhan_vien_kinh_doanh']) ? intval($thong_tin['nid_nhan_vien_kinh_doanh']) : 0;
+  if ($nid_nvkd > 0) {
+    hop_dong_validate_nvkd($nid_nvkd);
+  }
+
   $node = new stdClass();
   $node->type = HOP_DONG_BUNDLE;
   node_object_prepare($node);
   $node->language = LANGUAGE_NONE;
 
   $node->title = $title;
-  $node->field_thong_tin_json[LANGUAGE_NONE][0]['value'] = isset($params['field_thong_tin_json']) ? hop_dong_encode_json_value($params['field_thong_tin_json']) : '';
+  $node->field_thong_tin_json[LANGUAGE_NONE][0]['value'] = !empty($thong_tin) ? drupal_json_encode($thong_tin) : '';
   $node->field_hoat_dong[LANGUAGE_NONE][0]['value'] = hop_dong_parse_active(isset($params['field_hoat_dong']) ? $params['field_hoat_dong'] : 1);
 
   node_save($node);
@@ -93,8 +113,30 @@ function hop_dong_controller_update($nid, $params) {
   $title = isset($params['title']) ? trim((string) $params['title']) : '';
   if ($title === '') { hop_dong_respond_failed('Tiêu đề hợp đồng là bắt buộc'); }
 
+  $current_json_raw = hop_dong_field_value($node, 'field_thong_tin_json', '');
+  $current_json = hop_dong_decode_json($current_json_raw);
+
+  $new_thong_tin = $current_json;
+  if (isset($params['field_thong_tin_json'])) {
+    if (is_array($params['field_thong_tin_json'])) {
+      $new_thong_tin = array_merge($current_json, $params['field_thong_tin_json']);
+    } else {
+      $decoded = json_decode((string) $params['field_thong_tin_json'], TRUE);
+      if (is_array($decoded)) {
+        $new_thong_tin = array_merge($current_json, $decoded);
+      }
+    }
+  }
+
+  if (isset($new_thong_tin['nid_ben_thu_ba'])) {
+    hop_dong_validate_khach_hang($new_thong_tin['nid_ben_thu_ba']);
+  }
+  if (isset($new_thong_tin['nid_nhan_vien_kinh_doanh'])) {
+    hop_dong_validate_nvkd($new_thong_tin['nid_nhan_vien_kinh_doanh']);
+  }
+
   $node->title = $title;
-  $node->field_thong_tin_json[LANGUAGE_NONE][0]['value'] = isset($params['field_thong_tin_json']) ? hop_dong_encode_json_value($params['field_thong_tin_json']) : hop_dong_field_value($node, 'field_thong_tin_json', '');
+  $node->field_thong_tin_json[LANGUAGE_NONE][0]['value'] = drupal_json_encode($new_thong_tin);
   $node->field_hoat_dong[LANGUAGE_NONE][0]['value'] = isset($params['field_hoat_dong']) ? hop_dong_parse_active($params['field_hoat_dong']) : hop_dong_field_value($node, 'field_hoat_dong', 1);
 
   node_save($node);

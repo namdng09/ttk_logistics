@@ -25,8 +25,16 @@ function hop_dong_service_get_list($params = array()) {
   $count_query->addExpression('COUNT(DISTINCT n.nid)', 'total');
   $total = intval($count_query->execute()->fetchField());
 
+  $btb_nids = array();
+  foreach ($rows as $row) {
+    $info = hop_dong_decode_json($row->thong_tin_json);
+    if (!empty($info['nid_ben_thu_ba'])) { $btb_nids[] = intval($info['nid_ben_thu_ba']); }
+    if (!empty($info['nid_nhan_vien_kinh_doanh'])) { $btb_nids[] = intval($info['nid_nhan_vien_kinh_doanh']); }
+  }
+  $btb_map = hop_dong_load_ben_thu_ba_map($btb_nids);
+
   $items = array();
-  foreach ($rows as $row) { $items[] = hop_dong_format_row($row); }
+  foreach ($rows as $row) { $items[] = hop_dong_format_row($row, $btb_map); }
 
   return array(
     'items' => $items,

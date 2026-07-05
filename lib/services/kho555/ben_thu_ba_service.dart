@@ -7,6 +7,67 @@ import 'package:ttk_logistics/models/api_response.dart';
 import 'package:ttk_logistics/models/kho555/ben_thu_ba.dart';
 
 class BenThuBaService {
+  static Future<List<BenThuBa>> fetchBenThuBaByPhanLoai({String phanLoai = '', int limit = 500}) async {
+    try {
+      final token = await LocalStorage.getUserToken();
+      final email = await LocalStorage.getUserEmail();
+
+      final params = <String, dynamic>{
+        'limit': limit,
+        'field_hoat_dong': 1,
+        'created_email': email,
+        'token': token,
+      };
+      if (phanLoai.isNotEmpty) {
+        params['field_phan_loai'] = phanLoai;
+      }
+
+      final response = await http.post(
+        Uri.parse(AuthService.workerUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'url': AuthService.benThuBaEndpoint,
+          'method': 'POST',
+          'params': {
+            '_method': 'GET',
+            ...params,
+          },
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final res = _decodeBody(response.body);
+        final items = _extractItems(res);
+        if (items == null) return <BenThuBa>[];
+        return items
+            .whereType<Map>()
+            .map((e) => BenThuBa.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+      throw Exception('Lỗi server: ${response.statusCode}');
+    } catch (e) {
+      throw Exception('Lỗi tải bên thứ 3: $e');
+    }
+  }
+
+  static List<dynamic>? _extractItems(Map<String, dynamic> res) {
+    if (res['data'] is Map && res['data']['items'] is List) {
+      return res['data']['items'] as List<dynamic>;
+    }
+    if (res['items'] is List) return res['items'] as List<dynamic>;
+    if (res['content'] is List) return res['content'] as List<dynamic>;
+    if (res['content'] is String) {
+      try {
+        final decoded = jsonDecode(res['content']);
+        if (decoded is List) return decoded;
+        if (decoded is Map && decoded['items'] is List) {
+          return decoded['items'] as List;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
   static Future<List<BenThuBa>> fetchBenThuBa() async {
     try {
       final response = await http.post(

@@ -156,8 +156,8 @@ function ben_thu_ba_build_list_query($params) {
 }
 
 function ben_thu_ba_apply_sort(&$query, $params) {
-  $sort_by = isset($_GET['sort_by']) ? trim((string) $_GET['sort_by']) : 'title';
-  $sort_dir = isset($_GET['sort_dir']) ? strtoupper(trim((string) $_GET['sort_dir'])) : 'ASC';
+  $sort_by = isset($params['sort_by']) ? trim((string) $params['sort_by']) : 'title';
+  $sort_dir = isset($params['sort_dir']) ? strtoupper(trim((string) $params['sort_dir'])) : 'ASC';
   if ($sort_dir !== 'ASC' && $sort_dir !== 'DESC') {
     $sort_dir = 'ASC';
   }

@@ -143,3 +143,7 @@ api/<module>/
 - Khi form có dropdown `Autocomplete`, truyền `FocusNode` riêng cho từng dropdown. Trong `Focus.onKeyEvent` của form, nếu `dropdownFocus.hasFocus` thì bỏ qua Enter (để Autocomplete chọn suggestion), không gọi submit.
 - Form chỉ submit bằng Enter (không dùng Space).
 - Dữ liệu dropdown lấy từ lần fetch đầu vào screen — extract unique values từ list items, bỏ qua giá trị rỗng.
+
+## TODO (làm sau)
+
+- Phân quyền theo node registry: tạo content type `phan_quyen` chứa `api_key`, `http_method`, `path`, `description`, `allowed_roles`, `active`. Mỗi endpoint check `phan_quyen_check($api_key, $user_role)` thay cho `access callback => TRUE`. Cache 5 phút. Áp dụng cho 6 modules API (lai_xe, phuong_tien, phuong_tien_lai_xe, hop_dong, danh_muc, ben_thu_ba).

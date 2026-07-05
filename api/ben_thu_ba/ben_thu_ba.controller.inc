@@ -1,5 +1,13 @@
 <?php
 
+function _ben_thu_ba_resolve_method($params) {
+  if (isset($params['_method'])) {
+    $m = strtoupper(trim($params['_method']));
+    if (in_array($m, array('GET', 'POST', 'PUT', 'PATCH', 'DELETE'))) { return $m; }
+  }
+  return $_SERVER['REQUEST_METHOD'];
+}
+
 function ben_thu_ba_route_collection() {
   $method = $_SERVER['REQUEST_METHOD'];
 
@@ -10,16 +18,10 @@ function ben_thu_ba_route_collection() {
 
   try {
     $params = ben_thu_ba_get_params();
+    $method = _ben_thu_ba_resolve_method($params);
 
-    if ($method === 'GET') {
-      ben_thu_ba_controller_list($params);
-      return;
-    }
-
-    if ($method === 'POST') {
-      ben_thu_ba_controller_create($params);
-      return;
-    }
+    if ($method === 'GET') { ben_thu_ba_controller_list($params); return; }
+    if ($method === 'POST') { ben_thu_ba_controller_create($params); return; }
   }
   catch (Exception $e) {
     watchdog('ben_thu_ba', 'Collection error: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
@@ -39,21 +41,11 @@ function ben_thu_ba_route_item($nid) {
 
   try {
     $params = ben_thu_ba_get_params();
+    $method = _ben_thu_ba_resolve_method($params);
 
-    if ($method === 'GET') {
-      ben_thu_ba_controller_detail($nid, $params);
-      return;
-    }
-
-    if ($method === 'PUT' || $method === 'PATCH') {
-      ben_thu_ba_controller_update($nid, $params);
-      return;
-    }
-
-    if ($method === 'DELETE') {
-      ben_thu_ba_controller_delete($nid, $params);
-      return;
-    }
+    if ($method === 'GET') { ben_thu_ba_controller_detail($nid, $params); return; }
+    if ($method === 'PUT' || $method === 'PATCH') { ben_thu_ba_controller_update($nid, $params); return; }
+    if ($method === 'DELETE') { ben_thu_ba_controller_delete($nid, $params); return; }
   }
   catch (Exception $e) {
     watchdog('ben_thu_ba', 'Item error: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
@@ -66,8 +58,8 @@ function ben_thu_ba_route_item($nid) {
 function ben_thu_ba_controller_list($params) {
   ben_thu_ba_require_auth($params);
 
-  $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-  $limit = isset($_GET['limit']) ? max(1, intval($_GET['limit'])) : BEN_THU_BA_DEFAULT_LIMIT;
+  $page = isset($params['page']) ? max(1, intval($params['page'])) : 1;
+  $limit = isset($params['limit']) ? max(1, intval($params['limit'])) : BEN_THU_BA_DEFAULT_LIMIT;
   $limit = min($limit, BEN_THU_BA_MAX_LIMIT);
   $offset = ($page - 1) * $limit;
 
