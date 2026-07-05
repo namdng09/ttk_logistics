@@ -50,6 +50,8 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
   static const double _colNormal = 140;
   static const double _colMed = 180;
   static const double _colDate = 110;
+  static const double _colKH = 160;
+  static const double _colNVKD = 140;
 
   @override
   void dispose() {
@@ -188,7 +190,7 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
                                     headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
                                     dataRowMinHeight: 40,
                                     dataRowMaxHeight: 60,
-                                    columnSpacing: 8,
+                                    columnSpacing: 12,
                                     horizontalMargin: 12,
                                     columns: [
                                       DataColumn(label: _headerCell('', width: _actionWidth)),
@@ -196,8 +198,12 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
                                       DataColumn(label: _headerCell('Số HĐ', width: _colNormal)),
                                       DataColumn(label: _headerCell('Ngày ký', width: _colDate)),
                                       DataColumn(label: _headerCell('Hạn HĐ', width: _colDate)),
-                                      DataColumn(label: _headerCell('Khách hàng', width: _colMed)),
-                                      DataColumn(label: _headerCell('NVKD', width: _colNormal)),
+                                      DataColumn(label: _headerCell('Tên KH', width: _colKH)),
+                                      DataColumn(label: _headerCell('Phân loại', width: _colKH)),
+                                      DataColumn(label: _headerCell('Tên gọn', width: _colKH)),
+                                      DataColumn(label: _headerCell('SĐT', width: 120)),
+                                      DataColumn(label: _headerCell('MST/CCCD', width: 120)),
+                                      DataColumn(label: _headerCell('NVKD', width: _colNVKD)),
                                       DataColumn(label: _headerCell('Ghi chú', width: _colMed)),
                                     ],
                                     rows: List.generate(controller.hopDongList.length, (index) {
@@ -210,17 +216,16 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
                                         DataCell(_cellText(item.soHopDong, width: _colNormal)),
                                         DataCell(_cellText(item.ngayHopDong, width: _colDate)),
                                         DataCell(_cellText(item.hanHopDong, width: _colDate)),
-                                        DataCell(_cellText(
-                                          item.khachHang != null
-                                              ? '${item.khachHang!.tenGanGon.isNotEmpty ? item.khachHang!.tenGanGon : item.khachHang!.title}${item.khachHang!.soDienThoai.isNotEmpty ? ' - ${item.khachHang!.soDienThoai}' : ''}'
-                                              : '—',
-                                          width: _colMed,
-                                        )),
+                                        DataCell(_cellText(item.khachHang?.title ?? '—', width: _colKH)),
+                                        DataCell(_cellText(item.khachHang?.phanLoai ?? '—', width: _colKH)),
+                                        DataCell(_cellText(item.khachHang?.tenGanGon ?? '—', width: _colKH)),
+                                        DataCell(_cellText(item.khachHang?.soDienThoai ?? '—', width: 120)),
+                                        DataCell(_cellText(item.khachHang?.maSoThueCccd ?? '—', width: 120)),
                                         DataCell(_cellText(
                                           item.nhanVienKinhDoanh != null
                                               ? (item.nhanVienKinhDoanh!.tenGanGon.isNotEmpty ? item.nhanVienKinhDoanh!.tenGanGon : item.nhanVienKinhDoanh!.title)
                                               : '—',
-                                          width: _colNormal,
+                                          width: _colNVKD,
                                         )),
                                         DataCell(_cellText(item.ghiChu, width: _colMed)),
                                       ]);
@@ -431,27 +436,42 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
     );
   }
 
-  Widget _buildDateInput(String label, TextEditingController ctrl) {
+  Widget _buildDateInput(String label, TextEditingController ctrl, {bool required = false, bool hasError = false, ValueChanged<String>? onChanged}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        MyText.labelMedium(label),
+        Row(
+          children: [
+            MyText.labelMedium(label),
+            if (required)
+              const Text(' *', style: TextStyle(color: Colors.red)),
+          ],
+        ),
         const SizedBox(height: 6),
         TextFormField(
           controller: ctrl,
-          onChanged: (val) {},
-          readOnly: false,
+          onChanged: (val) {
+            if (onChanged != null) onChanged(val);
+            final formatted = _formatDateInput(val);
+            if (formatted != val) {
+              ctrl.value = TextEditingValue(
+                text: formatted,
+                selection: TextSelection.collapsed(offset: formatted.length),
+              );
+            }
+          },
+          keyboardType: TextInputType.number,
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide(color: hasError ? Colors.red : Colors.grey.shade300),
             ),
             enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide(color: hasError ? Colors.red : Colors.grey.shade300),
             ),
-            focusedBorder: const OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.blue, width: 2),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: hasError ? Colors.red : Colors.blue, width: 2),
             ),
             isDense: true,
             contentPadding:
@@ -617,9 +637,9 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
                               MySpacing.height(12),
                               Row(
                                 children: [
-                                  Expanded(child: _buildDateInput('Ngày ký', ngayKyCtrl)),
+                                  Expanded(child: _buildDateInput('Ngày ký', ngayKyCtrl, required: true, hasError: isNgayKyError, onChanged: (_) { if (isNgayKyError) setDialogState(() => isNgayKyError = false); })),
                                   MySpacing.width(12),
-                                  Expanded(child: _buildDateInput('Hạn hợp đồng', hanHdCtrl)),
+                                  Expanded(child: _buildDateInput('Hạn hợp đồng', hanHdCtrl, required: true, hasError: isHanHdError, onChanged: (_) { if (isHanHdError) setDialogState(() => isHanHdError = false); })),
                                 ],
                               ),
                               MySpacing.height(12),
@@ -629,6 +649,7 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
                                 phanLoai: '',
                                 excludePhanLoai: 'Nhân viên kinh doanh',
                                 hasError: isKhError,
+                                required: true,
                                 onChanged: (p) {
                                   setDialogState(() {
                                     selectedKH = p;
@@ -642,6 +663,7 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
                                 selectedNVKD,
                                 phanLoai: 'Nhân viên kinh doanh',
                                 hasError: false,
+                                required: false,
                                 onChanged: (p) {
                                   setDialogState(() => selectedNVKD = p);
                                 },
@@ -697,12 +719,19 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
     required String phanLoai,
     String excludePhanLoai = '',
     required bool hasError,
+    bool required = false,
     required ValueChanged<BenThuBa?> onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        MyText.labelMedium(label),
+        Row(
+          children: [
+            MyText.labelMedium(label),
+            if (required)
+              const Text(' *', style: TextStyle(color: Colors.red)),
+          ],
+        ),
         const SizedBox(height: 6),
         _BenThuBaDropdown(
           selected: selected,
@@ -804,6 +833,17 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
         fontWeight: 700,
       ),
     );
+  }
+
+  String _formatDateInput(String raw) {
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '';
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length && i < 8; i++) {
+      if (i == 2 || i == 4) buffer.write('-');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
   }
 
   String _toDisplayDate(String apiDate) {

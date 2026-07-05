@@ -143,6 +143,8 @@ api/<module>/
 - Khi form có dropdown `Autocomplete`, truyền `FocusNode` riêng cho từng dropdown. Trong `Focus.onKeyEvent` của form, nếu `dropdownFocus.hasFocus` thì bỏ qua Enter (để Autocomplete chọn suggestion), không gọi submit.
 - Form chỉ submit bằng Enter (không dùng Space).
 - Dữ liệu dropdown lấy từ lần fetch đầu vào screen — extract unique values từ list items, bỏ qua giá trị rỗng.
+- **Ô nhập bắt buộc** luôn có dấu `*` đỏ ngay sau label: dùng `Row` chứa `MyText.labelMedium(label)` + `Text(' *', style: TextStyle(color: Colors.red))`. Hỗ trợ cả `_buildInput`, `_buildDateInput`, `_buildBenThuBaSelector` với param `required: true`.
+- **Date input tự format dd-MM-yyyy**: dùng `_formatDateInput()` strip non-digit, chèn `-` sau vị trí 2 và 4. Khi nhập `15072026` → tự thành `15-07-2026`. Tương tự pattern trong phuong_tien.
 
 ## TODO (làm sau)
 
