@@ -745,21 +745,23 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
     );
   }
 
-  Widget _headerCell(String text, {required double width}) {
+  Widget _headerCell(String text, {double? width}) {
     return SizedBox(
       width: width,
-      child: MyText.labelMedium(text, fontWeight: 700),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
     );
   }
 
-  Widget _cellText(String text, {required double width}) {
+  Widget _cellText(String text, {double? width}) {
     return SizedBox(
       width: width,
-      child: MyText.bodySmall(
+      child: Text(
         text.isEmpty ? '—' : text,
-        color: text.isEmpty ? Colors.black38 : null,
-        maxLines: 2,
         overflow: TextOverflow.ellipsis,
+        maxLines: 3,
       ),
     );
   }
@@ -849,10 +851,10 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
   String _toDisplayDate(String apiDate) {
     if (apiDate.isEmpty) return '';
     try {
-      return DateFormat('dd-MM-yyyy').parse(apiDate).toString().split(' ')[0];
+      return DateFormat('dd-MM-yyyy').format(DateFormat('dd-MM-yyyy').parse(apiDate));
     } catch (_) {}
     try {
-      return DateFormat('yyyy-MM-dd').parse(apiDate).toString().split(' ')[0].split('-').reversed.join('-');
+      return DateFormat('dd-MM-yyyy').format(DateFormat('yyyy-MM-dd').parse(apiDate));
     } catch (_) {}
     return apiDate;
   }
@@ -860,7 +862,8 @@ class _HopDongPageScreenState extends State<HopDongPageScreen> {
   String _toApiDate(String displayDate) {
     if (displayDate.isEmpty) return '';
     try {
-      return DateFormat('dd-MM-yyyy').parse(displayDate).toString().split(' ')[0].split('-').reversed.join('-');
+      final parsed = DateFormat('dd-MM-yyyy').parse(displayDate);
+      return DateFormat('dd-MM-yyyy').format(parsed);
     } catch (_) {}
     return displayDate;
   }
