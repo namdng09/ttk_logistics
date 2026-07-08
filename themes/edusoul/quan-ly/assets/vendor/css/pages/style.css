@@ -1,0 +1,225 @@
+#table-customers tbody tr:hover {
+  background-color: #f5f5f5; /* Màu nền khi di chuột qua */
+  cursor: pointer; /* Thêm con trỏ "pointer" để chỉ ra rằng đây là một đối tượng có thể click */
+}
+/*#views-exposed-form-nhu-cau-page{*/
+/*  display: none;*/
+/*}*/
+div#nav-ls-cap-nhat li .placeholder {
+  background: #ff000030;
+  color: black;
+  padding: 2px 10px;
+}
+.field-dia-chi {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+#modal-update-carrier .modal-body {
+  max-height: 700px;  /* Giới hạn chiều cao của modal body */
+  overflow-y: auto;   /* Cho phép cuộn dọc nếu nội dung vượt quá */
+}
+
+#modal-update-carrier .table-responsive {
+  max-height: 400px;  /* Giới hạn chiều cao của bảng */
+  overflow-y: auto;   /* Hiển thị thanh cuộn dọc */
+}
+
+div#progress .message {
+  margin-top: 30px;
+  position: absolute;
+
+}
+div#progress {
+  height: 20px;
+}
+div#updateprogress {
+  width: 100%;
+  height: 20px
+}
+.filled {
+  height: 20px;
+  background-color: var(--bs-primary);
+  box-shadow: 0 2px 4px 0 var(--bs-progress-bar-shadow-color);
+  color: var(--bs-white);
+  border-radius: 10px;
+}
+.bar{
+  width: 100%;
+}
+.percentage{
+  position: absolute;
+  right: 30px;
+  margin-top: 30px
+}
+.view-filters,
+.view-header {
+  display: none !important;
+}
+#print-area{
+  display: none;
+}
+td.permission-cell {
+  cursor: pointer;
+}
+td.permission-cell:hover {
+  background-color: #f0f0f0;
+}
+#admin-menu, #admin-menu .dropdown{
+  z-index: 1 !important;
+}
+thead.tableFloatingHeaderOriginal{
+  background-color: #f0f0f0;
+}
+ #totalAmount, #totalAmountVAT {
+   background-color: #f8d7da;
+   color: red;
+   font-weight: bold;
+ }
+.dropdown-menu .dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-left: .1rem;
+  margin-right: .1rem;
+}
+.dropend {
+  position: relative;
+}
+.contextual-links-wrapper.contextual-links-processed {
+  display: none;
+}
+input.form-control.so-cont-seal {
+  font-size: 9pt;
+  padding: 4px 3px;
+  border-radius: 4px;
+}
+/*// Css bảng chi phí phát sinh*/
+
+#phat_sinh .table-phat-sinh {
+  min-width: 1000px;
+}
+
+#phat_sinh .phat-sinh-name-row td {
+  background: #f8f9fa;
+  padding: 10px;
+}
+
+#phat_sinh input[name="phat_sinh_ten[]"] {
+  font-weight: 600;
+}
+
+#phat_sinh input[name="phat_sinh_tong[]"],
+#phat_sinh input[name="phat_sinh_tong_vat[]"] {
+  background-color: #f1f3f5;
+  cursor: not-allowed;
+  font-weight: 600;
+}
+
+#phat_sinh tbody.phat-sinh-item + tbody.phat-sinh-item {
+  border-top: 8px solid #f3f4f6;
+}
+
+table#table-hack-toan-trucking td {
+  font-size: 10pt;
+}
+table#table-hack-toan-trucking thead tr th {
+  text-align: center;
+  padding: 5px 8px;
+  font-size: 9pt;
+  background: #cccccc29;
+}
+#chi-phi-modal .table-phat-sinh {
+  min-width: 1000px;
+}
+
+#chi-phi-modal .phat-sinh-name-row td {
+  background: #f8f9fa;
+  padding: 10px;
+}
+
+#chi-phi-modal input[name="phat_sinh_ten[]"] {
+  font-weight: 600;
+}
+
+#chi-phi-modal input[name="phat_sinh_tong[]"],
+#chi-phi-modal input[name="phat_sinh_tong_vat[]"] {
+  background-color: #f1f3f5;
+  cursor: not-allowed;
+  font-weight: 600;
+}
+
+#chi-phi-modal tbody.phat-sinh-item + tbody.phat-sinh-item {
+  border-top: 8px solid #f3f4f6;
+}
+
+#chi-phi-modal #phat_sinh_tra,
+#chi-phi-modal #phat_sinh_dong {
+  width: 100%;
+}
+
+
+/*Xử lý form lái xe*/
+
+.qltx-driver-modal .modal-body {
+  padding-top: .85rem;
+}
+
+.qltx-driver-modal .card-header {
+  padding: .65rem .85rem;
+}
+
+.qltx-driver-modal .card-body {
+  padding: .85rem;
+}
+
+.qltx-driver-modal .form-label {
+  font-size: .8125rem;
+  font-weight: 600;
+  margin-bottom: .25rem;
+}
+
+.qltx-driver-modal .form-control-sm,
+.qltx-driver-modal .form-select-sm {
+  min-height: 32px;
+}
+
+.qltx-driver-modal .table-sm > :not(caption) > * > * {
+  padding: .4rem .45rem;
+  vertical-align: middle;
+}
+
+.qltx-driver-modal .qltx-section-title {
+  font-size: .9rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.qltx-driver-modal .select2-container .select2-selection--single {
+  min-height: 32px;
+}
+
+
+.qltx-driver-modal .bank-main-cell {
+  min-width: 340px;
+}
+
+.qltx-driver-modal .bank-sub-label {
+  display: block;
+  font-size: .72rem;
+  font-weight: 600;
+  color: #6c757d;
+  margin-bottom: .15rem;
+}
+
+.qltx-driver-modal .bank-sub-row {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: .5rem;
+  margin-top: .5rem;
+}
+
+@media (max-width: 991.98px) {
+  .qltx-driver-modal .bank-sub-row {
+    grid-template-columns: 1fr;
+  }
+}

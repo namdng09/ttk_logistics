@@ -1,0 +1,171 @@
+/* CRM DNTT — minimal overrides on top of Bootstrap 5 / Vuexy */
+
+
+/* Detail table — compact cells */
+.crm-dntt-detail-table {
+  min-width: 1200px;
+}
+
+.crm-dntt-detail-table td,
+.crm-dntt-detail-table th {
+  vertical-align: middle;
+  white-space: nowrap;
+  padding: .35rem .5rem;
+}
+
+.crm-dntt-detail-table .form-control-sm {
+  font-size: .8125rem;
+  padding: .25rem .5rem;
+}
+
+.crm-dntt-detail-table .text-end {
+  font-variant-numeric: tabular-nums;
+}
+
+.crm-dntt-detail-table .ct-truoc-vat,
+.crm-dntt-detail-table .ct-sau-vat {
+  font-variant-numeric: tabular-nums;
+  padding-right: .75rem;
+}
+
+/* Total row — invoice style */
+.crm-dntt-detail-table tfoot td {
+  border-top: 2px solid var(--bs-primary, #7367f0);
+  background: transparent;
+}
+
+/* Select2 inside table — compact */
+.crm-dntt-detail-table .select2-container {
+  min-width: 100%;
+}
+.crm-dntt-detail-table .select2-container .select2-selection--single {
+  height: 30px;
+  font-size: .8125rem;
+  border-radius: .25rem;
+}
+.crm-dntt-detail-table .select2-container .select2-selection--single .select2-selection__rendered {
+  line-height: 28px;
+  padding-left: 6px;
+}
+.crm-dntt-detail-table .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 28px;
+}
+
+/* Lock mode */
+.crm-dntt-form.locked .card-body input:not([type="hidden"]),
+.crm-dntt-form.locked .card-body select,
+.crm-dntt-form.locked .card-body textarea,
+.crm-dntt-form.locked .select2-container {
+  pointer-events: none;
+  opacity: .65;
+  background-color: var(--bs-secondary-bg, #f5f5f9);
+}
+
+.crm-dntt-form.locked #btn-add-row,
+.crm-dntt-form.locked .btn-delete-row {
+  display: none !important;
+}
+
+/* Number inputs hide spinner */
+.crm-dntt-detail-table input[type="number"] {
+  -moz-appearance: textfield;
+}
+.crm-dntt-detail-table input[type="number"]::-webkit-inner-spin-button,
+.crm-dntt-detail-table input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ── Expand chi tiết in list page ── */
+
+.ct-expand-wrap {
+  border-left: 3px solid var(--bs-primary, #7367f0);
+  background: #fff;
+  animation: ctSlideIn .2s ease-out;
+}
+
+@keyframes ctSlideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ct-inner-table {
+  font-size: .8125rem;
+  color: #384551;
+  background: transparent;
+  border-bottom: 2px solid var(--bs-primary);
+}
+
+.table.table-sm.ct-inner-table thead tr th {
+  font-size: .7rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--bs-heading-color);
+  border-bottom: 1px solid rgba(0,0,0,.1);
+  padding: .4rem .5rem;
+  white-space: nowrap;
+  background: #fff;
+  padding-block: 5px;
+}
+
+.ct-inner-table thead th,
+.ct-inner-table tbody td {
+  border-right: 1px solid rgba(0,0,0,.06);
+}
+
+.ct-inner-table thead th:last-child,
+.ct-inner-table tbody td:last-child {
+  border-right: none;
+}
+
+.ct-inner-table tbody td {
+  padding: .35rem .5rem;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  white-space: nowrap;
+}
+
+.ct-inner-table tbody tr:hover {
+  background: rgba(115, 103, 240, .04);
+}
+
+.ct-inner-table .num {
+  /*font-variant-numeric: tabular-nums;*/
+  font-size: .78rem;
+}
+
+.ct-total-row td {
+  border-top: 2px solid var(--bs-primary, #7367f0) !important;
+  border-bottom: none !important;
+  padding: .5rem .5rem;
+  background: transparent;
+}
+
+.dntt-ct-row > td {
+  padding: 0 !important;
+  border: none !important;
+}
+
+.dntt-chevron {
+  transition: transform .15s ease;
+  font-size: 1.1rem;
+  color: var(--bs-secondary, #8592a3);
+}
+
+.dntt-chevron:hover {
+  color: var(--bs-primary, #7367f0);
+}
+
+.dntt-row:has(+ .dntt-ct-row:not(.d-none)) {
+  background: #f8f7ff;
+}
+
+/* Print */
+@media print {
+.crm-dntt-detail-table {
+    min-width: 0;
+  }
+.ct-expand-wrap {
+    border-left: 2px solid #333;
+    background: #fff;
+  }
+}

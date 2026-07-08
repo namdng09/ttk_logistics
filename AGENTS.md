@@ -2,150 +2,147 @@
 
 ## Công nghệ
 
-- **Flutter Web** (app mobile/web)
-- **Drupal 7** (backend API)
+- **Drupal 7** (module + theme)
+- **Vuexy Bootstrap HTML Admin Template** (giao diện, lấy từ `html-version/Bootstrap5/vuexy-bootstrap-html-admin-template/`)
 
 ## Cấu trúc repo
 
 ```
 /
-├── api/                    # Drupal module REST API (PHP)
-│   ├── danh_muc/           # Module CRUD cho content type danh_muc
-│   └── ben_thu_ba/         # Module CRUD cho content type ben_thu_ba
-│       ├── danh_muc.info           # Khai báo module Drupal
-│       ├── danh_muc.module         # hook_menu() routing
-│       ├── danh_muc.controller.inc # Xử lý request, parse params, gọi service
-│       ├── danh_muc.service.inc    # Business logic CRUD
-│       └── danh_muc.helpers.inc    # Helpers chung (query, response, auth)
-├── lib/                    # Flutter source code
-├── assets/                 # Flutter assets
-├── web/                    # Flutter web entry point
-└── pubspec.yaml            # Flutter project config
+├── modules/                     # Drupal modules (flat, không api/ con)
+│   ├── crm_dntt/                # Module đề nghị thanh toán (base pattern)
+│   │   ├── crm_dntt.info        # Khai báo module Drupal
+│   │   ├── crm_dntt.module      # hook_menu, hook_entity_info, hook_permission, hook_theme, page callbacks
+│   │   ├── crm_dntt.install     # hook_schema (custom tables, không content type)
+│   │   ├── crm_dntt.test        # Chỉ tạo khi yêu cầu
+│   │   ├── templates/           # .tpl.php cho Drupal views
+│   │   │   ├── crm-dntt-form.tpl.php
+│   │   │   └── crm-dntt-list.tpl.php
+│   │   └── assets/              # CSS/JS riêng cho module
+│   │       ├── css/
+│   │       └── js/
+│   │
+│   ├── danh_muc/                # (sẽ migrate dần theo pattern crm_dntt)
+│   ├── ben_thu_ba/
+│   ├── phuong_tien/
+│   ├── lai_xe/
+│   ├── hop_dong/
+│   ├── ben_thu_ba_api/
+│   └── user_login_api/
+│
+├── themes/                      # Drupal theme
+│   └── edusoul/                 # Theme chính, dùng Vuexy assets
+│       ├── edusoul.info         # Khai báo theme
+│       ├── template.php         # Preprocess, assets management
+│       ├── html.tpl.php
+│       ├── page.tpl.php
+│       ├── page--front.tpl.php
+│       ├── page--user--login.tpl.php
+│       ├── template/            # Block templates v.v.
+│       │   └── quan-ly/
+│       └── quan-ly/             # Vuexy admin assets
+│           └── assets/
+│
+├── html-version/                # HTML template mẫu (Vuexy) để chuyển thành .tpl.php
+│   └── Bootstrap5/
+│       └── vuexy-bootstrap-html-admin-template/
+│
+└── api/                         # (cũ) Module cũ dùng content type + controller/service/helpers
+    └── ...                      # Sẽ migrate dần sang modules/
 ```
 
-## Quy tắc code API (Drupal 7)
+## Module pattern mới (follow crm_dntt)
 
-### Routing (hook_menu)
+### Yêu cầu
 
-- `danh-muc` — collection endpoint (GET list, POST create)
-- `danh-muc/%` — item endpoint (GET detail, PUT update, DELETE soft-delete)
-- Drupal ở subdirectory → URL đầy đủ: `https://site.com/api/danh-muc`
-- Method dispatch trong callback controller, không dùng nhiều menu item.
+- **Entity API module** (`entity` contrib) — bắt buộc để dùng `hook_entity_info()`, `EntityAPIController`.
 
-### CORS
+### hook_schema (thay content type)
 
-- `hook_init()` bắt request tới endpoint, thêm CORS headers, xử lý OPTIONS preflight.
+- Dùng `hook_schema()` trong `.install` để tạo custom DB table — **không dùng Content Type + Field**.
+- Dùng Entity API (`hook_entity_info()`, `EntityAPIController`) cho CRUD.
+
+### hook_permission
+
+- Define permission đầy đủ trong `hook_permission()`.
+- Route endpoint API dùng `'access arguments' => array('permission_name')`.
+- Route UI page dùng `'access callback' => 'user_is_logged_in'`.
+
+### hook_menu
+
+- Route API: prefix `api/<entity>/` (vd: `api/dntt/save`, `api/dntt/list`).
+- Route UI: prefix `quan-ly/<entity>/` (vd: `quan-ly/dntt`, `quan-ly/dntt/them-moi`).
+- Endpoint API dùng `'delivery callback' => 'drupal_json_output'`.
+
+### hook_theme + .tpl.php
+
+- Định nghĩa trong `hook_theme()`:
+  ```php
+  function module_theme() {
+    $path = drupal_get_path('module', 'module_name') . '/templates';
+    return array(
+      'module_page' => array(
+        'template' => 'module-page',   // file module-page.tpl.php
+        'path' => $path,
+        'variables' => array('var_name' => NULL),
+      ),
+    );
+  }
+  ```
+- Lấy HTML mẫu từ `html-version/`, viết lại thành `.tpl.php` trong `templates/` của module.
+- Module load CSS/JS riêng trong page callback bằng `drupal_add_css()` / `drupal_add_js()`.
+
+### assets
+
+- Mỗi module có `assets/css/` và `assets/js/` riêng.
+- Module tự load assets của mình trong page/API callback.
+
+### Môi trường
+
+- **Code:** `/home/namdng09/work/ttk_logistics/` (git repo)
+- **Production:** `/public_html/sites/all/modules/` (deploy từ workspace)
+
+## Cấu trúc file module mới
+
+```
+modules/<name>/
+├── <name>.info             # Drupal module info
+├── <name>.module           # hook_menu, hook_entity_info, hook_permission, hook_theme, page callbacks
+├── <name>.install          # hook_schema (định nghĩa bảng)
+├── README.md               # Tổng hợp nội dung module
+├── templates/              # .tpl.php cho Drupal theme
+│   └── <name>-<page>.tpl.php
+└── assets/                 # CSS/JS riêng
+    ├── css/
+    └── js/
+```
+
+## Quy tắc chung
+
+### Response format (API)
+
+```json
+{ "success": true|false, "message": "...", "data": { ... } }
+```
+
+- List response: `{ "success": true, "data": [...], "total": N, "page": 1, "pages": 1 }`
 
 ### Auth
 
-- `danh_muc_require_auth($params)` kiểm tra `created_email` + `token` trong params.
-- Flutter gửi auth qua Cloudflare Worker dạng `{ url, method, params: { created_email, token, ... } }`.
-- Server dùng `api_check_token($token, $email)` từ module `user_login_api`.
-- **TODO:** Xây dựng auth riêng (login → token → validate).
+- Module tự xử lý auth (login → token → validate).
+- `hook_permission()` + `user_access()` cho phân quyền.
 
-### READ: db_select
+### Transaction
 
-- GET list và GET detail dùng `db_select` (JOIN field_data tables) cho tốc độ.
-- Không JOIN field_data nếu không cần filter/sort trên field đó.
+- Dùng `db_transaction()` cho các operation có nhiều bước.
+- Rollback + `watchdog()` khi catch Exception.
 
-### WRITE: node_save
+### No content type
 
-- POST create, PUT update, DELETE soft-delete dùng `node_save()`.
-- Soft-delete: set `field_hoat_dong = 0`, không xoá thật.
-- Luôn log `watchdog()` sau mỗi lần save thành công và cả khi catch Exception.
+- Dữ liệu lưu trong custom table (schema), không dùng node/field_data.
+- Không xem được qua Drupal Content UI — test qua API hoặc SQL.
 
-### Content type: danh_muc
+## TODO
 
-| Field | Machine name | Type | Ghi chú |
-|-------|-------------|------|---------|
-| Title | title | node title | |
-| Thông tin json | field_thong_tin_json | Long text | JSON linh hoạt, xem ghi chú bên dưới |
-| Hoạt động | field_hoat_dong | Boolean | 1 = active, 0 = inactive |
-| Số lượng | field_so_luong | Float | |
-
-### Content type: ben_thu_ba
-
-| Field | Machine name | Type | Ghi chú |
-|-------|-------------|------|---------|
-| Title | title | node title | |
-| Thông tin json | field_thong_tin_json | Long text | JSON linh hoạt |
-| Hoạt động | field_hoat_dong | Boolean | 1 = active, 0 = inactive |
-| Phân loại | field_phan_loai | Text | NVKD, CSHT, ... |
-| Ngày sinh | field_dob | Integer | Unix timestamp |
-
-- List query mặc định chỉ lấy item có `field_hoat_dong = 1` (trừ khi `include_inactive=true`).
-
-### field_thong_tin_json (JSON linh hoạt)
-
-- Dùng để chứa mọi thông tin mở rộng dạng JSON, không cần tạo field Drupal mới.
-- **Lưu:** Drupal lưu dưới dạng **string** trong text field.
-- **Đọc (API → Flutter):** decode JSON string → trả về object `{}`.
-- **Ghi (Flutter → API):** chấp nhận cả object (khuyến khích) lẫn string có sẵn. API tự động encode về string trước khi lưu.
-- Tương thích ngược với dữ liệu cũ.
-
-### Quy tắc đặt tên key trong response
-
-- Dùng **machine name** (không dấu, không khoảng trắng, không tiếng Việt).
-- Field Drupal: giữ nguyên tên máy (vd: `field_thong_tin_json`, `field_hoat_dong`, `field_so_luong`).
-- Key trong `field_thong_tin_json`: dùng tên ngắn gọn, không dấu (vd: `phan_loai`, `ten_kho`, `nguoi_quan_ly`), **không** dùng "Quy cách đóng gói", "Tên", "Mã".
-
-### Response format
-
-```json
-// Success (HTTP 200)
-{ "status": "success", "message": "...", "data": { ... } }
-
-// Business validation failed (HTTP 400)
-{ "status": "failed", "message": "..." }
-
-// Server error (HTTP 500)
-{ "status": "error", "message": "..." }
-```
-
-- `data` khi response list: `{ "items": [...], "pagination": { "page", "limit", "total", "total_pages" } }`
-- `data` khi response detail/create/update: object item
-
-### HTTP status codes
-
-| Code | Dùng cho |
-|------|----------|
-| 200 | Thành công |
-| 400 | Validation failed (business logic) |
-| 405 | Method không được hỗ trợ |
-| 500 | Lỗi server |
-
-### Query params (GET list)
-
-- `page` — số trang (bắt đầu từ 1)
-- `limit` — số item mỗi trang (mặc định 20, tối đa 500)
-- `sort_by` — field để sort (nid, title, created, changed, field_hoat_dong, field_so_luong)
-- `sort_dir` — ASC hoặc DESC
-- `keyword` — tìm kiếm theo title (LIKE)
-- `field_hoat_dong` — filter: 0, 1, 'all'
-- `include_inactive` — nếu true thì bao gồm cả inactive
-
-### Cấu trúc file API module
-
-```
-api/<module>/
-├── <module>.info           # Drupal module info
-├── <module>.module         # hook_menu, hook_init, hook_permission
-├── <module>.controller.inc # Route dispatcher + controllers
-├── <module>.service.inc    # Business logic layer
-└── <module>.helpers.inc    # Helpers, response, query builders
-```
-
-## Flutter
-
-- Dart/Flutter conventions.
-- Dropdown kiểu combobox: `Autocomplete` — vừa gõ được vừa chọn từ suggestions, `filled: true, fillColor: Colors.white` để nền trắng, `isDense: true`, `contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)` để chiều cao bằng các `TextFormField` khác.
-- Highlight item đang được chọn bằng arrow key: dùng `AutocompleteHighlightedOption.of(context)` trong `Builder` để so sánh `i == highlighted` rồi đổi `color` của `Container` (vd: `Colors.grey.shade300` cho highlight, `Colors.white` cho thường).
-- Khi form có dropdown `Autocomplete`, truyền `FocusNode` riêng cho từng dropdown. Trong `Focus.onKeyEvent` của form, nếu `dropdownFocus.hasFocus` thì bỏ qua Enter (để Autocomplete chọn suggestion), không gọi submit.
-- Form chỉ submit bằng Enter (không dùng Space).
-- Dữ liệu dropdown lấy từ lần fetch đầu vào screen — extract unique values từ list items, bỏ qua giá trị rỗng.
-- **Ô nhập bắt buộc** luôn có dấu `*` đỏ ngay sau label: dùng `Row` chứa `MyText.labelMedium(label)` + `Text(' *', style: TextStyle(color: Colors.red))`. Hỗ trợ cả `_buildInput`, `_buildDateInput`, `_buildBenThuBaSelector` với param `required: true`.
-- **Date input tự format dd-MM-yyyy**: dùng `_formatDateInput()` strip non-digit, chèn `-` sau vị trí 2 và 4. Khi nhập `15072026` → tự thành `15-07-2026`. Tương tự pattern trong phuong_tien.
-
-## TODO (làm sau)
-
-- Phân quyền theo node registry: tạo content type `phan_quyen` chứa `api_key`, `http_method`, `path`, `description`, `allowed_roles`, `active`. Mỗi endpoint check `phan_quyen_check($api_key, $user_role)` thay cho `access callback => TRUE`. Cache 5 phút. Áp dụng cho 6 modules API (lai_xe, phuong_tien, phuong_tien_lai_xe, hop_dong, danh_muc, ben_thu_ba).
+- Migrate các module cũ (danh_muc, ben_thu_ba, phuong_tien, ...) sang schema pattern.
+- Tạo module mới theo pattern crm_dntt.

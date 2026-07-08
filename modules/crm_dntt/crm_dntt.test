@@ -1,0 +1,272 @@
+<?php
+
+/**
+ * @file
+ * Tests for crm_dntt module — entity CRUD, auto-gen, auto-calculate.
+ */
+
+class DnttEntityCrudTestCase extends DrupalWebTestCase {
+
+  public static function getInfo() {
+    return array(
+      'name' => 'DNTT Entity CRUD',
+      'description' => 'Tests entity CRUD, cascade delete, auto-gen số, auto-calculate chi tiết.',
+      'group' => 'DNTT',
+    );
+  }
+
+  protected function setUp() {
+    parent::setUp('entity', 'crm_dntt', 'chi_phi');
+  }
+
+  protected function createDntt($overrides = array()) {
+    $values = $overrides + array(
+      'so_dntt' => 'DNTT-20260514-00001',
+      'loai_dntt' => 'thanh_toan',
+      'ben_phat_hanh_id' => 1,
+      'doi_tac_nhan_tien_id' => 2,
+      'hinh_thuc_tt' => 'CK',
+      'loai_tien' => 'VND',
+      'ti_gia' => 1,
+      'tong_tien' => 0,
+      'trang_thai' => 'moi',
+      'uid' => 1,
+      'created' => REQUEST_TIME,
+      'changed' => REQUEST_TIME,
+    );
+    $entity = entity_create('dntt', $values);
+    entity_save('dntt', $entity);
+    return $entity;
+  }
+
+  // ========== Issue 01: Entity CRUD ==========
+
+  public function testDnttCreateSaveLoad() {
+    $entity = $this->createDntt(array('so_hoa_don' => 'HD-001'));
+    $this->assertNotNull($entity->dntt_id);
+
+    $tmp = entity_load('dntt', array($entity->dntt_id));
+    $loaded = reset($tmp);
+    $this->assertEqual($loaded->so_dntt, 'DNTT-20260514-00001');
+    $this->assertEqual($loaded->trang_thai, 'moi');
+    $this->assertEqual($loaded->so_hoa_don, 'HD-001');
+  }
+
+  public function testChiTietCreateSaveLoad() {
+    $dntt = $this->createDntt();
+    $ct = entity_create('dntt_chi_tiet', array(
+      'dntt_id' => $dntt->dntt_id,
+      'nhom_chi_phi_id' => 1, 'loai_chi_phi_id' => 10,
+      'don_vi' => 'cont', 'don_gia' => 5000000, 'so_luong' => 2,
+      'vat_phan_tram' => 10, 'so_tien_vat' => 1000000,
+      'tien_truoc_vat' => 10000000, 'tien_sau_vat' => 11000000, 'thu_tu' => 1,
+    ));
+    entity_save('dntt_chi_tiet', $ct);
+    $this->assertNotNull($ct->chi_tiet_id);
+
+    $tmp = entity_load('dntt_chi_tiet', array($ct->chi_tiet_id));
+    $loaded = reset($tmp);
+    $this->assertEqual($loaded->dntt_id, $dntt->dntt_id);
+    $this->assertEqual($loaded->don_gia, 5000000);
+  }
+
+  public function testCascadeDeleteChiTiet() {
+    $dntt = $this->createDntt();
+    for ($i = 1; $i <= 3; $i++) {
+      $ct = entity_create('dntt_chi_tiet', array(
+        'dntt_id' => $dntt->dntt_id,
+        'nhom_chi_phi_id' => 1, 'loai_chi_phi_id' => $i,
+        'don_gia' => 100, 'so_luong' => 1,
+        'vat_phan_tram' => 0, 'so_tien_vat' => 0,
+        'tien_truoc_vat' => 100, 'tien_sau_vat' => 100, 'thu_tu' => $i,
+      ));
+      entity_save('dntt_chi_tiet', $ct);
+    }
+    entity_delete('dntt', $dntt->dntt_id);
+
+    $count = (int) db_query("SELECT COUNT(*) FROM {dntt_chi_tiet} WHERE dntt_id = :id",
+      array(':id' => $dntt->dntt_id))->fetchField();
+    $this->assertEqual($count, 0, 'Cascade deleted all chi tiết.');
+  }
+
+  // ========== Issue 02: Auto-gen số DNTT ==========
+
+  public function testAutoGenSoDnttFormat() {
+    $so = crm_dntt_generate_so_dntt();
+    $today = date('Ymd');
+    $this->assertTrue(strpos($so, 'DNTT-' . $today . '-') === 0, 'Format matches DNTT-YYYYMMDD-STT.');
+  }
+
+  public function testAutoGenSoDnttIncrements() {
+    $so1 = crm_dntt_generate_so_dntt();
+    $d1 = $this->createDntt(array('so_dntt' => $so1));
+    $so2 = crm_dntt_generate_so_dntt();
+
+    $stt1 = (int) substr($so1, -5);
+    $stt2 = (int) substr($so2, -5);
+    $this->assertEqual($stt2, $stt1 + 1, 'STT increments.');
+  }
+
+  public function testDeleteBlockedWhenDaTt() {
+    $dntt = $this->createDntt(array(
+      'so_dntt' => crm_dntt_generate_so_dntt(),
+      'trang_thai' => 'da_tt',
+    ));
+    $entities = entity_load('dntt', array($dntt->dntt_id));
+    $entity = reset($entities);
+    $this->assertEqual($entity->trang_thai, 'da_tt');
+  }
+
+  // ========== Issue 03: Auto-calculate ==========
+
+  public function testAutoCalculateBasic() {
+    $calc = crm_dntt_calculate_chi_tiet(array(
+      'don_gia' => 100, 'so_luong' => 3, 'vat_phan_tram' => 10,
+    ));
+    $this->assertEqual($calc['tien_truoc_vat'], 300);
+    $this->assertEqual($calc['so_tien_vat'], 30);
+    $this->assertEqual($calc['tien_sau_vat'], 330);
+  }
+
+  public function testAutoCalculateVatOverride() {
+    $calc = crm_dntt_calculate_chi_tiet(array(
+      'don_gia' => 100, 'so_luong' => 3, 'vat_phan_tram' => 10,
+      'so_tien_vat' => 25,
+    ));
+    $this->assertEqual($calc['so_tien_vat'], 25, 'VAT override used.');
+    $this->assertEqual($calc['tien_sau_vat'], 325);
+  }
+
+  public function testRecalculateTongTien() {
+    $dntt = $this->createDntt(array('so_dntt' => crm_dntt_generate_so_dntt()));
+
+    $ct1 = entity_create('dntt_chi_tiet', array(
+      'dntt_id' => $dntt->dntt_id,
+      'nhom_chi_phi_id' => 1, 'loai_chi_phi_id' => 1,
+      'don_gia' => 1000, 'so_luong' => 2, 'vat_phan_tram' => 10,
+      'so_tien_vat' => 200, 'tien_truoc_vat' => 2000, 'tien_sau_vat' => 2200,
+      'thu_tu' => 1,
+    ));
+    entity_save('dntt_chi_tiet', $ct1);
+    $ct2 = entity_create('dntt_chi_tiet', array(
+      'dntt_id' => $dntt->dntt_id,
+      'nhom_chi_phi_id' => 1, 'loai_chi_phi_id' => 1,
+      'don_gia' => 500, 'so_luong' => 10, 'vat_phan_tram' => 0,
+      'so_tien_vat' => 0, 'tien_truoc_vat' => 5000, 'tien_sau_vat' => 5000,
+      'thu_tu' => 2,
+    ));
+    entity_save('dntt_chi_tiet', $ct2);
+
+    $tong = crm_dntt_recalculate_tong_tien($dntt->dntt_id);
+    $this->assertEqual($tong, 7200, 'tong_tien = SUM(tien_sau_vat).');
+
+    entity_delete('dntt_chi_tiet', $ct2->chi_tiet_id);
+    $tong2 = crm_dntt_recalculate_tong_tien($dntt->dntt_id);
+    $this->assertEqual($tong2, 2200, 'tong_tien recalculated after delete.');
+  }
+
+  // ========== Issue 10: Chi phí lô hàng API ==========
+
+  protected function createChiTiet($dntt_id, $overrides = array()) {
+    $values = $overrides + array(
+      'dntt_id' => $dntt_id,
+      'nhom_chi_phi_id' => 1,
+      'loai_chi_phi_id' => 10,
+      'don_vi' => 'cont',
+      'don_gia' => 1000000,
+      'so_luong' => 1,
+      'vat_phan_tram' => 10,
+      'so_tien_vat' => 100000,
+      'tien_truoc_vat' => 1000000,
+      'tien_sau_vat' => 1100000,
+      'thu_tu' => 1,
+    );
+    $ct = entity_create('dntt_chi_tiet', $values);
+    entity_save('dntt_chi_tiet', $ct);
+    return $ct;
+  }
+
+  public function testChiPhiLoHangGroupedByDntt() {
+    $dntt1 = $this->createDntt(array('so_dntt' => 'DNTT-T1'));
+    $dntt2 = $this->createDntt(array('so_dntt' => 'DNTT-T2'));
+
+    $this->createChiTiet($dntt1->dntt_id, array('lo_hang_nid' => 999));
+    $this->createChiTiet($dntt1->dntt_id, array('lo_hang_nid' => 999, 'thu_tu' => 2));
+    $this->createChiTiet($dntt2->dntt_id, array('lo_hang_nid' => 999));
+    $this->createChiTiet($dntt2->dntt_id, array('lo_hang_nid' => 888));
+
+    $result = crm_dntt_chi_phi_lo_hang(999);
+
+    $this->assertTrue($result['success']);
+    $this->assertEqual(count($result['groups']), 2, 'Two DNTT groups for lo_hang 999.');
+
+    $dntt_ids_returned = array();
+    $total_ct = 0;
+    foreach ($result['groups'] as $g) {
+      $dntt_ids_returned[] = $g['dntt_id'];
+      $total_ct += count($g['chi_tiets']);
+    }
+    $this->assertTrue(in_array($dntt1->dntt_id, $dntt_ids_returned));
+    $this->assertTrue(in_array($dntt2->dntt_id, $dntt_ids_returned));
+    $this->assertEqual($total_ct, 3, 'Three chi tiết total for lo_hang 999.');
+  }
+
+  public function testChiPhiLoHangTongCong() {
+    $dntt = $this->createDntt(array('so_dntt' => 'DNTT-TC'));
+    $this->createChiTiet($dntt->dntt_id, array(
+      'lo_hang_nid' => 777,
+      'tien_sau_vat' => 5000000,
+    ));
+    $this->createChiTiet($dntt->dntt_id, array(
+      'lo_hang_nid' => 777,
+      'tien_sau_vat' => 3000000,
+      'thu_tu' => 2,
+    ));
+
+    $result = crm_dntt_chi_phi_lo_hang(777);
+    $this->assertEqual($result['tong_cong'], 8000000, 'tong_cong = SUM(tien_sau_vat).');
+  }
+
+  public function testChiPhiLoHangEmptyResult() {
+    $result = crm_dntt_chi_phi_lo_hang(99999);
+    $this->assertTrue($result['success']);
+    $this->assertEqual(count($result['groups']), 0, 'No groups for non-existent lo_hang.');
+    $this->assertEqual($result['tong_cong'], 0);
+  }
+
+  public function testChiPhiLoHangIncludesDnttStatus() {
+    $dntt = $this->createDntt(array(
+      'so_dntt' => 'DNTT-ST',
+      'trang_thai' => 'da_duyet',
+    ));
+    $this->createChiTiet($dntt->dntt_id, array('lo_hang_nid' => 666));
+
+    $result = crm_dntt_chi_phi_lo_hang(666);
+    $group = $result['groups'][0];
+    $this->assertEqual($group['so_dntt'], 'DNTT-ST');
+    $this->assertEqual($group['trang_thai'], 'da_duyet');
+    $this->assertEqual($group['dntt_id'], $dntt->dntt_id);
+  }
+
+  public function testChiPhiLoHangResolvesNames() {
+    $dntt = $this->createDntt(array('so_dntt' => 'DNTT-NM'));
+
+    $nhom_id = db_insert('nhom_chi_phi')
+      ->fields(array('ma' => 'TEST_NCP', 'ten' => 'Phí vận chuyển'))
+      ->execute();
+    $loai_id = db_insert('loai_chi_phi')
+      ->fields(array('nhom_id' => $nhom_id, 'ma' => 'TEST_LCP', 'ten' => 'Cước biển'))
+      ->execute();
+
+    $this->createChiTiet($dntt->dntt_id, array(
+      'lo_hang_nid' => 555,
+      'loai_chi_phi_id' => $loai_id,
+      'nhom_chi_phi_id' => $nhom_id,
+    ));
+
+    $result = crm_dntt_chi_phi_lo_hang(555);
+    $ct = $result['groups'][0]['chi_tiets'][0];
+    $this->assertEqual($ct['loai_chi_phi_ten'], 'Cước biển');
+    $this->assertEqual($ct['nhom_chi_phi_ten'], 'Phí vận chuyển');
+  }
+}

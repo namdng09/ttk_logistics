@@ -1,0 +1,5 @@
+name = Ben Thu Ba API
+description = API quan ly content type ben_thu_ba cho app KHO 555.
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = field

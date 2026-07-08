@@ -1,5 +1,0 @@
-name = "Quản lý phương tiện"
-description = "REST API CRUD cho content type phuong_tien (phương tiện vận tải)."
-core = 7.x
-package = ANDIN JSC API
-dependencies[] = user_login_api

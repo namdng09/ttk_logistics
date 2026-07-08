@@ -1,0 +1,256 @@
+<?php
+
+/**
+ * @file
+ * API quan ly ben thu 3 cho app KHO 555.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function ben_thu_ba_api_menu() {
+  $items = array();
+
+  $items['get-list-ben-thu-ba'] = array(
+    'title' => 'Get list ben thu ba',
+    'page callback' => 'ben_thu_ba_api_get_list_callback',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['save-ben-thu-ba'] = array(
+    'title' => 'Save ben thu ba',
+    'page callback' => 'ben_thu_ba_api_save_callback',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['delete-ben-thu-ba'] = array(
+    'title' => 'Delete ben thu ba',
+    'page callback' => 'ben_thu_ba_api_delete_callback',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * API: /api/get-list-ben-thu-ba
+ */
+function ben_thu_ba_api_get_list_callback() {
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'ben_thu_ba')
+    ->fieldCondition('field_hoat_dong', 'value', 1, '=')
+    ->propertyOrderBy('nid', 'DESC');
+
+  $result = $query->execute();
+  $rows = array();
+
+  if (!empty($result['node'])) {
+    $nodes = node_load_multiple(array_keys($result['node']));
+    foreach ($nodes as $node) {
+      $rows[] = ben_thu_ba_api_node_to_array($node);
+    }
+  }
+
+  ben_thu_ba_api_json_response(TRUE, $rows);
+}
+
+/**
+ * API: /api/save-ben-thu-ba
+ */
+function ben_thu_ba_api_save_callback() {
+  $params = ben_thu_ba_api_get_params();
+  $auth_error = ben_thu_ba_api_validate_token($params);
+  if ($auth_error) {
+    ben_thu_ba_api_json_response(FALSE, $auth_error);
+  }
+
+  $nid = isset($params['nid']) ? (int) $params['nid'] : 0;
+  $title = ben_thu_ba_api_param($params, 'title');
+  $field_thong_tin_json = ben_thu_ba_api_param($params, 'field_thong_tin_json');
+  $field_phan_loai = ben_thu_ba_api_param($params, 'field_phan_loai');
+  $field_hoat_dong = ben_thu_ba_api_int_param($params, 'field_hoat_dong', 1);
+
+  if ($title === '') {
+    $decoded = ben_thu_ba_api_decode_json($field_thong_tin_json);
+    if (!empty($decoded['ten_cong_ty'])) {
+      $title = $decoded['ten_cong_ty'];
+    }
+  }
+
+  if ($title === '') {
+    ben_thu_ba_api_json_response(FALSE, 'Vui lòng nhập tên bên thứ 3');
+  }
+
+  if ($nid > 0) {
+    $node = node_load($nid);
+    if (!$node || $node->type !== 'ben_thu_ba') {
+      ben_thu_ba_api_json_response(FALSE, 'Không tìm thấy bên thứ 3 cần sửa');
+    }
+  }
+  else {
+    global $user;
+    $node = new stdClass();
+    $node->type = 'ben_thu_ba';
+    node_object_prepare($node);
+    $node->uid = isset($user->uid) ? $user->uid : 0;
+    $node->language = LANGUAGE_NONE;
+  }
+
+  $node->title = $title;
+  $node->field_thong_tin_json[LANGUAGE_NONE][0]['value'] = $field_thong_tin_json;
+  $node->field_phan_loai[LANGUAGE_NONE][0]['value'] = $field_phan_loai;
+  $node->field_hoat_dong[LANGUAGE_NONE][0]['value'] = $field_hoat_dong;
+
+  try {
+    node_save($node);
+    $message = $nid > 0 ? 'Cập nhật bên thứ 3 thành công' : 'Thêm bên thứ 3 thành công';
+    ben_thu_ba_api_json_response(TRUE, $message, ben_thu_ba_api_node_to_array($node));
+  }
+  catch (Exception $e) {
+    watchdog_exception('ben_thu_ba_api', $e);
+    ben_thu_ba_api_json_response(FALSE, 'Lỗi lưu bên thứ 3: ' . $e->getMessage());
+  }
+}
+
+/**
+ * API: /api/delete-ben-thu-ba
+ */
+function ben_thu_ba_api_delete_callback() {
+  $params = ben_thu_ba_api_get_params();
+  $auth_error = ben_thu_ba_api_validate_token($params);
+  if ($auth_error) {
+    ben_thu_ba_api_json_response(FALSE, $auth_error);
+  }
+
+  $nid = ben_thu_ba_api_int_param($params, 'nid', 0);
+  if ($nid <= 0) {
+    ben_thu_ba_api_json_response(FALSE, 'Thiếu nid bên thứ 3');
+  }
+
+  $node = node_load($nid);
+  if (!$node || $node->type !== 'ben_thu_ba') {
+    ben_thu_ba_api_json_response(FALSE, 'Không tìm thấy bên thứ 3 cần xoá');
+  }
+
+  $node->field_hoat_dong[LANGUAGE_NONE][0]['value'] = 0;
+
+  try {
+    node_save($node);
+    ben_thu_ba_api_json_response(TRUE, 'Xoá bên thứ 3 thành công');
+  }
+  catch (Exception $e) {
+    watchdog_exception('ben_thu_ba_api', $e);
+    ben_thu_ba_api_json_response(FALSE, 'Lỗi xoá bên thứ 3: ' . $e->getMessage());
+  }
+}
+
+/**
+ * Chuyen node thanh array tra ve app.
+ */
+function ben_thu_ba_api_node_to_array($node) {
+  return array(
+    'nid' => (int) $node->nid,
+    'title' => $node->title,
+    'field_thong_tin_json' => ben_thu_ba_api_field_value($node, 'field_thong_tin_json', ''),
+    'field_phan_loai' => ben_thu_ba_api_field_value($node, 'field_phan_loai', ''),
+    'field_hoat_dong' => (int) ben_thu_ba_api_field_value($node, 'field_hoat_dong', 1),
+  );
+}
+
+/**
+ * Lay params tu JSON body hoac POST form.
+ */
+function ben_thu_ba_api_get_params() {
+  $params = array();
+  $raw = file_get_contents('php://input');
+
+  if (!empty($raw)) {
+    $decoded = json_decode($raw, TRUE);
+    if (is_array($decoded)) {
+      if (isset($decoded['params']) && is_array($decoded['params'])) {
+        $params = $decoded['params'];
+      }
+      else {
+        $params = $decoded;
+      }
+    }
+  }
+
+  if (empty($params) && !empty($_POST)) {
+    $params = $_POST;
+  }
+
+  return $params;
+}
+
+function ben_thu_ba_api_param(array $params, $key, $default = '') {
+  if (!isset($params[$key]) || $params[$key] === NULL) {
+    return $default;
+  }
+
+  return trim((string) $params[$key]);
+}
+
+function ben_thu_ba_api_int_param(array $params, $key, $default = 0) {
+  if (!isset($params[$key]) || $params[$key] === NULL || $params[$key] === '') {
+    return $default;
+  }
+
+  return (int) $params[$key];
+}
+
+function ben_thu_ba_api_field_value($node, $field_name, $default = '') {
+  if (
+    isset($node->{$field_name}[LANGUAGE_NONE][0]['value']) &&
+    $node->{$field_name}[LANGUAGE_NONE][0]['value'] !== ''
+  ) {
+    return $node->{$field_name}[LANGUAGE_NONE][0]['value'];
+  }
+
+  return $default;
+}
+
+function ben_thu_ba_api_decode_json($value) {
+  if (empty($value)) {
+    return array();
+  }
+
+  $decoded = json_decode($value, TRUE);
+  return is_array($decoded) ? $decoded : array();
+}
+
+function ben_thu_ba_api_validate_token(array $params) {
+  if (function_exists('api_check_token')) {
+    $token = ben_thu_ba_api_param($params, 'token');
+    $email = ben_thu_ba_api_param($params, 'created_email');
+    if (!api_check_token($token, $email)) {
+      return 'Token không hợp lệ';
+    }
+  }
+
+  return '';
+}
+
+function ben_thu_ba_api_json_response($success, $content = NULL, $extra = NULL) {
+  drupal_add_http_header('Content-Type', 'application/json; charset=utf-8');
+
+  $response = array(
+    'success' => (bool) $success,
+    'content' => $content,
+  );
+
+  if (is_string($content)) {
+    $response['message'] = $content;
+  }
+
+  if ($extra !== NULL) {
+    $response['data'] = $extra;
+  }
+
+  print drupal_json_encode($response);
+  drupal_exit();
+}

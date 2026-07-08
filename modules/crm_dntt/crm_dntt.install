@@ -1,0 +1,332 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the crm_dntt module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function crm_dntt_schema() {
+  $schema['dntt'] = array(
+    'description' => 'DNTT header — payment request.',
+    'fields' => array(
+      'dntt_id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'so_dntt' => array(
+        'type' => 'varchar',
+        'length' => 30,
+        'not null' => TRUE,
+      ),
+      'loai_dntt' => array(
+        'type' => 'varchar',
+        'length' => 20,
+        'not null' => TRUE,
+        'default' => 'thanh_toan',
+      ),
+      'dntt_goc_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'ben_phat_hanh_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'doi_tac_nhan_tien_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'so_hoa_don' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ),
+      'ngay_hoa_don' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'no_hoa_don' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'hinh_thuc_tt' => array(
+        'type' => 'varchar',
+        'length' => 10,
+        'not null' => TRUE,
+        'default' => 'CK',
+      ),
+      'han_thanh_toan' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'loai_tien' => array(
+        'type' => 'varchar',
+        'length' => 5,
+        'not null' => TRUE,
+        'default' => 'VND',
+      ),
+      'ti_gia' => array(
+        'type' => 'numeric',
+        'precision' => 15,
+        'scale' => 2,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'tong_tien' => array(
+        'type' => 'numeric',
+        'precision' => 18,
+        'scale' => 2,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'trang_thai' => array(
+        'type' => 'varchar',
+        'length' => 20,
+        'not null' => TRUE,
+        'default' => 'moi',
+      ),
+      'lo_dntt_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'uid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'created' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'changed' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('dntt_id'),
+    'unique keys' => array(
+      'so_dntt' => array('so_dntt'),
+    ),
+    'indexes' => array(
+      'trang_thai' => array('trang_thai'),
+      'uid' => array('uid'),
+      'lo_dntt_id' => array('lo_dntt_id'),
+      'doi_tac_nhan_tien_id' => array('doi_tac_nhan_tien_id'),
+      'loai_dntt' => array('loai_dntt'),
+    ),
+    'foreign keys' => array(
+      'lo_dntt' => array(
+        'table' => 'lo_dntt',
+        'columns' => array('lo_dntt_id' => 'lo_dntt_id'),
+      ),
+      'dntt_goc' => array(
+        'table' => 'dntt',
+        'columns' => array('dntt_goc_id' => 'dntt_id'),
+      ),
+    ),
+  );
+
+  $schema['dntt_chi_tiet'] = array(
+    'description' => 'DNTT detail line — individual cost item.',
+    'fields' => array(
+      'chi_tiet_id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'dntt_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'lo_hang_nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'nhom_chi_phi_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'loai_chi_phi_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'don_vi' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'don_gia' => array(
+        'type' => 'numeric',
+        'precision' => 18,
+        'scale' => 2,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'so_luong' => array(
+        'type' => 'numeric',
+        'precision' => 10,
+        'scale' => 2,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'vat_phan_tram' => array(
+        'type' => 'numeric',
+        'precision' => 5,
+        'scale' => 2,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'so_tien_vat' => array(
+        'type' => 'numeric',
+        'precision' => 18,
+        'scale' => 2,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'tien_truoc_vat' => array(
+        'type' => 'numeric',
+        'precision' => 18,
+        'scale' => 2,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'tien_sau_vat' => array(
+        'type' => 'numeric',
+        'precision' => 18,
+        'scale' => 2,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'ghi_chu' => array(
+        'type' => 'text',
+        'size' => 'normal',
+        'not null' => FALSE,
+      ),
+      'thu_tu' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('chi_tiet_id'),
+    'indexes' => array(
+      'dntt_id' => array('dntt_id'),
+      'lo_hang_nid' => array('lo_hang_nid'),
+      'nhom_chi_phi_id' => array('nhom_chi_phi_id'),
+      'loai_chi_phi_id' => array('loai_chi_phi_id'),
+    ),
+    'foreign keys' => array(
+      'dntt' => array(
+        'table' => 'dntt',
+        'columns' => array('dntt_id' => 'dntt_id'),
+      ),
+      'nhom_chi_phi' => array(
+        'table' => 'nhom_chi_phi',
+        'columns' => array('nhom_chi_phi_id' => 'id'),
+      ),
+      'loai_chi_phi' => array(
+        'table' => 'loai_chi_phi',
+        'columns' => array('loai_chi_phi_id' => 'id'),
+      ),
+    ),
+  );
+
+  $schema['lo_dntt'] = array(
+    'description' => 'Lô DNTT — batch for approval/payment.',
+    'fields' => array(
+      'lo_dntt_id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'so_lo' => array(
+        'type' => 'varchar',
+        'length' => 30,
+        'not null' => TRUE,
+      ),
+      'doi_tac_nhan_tien_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'tong_tien' => array(
+        'type' => 'numeric',
+        'precision' => 18,
+        'scale' => 2,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'trang_thai' => array(
+        'type' => 'varchar',
+        'length' => 20,
+        'not null' => TRUE,
+        'default' => 'cho_duyet',
+      ),
+      'nguoi_trinh' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'ngay_trinh' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'nguoi_duyet' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'ngay_duyet' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'nguoi_thanh_toan' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'ngay_thanh_toan' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'created' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('lo_dntt_id'),
+    'indexes' => array(
+      'trang_thai' => array('trang_thai'),
+      'doi_tac_nhan_tien_id' => array('doi_tac_nhan_tien_id'),
+      'nguoi_trinh' => array('nguoi_trinh'),
+    ),
+  );
+
+  return $schema;
+}

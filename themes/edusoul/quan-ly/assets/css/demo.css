@@ -1,0 +1,183 @@
+/*
+* demo.css
+* File include item demo only specific css only
+******************************************************************************/
+
+.menu .app-brand.demo {
+  height: 64px;
+}
+
+.app-brand-logo.demo svg {
+  width: 34px;
+  height: 24px;
+}
+
+.app-brand-text.demo {
+  font-size: 1.375rem;
+}
+
+/* ! For .layout-navbar-fixed added fix padding top to .layout-page */
+/* Default navbar */
+.layout-navbar-fixed .layout-wrapper:not(.layout-without-menu) .layout-page {
+  padding-top: 64px !important;
+}
+.layout-navbar-fixed .layout-wrapper:not(.layout-horizontal):not(.layout-without-menu) .layout-page {
+  padding-top: 72px !important;
+}
+/* Navbar page z-index issue solution */
+.content-wrapper .navbar {
+  z-index: auto;
+}
+
+/*
+* Content
+******************************************************************************/
+
+.demo-blocks > * {
+  display: block !important;
+}
+
+.demo-inline-spacing > * {
+  margin: 1rem 0.375rem 0 0 !important;
+}
+
+/* ? .demo-vertical-spacing class is used to have vertical margins between elements. To remove margin-top from the first-child, use .demo-only-element class with .demo-vertical-spacing class. For example, we have used this class in forms-input-groups.html file. */
+.demo-vertical-spacing > * {
+  margin-top: 1rem !important;
+  margin-bottom: 0 !important;
+}
+.demo-vertical-spacing.demo-only-element > :first-child {
+  margin-top: 0 !important;
+}
+
+.demo-vertical-spacing-lg > * {
+  margin-top: 1.875rem !important;
+  margin-bottom: 0 !important;
+}
+.demo-vertical-spacing-lg.demo-only-element > :first-child {
+  margin-top: 0 !important;
+}
+
+.demo-vertical-spacing-xl > * {
+  margin-top: 5rem !important;
+  margin-bottom: 0 !important;
+}
+.demo-vertical-spacing-xl.demo-only-element > :first-child {
+  margin-top: 0 !important;
+}
+
+/* Dropdown buttons going out of small screens */
+@media (max-width: 576px) {
+  #dropdown-variation-demo .btn-group .text-truncate {
+    width: 254px;
+    position: relative;
+  }
+  #dropdown-variation-demo .btn-group .text-truncate::after {
+    position: absolute;
+    top: 45%;
+    right: 0.65rem;
+  }
+}
+
+/*
+* Layout demo
+******************************************************************************/
+
+.layout-demo-wrapper {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  margin-top: 1rem;
+}
+.layout-demo-placeholder img {
+  width: 900px;
+}
+.layout-demo-info {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+/* Tổng thể */
+.item-list {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.pager {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  gap: 8px; /* Điều chỉnh khoảng cách giữa các trang */
+  justify-content: center; /* Căn giữa các nút phân trang */
+}
+
+.pager-item a {
+  text-decoration: none;
+  color: #6c757d;
+  font-weight: 500;
+  padding: 10px 15px;  /* Tăng padding để làm nút phân trang rõ ràng hơn */
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+.pager-item a:hover {
+  background-color: #6f42c1;
+  color: white;
+}
+
+/* Trang hiện tại */
+.pager-current {
+  color: white;
+  background-color: #6f42c1;
+  border-color: #6f42c1;
+  padding: 10px 15px;
+  font-weight: bold;
+  border-radius: 5px;
+}
+
+/* Các nút "Đầu", "Trước", "Sau", "Cuối" */
+.pager-first a, .pager-previous a, .pager-next a, .pager-last a {
+  font-weight: 600;
+  padding: 10px 15px;
+  border: 1px solid #6f42c1;
+  border-radius: 5px;
+  background-color: #f8f9fa;
+  color: #6f42c1;
+  transition: background-color 0.3s ease;
+}
+
+.pager-first a:hover, .pager-previous a:hover, .pager-next a:hover, .pager-last a:hover {
+  background-color: #6f42c1;
+  color: white;
+}
+
+/* Các trang không được chọn (đã bị vô hiệu hóa) */
+.pager-item.disabled a {
+  color: #ccc;
+  border-color: #ccc;
+}
+
+.pager-item.disabled a:hover {
+  background-color: transparent;
+  color: #ccc;
+}
+
+h2.element-invisible {
+  display: none;
+}
+
+.rotate-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: left;
+  white-space: nowrap;
+}

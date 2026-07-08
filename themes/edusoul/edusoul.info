@@ -1,0 +1,13 @@
+name = Theme Andin
+core = 7.x
+package = Core
+version = VERSION
+
+;stylesheets[all][] =  assets/css/nouislider.min.css
+
+;scripts[] = assets/js/jquery-3.7.1.min.js
+
+regions[top_content] = Top Content
+regions[content] = Content
+regions[danh_sach_yeu_cau_van_chuyen] = Danh sách yêu cầu vận chuyển
+regions[danh_sach_phuong_tien] = Danh sách phương tiện
