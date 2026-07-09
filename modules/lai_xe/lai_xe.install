@@ -1,88 +1,77 @@
 <?php
 
-function phuong_tien_schema() {
-  $schema['phuong_tien'] = array(
-    'description' => 'Phương tiện vận tải.',
+function lai_xe_schema() {
+  $schema['lai_xe'] = array(
+    'description' => 'Lái xe.',
     'fields' => array(
       'nid' => array(
         'type' => 'serial',
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
-      'bks' => array(
+      'ten' => array(
         'type' => 'varchar',
-        'length' => 20,
+        'length' => 100,
         'not null' => TRUE,
       ),
-      'ma_tai_san' => array(
+      'ma_nhan_vien' => array(
         'type' => 'varchar',
         'length' => 50,
         'not null' => FALSE,
       ),
-      'loai_phuong_tien' => array(
+      'sdt' => array(
         'type' => 'varchar',
-        'length' => 50,
+        'length' => 15,
         'not null' => FALSE,
       ),
-      'hang_xe' => array(
+      'cccd' => array(
+        'type' => 'varchar',
+        'length' => 20,
+        'not null' => FALSE,
+      ),
+      'ngay_cap' => array(
+        'type' => 'varchar',
+        'length' => 10,
+        'not null' => FALSE,
+      ),
+      'noi_cap' => array(
         'type' => 'varchar',
         'length' => 100,
         'not null' => FALSE,
       ),
-      'nam_san_xuat' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => FALSE,
-      ),
-      'gia_mua' => array(
-        'type' => 'numeric',
-        'precision' => 18,
-        'scale' => 2,
-        'not null' => FALSE,
-      ),
-      'ngay_mua' => array(
+      'han_cccd' => array(
         'type' => 'varchar',
         'length' => 10,
         'not null' => FALSE,
       ),
-      'so_dang_kiem' => array(
+      'so_bang_lai' => array(
         'type' => 'varchar',
         'length' => 50,
         'not null' => FALSE,
       ),
-      'han_dang_kiem' => array(
+      'loai_bang_lai' => array(
+        'type' => 'varchar',
+        'length' => 20,
+        'not null' => FALSE,
+      ),
+      'han_bang_lai' => array(
         'type' => 'varchar',
         'length' => 10,
         'not null' => FALSE,
       ),
-      'so_bao_hiem_than_vo' => array(
-        'type' => 'varchar',
-        'length' => 50,
-        'not null' => FALSE,
-      ),
-      'han_bao_hiem_than_vo' => array(
+      'ngay_nhan_viec' => array(
         'type' => 'varchar',
         'length' => 10,
         'not null' => FALSE,
       ),
-      'so_bao_hiem_tnds' => array(
+      'so_tk_ngan_hang' => array(
         'type' => 'varchar',
-        'length' => 50,
+        'length' => 30,
         'not null' => FALSE,
       ),
-      'han_bao_hiem_tnds' => array(
+      'ngan_hang' => array(
         'type' => 'varchar',
-        'length' => 10,
-        'not null' => FALSE,
-      ),
-      'ngay_phu_hieu' => array(
-        'type' => 'varchar',
-        'length' => 10,
-        'not null' => FALSE,
-      ),
-      'han_phu_hieu' => array(
-        'type' => 'varchar',
-        'length' => 10,
+        'length' => 100,
         'not null' => FALSE,
       ),
       'hoat_dong' => array(
@@ -90,6 +79,11 @@ function phuong_tien_schema() {
         'size' => 'tiny',
         'not null' => TRUE,
         'default' => 1,
+      ),
+      'phuong_tien_lai_xe_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
       ),
       'created' => array(
         'type' => 'varchar',
@@ -104,25 +98,36 @@ function phuong_tien_schema() {
     ),
     'primary key' => array('nid'),
     'unique keys' => array(
-      'bks' => array('bks'),
+      'ma_nhan_vien' => array('ma_nhan_vien'),
+      'sdt' => array('sdt'),
+      'cccd' => array('cccd'),
+      'so_bang_lai' => array('so_bang_lai'),
+      'so_tk_ngan_hang' => array('so_tk_ngan_hang'),
     ),
     'indexes' => array(
       'hoat_dong' => array('hoat_dong'),
-      'loai_phuong_tien' => array('loai_phuong_tien'),
+      'ten' => array('ten'),
     ),
   );
 
   return $schema;
 }
 
-function phuong_tien_update_7001() {
-  drupal_install_schema('phuong_tien');
+function lai_xe_update_7001() {
+  drupal_install_schema('lai_xe');
 }
 
-function phuong_tien_update_7002() {
-  drupal_install_schema('phuong_tien');
+function lai_xe_update_7004() {
+  $field = db_query("SHOW COLUMNS FROM {lai_xe} LIKE 'phuong_tien_id'")->fetch();
+  if ($field) {
+    db_query("ALTER TABLE {lai_xe} CHANGE phuong_tien_id phuong_tien_lai_xe_id INT UNSIGNED");
+  }
 }
 
-function phuong_tien_update_7003() {
-  db_query("ALTER TABLE {phuong_tien} MODIFY COLUMN hoat_dong TINYINT NOT NULL DEFAULT 1");
+function lai_xe_update_7003() {
+  db_update('lai_xe')
+    ->fields(array('hoat_dong' => 1))
+    ->condition('hoat_dong', 0)
+    ->execute();
+  db_query("ALTER TABLE {lai_xe} MODIFY COLUMN hoat_dong TINYINT NOT NULL DEFAULT 1");
 }

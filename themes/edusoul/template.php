@@ -48,7 +48,7 @@ function getMainMenuSoft()
                   </svg>
                 </span>
               </span>
-                        <span class="app-brand-text demo menu-text fw-bold ms-3">Heng Xing 555</span>
+                        <span class="app-brand-text demo menu-text fw-bold ms-3">Tân Trường Khoa</span>
                     </a>
 
                     <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">
@@ -169,6 +169,12 @@ function getMainMenuSoft()
                         <a href="/phuong-tien" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-truck"></i>
                             <div data-i18n="Phương tiện">Phương tiện</div>
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/lai-xe" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-users"></i>
+                            <div data-i18n="Lái xe">Lái xe</div>
                         </a>
                     </li>
                     

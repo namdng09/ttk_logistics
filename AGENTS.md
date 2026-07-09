@@ -109,13 +109,13 @@ function module_rest_collection() {
 }
 ```
 
-### UI pages — hook_menu
+### UI pages — hook_menu (Modal CRUD)
 
 ```
-UI List:  /<entity>               → danh sách
-UI Tạo:   /<entity>/them-moi      → form thêm
-UI Sửa:   /<entity>/{id}          → form sửa
+UI List:  /<entity>               → danh sách + modal create/edit/view
 ```
+
+Chỉ cần **1 route**:
 
 ```php
 $items['<entity>'] = array(
@@ -124,20 +124,9 @@ $items['<entity>'] = array(
   'access callback' => 'user_is_logged_in',
   'type' => MENU_NORMAL_ITEM,
 );
-$items['<entity>/them-moi'] = array(
-  'title' => 'Thêm',
-  'page callback' => 'module_page_form',
-  'access arguments' => array('module_create'),
-  'type' => MENU_CALLBACK,
-);
-$items['<entity>/%'] = array(
-  'title' => 'Chi tiết',
-  'page callback' => 'module_page_form',
-  'page arguments' => array(1),
-  'access callback' => 'user_is_logged_in',
-  'type' => MENU_CALLBACK,
-);
 ```
+
+- Không có `/them-moi` hay `/{id}`. Tạo/sửa/xem đều qua modal trên cùng trang list.
 
 ### Hybrid pattern — hook_theme + .tpl.php
 
@@ -151,11 +140,6 @@ function module_theme() {
     'module_list_page' => array(
       'template' => 'module-list',
       'path' => $path,
-    ),
-    'module_form_page' => array(
-      'template' => 'module-form',
-      'path' => $path,
-      'variables' => array('id' => NULL),
     ),
   );
 }
@@ -195,6 +179,10 @@ function loadList() {
 // 2xx — Thành công
 { "status": "success", "data": { ... } }
 
+// 2xx — Create / Update (trả về full record, không chỉ id)
+POST /api/<entity> → { "status": "success", "data": { "nid": 1, "ten": "...", ... } }
+PUT  /api/<entity>/{id} → { "status": "success", "data": { "nid": 1, "ten": "...", ... } }
+
 // List
 { "status": "success", "data": { "items": [...], "total": N, "current_page": 1, "total_pages": 1 } }
 
@@ -233,15 +221,92 @@ modules/<name>/
 ├── <name>.info             # core=7.x, package=Logistics
 ├── <name>.module           # hook_menu, hook_permission, hook_theme, API, UI
 ├── <name>.install          # hook_schema
-├── templates/              # .tpl.php (layout rỗng, JS fill data)
-│   ├── <name>-list.tpl.php
-│   └── <name>-form.tpl.php
+├── templates/
+│   └── <name>-list.tpl.php  # Card table + modal layout (JS fill data)
 └── assets/
     ├── css/<name>.css
-    └── js/<name>.js        # AJAX CRUD
+    └── js/<name>.js        # AJAX CRUD (modal-based)
 ```
+
+## UI conventions — Modal CRUD screen
+
+### Pattern
+- **1 trang duy nhất:** list page + modal cho create/edit/view detail.
+- **Không** tạo trang riêng cho form (không `/them-moi`, không `/{id}`).
+- `hook_menu()` chỉ cần 1 route UI:
+
+```php
+$items['<entity>'] = array(
+  'title' => 'Danh sách',
+  'page callback' => 'module_page_list',
+  'access callback' => 'user_is_logged_in',
+  'type' => MENU_NORMAL_ITEM,
+);
+```
+
+### Template (lai-xe-list.tpl.php)
+- Card header: title + buttons (Thêm, Reload).
+- Card body: search row + table + pagination.
+- Modal: form inside modal-lg/modal-xl (tuỳ số lượng field).
+- View modal: readonly fields hoặc table.
+- Toast: dùng Notyf (Vuexy built-in).
+- JS: load list on page load, modal open = fetch data / reset form.
+
+### Date picker — dd/MM/yyyy
+- Dùng **Flatpickr** (Vuexy built-in: `vendor/libs/flatpickr/`).
+- Input class: `flatpickr-date`.
+- Format: `d/m/Y`.
+- Date input cho phép gõ tay + tự thêm '/' (Cleave-zen `date-mask`).
+
+### Input mask — Cleave-zen
+- Phone: `phone-mask` class.
+- Date: `date-mask` class (tự thêm `/`).
+- Số thẻ/CMND: `numeric` mask.
+
+### Validate
+- Required fields: thêm `required` attribute + label có `<span class="text-danger">*</span>`.
+- Email: `type="email"` hoặc pattern.
+- Phone: validate bằng Cleave-zen phone mask.
+- Số: `type="number"` hoặc inputmode + pattern.
+- Client validate: Bootstrap validation (`needs-validation`, `valid-feedback`, `invalid-feedback`).
+
+### Money format
+- Input có class `money-mask`, hiển thị theo format Việt Nam (VD: `1.000.000`).
+- Lưu vào DB dạng số nguyên (int/numeric), format lại ở frontend.
+
+### Number fields
+- `placeholder="0"` để biết là ô nhập số.
+- `inputmode="numeric"`, `onkeypress="return (event.charCode >= 48 && event.charCode <= 57)"`.
+
+### Toast
+- Dùng **Notyf** (Vuexy built-in).
+- Helper JS:
+
+```javascript
+var notyf = new Notyf();
+notyf.success('Thành công');
+notyf.error('Lỗi');
+```
+
+### Pagination
+- Dùng Bootstrap pagination (`nav > ul.pagination > li.page-item`).
+- JS render từ API response (`current_page`, `total_pages`).
+
+### Search
+- Ô input tìm kiếm + button.
+- Gọi lại API với param `?keyword=...`.
+
+### Animation loading
+- Spinner trong `<tbody>` khi load list.
+- Disable button khi submit form.
+
+### Naming convention
+- `nid` là primary key, auto-increment (serial).
+- `created` / `changed`: varchar(19), format `YYYY-MM-DD HH:MM:SS`.
+- `hoat_dong`: int tiny, default 1 (soft-delete: 0 = deleted, 1 = active).
+- FK trong bảng hướng đến entity khác: `<entity>_<entity>_id` (VD: `phuong_tien_lai_xe_id` cho junction n-n).
 
 ## TODO
 
-- Migrate các module cũ (danh_muc, ben_thu_ba, lai_xe, ...) sang schema + RESTful + hybrid.
+- Migrate các module cũ (danh_muc, ben_thu_ba, ...) sang schema + RESTful + hybrid.
 - Xử lý module required login để whitelist API paths.

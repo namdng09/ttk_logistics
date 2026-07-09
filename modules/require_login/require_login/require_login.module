@@ -95,6 +95,11 @@ function require_login_authcheck() {
     $path = $base_path . trim($current_uri, '/');
   }
 
+  // Always allow API paths (whitelist).
+  if (strpos($path, '/api/') === 0) {
+    return TRUE;
+  }
+
   // Compare current URL with customizable excluded paths. Returns TRUE when
   // at least one excluded path matches the current page path. Also includes
   // custom configured user login path with exclusions.

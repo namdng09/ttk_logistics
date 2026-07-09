@@ -257,12 +257,14 @@ function _phuong_tien_rest_create() {
       ))
       ->execute();
 
+    $row = db_query("SELECT * FROM {phuong_tien} WHERE nid = :id", array(':id' => $nid))->fetch();
+
     watchdog('phuong_tien', 'Tạo phương tiện #%id: %bks', array(
       '%id' => $nid,
       '%bks' => $input['bks'],
     ));
 
-    return _phuong_tien_success(array('nid' => (int) $nid));
+    return _phuong_tien_success($row);
   }
   catch (Exception $e) {
     $transaction->rollback();
@@ -336,9 +338,11 @@ function _phuong_tien_rest_update($id) {
       ->condition('nid', $id)
       ->execute();
 
+    $row = db_query("SELECT * FROM {phuong_tien} WHERE nid = :id", array(':id' => $id))->fetch();
+
     watchdog('phuong_tien', 'Cập nhật phương tiện #%id', array('%id' => $id));
 
-    return _phuong_tien_success(array('nid' => $id));
+    return _phuong_tien_success($row);
   }
   catch (Exception $e) {
     $transaction->rollback();

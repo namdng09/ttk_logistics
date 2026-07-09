@@ -2,24 +2,33 @@
 
 /**
  * @file
- * REST API cho content type lai_xe (lái xe).
- * Endpoint prefix: /lai-xe
- * Drupal tại subdirectory /api/ → URL đầy đủ: https://site.com/api/lai-xe
+ * Lái Xe — Driver management. Custom schema, RESTful API + Modal CRUD.
  */
 
-module_load_include('inc', 'lai_xe', 'lai_xe.helpers');
-module_load_include('inc', 'lai_xe', 'lai_xe.controller');
-module_load_include('inc', 'lai_xe', 'lai_xe.service');
+/**
+ * Implements hook_permission().
+ */
+function lai_xe_permission() {
+  return array(
+    'lai_xe_view' => array('title' => t('Xem lái xe')),
+    'lai_xe_create' => array('title' => t('Tạo/sửa lái xe')),
+    'lai_xe_delete' => array('title' => t('Xoá lái xe')),
+  );
+}
 
 /**
- * Implements hook_init().
+ * Implements hook_init() — CORS for API routes.
  */
 function lai_xe_init() {
   $path = current_path();
-  if ($path === 'lai-xe' || strpos($path, 'lai-xe/') === 0) {
-    lai_xe_add_cors_headers();
+  if (strpos($path, 'api/lai-xe') === 0) {
+    drupal_add_http_header('Access-Control-Allow-Origin', '*');
+    drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    drupal_add_http_header('Access-Control-Max-Age', '86400');
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-      lai_xe_cors_preflight();
+      drupal_add_http_header('Status', '204 No Content');
+      drupal_exit();
     }
   }
 }
@@ -30,20 +39,340 @@ function lai_xe_init() {
 function lai_xe_menu() {
   $items = array();
 
-  $items['lai-xe'] = array(
-    'title' => 'Danh sách / tạo lái xe',
-    'page callback' => 'lai_xe_route_collection',
+  // --- RESTful API ---
+  $items['api/lai-xe'] = array(
+    'page callback' => 'lai_xe_rest_collection',
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/lai-xe/%'] = array(
+    'page callback' => 'lai_xe_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
   );
 
-  $items['lai-xe/%'] = array(
-    'title' => 'Chi tiết / cập nhật / xoá lái xe',
-    'page callback' => 'lai_xe_route_item',
-    'page arguments' => array(1),
-    'access callback' => TRUE,
-    'type' => MENU_CALLBACK,
+  // --- UI Pages (Modal CRUD) ---
+  $items['lai-xe'] = array(
+    'title' => 'Danh sách lái xe',
+    'page callback' => 'lai_xe_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
   );
 
   return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function lai_xe_theme() {
+  $path = drupal_get_path('module', 'lai_xe') . '/templates';
+  return array(
+    'lai_xe_list_page' => array(
+      'template' => 'lai-xe-list',
+      'path' => $path,
+    ),
+  );
+}
+
+/*******************************************************************************
+ * HELPERS
+ ******************************************************************************/
+
+function _lai_xe_input() {
+  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+}
+
+function _lai_xe_require_auth() {
+  $params = _lai_xe_input();
+  foreach ($_GET as $k => $v) { $params[$k] = $v; }
+
+  $email = isset($params['created_email']) ? trim($params['created_email']) : '';
+  $token = isset($params['token']) ? trim($params['token']) : '';
+
+  if ($email === '' || $token === '') {
+    drupal_add_http_header('Status', '401 Unauthorized');
+    return array('status' => 'fail', 'message' => 'Thiếu thông tin xác thực');
+  }
+  module_load_include('module', 'user_login_api', 'user_login_api');
+  if (!function_exists('api_check_token')) {
+    drupal_add_http_header('Status', '500 Internal Server Error');
+    return array('status' => 'error', 'message' => 'Hệ thống xác thực chưa sẵn sàng');
+  }
+  $result = api_check_token($token, $email);
+  if ($result === FALSE) {
+    drupal_add_http_header('Status', '401 Unauthorized');
+    return array('status' => 'fail', 'message' => 'Token không hợp lệ');
+  }
+  return $result;
+}
+
+function _lai_xe_success($data = NULL) {
+  $response = array('status' => 'success');
+  if ($data !== NULL) {
+    $response['data'] = $data;
+  }
+  return $response;
+}
+
+function _lai_xe_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _lai_xe_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _lai_xe_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _lai_xe_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function _lai_xe_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+/*******************************************************************************
+ * REST: COLLECTION — GET /api/lai-xe, POST /api/lai-xe
+ ******************************************************************************/
+
+function lai_xe_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _lai_xe_rest_list();
+    case 'POST':
+      return _lai_xe_rest_create();
+    default:
+      return _lai_xe_method_not_allowed('GET, POST');
+  }
+}
+
+function _lai_xe_rest_list() {
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = 20;
+  $offset = ($page - 1) * $limit;
+
+  $query = db_select('lai_xe', 'lx');
+  $query->fields('lx');
+
+  if (isset($_GET['hoat_dong'])) {
+    $query->condition('lx.hoat_dong', (int) $_GET['hoat_dong']);
+  }
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like($_GET['keyword']) . '%';
+    $or = db_or()
+      ->condition('lx.ten', $like, 'LIKE')
+      ->condition('lx.ma_nhan_vien', $like, 'LIKE')
+      ->condition('lx.sdt', $like, 'LIKE')
+      ->condition('lx.cccd', $like, 'LIKE');
+    $query->condition($or);
+  }
+
+  $count = clone $query;
+  $total = $count->countQuery()->execute()->fetchField();
+
+  $query->orderBy('lx.nid', 'DESC');
+  $query->range($offset, $limit);
+  $rows = $query->execute()->fetchAll();
+
+  $total_pages = (int) ceil($total / $limit);
+
+  return _lai_xe_success(array(
+    'items' => $rows ?: array(),
+    'total' => (int) $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+  ));
+}
+
+function _lai_xe_rest_create() {
+  if (!user_access('lai_xe_create')) {
+    return _lai_xe_unauthorized('Bạn không có quyền tạo lái xe');
+  }
+
+  $input = _lai_xe_input();
+
+  if (empty($input['ten'])) {
+    return _lai_xe_fail('Tên lái xe (ten) bắt buộc');
+  }
+
+  $transaction = db_transaction();
+  try {
+    $nid = db_insert('lai_xe')
+      ->fields(array(
+        'ten' => $input['ten'],
+        'ma_nhan_vien' => isset($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : '',
+        'sdt' => isset($input['sdt']) ? $input['sdt'] : '',
+        'cccd' => isset($input['cccd']) ? $input['cccd'] : '',
+        'ngay_cap' => isset($input['ngay_cap']) ? $input['ngay_cap'] : '',
+        'noi_cap' => isset($input['noi_cap']) ? $input['noi_cap'] : '',
+        'han_cccd' => isset($input['han_cccd']) ? $input['han_cccd'] : '',
+        'so_bang_lai' => isset($input['so_bang_lai']) ? $input['so_bang_lai'] : '',
+        'loai_bang_lai' => isset($input['loai_bang_lai']) ? $input['loai_bang_lai'] : '',
+        'han_bang_lai' => isset($input['han_bang_lai']) ? $input['han_bang_lai'] : '',
+        'ngay_nhan_viec' => isset($input['ngay_nhan_viec']) ? $input['ngay_nhan_viec'] : '',
+        'so_tk_ngan_hang' => isset($input['so_tk_ngan_hang']) ? $input['so_tk_ngan_hang'] : '',
+        'ngan_hang' => isset($input['ngan_hang']) ? $input['ngan_hang'] : '',
+        'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
+        'created' => date('Y-m-d H:i:s', REQUEST_TIME),
+        'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+      ))
+      ->execute();
+
+    $row = db_query("SELECT * FROM {lai_xe} WHERE nid = :id", array(':id' => $nid))->fetch();
+
+    watchdog('lai_xe', 'Tạo lái xe #%id: %ten', array(
+      '%id' => $nid,
+      '%ten' => $input['ten'],
+    ));
+
+    return _lai_xe_success($row);
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('lai_xe', 'Lỗi tạo lái xe: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    if (strpos($e->getMessage(), 'Duplicate entry') !== FALSE) {
+      return _lai_xe_fail('Dữ liệu đã tồn tại (trùng mã NV, SDT, CCCD, bằng lái hoặc số TK)');
+    }
+    return _lai_xe_error('Lỗi hệ thống khi tạo lái xe');
+  }
+}
+
+/*******************************************************************************
+ * REST: ITEM — GET /api/lai-xe/{id}, PUT, DELETE
+ ******************************************************************************/
+
+function lai_xe_rest_item($id) {
+  $id = (int) $id;
+  if (!$id) {
+    return _lai_xe_fail('ID không hợp lệ');
+  }
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _lai_xe_rest_get($id);
+    case 'PUT':
+      return _lai_xe_rest_update($id);
+    case 'DELETE':
+      return _lai_xe_rest_delete($id);
+    default:
+      return _lai_xe_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+function _lai_xe_rest_get($id) {
+  $row = db_query("SELECT * FROM {lai_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+  if (!$row) {
+    return _lai_xe_not_found('Lái xe không tồn tại');
+  }
+  return _lai_xe_success($row);
+}
+
+function _lai_xe_rest_update($id) {
+  if (!user_access('lai_xe_create')) {
+    return _lai_xe_unauthorized('Bạn không có quyền sửa lái xe');
+  }
+
+  $existing = db_query("SELECT nid FROM {lai_xe} WHERE nid = :id", array(':id' => $id))->fetchField();
+  if (!$existing) {
+    return _lai_xe_not_found('Lái xe không tồn tại');
+  }
+
+  $input = _lai_xe_input();
+  $fields = array(
+    'ten', 'ma_nhan_vien', 'sdt', 'cccd', 'ngay_cap', 'noi_cap',
+    'han_cccd', 'so_bang_lai', 'loai_bang_lai', 'han_bang_lai',
+    'ngay_nhan_viec', 'so_tk_ngan_hang', 'ngan_hang', 'hoat_dong',
+  );
+
+  $update = array('changed' => date('Y-m-d H:i:s', REQUEST_TIME));
+  foreach ($fields as $f) {
+    if (array_key_exists($f, $input)) {
+      $update[$f] = $input[$f];
+    }
+  }
+
+  $transaction = db_transaction();
+  try {
+    db_update('lai_xe')
+      ->fields($update)
+      ->condition('nid', $id)
+      ->execute();
+
+    $row = db_query("SELECT * FROM {lai_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+
+    watchdog('lai_xe', 'Cập nhật lái xe #%id', array('%id' => $id));
+
+    return _lai_xe_success($row);
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('lai_xe', 'Lỗi cập nhật lái xe #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    if (strpos($e->getMessage(), 'Duplicate entry') !== FALSE) {
+      return _lai_xe_fail('Dữ liệu đã tồn tại (trùng mã NV, SDT, CCCD, bằng lái hoặc số TK)');
+    }
+    return _lai_xe_error('Lỗi hệ thống khi cập nhật lái xe');
+  }
+}
+
+function _lai_xe_rest_delete($id) {
+  if (!user_access('lai_xe_delete')) {
+    return _lai_xe_unauthorized('Bạn không có quyền xoá lái xe');
+  }
+
+  $existing = db_query("SELECT nid, ten FROM {lai_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+  if (!$existing) {
+    return _lai_xe_not_found('Lái xe không tồn tại');
+  }
+
+  $transaction = db_transaction();
+  try {
+    db_update('lai_xe')
+      ->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))
+      ->condition('nid', $id)
+      ->execute();
+
+    watchdog('lai_xe', 'Xoá (soft) lái xe #%id: %ten', array(
+      '%id' => $id,
+      '%ten' => $existing->ten,
+    ));
+
+    return _lai_xe_success(array('nid' => $id, 'deleted' => TRUE));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('lai_xe', 'Lỗi xoá lái xe #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _lai_xe_error('Lỗi hệ thống khi xoá lái xe');
+  }
+}
+
+/*******************************************************************************
+ * UI PAGE CALLBACKS
+ ******************************************************************************/
+
+function lai_xe_page_list() {
+  drupal_add_css(drupal_get_path('module', 'lai_xe') . '/assets/css/lai_xe.css');
+  drupal_add_js(drupal_get_path('module', 'lai_xe') . '/assets/js/lai_xe.js');
+
+  drupal_add_js(array('lai_xe' => array(
+    'permissions' => array(
+      'lai_xe_view' => user_access('lai_xe_view'),
+      'lai_xe_create' => user_access('lai_xe_create'),
+      'lai_xe_delete' => user_access('lai_xe_delete'),
+    ),
+  )), 'setting');
+
+  return theme('lai_xe_list_page');
 }
