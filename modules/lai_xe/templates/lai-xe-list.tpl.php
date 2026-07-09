@@ -84,7 +84,12 @@
           <h5 class="modal-title" id="lai-xe-modal-title">Thêm lái xe</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="position:relative;">
+          <div id="modal-loading" class="text-center py-4" style="position:absolute;inset:0;display:none;background:rgba(255,255,255,0.85);z-index:10;border-radius:0.375rem;">
+            <div class="spinner-border text-primary" style="position:sticky;top:50%;margin-top:6rem;" role="status">
+              <span class="visually-hidden">Đang tải...</span>
+            </div>
+          </div>
           <input type="hidden" name="nid" value="">
 
           <div class="row g-3">

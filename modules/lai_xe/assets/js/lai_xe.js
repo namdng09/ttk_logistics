@@ -308,10 +308,6 @@
     jumpInput.value = current;
     jumpInput.setAttribute('data-total-pages', total);
 
-    if (!total || total <= 1) {
-      container.style.display = 'none';
-      return;
-    }
     container.style.display = '';
 
     var html = '';
@@ -339,25 +335,35 @@
     ul.innerHTML = html;
   }
 
+  function showLoading(show) {
+    var loading = document.getElementById('modal-loading');
+    loading.style.display = show ? '' : 'none';
+  }
+
   function openViewModal(id) {
     setFormMode('view');
     document.getElementById('lai-xe-modal-title').textContent = 'Chi tiết lái xe';
-    var btn = document.querySelector('.btn-luu-lai-xe');
-    btn.style.display = 'none';
+    document.querySelector('.btn-luu-lai-xe').style.display = 'none';
+    showLoading(true);
+    modalShow('lai-xe-modal');
 
     $.ajax({
       url: '/api/lai-xe/' + id,
       type: 'GET',
       dataType: 'json',
       success: function (res) {
+        showLoading(false);
         if (res.status !== 'success' || !res.data) {
           if (notyf) notyf.error(res.message || 'Không tìm thấy dữ liệu');
           return;
         }
         populateForm(res.data);
-        modalShow('lai-xe-modal');
+        initDatePickers();
+        initMasks();
       },
       error: function (jqXHR) {
+        showLoading(false);
+        modalHide('lai-xe-modal');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -368,29 +374,31 @@
     document.getElementById('lai-xe-modal-title').textContent = 'Cập nhật lái xe';
     document.querySelector('#form-lai-xe input[name="nid"]').value = id;
     var btn = document.querySelector('.btn-luu-lai-xe');
-    btn.setAttribute('disabled', 'disabled');
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang tải...';
+    btn.removeAttribute('disabled');
+    btn.innerHTML = '<i class="ti tabler-device-floppy me-1"></i> Lưu';
+    btn.style.display = '';
+    showLoading(true);
+    modalShow('lai-xe-modal');
 
     $.ajax({
       url: '/api/lai-xe/' + id,
       type: 'GET',
       dataType: 'json',
       success: function (res) {
-        btn.removeAttribute('disabled');
-        btn.innerHTML = '<i class="ti tabler-device-floppy me-1"></i> Lưu';
+        showLoading(false);
         if (res.status !== 'success' || !res.data) {
           if (notyf) notyf.error(res.message || 'Không tìm thấy dữ liệu');
           modalHide('lai-xe-modal');
           return;
         }
         populateForm(res.data);
-        modalShow('lai-xe-modal');
+        initDatePickers();
+        initMasks();
       },
       error: function (jqXHR) {
-        btn.removeAttribute('disabled');
-        btn.innerHTML = '<i class="ti tabler-device-floppy me-1"></i> Lưu';
-        if (notyf) notyf.error(apiMsg(jqXHR));
+        showLoading(false);
         modalHide('lai-xe-modal');
+        if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
   }
@@ -410,6 +418,7 @@
   }
 
   function resetForm() {
+    showLoading(false);
     document.getElementById('form-lai-xe').reset();
     document.querySelector('#form-lai-xe input[name="nid"]').value = '';
     document.getElementById('lai-xe-modal-title').textContent = 'Thêm lái xe';
@@ -437,7 +446,7 @@
       $('.flatpickr-date').each(function () {
         try { this._flatpickr && this._flatpickr.destroy(); } catch (e) {}
         if (!this.hasAttribute('readonly')) {
-          flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true });
+          flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, static: true });
         }
       });
     }

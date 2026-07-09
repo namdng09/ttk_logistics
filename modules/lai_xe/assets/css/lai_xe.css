@@ -13,3 +13,8 @@
 .btn-delete-lai-xe i {
   font-size: 1rem;
 }
+
+/* Flatpickr above Bootstrap 5 modal backdrop */
+.flatpickr-calendar {
+  z-index: 99999 !important;
+}
