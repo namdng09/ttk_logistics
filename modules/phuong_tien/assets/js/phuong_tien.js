@@ -21,8 +21,8 @@
       method: 'GET',
       dataType: 'json',
       success: function (res) {
-        var tbody = $('#table-phuong-tien tbody');
-        tbody.empty();
+        $('#loading-row').remove();
+        var tbody = $('#table-phuong-tien-tbody');
 
         if (!res.data || res.data.length === 0) {
           tbody.append('<tr><td colspan="7" class="text-center">Không có dữ liệu</td></tr>');
@@ -35,7 +35,7 @@
             ? '<span class="badge bg-success">Hoạt động</span>'
             : '<span class="badge bg-secondary">Ngừng</span>';
 
-          var actions = '<a href="/quan-ly/phuong-tien/' + item.phuong_tien_id + '" class="btn btn-sm btn-primary me-1">Sửa</a>';
+          var actions = '<a href="/phuong-tien/' + item.phuong_tien_id + '" class="btn btn-sm btn-primary me-1">Sửa</a>';
           if (Drupal.settings.phuong_tien.permissions.phuong_tien_delete) {
             actions += '<button class="btn btn-sm btn-danger btn-delete" data-id="' + item.phuong_tien_id + '">Xoá</button>';
           }
@@ -54,7 +54,8 @@
         });
       },
       error: function () {
-        $('#table-phuong-tien tbody').append('<tr><td colspan="7" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        $('#loading-row').remove();
+        $('#table-phuong-tien-tbody').append('<tr><td colspan="7" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
       }
     });
   }
@@ -106,7 +107,7 @@
         dataType: 'json',
         success: function (res) {
           if (res.success) {
-            window.location.href = '/quan-ly/phuong-tien';
+            window.location.href = '/phuong-tien';
           } else {
             alert(res.message || 'Lỗi không xác định');
           }

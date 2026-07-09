@@ -71,7 +71,7 @@
         </div>
       </div>
       <div class="col-12 text-end">
-        <a href="/quan-ly/phuong-tien" class="btn btn-secondary me-2">Huỷ</a>
+        <a href="/phuong-tien" class="btn btn-secondary me-2">Huỷ</a>
         <button type="submit" class="btn btn-primary">Lưu</button>
       </div>
     </form>

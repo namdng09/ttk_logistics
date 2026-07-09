@@ -122,3 +122,7 @@ function phuong_tien_schema() {
 
   return $schema;
 }
+
+function phuong_tien_update_7001() {
+  drupal_install_schema('phuong_tien');
+}

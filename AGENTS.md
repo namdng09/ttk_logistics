@@ -10,92 +10,213 @@
 ```
 /
 ├── modules/                     # Drupal modules (flat, không api/ con)
-│   ├── crm_dntt/                # Module đề nghị thanh toán (base pattern)
-│   │   ├── crm_dntt.info        # Khai báo module Drupal
-│   │   ├── crm_dntt.module      # hook_menu, hook_entity_info, hook_permission, hook_theme, page callbacks
-│   │   ├── crm_dntt.install     # hook_schema (custom tables, không content type)
-│   │   ├── crm_dntt.test        # Chỉ tạo khi yêu cầu
-│   │   ├── templates/           # .tpl.php cho Drupal views
-│   │   │   ├── crm-dntt-form.tpl.php
-│   │   │   └── crm-dntt-list.tpl.php
-│   │   └── assets/              # CSS/JS riêng cho module
+│   ├── phuong_tien/             # Module phương tiện (base pattern mới)
+│   │   ├── phuong_tien.info     # Khai báo module
+│   │   ├── phuong_tien.module   # hook_menu, hook_permission, hook_theme, API, UI
+│   │   ├── phuong_tien.install  # hook_schema (custom table)
+│   │   ├── templates/           # .tpl.php layout (hybrid pattern)
+│   │   │   ├── phuong-tien-list.tpl.php
+│   │   │   └── phuong-tien-form.tpl.php
+│   │   └── assets/              # CSS/JS riêng
 │   │       ├── css/
 │   │       └── js/
 │   │
-│   ├── danh_muc/                # (sẽ migrate dần theo pattern crm_dntt)
+│   ├── crm_dntt/                # (cũ) Module đề nghị thanh toán — tham khảo
+│   ├── user_login_api/          # Auth module: login, token validation
+│   ├── danh_muc/                # (sẽ migrate)
 │   ├── ben_thu_ba/
-│   ├── phuong_tien/
 │   ├── lai_xe/
 │   ├── hop_dong/
-│   ├── ben_thu_ba_api/
-│   └── user_login_api/
+│   └── ben_thu_ba_api/
 │
 ├── themes/                      # Drupal theme
 │   └── edusoul/                 # Theme chính, dùng Vuexy assets
 │       ├── edusoul.info         # Khai báo theme
-│       ├── template.php         # Preprocess, assets management
+│       ├── template.php         # Preprocess, assets management, navbar
 │       ├── html.tpl.php
 │       ├── page.tpl.php
 │       ├── page--front.tpl.php
 │       ├── page--user--login.tpl.php
-│       ├── template/            # Block templates v.v.
-│       │   └── quan-ly/
-│       └── quan-ly/             # Vuexy admin assets
-│           └── assets/
+│       └── quan-ly/assets/      # Vuexy admin assets
 │
-├── html-version/                # HTML template mẫu (Vuexy) để chuyển thành .tpl.php
-│   └── Bootstrap5/
-│       └── vuexy-bootstrap-html-admin-template/
+├── html-version/                # HTML template mẫu (Vuexy) — copy từ /home/namdng09/work/html-version/
 │
-└── api/                         # (cũ) Module cũ dùng content type + controller/service/helpers
-    └── ...                      # Sẽ migrate dần sang modules/
+└── api/                         # (cũ) Module cũ dùng content type — sẽ migrate dần
 ```
 
-## Module pattern mới (follow crm_dntt)
+## Module pattern mới
 
-### Yêu cầu
+### Schema thuần (không Entity API)
 
-- **Entity API module** (`entity` contrib) — bắt buộc để dùng `hook_entity_info()`, `EntityAPIController`.
-
-### hook_schema (thay content type)
-
-- Dùng `hook_schema()` trong `.install` để tạo custom DB table — **không dùng Content Type + Field**.
-- Dùng Entity API (`hook_entity_info()`, `EntityAPIController`) cho CRUD.
+- Dùng `hook_schema()` trong `.install` để tạo custom DB table.
+- CRUD qua `db_select()`, `db_insert()`, `db_update()`, `db_delete()`.
+- **Không dùng** `hook_entity_info()`, `EntityAPIController`.
+- Dữ liệu lưu trong custom table → không xem được qua Content UI, test qua API hoặc SQL.
 
 ### hook_permission
 
-- Define permission đầy đủ trong `hook_permission()`.
-- Route endpoint API dùng `'access arguments' => array('permission_name')`.
+```php
+function module_permission() {
+  return array(
+    'module_view' => array('title' => t('Xem')),
+    'module_create' => array('title' => t('Tạo/sửa')),
+    'module_delete' => array('title' => t('Xoá')),
+  );
+}
+```
+
 - Route UI page dùng `'access callback' => 'user_is_logged_in'`.
+- API endpoint dùng `'access callback' => TRUE`.
+- Auth token do `user_login_api` xử lý, authorization do `user_access()` trong callback.
 
-### hook_menu
+### RESTful API — hook_menu
 
-- Route API: prefix `api/<entity>/` (vd: `api/dntt/save`, `api/dntt/list`).
-- Route UI: prefix `quan-ly/<entity>/` (vd: `quan-ly/dntt`, `quan-ly/dntt/them-moi`).
-- Endpoint API dùng `'delivery callback' => 'drupal_json_output'`.
+```
+Collection:  GET    /api/<entity>        → list + phân trang
+             POST   /api/<entity>        → tạo mới
+Item:        GET    /api/<entity>/{id}   → chi tiết
+             PUT    /api/<entity>/{id}   → cập nhật
+             DELETE /api/<entity>/{id}   → xoá
+```
 
-### hook_theme + .tpl.php
+Chỉ cần **2 route** trong `hook_menu()`:
 
-- Định nghĩa trong `hook_theme()`:
-  ```php
-  function module_theme() {
-    $path = drupal_get_path('module', 'module_name') . '/templates';
-    return array(
-      'module_page' => array(
-        'template' => 'module-page',   // file module-page.tpl.php
-        'path' => $path,
-        'variables' => array('var_name' => NULL),
-      ),
-    );
+```php
+$items['api/<entity>'] = array(
+  'page callback' => 'module_rest_collection',
+  'access callback' => TRUE,
+  'type' => MENU_CALLBACK,
+  'delivery callback' => 'drupal_json_output',
+);
+$items['api/<entity>/%'] = array(
+  'page callback' => 'module_rest_item',
+  'page arguments' => array(2),
+  'access callback' => TRUE,
+  'type' => MENU_CALLBACK,
+  'delivery callback' => 'drupal_json_output',
+);
+```
+
+Dispatch method trong từng callback:
+
+```php
+function module_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':  return _module_rest_list();
+    case 'POST': return _module_rest_create();
+    default:     return array('success' => FALSE, 'message' => 'Method not allowed');
   }
-  ```
-- Lấy HTML mẫu từ `html-version/`, viết lại thành `.tpl.php` trong `templates/` của module.
-- Module load CSS/JS riêng trong page callback bằng `drupal_add_css()` / `drupal_add_js()`.
+}
+```
+
+### UI pages — hook_menu
+
+```
+UI List:  /<entity>               → danh sách
+UI Tạo:   /<entity>/them-moi      → form thêm
+UI Sửa:   /<entity>/{id}          → form sửa
+```
+
+```php
+$items['<entity>'] = array(
+  'title' => 'Danh sách',
+  'page callback' => 'module_page_list',
+  'access callback' => 'user_is_logged_in',
+  'type' => MENU_NORMAL_ITEM,
+);
+$items['<entity>/them-moi'] = array(
+  'title' => 'Thêm',
+  'page callback' => 'module_page_form',
+  'access arguments' => array('module_create'),
+  'type' => MENU_CALLBACK,
+);
+$items['<entity>/%'] = array(
+  'title' => 'Chi tiết',
+  'page callback' => 'module_page_form',
+  'page arguments' => array(1),
+  'access callback' => 'user_is_logged_in',
+  'type' => MENU_CALLBACK,
+);
+```
+
+### Hybrid pattern — hook_theme + .tpl.php
+
+**.tpl.php chỉ chịu layout HTML rỗng + placeholder.**
+**JS gọi API fill data.**
+
+```php
+function module_theme() {
+  $path = drupal_get_path('module', 'module_name') . '/templates';
+  return array(
+    'module_list_page' => array(
+      'template' => 'module-list',
+      'path' => $path,
+    ),
+    'module_form_page' => array(
+      'template' => 'module-form',
+      'path' => $path,
+      'variables' => array('id' => NULL),
+    ),
+  );
+}
+```
+
+Page callback:
+
+```php
+function module_page_list() {
+  drupal_add_css(...);
+  drupal_add_js(...);
+  return theme('module_list_page');
+}
+```
+
+JS (assets/js/module.js):
+
+```javascript
+function loadList() {
+  $.getJSON('/api/<entity>', function(res) {
+    // gán vào <tbody>
+  });
+}
+```
+
+### Auth
+
+- **Module xác thực:** `user_login_api` — endpoint `api/auth/user/login`.
+- Login → nhận token.
+- Gọi API → gửi token qua header `Authorization: Bearer {token}` hoặc query param `?token=`.
+- Module `user_login_api` có hàm `api_validate_token($token)` trả về user object.
+- Phân quyền qua `user_access()` với các permission đã define trong `hook_permission()`.
+
+### Response format
+
+```json
+// Success
+{ "success": true, "data": { ... } }
+
+// List
+{ "success": true, "data": [...], "total": N, "page": 1, "pages": 1 }
+
+// Error
+{ "success": false, "message": "..." }
+```
+
+### Request
+
+- POST/PUT: `Content-Type: application/json`, body là JSON object.
+- GET/DELETE: query params (`?page=1&keyword=...`).
+- Auth: `Authorization: Bearer {token}` hoặc `?token=`.
+
+### Transaction
+
+- Dùng `db_transaction()` cho operation nhiều bước.
+- `$transaction->rollback()` + `watchdog()` khi catch Exception.
 
 ### assets
 
 - Mỗi module có `assets/css/` và `assets/js/` riêng.
-- Module tự load assets của mình trong page/API callback.
+- Module tự load assets của mình trong page callback bằng `drupal_add_css()` / `drupal_add_js()`.
 
 ### Môi trường
 
@@ -106,43 +227,18 @@
 
 ```
 modules/<name>/
-├── <name>.info             # Drupal module info
-├── <name>.module           # hook_menu, hook_entity_info, hook_permission, hook_theme, page callbacks
-├── <name>.install          # hook_schema (định nghĩa bảng)
-├── README.md               # Tổng hợp nội dung module
-├── templates/              # .tpl.php cho Drupal theme
-│   └── <name>-<page>.tpl.php
-└── assets/                 # CSS/JS riêng
-    ├── css/
-    └── js/
+├── <name>.info             # core=7.x, package=Logistics
+├── <name>.module           # hook_menu, hook_permission, hook_theme, API, UI
+├── <name>.install          # hook_schema
+├── templates/              # .tpl.php (layout rỗng, JS fill data)
+│   ├── <name>-list.tpl.php
+│   └── <name>-form.tpl.php
+└── assets/
+    ├── css/<name>.css
+    └── js/<name>.js        # AJAX CRUD
 ```
-
-## Quy tắc chung
-
-### Response format (API)
-
-```json
-{ "success": true|false, "message": "...", "data": { ... } }
-```
-
-- List response: `{ "success": true, "data": [...], "total": N, "page": 1, "pages": 1 }`
-
-### Auth
-
-- Module tự xử lý auth (login → token → validate).
-- `hook_permission()` + `user_access()` cho phân quyền.
-
-### Transaction
-
-- Dùng `db_transaction()` cho các operation có nhiều bước.
-- Rollback + `watchdog()` khi catch Exception.
-
-### No content type
-
-- Dữ liệu lưu trong custom table (schema), không dùng node/field_data.
-- Không xem được qua Drupal Content UI — test qua API hoặc SQL.
 
 ## TODO
 
-- Migrate các module cũ (danh_muc, ben_thu_ba, phuong_tien, ...) sang schema pattern.
-- Tạo module mới theo pattern crm_dntt.
+- Migrate các module cũ (danh_muc, ben_thu_ba, lai_xe, ...) sang schema + RESTful + hybrid.
+- Xử lý module required login để whitelist API paths.

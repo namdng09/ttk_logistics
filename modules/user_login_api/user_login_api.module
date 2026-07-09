@@ -4,7 +4,7 @@
  * Implements hook_menu().
  */
 function user_login_api_menu() {
-    $items['auth/user/login'] = array(
+    $items['api/auth/user/login'] = array(
         'title' => 'API user login',
         'page callback' => 'user_login_api_callback',
         'access callback' => TRUE,
@@ -20,7 +20,7 @@ function user_login_api_menu() {
  */
 function user_login_api_init() {
     $path = isset($_GET['q']) ? $_GET['q'] : '';
-    if (strpos($path, 'auth/') === 0) {
+    if (strpos($path, 'api/auth/') === 0) {
         drupal_add_http_header('Access-Control-Allow-Origin', '*');
         drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
@@ -168,16 +168,42 @@ function api_check_token($token, $email) {
         return FALSE;
     }
 
+    return _api_token_find_user($token, $account->uid);
+}
+
+/**
+ * Validate token và trả về user object (chỉ dùng token, không cần email).
+ *
+ * @param string $token
+ * @return object|false
+ */
+function api_validate_token($token) {
+    $token = trim((string) $token);
+    if ($token === '') return FALSE;
+
+    $uid = db_select('api_user_token', 't')
+        ->fields('t', array('uid'))
+        ->condition('t.token', $token)
+        ->range(0, 1)
+        ->execute()
+        ->fetchField();
+
+    if (!$uid) return FALSE;
+
+    return user_load($uid);
+}
+
+function _api_token_find_user($token, $uid) {
     $found = db_select('api_user_token', 't')
         ->fields('t', array('utid'))
-        ->condition('t.uid', $account->uid)
+        ->condition('t.uid', $uid)
         ->condition('t.token', $token)
         ->range(0, 1)
         ->execute()
         ->fetchField();
 
     if ($found) {
-        return $account;
+        return user_load($uid);
     }
 
     return FALSE;

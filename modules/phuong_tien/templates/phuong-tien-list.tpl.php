@@ -1,7 +1,7 @@
 <div class="card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h4 class="card-title">Danh sách phương tiện</h4>
-    <a href="/quan-ly/phuong-tien/them-moi" class="btn btn-primary">
+    <a href="/phuong-tien/them-moi" class="btn btn-primary">
       <i class="ti tabler-plus me-1"></i>Thêm phương tiện
     </a>
   </div>
@@ -19,7 +19,14 @@
             <th>Hành động</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="table-phuong-tien-tbody">
+          <tr id="loading-row">
+            <td colspan="7" class="text-center py-4">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+              </div>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

@@ -165,6 +165,12 @@ function getMainMenuSoft()
                             <div data-i18n="Bên thứ 3">Bên thứ 3</div>
                         </a>
                     </li>
+                    <li class="menu-item">
+                        <a href="/phuong-tien" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-truck"></i>
+                            <div data-i18n="Phương tiện">Phương tiện</div>
+                        </a>
+                    </li>
                     
                     <!-- Hệ thống -->
                     <li class="menu-item">
@@ -321,11 +327,11 @@ function edusoul_preprocess_html(&$variables)
         drupal_add_js(path_to_theme() . '/quan-ly/assets/js/app-academy-dashboard.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
     }
 
-    drupal_add_js(drupal_get_path('module', 'quan_ly_danh_muc') . '/js/quan_ly_danh_muc.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
-    drupal_add_js(drupal_get_path('module', 'config') . '/js/config.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
-    drupal_add_js(drupal_get_path('module', 'trucking') . '/js/trucking.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
-    drupal_add_js(drupal_get_path('module', 'excel_import') . '/excel_import.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
-    drupal_add_js(drupal_get_path('module', 'door_to_door') . '/js/door_to_door.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    // drupal_add_js(drupal_get_path('module', 'quan_ly_danh_muc') . '/js/quan_ly_danh_muc.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    // drupal_add_js(drupal_get_path('module', 'config') . '/js/config.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    // drupal_add_js(drupal_get_path('module', 'trucking') . '/js/trucking.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    // drupal_add_js(drupal_get_path('module', 'excel_import') . '/excel_import.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    // drupal_add_js(drupal_get_path('module', 'door_to_door') . '/js/door_to_door.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
 
     if (strpos($current_path, 'khach-hang') !== false) {
         drupal_add_js(drupal_get_path('module', 'khach_hang') . '/js/khach_hang.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
@@ -342,7 +348,7 @@ function edusoul_preprocess_html(&$variables)
         drupal_add_js(drupal_get_path('module', 'quan_ly_cung_duong') . '/js/quan_ly_cung_duong.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
     }
     if (strpos($current_path, 'phuong-tien') !== FALSE) {
-        drupal_add_js(drupal_get_path('module', 'quan_ly_phuong_tien') . '/js/quan_ly_phuong_tien.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+        // drupal_add_js(drupal_get_path('module', 'quan_ly_phuong_tien') . '/js/quan_ly_phuong_tien.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
     }
     if ($current_path == 'quan-ly/vietnam-cities/edit') {
         drupal_add_js(drupal_get_path('module', 'vietnam_cities') . '/js/vietnam_cities.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
@@ -353,7 +359,7 @@ function edusoul_preprocess_html(&$variables)
     if (strpos($current_path, 'phan-quyen') !== FALSE) {
         drupal_add_js(drupal_get_path('module', 'phan_quyen') . '/js/phan_quyen.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
     }
-    drupal_add_js(drupal_get_path('module', 'cap_nhat_ho_so') . '/js/cap_nhat_ho_so.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    // drupal_add_js(drupal_get_path('module', 'cap_nhat_ho_so') . '/js/cap_nhat_ho_so.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
 
     // Thêm class vào body để dễ quản lý bằng CSS
     $variables['classes_array'][] = 'quan-ly-page';

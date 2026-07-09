@@ -1,4 +1,4 @@
 name = "User Login API"
-description = "Login API and token validation for API modules (danh_muc, ben_thu_ba, ...)."
+description = "Login API, token generation and validation cho pure custom token auth."
 core = 7.x
 package = ANDIN JSC API

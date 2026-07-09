@@ -5,7 +5,7 @@
         class="layout-navbar-hidden layout-menu-fixed layout-compact"
         dir="ltr"
         data-skin="default"
-        data-assets-path="../../assets/"
+        data-assets-path="/<?php print $directory; ?>/quan-ly/assets/"
         data-template="vertical-menu-template-no-customizer"
         data-bs-theme="light">
 <head>

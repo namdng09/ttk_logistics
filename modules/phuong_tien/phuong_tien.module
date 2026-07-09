@@ -38,22 +38,22 @@ function phuong_tien_menu() {
   );
 
   // --- UI Pages ---
-  $items['quan-ly/phuong-tien'] = array(
+  $items['phuong-tien'] = array(
     'title' => 'Danh sách phương tiện',
     'page callback' => 'phuong_tien_page_list',
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
   );
-  $items['quan-ly/phuong-tien/them-moi'] = array(
+  $items['phuong-tien/them-moi'] = array(
     'title' => 'Thêm phương tiện',
     'page callback' => 'phuong_tien_page_form',
     'access arguments' => array('phuong_tien_create'),
     'type' => MENU_CALLBACK,
   );
-  $items['quan-ly/phuong-tien/%'] = array(
+  $items['phuong-tien/%'] = array(
     'title' => 'Chi tiết phương tiện',
     'page callback' => 'phuong_tien_page_form',
-    'page arguments' => array(2),
+    'page arguments' => array(1),
     'access callback' => 'user_is_logged_in',
     'type' => MENU_CALLBACK,
   );
