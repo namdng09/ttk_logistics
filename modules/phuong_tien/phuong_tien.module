@@ -54,25 +54,12 @@ function phuong_tien_menu() {
     'delivery callback' => 'drupal_json_output',
   );
 
-  // --- UI Pages ---
+  // --- UI List (modal CRUD, single page) ---
   $items['phuong-tien'] = array(
     'title' => 'Danh sách phương tiện',
     'page callback' => 'phuong_tien_page_list',
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
-  );
-  $items['phuong-tien/them-moi'] = array(
-    'title' => 'Thêm phương tiện',
-    'page callback' => 'phuong_tien_page_form',
-    'access arguments' => array('phuong_tien_create'),
-    'type' => MENU_CALLBACK,
-  );
-  $items['phuong-tien/%'] = array(
-    'title' => 'Chi tiết phương tiện',
-    'page callback' => 'phuong_tien_page_form',
-    'page arguments' => array(1),
-    'access callback' => 'user_is_logged_in',
-    'type' => MENU_CALLBACK,
   );
 
   return $items;
@@ -87,11 +74,6 @@ function phuong_tien_theme() {
     'phuong_tien_list_page' => array(
       'template' => 'phuong-tien-list',
       'path' => $path,
-    ),
-    'phuong_tien_form_page' => array(
-      'template' => 'phuong-tien-form',
-      'path' => $path,
-      'variables' => array('nid' => NULL),
     ),
   );
 }
@@ -166,6 +148,28 @@ function _phuong_tien_method_not_allowed($allowed) {
   return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
 }
 
+/**
+ * Check unique BKS, skip empty values and soft-deleted records.
+ */
+function _phuong_tien_check_unique($input, $exclude_nid = NULL) {
+  if (!isset($input['bks'])) return NULL;
+  $value = trim($input['bks']);
+  if ($value === '') return NULL;
+
+  $query = db_select('phuong_tien', 'pt');
+  $query->fields('pt', array('nid', 'hoat_dong'));
+  $query->condition('pt.bks', $value);
+  if ($exclude_nid !== NULL) {
+    $query->condition('pt.nid', $exclude_nid, '<>');
+  }
+  $query->range(0, 1);
+  $exists = $query->execute()->fetchObject();
+  if ($exists && $exists->hoat_dong) {
+    return _phuong_tien_fail('Biển kiểm soát "' . $value . '" đã tồn tại');
+  }
+  return NULL;
+}
+
 /*******************************************************************************
  * REST: COLLECTION — GET /api/phuong-tien, POST /api/phuong-tien
  ******************************************************************************/
@@ -183,21 +187,20 @@ function phuong_tien_rest_collection() {
 
 function _phuong_tien_rest_list() {
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = 20;
+  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
   $offset = ($page - 1) * $limit;
 
   $query = db_select('phuong_tien', 'pt');
   $query->fields('pt');
 
-  if (isset($_GET['hoat_dong'])) {
-    $query->condition('pt.hoat_dong', (int) $_GET['hoat_dong']);
-  }
+  $query->condition('pt.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
     $or = db_or()
       ->condition('pt.bks', $like, 'LIKE')
       ->condition('pt.ma_tai_san', $like, 'LIKE')
-      ->condition('pt.hang_xe', $like, 'LIKE');
+      ->condition('pt.hang_xe', $like, 'LIKE')
+      ->condition('pt.loai_phuong_tien', $like, 'LIKE');
     $query->condition($or);
   }
   if (!empty($_GET['loai_phuong_tien'])) {
@@ -218,6 +221,7 @@ function _phuong_tien_rest_list() {
     'total' => (int) $total,
     'current_page' => $total_pages > 0 ? $page : 0,
     'total_pages' => $total_pages,
+    'limit' => $limit,
   ));
 }
 
@@ -232,16 +236,19 @@ function _phuong_tien_rest_create() {
     return _phuong_tien_fail('Biển kiểm soát (bks) bắt buộc');
   }
 
+  $dup = _phuong_tien_check_unique($input);
+  if ($dup) return $dup;
+
   $transaction = db_transaction();
   try {
     $nid = db_insert('phuong_tien')
       ->fields(array(
         'bks' => $input['bks'],
-        'ma_tai_san' => isset($input['ma_tai_san']) ? $input['ma_tai_san'] : '',
+        'ma_tai_san' => isset($input['ma_tai_san']) && trim($input['ma_tai_san']) !== '' ? $input['ma_tai_san'] : NULL,
         'loai_phuong_tien' => isset($input['loai_phuong_tien']) ? $input['loai_phuong_tien'] : '',
         'hang_xe' => isset($input['hang_xe']) ? $input['hang_xe'] : '',
-        'nam_san_xuat' => isset($input['nam_san_xuat']) ? (int) $input['nam_san_xuat'] : NULL,
-        'gia_mua' => isset($input['gia_mua']) ? $input['gia_mua'] : NULL,
+        'nam_san_xuat' => isset($input['nam_san_xuat']) && $input['nam_san_xuat'] !== '' ? (int) $input['nam_san_xuat'] : NULL,
+        'gia_mua' => isset($input['gia_mua']) && $input['gia_mua'] !== '' ? $input['gia_mua'] : NULL,
         'ngay_mua' => isset($input['ngay_mua']) ? $input['ngay_mua'] : '',
         'so_dang_kiem' => isset($input['so_dang_kiem']) ? $input['so_dang_kiem'] : '',
         'han_dang_kiem' => isset($input['han_dang_kiem']) ? $input['han_dang_kiem'] : '',
@@ -269,9 +276,6 @@ function _phuong_tien_rest_create() {
   catch (Exception $e) {
     $transaction->rollback();
     watchdog('phuong_tien', 'Lỗi tạo phương tiện: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    if (strpos($e->getMessage(), 'Duplicate entry') !== FALSE) {
-      return _phuong_tien_fail('Biển kiểm soát "' . $input['bks'] . '" đã tồn tại');
-    }
     return _phuong_tien_error('Lỗi hệ thống khi tạo phương tiện');
   }
 }
@@ -311,23 +315,36 @@ function _phuong_tien_rest_update($id) {
     return _phuong_tien_unauthorized('Bạn không có quyền sửa phương tiện');
   }
 
-  $existing = db_query("SELECT nid FROM {phuong_tien} WHERE nid = :id", array(':id' => $id))->fetchField();
+  $existing = db_query("SELECT nid FROM {phuong_tien} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
   if (!$existing) {
     return _phuong_tien_not_found('Phương tiện không tồn tại');
   }
 
   $input = _phuong_tien_input();
+
+  if (empty($input['bks'])) {
+    return _phuong_tien_fail('Biển kiểm soát (bks) bắt buộc');
+  }
+
+  $dup = _phuong_tien_check_unique($input, $id);
+  if ($dup) return $dup;
+
   $fields = array(
     'bks', 'ma_tai_san', 'loai_phuong_tien', 'hang_xe', 'nam_san_xuat',
     'gia_mua', 'ngay_mua', 'so_dang_kiem', 'han_dang_kiem',
     'so_bao_hiem_than_vo', 'han_bao_hiem_than_vo', 'so_bao_hiem_tnds',
     'han_bao_hiem_tnds', 'ngay_phu_hieu', 'han_phu_hieu', 'hoat_dong',
   );
+  $nullable = array('ma_tai_san', 'nam_san_xuat', 'gia_mua');
 
   $update = array('changed' => date('Y-m-d H:i:s', REQUEST_TIME));
   foreach ($fields as $f) {
     if (array_key_exists($f, $input)) {
-      $update[$f] = $input[$f];
+      $val = $input[$f];
+      if (in_array($f, $nullable) && is_string($val) && trim($val) === '') {
+        $val = NULL;
+      }
+      $update[$f] = $val;
     }
   }
 
@@ -347,9 +364,6 @@ function _phuong_tien_rest_update($id) {
   catch (Exception $e) {
     $transaction->rollback();
     watchdog('phuong_tien', 'Lỗi cập nhật phương tiện #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    if (strpos($e->getMessage(), 'Duplicate entry') !== FALSE) {
-      return _phuong_tien_fail('Biển kiểm soát "' . $input['bks'] . '" đã tồn tại');
-    }
     return _phuong_tien_error('Lỗi hệ thống khi cập nhật phương tiện');
   }
 }
@@ -359,7 +373,7 @@ function _phuong_tien_rest_delete($id) {
     return _phuong_tien_unauthorized('Bạn không có quyền xoá phương tiện');
   }
 
-  $existing = db_query("SELECT nid, bks FROM {phuong_tien} WHERE nid = :id", array(':id' => $id))->fetch();
+  $existing = db_query("SELECT nid, bks FROM {phuong_tien} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
     return _phuong_tien_not_found('Phương tiện không tồn tại');
   }
@@ -402,31 +416,4 @@ function phuong_tien_page_list() {
   )), 'setting');
 
   return theme('phuong_tien_list_page');
-}
-
-function phuong_tien_page_form($nid = NULL) {
-  drupal_add_css(drupal_get_path('module', 'phuong_tien') . '/assets/css/phuong_tien.css');
-  drupal_add_js(drupal_get_path('module', 'phuong_tien') . '/assets/js/phuong_tien.js');
-
-  $is_edit = FALSE;
-  $data = NULL;
-
-  if ($nid) {
-    $nid = (int) $nid;
-    $row = db_query("SELECT * FROM {phuong_tien} WHERE nid = :id", array(':id' => $nid))->fetch();
-    if (!$row) {
-      drupal_not_found();
-      return;
-    }
-    $data = $row;
-    $is_edit = TRUE;
-  }
-
-  drupal_add_js(array('phuong_tien' => array(
-    'nid' => $nid,
-    'is_edit' => $is_edit,
-    'data' => $data,
-  )), 'setting');
-
-  return theme('phuong_tien_form_page', array('nid' => $nid));
 }

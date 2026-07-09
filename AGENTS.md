@@ -245,17 +245,20 @@ $items['<entity>'] = array(
 ```
 
 ### Template (lai-xe-list.tpl.php)
-- Card header: title + buttons (Thêm, Reload).
-- Card body: search row + table + pagination.
-- Modal: form inside modal-lg/modal-xl (tuỳ số lượng field).
-- View modal: readonly fields hoặc table.
+- Card header: title (buttons chuyển xuống cùng hàng với search).
+- Card body: search + buttons (col-md-8 + col-md-4 text-end), table, pagination.
+- Modal: `modal-dialog-centered modal-xl`, `modal-body` có `position:relative`.
+- Loading overlay trong modal: `position:absolute;inset:0;z-index:10;background:rgba(255,255,255,0.85)`.
+- View modal: readonly fields.
 - Toast: dùng Notyf (Vuexy built-in).
-- JS: load list on page load, modal open = fetch data / reset form.
+- JS: load list on page load, modal mở ngay với loading overlay, populate sau khi API trả về.
 
 ### Date picker — dd/MM/yyyy
 - Dùng **Flatpickr** (Vuexy built-in: `vendor/libs/flatpickr/`).
 - Input class: `flatpickr-date`.
-- Format: `d/m/Y`.
+- Format: `d/m/Y`. Cấu hình: `{ dateFormat: 'd/m/Y', allowInput: true, static: true }`.
+- `static: true` để dùng position:fixed (tránh bị modal che).
+- CSS override: `.flatpickr-calendar { z-index: 99999 !important; }` (cho modal).
 - Date input cho phép gõ tay + tự thêm '/' (Cleave-zen `date-mask`).
 
 ### Input mask — Cleave-zen
@@ -291,6 +294,7 @@ notyf.error('Lỗi');
 ### Pagination
 - Dùng Bootstrap pagination (`nav > ul.pagination > li.page-item`).
 - JS render từ API response (`current_page`, `total_pages`).
+- Luôn hiển thị kể cả 1 trang (cho phép jump input).
 
 ### Search
 - Ô input tìm kiếm + button.
@@ -299,6 +303,18 @@ notyf.error('Lỗi');
 ### Animation loading
 - Spinner trong `<tbody>` khi load list.
 - Disable button khi submit form.
+
+### Modal loading overlay
+- Modal mở ngay (không đợi API), loading overlay phủ form.
+- `showLoading(true)`: hiện overlay, form vẫn render phía dưới.
+- API trả về → `showLoading(false)` + `populateForm()` + re-init date pickers/masks.
+
+### API error handler (JS)
+- Dùng `apiMsg(jqXHR)` helper parse `responseText` JSON lấy `message`.
+- Không dùng message cứng "Lỗi kết nối server".
+
+### Submit on Enter
+- Thêm `keydown` listener trên form, nếu `e.which === 13` thì trigger click nút Lưu.
 
 ### Naming convention
 - `nid` là primary key, auto-increment (serial).

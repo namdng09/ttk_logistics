@@ -103,9 +103,6 @@ function phuong_tien_schema() {
       ),
     ),
     'primary key' => array('nid'),
-    'unique keys' => array(
-      'bks' => array('bks'),
-    ),
     'indexes' => array(
       'hoat_dong' => array('hoat_dong'),
       'loai_phuong_tien' => array('loai_phuong_tien'),
@@ -125,4 +122,11 @@ function phuong_tien_update_7002() {
 
 function phuong_tien_update_7003() {
   db_query("ALTER TABLE {phuong_tien} MODIFY COLUMN hoat_dong TINYINT NOT NULL DEFAULT 1");
+}
+
+function phuong_tien_update_7004() {
+  $check = db_query("SHOW INDEX FROM {phuong_tien} WHERE Key_name = 'bks'")->fetch();
+  if ($check) {
+    db_query("ALTER TABLE {phuong_tien} DROP INDEX `bks`");
+  }
 }

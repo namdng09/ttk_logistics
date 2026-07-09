@@ -1,27 +1,58 @@
 <div class="card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h4 class="card-title">Danh sách phương tiện</h4>
-    <a href="/phuong-tien/them-moi" class="btn btn-primary">
-      <i class="ti tabler-plus me-1"></i>Thêm phương tiện
-    </a>
   </div>
+
   <div class="card-body">
+    <!-- Search + Actions -->
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <div class="input-group">
+          <input type="text" class="form-control" id="search-phuong-tien" placeholder="Tìm kiếm (BKS, mã TS, hãng xe, loại PT)...">
+          <button class="btn btn-primary" type="button" id="btn-search-phuong-tien">
+            <i class="ti tabler-search"></i> Tìm
+          </button>
+        </div>
+      </div>
+      <div class="col-md-8 text-end">
+        <div class="d-flex gap-2 justify-content-md-end">
+          <button type="button" class="btn btn-primary btn-them-phuong-tien" data-bs-toggle="modal" data-bs-target="#phuong-tien-modal">
+            <i class="ti tabler-plus me-1"></i>Thêm phương tiện
+          </button>
+          <button type="button" class="btn btn-label-secondary btn-reload-phuong-tien">
+            <i class="ti tabler-refresh me-1"></i>Reload
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
     <div class="table-responsive">
       <table id="table-phuong-tien" class="table table-bordered table-hover">
-        <thead>
+        <thead class="table-light">
           <tr>
-            <th>#</th>
-            <th>BKS</th>
-            <th>Loại</th>
+            <th style="width:60px">Chức năng</th>
+            <th style="width:50px">#</th>
+            <th>Biển kiểm soát</th>
+            <th>Mã Tài sản</th>
+            <th>Loại phương tiện</th>
             <th>Hãng xe</th>
-            <th>Năm SX</th>
-            <th>Trạng thái</th>
-            <th>Hành động</th>
+            <th>Năm sản xuất</th>
+            <th>Giá mua</th>
+            <th>Ngày mua</th>
+            <th>Số đăng kiểm</th>
+            <th>Hạn đăng kiểm</th>
+            <th>Số BH thân vỏ</th>
+            <th>Hạn BH thân vỏ</th>
+            <th>Số BH TNDS</th>
+            <th>Hạn BH TNDS</th>
+            <th>Ngày phù hiệu</th>
+            <th>Hạn phù hiệu</th>
           </tr>
         </thead>
         <tbody id="table-phuong-tien-tbody">
           <tr id="loading-row">
-            <td colspan="7" class="text-center py-4">
+            <td colspan="17" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -29,6 +60,116 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination-phuong-tien" class="mt-3" style="display:none;">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="text-muted small" id="pagination-info"></div>
+        <nav>
+          <ul class="pagination justify-content-center mb-0"></ul>
+        </nav>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-muted small">Trang</span>
+          <input type="text" class="form-control form-control-sm" id="pagination-jump" style="width:60px;text-align:center;" inputmode="numeric">
+          <span class="text-muted small" id="pagination-total-pages"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create/Edit/View Modal -->
+<div class="modal fade" id="phuong-tien-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <form id="form-phuong-tien" class="needs-validation" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title" id="phuong-tien-modal-title">Thêm phương tiện</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" style="position:relative;">
+          <div id="modal-loading" class="text-center py-4" style="position:absolute;inset:0;display:none;background:rgba(255,255,255,0.85);z-index:10;border-radius:0.375rem;">
+            <div class="spinner-border text-primary" style="position:sticky;top:50%;margin-top:6rem;" role="status">
+              <span class="visually-hidden">Đang tải...</span>
+            </div>
+          </div>
+          <input type="hidden" name="nid" value="">
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Biển kiểm soát <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="bks" required placeholder="VD: 15H12345">
+              <div class="invalid-feedback">Vui lòng nhập biển kiểm soát</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Mã tài sản</label>
+              <input type="text" class="form-control" name="ma_tai_san" placeholder="VD: HMN">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Loại phương tiện</label>
+              <input type="text" class="form-control" name="loai_phuong_tien" placeholder="VD: Mooc, Container...">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Hãng xe</label>
+              <input type="text" class="form-control" name="hang_xe" placeholder="VD: Honda, Hyundai...">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Năm sản xuất</label>
+              <input type="text" class="form-control" name="nam_san_xuat" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Giá mua</label>
+              <div class="input-group">
+                <span class="input-group-text">đ</span>
+                <input type="text" class="form-control money-mask" name="gia_mua" placeholder="0">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Ngày mua</label>
+              <input type="text" class="form-control flatpickr-date date-mask" name="ngay_mua" placeholder="dd/MM/yyyy">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Số đăng kiểm</label>
+              <input type="text" class="form-control" name="so_dang_kiem" placeholder="Nhập số đăng kiểm">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Hạn đăng kiểm</label>
+              <input type="text" class="form-control flatpickr-date date-mask" name="han_dang_kiem" placeholder="dd/MM/yyyy">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Số BH thân vỏ</label>
+              <input type="text" class="form-control" name="so_bao_hiem_than_vo" placeholder="Nhập số BH">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Hạn BH thân vỏ</label>
+              <input type="text" class="form-control flatpickr-date date-mask" name="han_bao_hiem_than_vo" placeholder="dd/MM/yyyy">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Số BH TNDS</label>
+              <input type="text" class="form-control" name="so_bao_hiem_tnds" placeholder="Nhập số BH">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Hạn BH TNDS</label>
+              <input type="text" class="form-control flatpickr-date date-mask" name="han_bao_hiem_tnds" placeholder="dd/MM/yyyy">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Ngày phù hiệu</label>
+              <input type="text" class="form-control flatpickr-date date-mask" name="ngay_phu_hieu" placeholder="dd/MM/yyyy">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Hạn phù hiệu</label>
+              <input type="text" class="form-control flatpickr-date date-mask" name="han_phu_hieu" placeholder="dd/MM/yyyy">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+          <button type="button" class="btn btn-primary btn-luu-phuong-tien">
+            <i class="ti tabler-device-floppy me-1"></i> Lưu
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
