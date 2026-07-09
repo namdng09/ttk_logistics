@@ -1,24 +1,26 @@
 <div class="card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h4 class="card-title">Danh sách lái xe</h4>
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-primary btn-them-lai-xe" data-bs-toggle="modal" data-bs-target="#lai-xe-modal">
-        <i class="ti tabler-plus me-1"></i>Thêm lái xe
-      </button>
-      <button type="button" class="btn btn-label-secondary btn-reload-lai-xe">
-        <i class="ti tabler-refresh me-1"></i>Reload
-      </button>
-    </div>
   </div>
 
   <div class="card-body">
-    <!-- Search -->
+    <!-- Search + Actions -->
     <div class="row mb-3">
       <div class="col-md-4">
         <div class="input-group">
-          <input type="text" class="form-control" id="search-lai-xe" placeholder="Tìm kiếm (tên, mã NV, SDT, CCCD)...">
+          <input type="text" class="form-control" id="search-lai-xe" placeholder="Tìm kiếm (Tên, mã NV, SDT, CCCD)...">
           <button class="btn btn-primary" type="button" id="btn-search-lai-xe">
             <i class="ti tabler-search"></i> Tìm
+          </button>
+        </div>
+      </div>
+      <div class="col-md-8 text-end">
+        <div class="d-flex gap-2 justify-content-md-end">
+          <button type="button" class="btn btn-primary btn-them-lai-xe" data-bs-toggle="modal" data-bs-target="#lai-xe-modal">
+            <i class="ti tabler-plus me-1"></i>Thêm lái xe
+          </button>
+          <button type="button" class="btn btn-label-secondary btn-reload-lai-xe">
+            <i class="ti tabler-refresh me-1"></i>Reload
           </button>
         </div>
       </div>
@@ -77,7 +79,7 @@
 
 <!-- Create/Edit Modal -->
 <div class="modal fade" id="lai-xe-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content">
       <form id="form-lai-xe" class="needs-validation" novalidate>
         <div class="modal-header">
