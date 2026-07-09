@@ -131,3 +131,14 @@ function lai_xe_update_7003() {
     ->execute();
   db_query("ALTER TABLE {lai_xe} MODIFY COLUMN hoat_dong TINYINT NOT NULL DEFAULT 1");
 }
+
+function lai_xe_update_7005() {
+  $unique_keys = array('ma_nhan_vien', 'sdt', 'cccd', 'so_bang_lai', 'so_tk_ngan_hang');
+  foreach ($unique_keys as $key) {
+    $index_name = $key;
+    $check = db_query("SHOW INDEX FROM {lai_xe} WHERE Key_name = :name", array(':name' => $index_name))->fetch();
+    if ($check) {
+      db_query("ALTER TABLE {lai_xe} DROP INDEX `$index_name`");
+    }
+  }
+}

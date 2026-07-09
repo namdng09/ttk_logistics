@@ -145,7 +145,9 @@ function _lai_xe_method_not_allowed($allowed) {
 }
 
 /**
- * Check unique fields, skip empty values and soft-deleted records.
+ * Check unique fields, skip empty values.
+ * Returns error only if duplicate exists AND is active (hoat_dong = 1).
+ * Soft-deleted (hoat_dong = 0) duplicates are allowed to be reused.
  */
 function _lai_xe_check_unique($input, $exclude_nid = NULL) {
   $labels = array(
@@ -162,18 +164,18 @@ function _lai_xe_check_unique($input, $exclude_nid = NULL) {
     if ($value === '') continue;
 
     $query = db_select('lai_xe', 'lx');
-    $query->fields('lx', array('nid'));
+    $query->fields('lx', array('nid', 'hoat_dong'));
     $query->condition('lx.' . $field, $value);
-    $query->condition('lx.hoat_dong', 1);
     if ($exclude_nid !== NULL) {
       $query->condition('lx.nid', $exclude_nid, '<>');
     }
-    $exists = $query->execute()->fetchField();
-    if ($exists) {
+    $query->range(0, 1);
+    $exists = $query->execute()->fetchObject();
+    if ($exists && $exists->hoat_dong) {
       return _lai_xe_fail($label . ' "' . $value . '" đã tồn tại');
     }
   }
-  return NULL; // no duplicate
+  return NULL; // no duplicate, or only soft-deleted duplicates
 }
 
 /*******************************************************************************
@@ -263,17 +265,17 @@ function _lai_xe_rest_create() {
     $nid = db_insert('lai_xe')
       ->fields(array(
         'ten' => $input['ten'],
-        'ma_nhan_vien' => isset($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : '',
-        'sdt' => isset($input['sdt']) ? $input['sdt'] : '',
-        'cccd' => isset($input['cccd']) ? $input['cccd'] : '',
+        'ma_nhan_vien' => (isset($input['ma_nhan_vien']) && trim($input['ma_nhan_vien']) !== '') ? $input['ma_nhan_vien'] : NULL,
+        'sdt' => (isset($input['sdt']) && trim($input['sdt']) !== '') ? $input['sdt'] : NULL,
+        'cccd' => (isset($input['cccd']) && trim($input['cccd']) !== '') ? $input['cccd'] : NULL,
         'ngay_cap' => isset($input['ngay_cap']) ? $input['ngay_cap'] : '',
         'noi_cap' => isset($input['noi_cap']) ? $input['noi_cap'] : '',
         'han_cccd' => isset($input['han_cccd']) ? $input['han_cccd'] : '',
-        'so_bang_lai' => isset($input['so_bang_lai']) ? $input['so_bang_lai'] : '',
+        'so_bang_lai' => (isset($input['so_bang_lai']) && trim($input['so_bang_lai']) !== '') ? $input['so_bang_lai'] : NULL,
         'loai_bang_lai' => isset($input['loai_bang_lai']) ? $input['loai_bang_lai'] : '',
         'han_bang_lai' => isset($input['han_bang_lai']) ? $input['han_bang_lai'] : '',
         'ngay_nhan_viec' => isset($input['ngay_nhan_viec']) ? $input['ngay_nhan_viec'] : '',
-        'so_tk_ngan_hang' => isset($input['so_tk_ngan_hang']) ? $input['so_tk_ngan_hang'] : '',
+        'so_tk_ngan_hang' => (isset($input['so_tk_ngan_hang']) && trim($input['so_tk_ngan_hang']) !== '') ? $input['so_tk_ngan_hang'] : NULL,
         'ngan_hang' => isset($input['ngan_hang']) ? $input['ngan_hang'] : '',
         'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
         'created' => date('Y-m-d H:i:s', REQUEST_TIME),
@@ -345,6 +347,7 @@ function _lai_xe_rest_update($id) {
   $dup = _lai_xe_check_unique($input, $id);
   if ($dup) return $dup;
 
+  $unique_fields = array('ma_nhan_vien', 'sdt', 'cccd', 'so_bang_lai', 'so_tk_ngan_hang');
   $fields = array(
     'ten', 'ma_nhan_vien', 'sdt', 'cccd', 'ngay_cap', 'noi_cap',
     'han_cccd', 'so_bang_lai', 'loai_bang_lai', 'han_bang_lai',
@@ -354,7 +357,11 @@ function _lai_xe_rest_update($id) {
   $update = array('changed' => date('Y-m-d H:i:s', REQUEST_TIME));
   foreach ($fields as $f) {
     if (array_key_exists($f, $input)) {
-      $update[$f] = $input[$f];
+      $val = $input[$f];
+      if (in_array($f, $unique_fields) && is_string($val) && trim($val) === '') {
+        $val = NULL;
+      }
+      $update[$f] = $val;
     }
   }
 

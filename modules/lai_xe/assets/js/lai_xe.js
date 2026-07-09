@@ -48,6 +48,15 @@
       }
     });
 
+    // Enter key submit
+    doc.getElementById('form-lai-xe').addEventListener('keydown', function (e) {
+      if (e.which === 13 && !e.shiftKey) {
+        e.preventDefault();
+        var btn = doc.querySelector('.btn-luu-lai-xe');
+        if (btn && !btn.disabled) btn.click();
+      }
+    });
+
     // Reload
     var reloadBtn = doc.querySelector('.btn-reload-lai-xe');
     if (reloadBtn) {
