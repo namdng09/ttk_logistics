@@ -18,7 +18,7 @@
   function loadList() {
     $.ajax({
       url: '/api/phuong-tien',
-      method: 'GET',
+      type: 'GET',
       dataType: 'json',
       success: function (res) {
         $('#loading-row').remove();
@@ -53,9 +53,12 @@
           );
         });
       },
-      error: function () {
+      error: function (jqXHR) {
         $('#loading-row').remove();
         $('#table-phuong-tien-tbody').append('<tr><td colspan="7" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        var msg = 'Lỗi kết nối server';
+        try { var r = JSON.parse(jqXHR.responseText); if (r && r.message) msg = r.message; } catch (e) {}
+        if (typeof notyf !== 'undefined') notyf.error(msg);
       }
     });
   }
@@ -79,13 +82,13 @@
       $('#form-phuong-tien input[name="ngay_phu_hieu"]').val(data.ngay_phu_hieu);
       $('#form-phuong-tien input[name="han_phu_hieu"]').val(data.han_phu_hieu);
       if (data.hoat_dong == 1) {
-        $('#form-phuong-tien input[name="hoat_dong"]').prop('checked', true);
+        $('#form-phuong-tien input[name="hoat_dong"]').attr('checked', 'checked');
       } else {
-        $('#form-phuong-tien input[name="hoat_dong"]').prop('checked', false);
+        $('#form-phuong-tien input[name="hoat_dong"]').removeAttr('checked');
       }
     }
 
-    $('#form-phuong-tien').on('submit', function (e) {
+    $('#form-phuong-tien').bind('submit', function (e) {
       e.preventDefault();
 
       var data = {};
@@ -101,7 +104,7 @@
 
       $.ajax({
         url: url,
-        method: method,
+        type: method,
         contentType: 'application/json',
         data: JSON.stringify(data),
         dataType: 'json',
@@ -112,20 +115,22 @@
             alert(res.message || 'Lỗi không xác định');
           }
         },
-        error: function () {
-          alert('Lỗi kết nối server');
+        error: function (jqXHR) {
+          var msg = 'Lỗi kết nối server';
+          try { var r = JSON.parse(jqXHR.responseText); if (r && r.message) msg = r.message; } catch (e) {}
+          if (typeof notyf !== 'undefined') { notyf.error(msg); } else { alert(msg); }
         }
       });
     });
 
-    $(document).on('click', '.btn-delete', function () {
+    $(document).delegate('.btn-delete', 'click', function () {
       if (!confirm('Xác nhận xoá phương tiện này?')) return;
 
       var id = $(this).data('id');
 
       $.ajax({
         url: '/api/phuong-tien/' + id,
-        method: 'DELETE',
+        type: 'DELETE',
         dataType: 'json',
         success: function (res) {
           if (res.status === 'success') {
@@ -134,8 +139,10 @@
             alert(res.message || 'Lỗi không xác định');
           }
         },
-        error: function () {
-          alert('Lỗi kết nối server');
+        error: function (jqXHR) {
+          var msg = 'Lỗi kết nối server';
+          try { var r = JSON.parse(jqXHR.responseText); if (r && r.message) msg = r.message; } catch (e) {}
+          if (typeof notyf !== 'undefined') { notyf.error(msg); } else { alert(msg); }
         }
       });
     });

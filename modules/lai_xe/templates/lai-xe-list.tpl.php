@@ -29,7 +29,8 @@
       <table id="table-lai-xe" class="table table-bordered table-hover">
         <thead class="table-light">
           <tr>
-            <th>#</th>
+            <th style="width:60px">Chức năng</th>
+            <th style="width:50px">#</th>
             <th>Họ tên</th>
             <th>Mã NV</th>
             <th>SĐT</th>
@@ -43,13 +44,11 @@
             <th>Ngày nhận việc</th>
             <th>Số TK</th>
             <th>Ngân hàng</th>
-            <th>Trạng thái</th>
-            <th>Hành động</th>
           </tr>
         </thead>
         <tbody id="table-lai-xe-tbody">
           <tr id="loading-row">
-            <td colspan="16" class="text-center py-4">
+            <td colspan="15" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -60,9 +59,19 @@
     </div>
 
     <!-- Pagination -->
-    <nav id="pagination-lai-xe" class="mt-3" style="display:none;">
-      <ul class="pagination justify-content-center mb-0"></ul>
-    </nav>
+    <div id="pagination-lai-xe" class="mt-3" style="display:none;">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="text-muted small" id="pagination-info"></div>
+        <nav>
+          <ul class="pagination justify-content-center mb-0"></ul>
+        </nav>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-muted small">Trang</span>
+          <input type="text" class="form-control form-control-sm" id="pagination-jump" style="width:60px;text-align:center;" inputmode="numeric">
+          <span class="text-muted small" id="pagination-total-pages"></span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -132,17 +141,11 @@
               <label class="form-label">Ngân hàng</label>
               <input type="text" class="form-control" name="ngan_hang" placeholder="Tên ngân hàng">
             </div>
-            <div class="col-md-4">
-              <div class="form-check mt-4">
-                <input type="checkbox" class="form-check-input" name="hoat_dong" id="hoat-dong-check" value="1">
-                <label class="form-check-label" for="hoat-dong-check">Đang hoạt động</label>
-              </div>
-            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
-          <button type="submit" class="btn btn-primary btn-luu-lai-xe">
+          <button type="button" class="btn btn-primary btn-luu-lai-xe">
             <i class="ti tabler-device-floppy me-1"></i> Lưu
           </button>
         </div>
@@ -151,24 +154,4 @@
   </div>
 </div>
 
-<!-- View Modal -->
-<div class="modal fade" id="lai-xe-view-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Chi tiết lái xe</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="lai-xe-view-body">
-        <div class="text-center py-4">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Đang tải...</span>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
-      </div>
-    </div>
-  </div>
-</div>
+

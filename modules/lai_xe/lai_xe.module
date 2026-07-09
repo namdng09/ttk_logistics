@@ -144,6 +144,38 @@ function _lai_xe_method_not_allowed($allowed) {
   return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
 }
 
+/**
+ * Check unique fields, skip empty values and soft-deleted records.
+ */
+function _lai_xe_check_unique($input, $exclude_nid = NULL) {
+  $labels = array(
+    'ma_nhan_vien' => 'Mã NV',
+    'sdt' => 'SĐT',
+    'cccd' => 'CCCD',
+    'so_bang_lai' => 'Số bằng lái',
+    'so_tk_ngan_hang' => 'Số TK',
+  );
+
+  foreach ($labels as $field => $label) {
+    if (!isset($input[$field])) continue;
+    $value = trim($input[$field]);
+    if ($value === '') continue;
+
+    $query = db_select('lai_xe', 'lx');
+    $query->fields('lx', array('nid'));
+    $query->condition('lx.' . $field, $value);
+    $query->condition('lx.hoat_dong', 1);
+    if ($exclude_nid !== NULL) {
+      $query->condition('lx.nid', $exclude_nid, '<>');
+    }
+    $exists = $query->execute()->fetchField();
+    if ($exists) {
+      return _lai_xe_fail($label . ' "' . $value . '" đã tồn tại');
+    }
+  }
+  return NULL; // no duplicate
+}
+
 /*******************************************************************************
  * REST: COLLECTION — GET /api/lai-xe, POST /api/lai-xe
  ******************************************************************************/
@@ -161,15 +193,13 @@ function lai_xe_rest_collection() {
 
 function _lai_xe_rest_list() {
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = 20;
+  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
   $offset = ($page - 1) * $limit;
 
   $query = db_select('lai_xe', 'lx');
   $query->fields('lx');
 
-  if (isset($_GET['hoat_dong'])) {
-    $query->condition('lx.hoat_dong', (int) $_GET['hoat_dong']);
-  }
+  $query->condition('lx.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
     $or = db_or()
@@ -180,10 +210,26 @@ function _lai_xe_rest_list() {
     $query->condition($or);
   }
 
+  // Sort
+  $sort_by = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'nid';
+  $sort_dir = 'ASC';
+  if ($sort_by[0] === '-') {
+    $sort_dir = 'DESC';
+    $sort_by = substr($sort_by, 1);
+  }
+  $allowed = array('nid', 'ten', 'ma_nhan_vien', 'sdt', 'cccd', 'ngay_cap', 'noi_cap', 'han_cccd', 'so_bang_lai', 'loai_bang_lai', 'han_bang_lai', 'ngay_nhan_viec', 'so_tk_ngan_hang', 'ngan_hang', 'hoat_dong', 'created', 'changed');
+  if (!in_array($sort_by, $allowed)) {
+    $sort_by = 'nid';
+    $sort_dir = 'DESC';
+  }
+  $query->orderBy('lx.' . $sort_by, $sort_dir);
+  if ($sort_by !== 'nid') {
+    $query->orderBy('lx.nid', 'DESC');
+  }
+
   $count = clone $query;
   $total = $count->countQuery()->execute()->fetchField();
 
-  $query->orderBy('lx.nid', 'DESC');
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();
 
@@ -194,6 +240,7 @@ function _lai_xe_rest_list() {
     'total' => (int) $total,
     'current_page' => $total_pages > 0 ? $page : 0,
     'total_pages' => $total_pages,
+    'limit' => $limit,
   ));
 }
 
@@ -207,6 +254,9 @@ function _lai_xe_rest_create() {
   if (empty($input['ten'])) {
     return _lai_xe_fail('Tên lái xe (ten) bắt buộc');
   }
+
+  $dup = _lai_xe_check_unique($input);
+  if ($dup) return $dup;
 
   $transaction = db_transaction();
   try {
@@ -273,7 +323,7 @@ function lai_xe_rest_item($id) {
 }
 
 function _lai_xe_rest_get($id) {
-  $row = db_query("SELECT * FROM {lai_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+  $row = db_query("SELECT * FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$row) {
     return _lai_xe_not_found('Lái xe không tồn tại');
   }
@@ -285,12 +335,16 @@ function _lai_xe_rest_update($id) {
     return _lai_xe_unauthorized('Bạn không có quyền sửa lái xe');
   }
 
-  $existing = db_query("SELECT nid FROM {lai_xe} WHERE nid = :id", array(':id' => $id))->fetchField();
+  $existing = db_query("SELECT nid FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
   if (!$existing) {
     return _lai_xe_not_found('Lái xe không tồn tại');
   }
 
   $input = _lai_xe_input();
+
+  $dup = _lai_xe_check_unique($input, $id);
+  if ($dup) return $dup;
+
   $fields = array(
     'ten', 'ma_nhan_vien', 'sdt', 'cccd', 'ngay_cap', 'noi_cap',
     'han_cccd', 'so_bang_lai', 'loai_bang_lai', 'han_bang_lai',
@@ -332,7 +386,7 @@ function _lai_xe_rest_delete($id) {
     return _lai_xe_unauthorized('Bạn không có quyền xoá lái xe');
   }
 
-  $existing = db_query("SELECT nid, ten FROM {lai_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+  $existing = db_query("SELECT nid, ten FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
     return _lai_xe_not_found('Lái xe không tồn tại');
   }
