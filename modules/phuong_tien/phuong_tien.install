@@ -4,7 +4,7 @@ function phuong_tien_schema() {
   $schema['phuong_tien'] = array(
     'description' => 'Phương tiện vận tải.',
     'fields' => array(
-      'phuong_tien_id' => array(
+      'nid' => array(
         'type' => 'serial',
         'unsigned' => TRUE,
         'not null' => TRUE,
@@ -89,34 +89,26 @@ function phuong_tien_schema() {
         'type' => 'int',
         'size' => 'tiny',
         'not null' => TRUE,
-        'default' => 1,
-      ),
-      'uid' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
+        'default' => 0,
       ),
       'created' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
       ),
       'changed' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
       ),
     ),
-    'primary key' => array('phuong_tien_id'),
+    'primary key' => array('nid'),
     'unique keys' => array(
       'bks' => array('bks'),
     ),
     'indexes' => array(
       'hoat_dong' => array('hoat_dong'),
       'loai_phuong_tien' => array('loai_phuong_tien'),
-      'uid' => array('uid'),
     ),
   );
 
@@ -124,5 +116,9 @@ function phuong_tien_schema() {
 }
 
 function phuong_tien_update_7001() {
+  drupal_install_schema('phuong_tien');
+}
+
+function phuong_tien_update_7002() {
   drupal_install_schema('phuong_tien');
 }

@@ -192,14 +192,17 @@ function loadList() {
 ### Response format
 
 ```json
-// Success
-{ "success": true, "data": { ... } }
+// 2xx — Thành công
+{ "status": "success", "data": { ... } }
 
 // List
-{ "success": true, "data": [...], "total": N, "page": 1, "pages": 1 }
+{ "status": "success", "data": { "items": [...], "total": N, "current_page": 1, "total_pages": 1 } }
 
-// Error
-{ "success": false, "message": "..." }
+// 4xx — Lỗi client (validation, auth, not found)
+{ "status": "fail", "message": "..." }
+
+// 5xx — Lỗi server
+{ "status": "error", "message": "..." }
 ```
 
 ### Request

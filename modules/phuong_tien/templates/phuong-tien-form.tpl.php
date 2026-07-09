@@ -1,6 +1,6 @@
 <div class="card">
   <div class="card-header">
-    <h4 class="card-title"><?php print $phuong_tien_id ? 'Cập nhật' : 'Thêm mới'; ?> phương tiện</h4>
+    <h4 class="card-title"><?php print $nid ? 'Cập nhật' : 'Thêm mới'; ?> phương tiện</h4>
   </div>
   <div class="card-body">
     <form id="form-phuong-tien" class="row g-3">

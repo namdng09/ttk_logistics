@@ -24,20 +24,20 @@
         $('#loading-row').remove();
         var tbody = $('#table-phuong-tien-tbody');
 
-        if (!res.data || res.data.length === 0) {
+        if (res.status !== 'success' || !res.data || !res.data.items || res.data.items.length === 0) {
           tbody.append('<tr><td colspan="7" class="text-center">Không có dữ liệu</td></tr>');
           return;
         }
 
-        $.each(res.data, function (i, item) {
-          var stt = (res.page - 1) * 20 + i + 1;
+        $.each(res.data.items, function (i, item) {
+          var stt = (res.data.current_page - 1) * 20 + i + 1;
           var status = item.hoat_dong == 1
             ? '<span class="badge bg-success">Hoạt động</span>'
             : '<span class="badge bg-secondary">Ngừng</span>';
 
-          var actions = '<a href="/phuong-tien/' + item.phuong_tien_id + '" class="btn btn-sm btn-primary me-1">Sửa</a>';
+          var actions = '<a href="/phuong-tien/' + item.nid + '" class="btn btn-sm btn-primary me-1">Sửa</a>';
           if (Drupal.settings.phuong_tien.permissions.phuong_tien_delete) {
-            actions += '<button class="btn btn-sm btn-danger btn-delete" data-id="' + item.phuong_tien_id + '">Xoá</button>';
+            actions += '<button class="btn btn-sm btn-danger btn-delete" data-id="' + item.nid + '">Xoá</button>';
           }
 
           tbody.append(
@@ -94,10 +94,10 @@
       });
       data.hoat_dong = $('#form-phuong-tien input[name="hoat_dong"]').is(':checked') ? 1 : 0;
 
-      var url = config.phuong_tien_id
-        ? '/api/phuong-tien/' + config.phuong_tien_id
+      var url = config.nid
+        ? '/api/phuong-tien/' + config.nid
         : '/api/phuong-tien';
-      var method = config.phuong_tien_id ? 'PUT' : 'POST';
+      var method = config.nid ? 'PUT' : 'POST';
 
       $.ajax({
         url: url,
@@ -106,7 +106,7 @@
         data: JSON.stringify(data),
         dataType: 'json',
         success: function (res) {
-          if (res.success) {
+          if (res.status === 'success') {
             window.location.href = '/phuong-tien';
           } else {
             alert(res.message || 'Lỗi không xác định');
@@ -128,7 +128,7 @@
         method: 'DELETE',
         dataType: 'json',
         success: function (res) {
-          if (res.success) {
+          if (res.status === 'success') {
             loadList();
           } else {
             alert(res.message || 'Lỗi không xác định');
