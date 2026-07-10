@@ -308,10 +308,11 @@
 
   function formatMoney(n) {
     if (!n) return '';
-    var s = String(n).replace(/[^0-9.-]/g, '');
-    var parts = s.split('.');
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return parts.join(',');
+    var s = String(n).replace(/[^\d.-]/g, '');
+    var num = parseFloat(s);
+    if (isNaN(num)) return '';
+    var intPart = num % 1 === 0 ? String(Math.round(num)) : String(Math.floor(num));
+    return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   }
 
   function buildActions(nid) {
@@ -513,7 +514,7 @@
       });
       $('.money-mask').each(function () {
         if (!this._cleave) {
-          this._cleave = new Cleave(this, { numeral: true, numeralThousandsGroupStyle: 'thousand', numeralPositiveOnly: true });
+          this._cleave = new Cleave(this, { numeral: true, numeralPositiveOnly: true });
         }
       });
     }

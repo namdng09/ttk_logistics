@@ -5,8 +5,8 @@
 
   <div class="card-body">
     <!-- Search + Actions -->
-    <div class="row mb-3">
-      <div class="col-md-4">
+    <div class="row mb-3 align-items-center">
+      <div class="col-12 col-md-4 mb-2 mb-md-0">
         <div class="input-group">
           <input type="text" class="form-control" id="search-lai-xe" placeholder="Tìm kiếm (Tên, mã NV, SDT, CCCD)...">
           <button class="btn btn-primary" type="button" id="btn-search-lai-xe">
@@ -14,8 +14,8 @@
           </button>
         </div>
       </div>
-      <div class="col-md-8 text-end">
-        <div class="d-flex gap-2 justify-content-md-end">
+      <div class="col-12 col-md-8">
+        <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-primary btn-them-lai-xe" data-bs-toggle="modal" data-bs-target="#lai-xe-modal">
             <i class="ti tabler-plus me-1"></i>Thêm lái xe
           </button>
@@ -106,7 +106,7 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">SĐT</label>
-              <input type="tel" class="form-control phone-mask" name="sdt" placeholder="0987654321">
+              <input type="tel" class="form-control phone-mask" name="sdt" placeholder="0987654321" inputmode="numeric">
             </div>
             <div class="col-md-4">
               <label class="form-label">CCCD</label>
