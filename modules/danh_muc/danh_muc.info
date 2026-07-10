@@ -1,5 +1,5 @@
-name = "Quản lý danh mục"
-description = "REST API CRUD cho content type danh_muc (danh mục tổng hợp)."
+name = "Danh mục"
+description = "Quản lý danh mục (Phòng ban, Chức vụ, Địa điểm, Chi phí). RESTful API + Modal CRUD."
 core = 7.x
 package = ANDIN JSC API
 dependencies[] = user_login_api

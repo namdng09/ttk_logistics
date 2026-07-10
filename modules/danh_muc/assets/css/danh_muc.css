@@ -1,0 +1,15 @@
+#table-danh-muc th {
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+#table-danh-muc td {
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+.btn-view-danh-muc i,
+.btn-edit-danh-muc i,
+.btn-delete-danh-muc i {
+  font-size: 1rem;
+}

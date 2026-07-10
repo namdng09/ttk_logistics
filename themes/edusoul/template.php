@@ -153,12 +153,11 @@ function getMainMenuSoft()
                     </li>
 
                     <li class="menu-item">
-                        <a href="/danh-muc/nha-xe" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-building-skyscraper"></i>
-                            <div data-i18n="Kho vật tư">Kho vật tư</div>
+                        <a href="/danh-muc" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-category"></i>
+                            <div data-i18n="Danh mục">Danh mục</div>
                         </a>
                     </li>
-
                     <li class="menu-item">
                         <a href="/phuong-tien" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-truck-delivery"></i>
