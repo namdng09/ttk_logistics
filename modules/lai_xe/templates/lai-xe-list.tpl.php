@@ -19,8 +19,8 @@
           <button type="button" class="btn btn-primary btn-them-lai-xe" data-bs-toggle="modal" data-bs-target="#lai-xe-modal">
             <i class="ti tabler-plus me-1"></i>Thêm lái xe
           </button>
-          <button type="button" class="btn btn-label-secondary btn-reload-lai-xe">
-            <i class="ti tabler-refresh me-1"></i>Reload
+          <button type="button" class="btn btn-icon btn-label-secondary btn-reload-lai-xe">
+            <i class="ti tabler-refresh"></i>
           </button>
         </div>
       </div>

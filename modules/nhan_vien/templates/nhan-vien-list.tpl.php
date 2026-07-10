@@ -32,7 +32,7 @@
             <i class="ti tabler-plus me-1"></i>Thêm
           </button>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-nhan-vien">
-            <i class="ti tabler-refresh me-1"></i>
+            <i class="ti tabler-refresh"></i>
           </button>
         </div>
       </div>

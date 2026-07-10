@@ -28,8 +28,8 @@
           <button type="button" class="btn btn-primary btn-them-danh-muc" data-bs-toggle="modal" data-bs-target="#danh-muc-modal">
             <i class="ti tabler-plus me-1"></i>Thêm danh mục
           </button>
-          <button type="button" class="btn btn-label-secondary btn-reload-danh-muc">
-            <i class="ti tabler-refresh me-1"></i>Reload
+          <button type="button" class="btn btn-icon btn-label-secondary btn-reload-danh-muc">
+            <i class="ti tabler-refresh"></i>
           </button>
         </div>
       </div>

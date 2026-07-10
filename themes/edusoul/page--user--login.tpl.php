@@ -112,7 +112,7 @@
                       </svg>
                     </span>
                   </span>
-              <span class="app-brand-text demo text-heading fw-bold">Trung Nguyên Trucking</span>
+              <span class="app-brand-text demo text-heading fw-bold">Tân Trường Khoa Logistics</span>
             </a>
           </div>
           <!-- /Logo -->

@@ -19,8 +19,8 @@
           <button type="button" class="btn btn-primary btn-them-phuong-tien" data-bs-toggle="modal" data-bs-target="#phuong-tien-modal">
             <i class="ti tabler-plus me-1"></i>Thêm phương tiện
           </button>
-          <button type="button" class="btn btn-label-secondary btn-reload-phuong-tien">
-            <i class="ti tabler-refresh me-1"></i>Reload
+          <button type="button" class="btn btn-icon btn-label-secondary btn-reload-phuong-tien">
+            <i class="ti tabler-refresh"></i>
           </button>
         </div>
       </div>
