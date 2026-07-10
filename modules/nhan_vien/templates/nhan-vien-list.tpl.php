@@ -167,11 +167,15 @@
               <div class="invalid-feedback">Vui lòng chọn vai trò</div>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Trạng thái</label>
-              <select class="form-select" name="trang_thai">
-                <option value="1">Hoạt động</option>
-                <option value="0">Khoá</option>
-              </select>
+                <label class="switch switch-success">
+                  <input type="checkbox" class="switch-input" id="switch-trang-thai" checked>
+                  <span class="switch-toggle-slider">
+                    <span class="switch-on"><i class="icon-base ti tabler-check"></i></span>
+                    <span class="switch-off"><i class="icon-base ti tabler-x"></i></span>
+                  </span>
+                  <span class="switch-label" id="switch-trang-thai-label">Hoạt động</span>
+                </label>
+                <input type="hidden" name="trang_thai" value="1" id="input-trang-thai">
             </div>
           </div>
         </div>

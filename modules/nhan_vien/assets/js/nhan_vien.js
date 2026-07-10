@@ -65,6 +65,17 @@
       loadList();
     });
 
+    // Switch trang thai
+    var switchInput = doc.getElementById('switch-trang-thai');
+    if (switchInput) {
+      switchInput.addEventListener('change', function () {
+        var val = this.checked ? '1' : '0';
+        doc.getElementById('input-trang-thai').value = val;
+        var label = doc.getElementById('switch-trang-thai-label');
+        if (label) label.textContent = this.checked ? 'Hoạt động' : 'Khoá';
+      });
+    }
+
     // Enter key submit
     doc.getElementById('form-nhan-vien').addEventListener('keydown', function (e) {
       if (e.which === 13 && !e.shiftKey) {
@@ -288,7 +299,7 @@
       phong_ban: data.phong_ban || '',
       chuc_vu: data.chuc_vu || '',
       role_rid: data.role_rid || '',
-      trang_thai: data.trang_thai
+      trang_thai: document.getElementById('input-trang-thai').value
     };
     if (data.password && data.password !== '') {
       apiData.password = data.password;
@@ -560,6 +571,13 @@
     label.innerHTML = 'Password <span class="text-danger">*</span>';
     var hint = document.getElementById('password-hint');
     if (hint) hint.style.display = 'none';
+    // Reset switch trang thai
+    var sw = document.getElementById('switch-trang-thai');
+    var hiddenVal = document.getElementById('input-trang-thai');
+    if (sw) sw.checked = true;
+    if (hiddenVal) hiddenVal.value = '1';
+    var lbl = document.getElementById('switch-trang-thai-label');
+    if (lbl) lbl.textContent = 'Hoạt động';
     setFormMode('create');
   }
 
@@ -582,8 +600,16 @@
     if (selectCV && d.chuc_vu) selectCV.value = d.chuc_vu;
     var selectRole = document.querySelector('#form-nhan-vien select[name="role_rid"]');
     if (selectRole && d.role_rid) selectRole.value = d.role_rid;
-    var selectStatus = document.querySelector('#form-nhan-vien select[name="trang_thai"]');
-    if (selectStatus) selectStatus.value = d.status;
+    // Switch trang thai
+    var sw = document.getElementById('switch-trang-thai');
+    var hiddenVal = document.getElementById('input-trang-thai');
+    if (sw && hiddenVal) {
+      var statusVal = d.status != null ? d.status : 1;
+      sw.checked = statusVal == 1;
+      hiddenVal.value = statusVal == 1 ? '1' : '0';
+      var lbl = document.getElementById('switch-trang-thai-label');
+      if (lbl) lbl.textContent = statusVal == 1 ? 'Hoạt động' : 'Khoá';
+    }
   }
 
   function initDatePickers() {

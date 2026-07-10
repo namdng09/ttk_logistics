@@ -84,33 +84,21 @@ function getMainMenuSoft()
                     </li>
 
                      <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="Quản lý kho">Quản lý kho</span>
+                        <span class="menu-header-text" data-i18n="Hệ Thống">Hệ Thống</span>
                     </li>
-                     <li class="menu-item">
-                        <a href="/trucking-nhap" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-package-import"></i>
-                            <div data-i18n="Vật tư">Vật tư</div>
+                    <li class="menu-item">
+                        <a href="/nhan-vien" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-user-cog"></i>
+                            <div data-i18n="Nhân viên">Nhân viên</div>
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="/trucking-nhap" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-package-import"></i>
-                            <div data-i18n="Nhập vật tư">Nhập vật tư</div>
+                        <a href="/khach-hang" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-users"></i>
+                            <div data-i18n="Khách hàng">Khách hàng</div>
                         </a>
                     </li>
-                    <li class="menu-item">
-                        <a href="/trucking-nhap" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-package-import"></i>
-                            <div data-i18n="Tồn kho ngày">Tồn kho ngày</div>
-                        </a>
-                    </li>
-                     <li class="menu-item">
-                        <a href="/trucking-nhap-chua-tra" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-brand-speedtest"></i>
-                            <div data-i18n="Tồn kho tháng">Tồn kho tháng</div>
-                        </a>
-                    </li>
-                    
+
                    <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="Nhập xuất kho">Nhập xuất kho</span>
                     </li> 
@@ -156,18 +144,6 @@ function getMainMenuSoft()
                         <a href="/danh-muc" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-category"></i>
                             <div data-i18n="Danh mục">Danh mục</div>
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="/nhan-vien" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-user-cog"></i>
-                            <div data-i18n="Nhân viên">Nhân viên</div>
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="/khach-hang" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-truck-delivery"></i>
-                            <div data-i18n="Bên thứ 3">Bên thứ 3</div>
                         </a>
                     </li>
                     <li class="menu-item">
