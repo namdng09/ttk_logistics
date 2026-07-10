@@ -116,13 +116,13 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">Năm sản xuất</label>
-              <input type="text" class="form-control" name="nam_san_xuat" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <input type="text" class="form-control" name="nam_san_xuat" placeholder="2026" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
             </div>
             <div class="col-md-4">
               <label class="form-label">Giá mua</label>
               <div class="input-group">
                 <span class="input-group-text">đ</span>
-                <input type="text" class="form-control money-mask" name="gia_mua" placeholder="0">
+                <input type="text" class="form-control money-mask" name="gia_mua" placeholder="1.000.000">
               </div>
             </div>
             <div class="col-md-4">

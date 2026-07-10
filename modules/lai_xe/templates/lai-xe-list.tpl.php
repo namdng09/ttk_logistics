@@ -106,11 +106,11 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">SĐT</label>
-              <input type="tel" class="form-control phone-mask" name="sdt" placeholder="0">
+              <input type="tel" class="form-control phone-mask" name="sdt" placeholder="0987654321">
             </div>
             <div class="col-md-4">
               <label class="form-label">CCCD</label>
-              <input type="text" class="form-control" name="cccd" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <input type="text" class="form-control" name="cccd" placeholder="Nhập CCCD" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
             </div>
             <div class="col-md-4">
               <label class="form-label">Ngày cấp</label>
