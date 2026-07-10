@@ -117,15 +117,8 @@
               <input type="text" class="form-control" name="cccd_mst" placeholder="0201234567">
             </div>
             <div class="col-md-6">
-              <label class="form-label" for="select2PhanLoai">Phân loại <span class="text-danger">*</span></label>
-              <select id="select2PhanLoai" class="select2 form-select" name="phan_loai[]" multiple data-placeholder="Chọn phân loại">
-                <option value="Doanh nghiệp">Doanh nghiệp</option>
-                <option value="Cá nhân">Cá nhân</option>
-                <option value="Khách hàng">Khách hàng</option>
-                <option value="Nhà cung cấp">Nhà cung cấp</option>
-                <option value="Đối tác">Đối tác</option>
-                <option value="Khác">Khác</option>
-              </select>
+              <label class="form-label">Phân loại <span class="text-danger">*</span></label>
+              <input id="tagifyPhanLoai" class="form-control" name="phan_loai_tags" placeholder="Chọn phân loại">
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>
             </div>
             <div class="col-md-3">

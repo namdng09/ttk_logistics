@@ -5,6 +5,8 @@
   var currentPage = 1;
   var currentKeyword = '';
   var currentPhanLoai = '';
+  var tagifyPhanLoai = null;
+  var PHAN_LOAI_LIST = ['Doanh nghiệp', 'Cá nhân', 'Khách hàng', 'Nhà cung cấp', 'Đối tác', 'Khác'];
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -104,6 +106,7 @@
     });
     modal.addEventListener('shown.bs.modal', function () {
       initSelect2();
+      initTagify();
       initDatePickers();
     });
 
@@ -246,6 +249,42 @@
     }
   }
 
+  function initTagify() {
+    var el = document.getElementById('tagifyPhanLoai');
+    if (!el) return;
+    if (tagifyPhanLoai) return;
+    tagifyPhanLoai = new Tagify(el, {
+      whitelist: PHAN_LOAI_LIST,
+      enforceWhitelist: true,
+      maxTags: 10,
+      dropdown: {
+        maxItems: 20,
+        enabled: 0,
+        closeOnSelect: false
+      }
+    });
+  }
+
+  function getTagifyValue() {
+    if (!tagifyPhanLoai) return [];
+    return tagifyPhanLoai.value.map(function (t) { return t.value; });
+  }
+
+  function setTagifyValue(arr) {
+    if (!tagifyPhanLoai) return;
+    tagifyPhanLoai.removeAllTags();
+    if (arr && arr.length) {
+      tagifyPhanLoai.addTags(arr);
+    }
+  }
+
+  function destroyTagify() {
+    if (tagifyPhanLoai) {
+      tagifyPhanLoai.destroy();
+      tagifyPhanLoai = null;
+    }
+  }
+
   function initRepeater() {
     var container = document.getElementById('ngan-hang-repeater');
     if (!container) return;
@@ -300,18 +339,21 @@
 
   function submitForm() {
     var form = document.getElementById('form-khach-hang');
+
+    var phanLoai = getTagifyValue();
+    if (!phanLoai || phanLoai.length === 0) {
+      form.classList.add('was-validated');
+      if (notyf) notyf.error('Vui lòng chọn phân loại');
+      return;
+    }
+
     if (form.checkValidity() === false) {
       form.classList.add('was-validated');
-      // Re-trigger select2 validity
-      var phanLoai = $('select[name="phan_loai[]"]').val();
-      if (!phanLoai || phanLoai.length === 0) {
-        form.classList.add('was-validated');
-      }
       return;
     }
 
     var nid = document.querySelector('#form-khach-hang input[name="nid"]').value;
-    var phanLoaiVal = $('select[name="phan_loai[]"]').val() || [];
+    var phanLoaiVal = getTagifyValue();
     var nvKdVal = $('select[name="nv_kinh_doanh"]').val();
 
     var apiData = {
@@ -519,6 +561,7 @@
           return;
         }
         initSelect2();
+        initTagify();
         initRepeater();
         populateForm(res.data);
       },
@@ -553,6 +596,7 @@
           return;
         }
         initSelect2();
+        initTagify();
         initRepeater();
         populateForm(res.data);
       },
@@ -580,8 +624,10 @@
     }
     if (mode === 'view') {
       $('#form-khach-hang .select2').each(function () { var $t = $(this); if ($t.data('select2')) $t.select2('disable'); });
+      if (tagifyPhanLoai) tagifyPhanLoai.setReadonly(true);
     } else {
       $('#form-khach-hang .select2').each(function () { var $t = $(this); if ($t.data('select2')) $t.select2('enable'); });
+      if (tagifyPhanLoai) tagifyPhanLoai.setReadonly(false);
     }
     var btnThemNh = document.getElementById('btn-them-ngan-hang');
     if (btnThemNh) {
@@ -595,6 +641,7 @@
 
   function resetForm() {
     showLoading(false);
+    destroyTagify();
     $('#form-khach-hang .select2').val(null).trigger('change');
     document.getElementById('form-khach-hang').reset();
     document.querySelector('#form-khach-hang input[name="nid"]').value = '';
@@ -613,9 +660,9 @@
     document.querySelector('#form-khach-hang input[name="dob"]').value = d.dob || '';
     document.querySelector('#form-khach-hang input[name="ghi_chu"]').value = d.ghi_chu || '';
 
-    // Select2 phan_loai
+    // Tagify phan_loai
     if (d.phan_loai_arr && d.phan_loai_arr.length) {
-      $('select[name="phan_loai[]"]').val(d.phan_loai_arr).trigger('change');
+      setTagifyValue(d.phan_loai_arr);
     }
 
     // Select2 nv_kinh_doanh
