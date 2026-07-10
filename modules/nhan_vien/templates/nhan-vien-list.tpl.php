@@ -108,19 +108,19 @@
               <div class="invalid-feedback">Vui lòng nhập họ tên</div>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Mã nhân viên</label>
-              <input type="text" class="form-control" name="ma_nhan_vien" placeholder="NV0001">
-            </div>
-            <div class="col-md-4">
               <label class="form-label">Username <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" name="username" required placeholder="nguyenvanan">
+              <input type="text" class="form-control" name="username" required placeholder="nguyenvanan" autocomplete="off">
               <div class="invalid-feedback">Vui lòng nhập username</div>
             </div>
             <div class="col-md-4">
               <label class="form-label" id="label-password">Password <span class="text-danger">*</span></label>
-              <input type="password" class="form-control" name="password" placeholder="Nhập mật khẩu">
+              <input type="password" class="form-control" name="password" placeholder="Nhập mật khẩu" autocomplete="new-password">
               <div class="invalid-feedback">Vui lòng nhập mật khẩu</div>
               <div class="form-text" id="password-hint" style="display:none;">Để trống nếu không đổi mật khẩu</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Mã nhân viên</label>
+              <input type="text" class="form-control" name="ma_nhan_vien" placeholder="NV0001">
             </div>
             <div class="col-md-4">
               <label class="form-label">Email</label>
@@ -133,7 +133,7 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">CCCD</label>
-              <input type="text" class="form-control" name="cccd" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <input type="text" class="form-control" name="cccd" placeholder="Nhập CCCD" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
             </div>
             <div class="col-md-8">
               <label class="form-label">Địa chỉ</label>
@@ -141,7 +141,7 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">Số TK ngân hàng</label>
-              <input type="text" class="form-control" name="so_tk_ngan_hang" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <input type="text" class="form-control" name="so_tk_ngan_hang" placeholder="Nhập số tài khoản" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
             </div>
             <div class="col-md-8">
               <label class="form-label">Ngân hàng</label>

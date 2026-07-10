@@ -17,3 +17,12 @@
 .flatpickr-calendar {
   z-index: 99999 !important;
 }
+
+/* Override Chrome autofill background */
+#form-nhan-vien input:-webkit-autofill,
+#form-nhan-vien input:-webkit-autofill:hover,
+#form-nhan-vien input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--bs-body-color);
+  -webkit-box-shadow: 0 0 0 1000px var(--bs-body-bg) inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
