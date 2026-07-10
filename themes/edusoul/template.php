@@ -320,9 +320,6 @@ function edusoul_preprocess_html(&$variables)
     // drupal_add_js(drupal_get_path('module', 'excel_import') . '/excel_import.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
     // drupal_add_js(drupal_get_path('module', 'door_to_door') . '/js/door_to_door.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
 
-    if (strpos($current_path, 'khach-hang') !== false) {
-        drupal_add_js(drupal_get_path('module', 'khach_hang') . '/js/khach_hang.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
-    }
     if (strpos($current_path, 'trucking/index') !== false ||
         strpos($current_path, 'trucking-nhap') !== false ||
         strpos($current_path, 'trucking-nhap-chua-tra') !== false) {

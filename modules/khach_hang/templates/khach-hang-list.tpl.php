@@ -113,8 +113,12 @@
               <input type="text" class="form-control" name="ma_kh" placeholder="ABC">
             </div>
             <div class="col-md-3">
-              <label class="form-label">Phân loại <span class="text-danger">*</span></label>
-              <select class="form-select select2-phan-loai" name="phan_loai[]" multiple required>
+              <label class="form-label">MST / CCCD</label>
+              <input type="text" class="form-control" name="cccd_mst" placeholder="0201234567">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="select2PhanLoai">Phân loại <span class="text-danger">*</span></label>
+              <select id="select2PhanLoai" class="select2 form-select" name="phan_loai[]" multiple data-placeholder="Chọn phân loại">
                 <option value="Doanh nghiệp">Doanh nghiệp</option>
                 <option value="Cá nhân">Cá nhân</option>
                 <option value="Khách hàng">Khách hàng</option>
@@ -124,15 +128,11 @@
               </select>
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>
             </div>
-            <div class="col-md-4">
-              <label class="form-label">MST / CCCD</label>
-              <input type="text" class="form-control" name="cccd_mst" placeholder="0201234567">
-            </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">SĐT</label>
               <input type="tel" class="form-control" name="sdt" placeholder="0901234567" inputmode="numeric">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Ngày sinh</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="dob" placeholder="dd/MM/yyyy">
             </div>
@@ -143,18 +143,22 @@
 
             <!-- Bank Info Repeater -->
             <div class="col-12">
-              <label class="form-label">Thông tin ngân hàng</label>
-              <div id="ngan-hang-repeater">
-                <!-- Repeater items will be added here -->
+              <div class="ngan-hang-section">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label mb-0"><i class="ti tabler-building-bank me-2"></i>Thông tin ngân hàng</label>
+                  <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-ngan-hang">
+                    <i class="ti tabler-plus me-1"></i>Thêm
+                  </button>
+                </div>
+                <div id="ngan-hang-repeater">
+                  <!-- Repeater items will be added here -->
+                </div>
               </div>
-              <button type="button" class="btn btn-sm btn-label-primary mt-2" id="btn-them-ngan-hang">
-                <i class="ti tabler-plus me-1"></i>Thêm ngân hàng
-              </button>
             </div>
 
             <div class="col-md-6">
               <label class="form-label">NV Kinh doanh</label>
-              <select class="form-select select2-nv-kinh-doanh" name="nv_kinh_doanh">
+              <select class="select2 form-select" name="nv_kinh_doanh" data-placeholder="Chọn nhân viên">
                 <option value="">Chọn nhân viên</option>
               </select>
             </div>

@@ -85,8 +85,6 @@
       themBtn.addEventListener('click', function () {
         resetForm();
         setFormMode('create');
-        initSelect2();
-        initRepeater();
       });
     }
 
@@ -105,6 +103,7 @@
       resetForm();
     });
     modal.addEventListener('shown.bs.modal', function () {
+      initSelect2();
       initDatePickers();
     });
 
@@ -208,8 +207,8 @@
       data: { limit: 100 },
       success: function (res) {
         if (res.status === 'success' && res.data) {
-          var select = document.querySelector('#form-khach-hang select[name="nv_kinh_doanh"]');
-          if (!select) return;
+          var $select = $('select[name="nv_kinh_doanh"]');
+          if (!$select.length) return;
           var html = '<option value="">Chọn nhân viên</option>';
           var items = res.data.items || [];
           for (var i = 0; i < items.length; i++) {
@@ -218,7 +217,14 @@
             if (item.ma_nhan_vien) text += ' - ' + item.ma_nhan_vien;
             html += '<option value="' + item.uid + '">' + escapeHtml(text) + '</option>';
           }
-          select.innerHTML = html;
+          $select.html(html);
+          if ($select.data('select2')) {
+            $select.select2('destroy').unwrap();
+            $select.wrap('<div class="position-relative"></div>').select2({
+              placeholder: $select.data('placeholder') || 'Chọn nhân viên',
+              dropdownParent: $select.parent()
+            });
+          }
         }
       },
       error: function (jqXHR) {
@@ -229,25 +235,14 @@
 
   function initSelect2() {
     if (typeof $.fn.select2 !== 'undefined') {
-      $('.select2-phan-loai').select2({
-        placeholder: 'Chọn phân loại',
-        width: '100%',
-        dropdownParent: $('#khach-hang-modal')
+      $('#form-khach-hang .select2').each(function () {
+        var $this = $(this);
+        if ($this.data('select2')) return;
+        $this.wrap('<div class="position-relative"></div>').select2({
+          placeholder: $this.data('placeholder') || 'Select value',
+          dropdownParent: $this.parent()
+        });
       });
-      $('.select2-nv-kinh-doanh').select2({
-        placeholder: 'Chọn nhân viên',
-        width: '100%',
-        dropdownParent: $('#khach-hang-modal')
-      });
-    }
-  }
-
-  function destroySelect2() {
-    if (typeof $.fn.select2 !== 'undefined') {
-      var $pl = $('.select2-phan-loai');
-      if ($pl.length && $pl.data('select2')) $pl.select2('destroy');
-      var $nv = $('.select2-nv-kinh-doanh');
-      if ($nv.length && $nv.data('select2')) $nv.select2('destroy');
     }
   }
 
@@ -308,7 +303,7 @@
     if (form.checkValidity() === false) {
       form.classList.add('was-validated');
       // Re-trigger select2 validity
-      var phanLoai = $('.select2-phan-loai').val();
+      var phanLoai = $('select[name="phan_loai[]"]').val();
       if (!phanLoai || phanLoai.length === 0) {
         form.classList.add('was-validated');
       }
@@ -316,8 +311,8 @@
     }
 
     var nid = document.querySelector('#form-khach-hang input[name="nid"]').value;
-    var phanLoaiVal = $('.select2-phan-loai').val() || [];
-    var nvKdVal = $('.select2-nv-kinh-doanh').val();
+    var phanLoaiVal = $('select[name="phan_loai[]"]').val() || [];
+    var nvKdVal = $('select[name="nv_kinh_doanh"]').val();
 
     var apiData = {
       ten: document.querySelector('#form-khach-hang input[name="ten"]').value,
@@ -583,6 +578,11 @@
         btn.style.display = '';
       }
     }
+    if (mode === 'view') {
+      $('#form-khach-hang .select2').each(function () { var $t = $(this); if ($t.data('select2')) $t.select2('disable'); });
+    } else {
+      $('#form-khach-hang .select2').each(function () { var $t = $(this); if ($t.data('select2')) $t.select2('enable'); });
+    }
     var btnThemNh = document.getElementById('btn-them-ngan-hang');
     if (btnThemNh) {
       btnThemNh.style.display = mode === 'view' ? 'none' : '';
@@ -595,7 +595,7 @@
 
   function resetForm() {
     showLoading(false);
-    destroySelect2();
+    $('#form-khach-hang .select2').val(null).trigger('change');
     document.getElementById('form-khach-hang').reset();
     document.querySelector('#form-khach-hang input[name="nid"]').value = '';
     document.getElementById('khach-hang-modal-title').textContent = 'Thêm khách hàng';
@@ -615,12 +615,12 @@
 
     // Select2 phan_loai
     if (d.phan_loai_arr && d.phan_loai_arr.length) {
-      $('.select2-phan-loai').val(d.phan_loai_arr).trigger('change');
+      $('select[name="phan_loai[]"]').val(d.phan_loai_arr).trigger('change');
     }
 
     // Select2 nv_kinh_doanh
     if (d.nv_kinh_doanh) {
-      $('.select2-nv-kinh-doanh').val(String(d.nv_kinh_doanh)).trigger('change');
+      $('select[name="nv_kinh_doanh"]').val(String(d.nv_kinh_doanh)).trigger('change');
     }
 
     // Repeater ngan hang
