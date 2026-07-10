@@ -142,6 +142,37 @@
       }
     });
 
+    // Dropdown hover
+    doc.addEventListener('mouseover', function (e) {
+      var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
+      if (dropdown && dropdown.closest('#table-lai-xe-tbody')) {
+        var menu = dropdown.querySelector('.dropdown-menu');
+        if (menu) {
+          var btn = dropdown.querySelector('button');
+          var rect = btn.getBoundingClientRect();
+          menu.style.position = 'fixed';
+          menu.style.top = rect.top + 'px';
+          menu.style.left = rect.right + 'px';
+          menu.style.display = 'block';
+        }
+      }
+    });
+
+    doc.addEventListener('mouseout', function (e) {
+      var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
+      if (dropdown && dropdown.closest('#table-lai-xe-tbody')) {
+        if (!dropdown.contains(e.relatedTarget)) {
+          var menu = dropdown.querySelector('.dropdown-menu');
+          if (menu) {
+            menu.style.display = '';
+            menu.style.position = '';
+            menu.style.top = '';
+            menu.style.left = '';
+          }
+        }
+      }
+    });
+
     // Pagination jump keypress (separate listener to avoid conflict)
     doc.getElementById('pagination-jump').addEventListener('keypress', function (e) {
       if (e.which === 13) {
@@ -287,7 +318,7 @@
     if (!items) return '';
 
     return '<div class="dropdown">' +
-      '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill" data-bs-toggle="dropdown">' +
+      '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill">' +
       '<i class="ti tabler-dots-vertical"></i></button>' +
       '<ul class="dropdown-menu">' + items + '</ul></div>';
   }
