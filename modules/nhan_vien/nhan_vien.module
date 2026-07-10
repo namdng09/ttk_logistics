@@ -1,0 +1,658 @@
+<?php
+
+/**
+ * @file
+ * Nhân Viên — Employee management.
+ * Stores custom fields directly in the Drupal {users} table.
+ * RESTful API + Modal CRUD.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function nhan_vien_permission() {
+  return array(
+    'nhan_vien_view' => array('title' => t('Xem nhân viên')),
+    'nhan_vien_create' => array('title' => t('Tạo/sửa nhân viên')),
+    'nhan_vien_delete' => array('title' => t('Xoá nhân viên')),
+  );
+}
+
+/**
+ * Implements hook_init() — CORS for API routes.
+ */
+function nhan_vien_init() {
+  $path = current_path();
+  if (strpos($path, 'api/nhan-vien') === 0 || strpos($path, 'api/roles') === 0) {
+    drupal_add_http_header('Access-Control-Allow-Origin', '*');
+    drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    drupal_add_http_header('Access-Control-Max-Age', '86400');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      drupal_add_http_header('Status', '204 No Content');
+      drupal_exit();
+    }
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function nhan_vien_menu() {
+  $items = array();
+
+  // --- RESTful API ---
+  $items['api/nhan-vien'] = array(
+    'page callback' => 'nhan_vien_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/nhan-vien/%'] = array(
+    'page callback' => 'nhan_vien_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/roles'] = array(
+    'page callback' => 'nhan_vien_rest_roles',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  // --- UI List (modal CRUD, single page) ---
+  $items['nhan-vien'] = array(
+    'title' => 'Danh sách nhân viên',
+    'page callback' => 'nhan_vien_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function nhan_vien_theme() {
+  $path = drupal_get_path('module', 'nhan_vien') . '/templates';
+  return array(
+    'nhan_vien_list_page' => array(
+      'template' => 'nhan-vien-list',
+      'path' => $path,
+    ),
+  );
+}
+
+/*******************************************************************************
+ * HELPERS
+ ******************************************************************************/
+
+function _nhan_vien_input() {
+  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+}
+
+function _nhan_vien_success($data = NULL) {
+  $response = array('status' => 'success');
+  if ($data !== NULL) {
+    $response['data'] = $data;
+  }
+  return $response;
+}
+
+function _nhan_vien_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _nhan_vien_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _nhan_vien_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _nhan_vien_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function _nhan_vien_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+/**
+ * Require auth via Bearer token. Returns user object or fail response.
+ */
+function _nhan_vien_require_auth() {
+  $token = NULL;
+  if (function_exists('getallheaders')) {
+    $headers = getallheaders();
+    if (!empty($headers['Authorization'])) {
+      $token = str_replace('Bearer ', '', $headers['Authorization']);
+    }
+  }
+  if (!$token && !empty($_GET['token'])) {
+    $token = $_GET['token'];
+  }
+  if (!$token) {
+    drupal_add_http_header('Status', '401 Unauthorized');
+    return array('status' => 'fail', 'message' => 'Thiếu token xác thực');
+  }
+  module_load_include('module', 'user_login_api', 'user_login_api');
+  if (!function_exists('api_validate_token')) {
+    drupal_add_http_header('Status', '500 Internal Server Error');
+    return array('status' => 'error', 'message' => 'Hệ thống xác thực chưa sẵn sàng');
+  }
+  $user = api_validate_token($token);
+  if (!$user) {
+    drupal_add_http_header('Status', '401 Unauthorized');
+    return array('status' => 'fail', 'message' => 'Token không hợp lệ');
+  }
+  return $user;
+}
+
+/**
+ * Load full nhan_vien record including custom fields and role.
+ */
+function _nhan_vien_load_row($uid) {
+  $uid = (int) $uid;
+  if (!$uid) return NULL;
+
+  $u = db_query("SELECT * FROM {users} WHERE uid = :uid", array(':uid' => $uid))->fetch();
+  if (!$u || $u->uid == 0) return NULL;
+
+  // Get single custom role (excluding anonymous + authenticated)
+  $rid = db_query("SELECT ur.rid FROM {users_roles} ur WHERE ur.uid = :uid AND ur.rid > :auth_rid ORDER BY ur.rid ASC", array(
+    ':uid' => $uid,
+    ':auth_rid' => DRUPAL_AUTHENTICATED_RID,
+  ))->fetchField();
+
+  $role_name = '';
+  if ($rid) {
+    $role_name = db_query("SELECT name FROM {role} WHERE rid = :rid", array(':rid' => $rid))->fetchField();
+  }
+
+  // Get danh_muc ten for phong_ban / chuc_vu
+  $phong_ban_ten = '';
+  if (!empty($u->phong_ban)) {
+    $phong_ban_ten = db_query("SELECT ten FROM {danh_muc} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $u->phong_ban))->fetchField();
+  }
+  $chuc_vu_ten = '';
+  if (!empty($u->chuc_vu)) {
+    $chuc_vu_ten = db_query("SELECT ten FROM {danh_muc} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $u->chuc_vu))->fetchField();
+  }
+
+  return array(
+    'uid' => (int) $u->uid,
+    'name' => $u->name,
+    'mail' => $u->mail,
+    'status' => (int) $u->status,
+    'ma_nhan_vien' => isset($u->ma_nhan_vien) ? $u->ma_nhan_vien : '',
+    'ten' => isset($u->ten) ? $u->ten : '',
+    'dob' => isset($u->dob) ? $u->dob : '',
+    'cccd' => isset($u->cccd) ? $u->cccd : '',
+    'dia_chi' => isset($u->dia_chi) ? $u->dia_chi : '',
+    'so_tk_ngan_hang' => isset($u->so_tk_ngan_hang) ? $u->so_tk_ngan_hang : '',
+    'ngan_hang' => isset($u->ngan_hang) ? $u->ngan_hang : '',
+    'phong_ban' => isset($u->phong_ban) ? (int) $u->phong_ban : 0,
+    'chuc_vu' => isset($u->chuc_vu) ? (int) $u->chuc_vu : 0,
+    'phong_ban_ten' => $phong_ban_ten,
+    'chuc_vu_ten' => $chuc_vu_ten,
+    'role_rid' => $rid ? (int) $rid : 0,
+    'role_name' => $role_name,
+  );
+}
+
+/**
+ * Check unique ma_nhan_vien (active users only).
+ */
+function _nhan_vien_check_unique_ma($value, $exclude_uid = NULL) {
+  $value = trim($value);
+  if ($value === '') return NULL;
+  $query = db_select('users', 'u');
+  $query->fields('u', array('uid', 'status'));
+  $query->condition('u.ma_nhan_vien', $value);
+  if ($exclude_uid !== NULL) {
+    $query->condition('u.uid', $exclude_uid, '<>');
+  }
+  $query->range(0, 1);
+  $exists = $query->execute()->fetchObject();
+  if ($exists && $exists->status) {
+    return _nhan_vien_fail('Mã nhân viên "' . $value . '" đã tồn tại');
+  }
+  return NULL;
+}
+
+/**
+ * Check unique username (active users only).
+ */
+function _nhan_vien_check_unique_username($value, $exclude_uid = NULL) {
+  $value = trim($value);
+  if ($value === '') return NULL;
+  $query = db_select('users', 'u');
+  $query->fields('u', array('uid', 'status'));
+  $query->condition('u.name', $value);
+  if ($exclude_uid !== NULL) {
+    $query->condition('u.uid', $exclude_uid, '<>');
+  }
+  $query->range(0, 1);
+  $exists = $query->execute()->fetchObject();
+  if ($exists && $exists->status) {
+    return _nhan_vien_fail('Username "' . $value . '" đã tồn tại');
+  }
+  return NULL;
+}
+
+/*******************************************************************************
+ * REST: ROLES — GET /api/roles
+ ******************************************************************************/
+
+function nhan_vien_rest_roles() {
+  $method = $_SERVER['REQUEST_METHOD'];
+  if ($method !== 'GET') {
+    return _nhan_vien_method_not_allowed('GET');
+  }
+
+  
+  if (!user_access('nhan_vien_view')) {
+    return _nhan_vien_unauthorized('Bạn không có quyền xem danh sách role');
+  }
+
+  $rows = db_query("SELECT rid, name FROM {role} WHERE rid > :auth_rid ORDER BY name ASC", array(
+    ':auth_rid' => DRUPAL_AUTHENTICATED_RID,
+  ))->fetchAll();
+
+  $items = array();
+  foreach ($rows as $r) {
+    $items[] = array('rid' => (int) $r->rid, 'name' => $r->name);
+  }
+
+  return _nhan_vien_success($items);
+}
+
+/*******************************************************************************
+ * REST: COLLECTION — GET /api/nhan-vien, POST /api/nhan-vien
+ ******************************************************************************/
+
+function nhan_vien_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _nhan_vien_rest_list();
+    case 'POST':
+      return _nhan_vien_rest_create();
+    default:
+      return _nhan_vien_method_not_allowed('GET, POST');
+  }
+}
+
+function _nhan_vien_rest_list() {
+  
+  if (!user_access('nhan_vien_view')) {
+    return _nhan_vien_unauthorized('Bạn không có quyền xem danh sách nhân viên');
+  }
+
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $offset = ($page - 1) * $limit;
+
+  $query = db_select('users', 'u');
+  $query->fields('u');
+  $query->condition('u.uid', 0, '!=');
+
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like($_GET['keyword']) . '%';
+    $or = db_or()
+      ->condition('u.name', $like, 'LIKE')
+      ->condition('u.mail', $like, 'LIKE')
+      ->condition('u.ma_nhan_vien', $like, 'LIKE')
+      ->condition('u.ten', $like, 'LIKE');
+    $query->condition($or);
+  }
+  if (isset($_GET['status']) && $_GET['status'] !== '') {
+    $query->condition('u.status', (int) $_GET['status']);
+  }
+  if (!empty($_GET['phong_ban'])) {
+    $query->condition('u.phong_ban', (int) $_GET['phong_ban']);
+  }
+  if (!empty($_GET['chuc_vu'])) {
+    $query->condition('u.chuc_vu', (int) $_GET['chuc_vu']);
+  }
+  if (!empty($_GET['role_rid'])) {
+    $query->join('users_roles', 'ur', 'ur.uid = u.uid');
+    $query->condition('ur.rid', (int) $_GET['role_rid']);
+  }
+
+  $count = clone $query;
+  $total = $count->countQuery()->execute()->fetchField();
+
+  $query->orderBy('u.uid', 'DESC');
+  $query->range($offset, $limit);
+  $rows = $query->execute()->fetchAll();
+
+  // Build response items with role + danh_muc ten
+  $items = array();
+  foreach ($rows as $u) {
+    $rid = db_query("SELECT ur.rid FROM {users_roles} ur WHERE ur.uid = :uid AND ur.rid > :auth ORDER BY ur.rid ASC", array(
+      ':uid' => $u->uid,
+      ':auth' => DRUPAL_AUTHENTICATED_RID,
+    ))->fetchField();
+
+    $role_name = '';
+    if ($rid) {
+      $role_name = db_query("SELECT name FROM {role} WHERE rid = :rid", array(':rid' => $rid))->fetchField();
+    }
+    $phong_ban_ten = '';
+    if (!empty($u->phong_ban)) {
+      $phong_ban_ten = db_query("SELECT ten FROM {danh_muc} WHERE nid = :nid", array(':nid' => $u->phong_ban))->fetchField();
+    }
+    $chuc_vu_ten = '';
+    if (!empty($u->chuc_vu)) {
+      $chuc_vu_ten = db_query("SELECT ten FROM {danh_muc} WHERE nid = :nid", array(':nid' => $u->chuc_vu))->fetchField();
+    }
+
+    $items[] = array(
+      'uid' => (int) $u->uid,
+      'name' => $u->name,
+      'mail' => $u->mail,
+      'status' => (int) $u->status,
+      'ma_nhan_vien' => isset($u->ma_nhan_vien) ? $u->ma_nhan_vien : '',
+      'ten' => isset($u->ten) ? $u->ten : '',
+      'dob' => isset($u->dob) ? $u->dob : '',
+      'cccd' => isset($u->cccd) ? $u->cccd : '',
+      'dia_chi' => isset($u->dia_chi) ? $u->dia_chi : '',
+      'so_tk_ngan_hang' => isset($u->so_tk_ngan_hang) ? $u->so_tk_ngan_hang : '',
+      'ngan_hang' => isset($u->ngan_hang) ? $u->ngan_hang : '',
+      'phong_ban' => isset($u->phong_ban) ? (int) $u->phong_ban : 0,
+      'chuc_vu' => isset($u->chuc_vu) ? (int) $u->chuc_vu : 0,
+      'phong_ban_ten' => $phong_ban_ten,
+      'chuc_vu_ten' => $chuc_vu_ten,
+      'role_rid' => $rid ? (int) $rid : 0,
+      'role_name' => $role_name,
+    );
+  }
+
+  $total_pages = (int) ceil($total / $limit);
+
+  return _nhan_vien_success(array(
+    'items' => $items,
+    'total' => (int) $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+  ));
+}
+
+function _nhan_vien_rest_create() {
+  
+  if (!user_access('nhan_vien_create')) {
+    return _nhan_vien_unauthorized('Bạn không có quyền tạo nhân viên');
+  }
+
+  $input = _nhan_vien_input();
+
+  if (empty($input['ten'])) {
+    return _nhan_vien_fail('Họ tên bắt buộc');
+  }
+  if (empty($input['username'])) {
+    return _nhan_vien_fail('Username bắt buộc');
+  }
+  if (empty($input['password'])) {
+    return _nhan_vien_fail('Password bắt buộc khi tạo mới');
+  }
+  if (!empty($input['mail']) && !valid_email_address($input['mail'])) {
+    return _nhan_vien_fail('Email không hợp lệ');
+  }
+
+  $dupMa = _nhan_vien_check_unique_ma(isset($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : '');
+  if ($dupMa) return $dupMa;
+
+  $dupUser = _nhan_vien_check_unique_username($input['username']);
+  if ($dupUser) return $dupUser;
+
+  $transaction = db_transaction();
+  try {
+    // Create user via user_save() — handles password hashing + role assignment
+    $edit = array(
+      'name' => trim($input['username']),
+      'pass' => $input['password'],
+      'mail' => !empty($input['mail']) ? trim($input['mail']) : '',
+      'status' => isset($input['trang_thai']) ? (int) $input['trang_thai'] : 1,
+      'init' => !empty($input['mail']) ? trim($input['mail']) : '',
+    );
+
+    // Role assignment
+    if (!empty($input['role_rid'])) {
+      $rid = (int) $input['role_rid'];
+      $role_name = db_query("SELECT name FROM {role} WHERE rid = :rid", array(':rid' => $rid))->fetchField();
+      if ($role_name) {
+        $edit['roles'] = array($rid => $role_name);
+      }
+    }
+
+    $account = user_save(NULL, $edit);
+    if (!$account || empty($account->uid)) {
+      throw new Exception('user_save thất bại');
+    }
+
+    $uid = $account->uid;
+
+    // Update custom fields directly
+    $custom = array(
+      'ten' => $input['ten'],
+      'ma_nhan_vien' => !empty($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : NULL,
+      'dob' => !empty($input['dob']) ? $input['dob'] : NULL,
+      'cccd' => !empty($input['cccd']) ? $input['cccd'] : NULL,
+      'dia_chi' => !empty($input['dia_chi']) ? $input['dia_chi'] : NULL,
+      'so_tk_ngan_hang' => !empty($input['so_tk_ngan_hang']) ? $input['so_tk_ngan_hang'] : NULL,
+      'ngan_hang' => !empty($input['ngan_hang']) ? $input['ngan_hang'] : NULL,
+      'phong_ban' => !empty($input['phong_ban']) ? (int) $input['phong_ban'] : NULL,
+      'chuc_vu' => !empty($input['chuc_vu']) ? (int) $input['chuc_vu'] : NULL,
+    );
+    foreach ($custom as $k => $v) {
+      db_update('users')
+        ->fields(array($k => $v))
+        ->condition('uid', $uid)
+        ->execute();
+    }
+
+    watchdog('nhan_vien', 'Tạo nhân viên #uid=%uid: %ten', array(
+      '%uid' => $uid,
+      '%ten' => $input['ten'],
+    ));
+
+    return _nhan_vien_success(_nhan_vien_load_row($uid));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('nhan_vien', 'Lỗi tạo nhân viên: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _nhan_vien_error('Lỗi hệ thống khi tạo nhân viên');
+  }
+}
+
+/*******************************************************************************
+ * REST: ITEM — GET /api/nhan-vien/{id}, PUT, DELETE
+ ******************************************************************************/
+
+function nhan_vien_rest_item($id) {
+  $id = (int) $id;
+  if (!$id) {
+    return _nhan_vien_fail('ID không hợp lệ');
+  }
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _nhan_vien_rest_get($id);
+    case 'PUT':
+      return _nhan_vien_rest_update($id);
+    case 'DELETE':
+      return _nhan_vien_rest_delete($id);
+    default:
+      return _nhan_vien_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+function _nhan_vien_rest_get($id) {
+  
+  if (!user_access('nhan_vien_view')) {
+    return _nhan_vien_unauthorized('Bạn không có quyền xem nhân viên');
+  }
+
+  $row = _nhan_vien_load_row($id);
+  if (!$row) {
+    return _nhan_vien_not_found('Nhân viên không tồn tại');
+  }
+  return _nhan_vien_success($row);
+}
+
+function _nhan_vien_rest_update($id) {
+  
+  if (!user_access('nhan_vien_create')) {
+    return _nhan_vien_unauthorized('Bạn không có quyền sửa nhân viên');
+  }
+
+  $existing = user_load($id);
+  if (!$existing || $existing->uid == 0) {
+    return _nhan_vien_not_found('Nhân viên không tồn tại');
+  }
+
+  $input = _nhan_vien_input();
+
+  if (empty($input['ten'])) {
+    return _nhan_vien_fail('Họ tên bắt buộc');
+  }
+  if (empty($input['username'])) {
+    return _nhan_vien_fail('Username bắt buộc');
+  }
+  if (!empty($input['mail']) && !valid_email_address($input['mail'])) {
+    return _nhan_vien_fail('Email không hợp lệ');
+  }
+
+  $dupUser = _nhan_vien_check_unique_username($input['username'], $id);
+  if ($dupUser) return $dupUser;
+
+  $dupMa = _nhan_vien_check_unique_ma(isset($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : '', $id);
+  if ($dupMa) return $dupMa;
+
+  $transaction = db_transaction();
+  try {
+    // Update core user fields via user_save()
+    $edit = array(
+      'name' => trim($input['username']),
+      'mail' => !empty($input['mail']) ? trim($input['mail']) : '',
+      'status' => isset($input['trang_thai']) ? (int) $input['trang_thai'] : 1,
+    );
+
+    // Only update password if provided (non-empty)
+    if (!empty($input['password'])) {
+      $edit['pass'] = $input['password'];
+    }
+
+    // Update role
+    if (isset($input['role_rid'])) {
+      $rid = (int) $input['role_rid'];
+      if ($rid > 0) {
+        $role_name = db_query("SELECT name FROM {role} WHERE rid = :rid", array(':rid' => $rid))->fetchField();
+        if ($role_name) {
+          $edit['roles'] = array($rid => $role_name);
+        }
+      }
+      else {
+        // Empty role_rid = remove all custom roles
+        db_delete('users_roles')
+          ->condition('uid', $id)
+          ->condition('rid', DRUPAL_AUTHENTICATED_RID, '>')
+          ->execute();
+      }
+    }
+
+    user_save($existing, $edit);
+
+    // Update custom fields
+    $custom = array(
+      'ten' => $input['ten'],
+      'ma_nhan_vien' => !empty($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : NULL,
+      'dob' => !empty($input['dob']) ? $input['dob'] : NULL,
+      'cccd' => !empty($input['cccd']) ? $input['cccd'] : NULL,
+      'dia_chi' => !empty($input['dia_chi']) ? $input['dia_chi'] : NULL,
+      'so_tk_ngan_hang' => !empty($input['so_tk_ngan_hang']) ? $input['so_tk_ngan_hang'] : NULL,
+      'ngan_hang' => !empty($input['ngan_hang']) ? $input['ngan_hang'] : NULL,
+      'phong_ban' => !empty($input['phong_ban']) ? (int) $input['phong_ban'] : NULL,
+      'chuc_vu' => !empty($input['chuc_vu']) ? (int) $input['chuc_vu'] : NULL,
+    );
+    foreach ($custom as $k => $v) {
+      db_update('users')
+        ->fields(array($k => $v))
+        ->condition('uid', $id)
+        ->execute();
+    }
+
+    watchdog('nhan_vien', 'Cập nhật nhân viên #%id', array('%id' => $id));
+
+    return _nhan_vien_success(_nhan_vien_load_row($id));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('nhan_vien', 'Lỗi cập nhật nhân viên #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _nhan_vien_error('Lỗi hệ thống khi cập nhật nhân viên');
+  }
+}
+
+function _nhan_vien_rest_delete($id) {
+  
+  if (!user_access('nhan_vien_delete')) {
+    return _nhan_vien_unauthorized('Bạn không có quyền xoá nhân viên');
+  }
+
+  $existing = user_load($id);
+  if (!$existing || $existing->uid == 0) {
+    return _nhan_vien_not_found('Nhân viên không tồn tại');
+  }
+
+  $transaction = db_transaction();
+  try {
+    // Soft delete: set status = 0 (locks login)
+    db_update('users')
+      ->fields(array('status' => 0))
+      ->condition('uid', $id)
+      ->execute();
+
+    watchdog('nhan_vien', 'Xoá (khoá) nhân viên #%id: %name', array(
+      '%id' => $id,
+      '%name' => $existing->name,
+    ));
+
+    return _nhan_vien_success(array('uid' => (int) $id, 'deleted' => TRUE));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('nhan_vien', 'Lỗi xoá nhân viên #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _nhan_vien_error('Lỗi hệ thống khi xoá nhân viên');
+  }
+}
+
+/*******************************************************************************
+ * UI PAGE CALLBACKS
+ ******************************************************************************/
+
+function nhan_vien_page_list() {
+  drupal_add_css(drupal_get_path('module', 'nhan_vien') . '/assets/css/nhan_vien.css');
+  drupal_add_js(drupal_get_path('module', 'nhan_vien') . '/assets/js/nhan_vien.js');
+
+  drupal_add_js(array('nhan_vien' => array(
+    'permissions' => array(
+      'nhan_vien_view' => user_access('nhan_vien_view'),
+      'nhan_vien_create' => user_access('nhan_vien_create'),
+      'nhan_vien_delete' => user_access('nhan_vien_delete'),
+    ),
+  )), 'setting');
+
+  return theme('nhan_vien_list_page');
+}

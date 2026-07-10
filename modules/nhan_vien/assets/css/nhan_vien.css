@@ -1,0 +1,19 @@
+#table-nhan-vien th {
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+#table-nhan-vien td {
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+.btn-view-nhan-vien i,
+.btn-edit-nhan-vien i,
+.btn-delete-nhan-vien i {
+  font-size: 1rem;
+}
+
+.flatpickr-calendar {
+  z-index: 99999 !important;
+}

@@ -1,0 +1,147 @@
+<?php
+
+/**
+ * Implements hook_schema_alter().
+ * Add custom fields to the {users} table so Drupal's drupal_write_record()
+ * (used by user_save()) recognizes them.
+ */
+function nhan_vien_schema_alter(&$schema) {
+  $schema['users']['fields']['ma_nhan_vien'] = array(
+    'type' => 'varchar',
+    'length' => 50,
+    'not null' => FALSE,
+  );
+  $schema['users']['fields']['ten'] = array(
+    'type' => 'varchar',
+    'length' => 255,
+    'not null' => FALSE,
+  );
+  $schema['users']['fields']['dob'] = array(
+    'type' => 'varchar',
+    'length' => 10,
+    'not null' => FALSE,
+  );
+  $schema['users']['fields']['cccd'] = array(
+    'type' => 'varchar',
+    'length' => 20,
+    'not null' => FALSE,
+  );
+  $schema['users']['fields']['dia_chi'] = array(
+    'type' => 'varchar',
+    'length' => 255,
+    'not null' => FALSE,
+  );
+  $schema['users']['fields']['so_tk_ngan_hang'] = array(
+    'type' => 'varchar',
+    'length' => 30,
+    'not null' => FALSE,
+  );
+  $schema['users']['fields']['ngan_hang'] = array(
+    'type' => 'varchar',
+    'length' => 100,
+    'not null' => FALSE,
+  );
+  $schema['users']['fields']['phong_ban'] = array(
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => FALSE,
+  );
+  $schema['users']['fields']['chuc_vu'] = array(
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => FALSE,
+  );
+}
+
+/**
+ * Implements hook_install().
+ * Alters the users table by adding custom columns.
+ */
+function nhan_vien_install() {
+  if (!db_field_exists('users', 'ma_nhan_vien')) {
+    db_add_field('users', 'ma_nhan_vien', array(
+      'type' => 'varchar',
+      'length' => 50,
+      'not null' => FALSE,
+    ));
+  }
+  if (!db_field_exists('users', 'ten')) {
+    db_add_field('users', 'ten', array(
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => FALSE,
+    ));
+  }
+  if (!db_field_exists('users', 'dob')) {
+    db_add_field('users', 'dob', array(
+      'type' => 'varchar',
+      'length' => 10,
+      'not null' => FALSE,
+    ));
+  }
+  if (!db_field_exists('users', 'cccd')) {
+    db_add_field('users', 'cccd', array(
+      'type' => 'varchar',
+      'length' => 20,
+      'not null' => FALSE,
+    ));
+  }
+  if (!db_field_exists('users', 'dia_chi')) {
+    db_add_field('users', 'dia_chi', array(
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => FALSE,
+    ));
+  }
+  if (!db_field_exists('users', 'so_tk_ngan_hang')) {
+    db_add_field('users', 'so_tk_ngan_hang', array(
+      'type' => 'varchar',
+      'length' => 30,
+      'not null' => FALSE,
+    ));
+  }
+  if (!db_field_exists('users', 'ngan_hang')) {
+    db_add_field('users', 'ngan_hang', array(
+      'type' => 'varchar',
+      'length' => 100,
+      'not null' => FALSE,
+    ));
+  }
+  if (!db_field_exists('users', 'phong_ban')) {
+    db_add_field('users', 'phong_ban', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+    ));
+  }
+  if (!db_field_exists('users', 'chuc_vu')) {
+    db_add_field('users', 'chuc_vu', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+    ));
+  }
+
+  // Reset schema cache so drupal_get_schema() picks up the new columns
+  cache_clear_all();
+  drupal_get_schema('users', TRUE);
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function nhan_vien_uninstall() {
+  // Optionally drop the custom columns. Keep them to preserve data on disable.
+  // Uncomment below if you want to drop columns on uninstall.
+  /*
+  db_drop_field('users', 'ma_nhan_vien');
+  db_drop_field('users', 'ten');
+  db_drop_field('users', 'dob');
+  db_drop_field('users', 'cccd');
+  db_drop_field('users', 'dia_chi');
+  db_drop_field('users', 'so_tk_ngan_hang');
+  db_drop_field('users', 'ngan_hang');
+  db_drop_field('users', 'phong_ban');
+  db_drop_field('users', 'chuc_vu');
+  */
+}

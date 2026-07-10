@@ -1,0 +1,6 @@
+name = "Nhân viên"
+description = "Quản lý nhân viên. RESTful API + Modal CRUD. Lưu trực tiếp vào bảng users của Drupal."
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = user_login_api
+dependencies[] = danh_muc
