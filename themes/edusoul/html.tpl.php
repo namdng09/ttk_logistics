@@ -14,7 +14,8 @@
             name="viewport"
             content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>
     <?php print $head; ?>
-    <title><?php print $head_title; ?></title>
+    <link rel="icon" type="image/x-icon" href="/<?php print $directory; ?>/quan-ly/assets/img/favicon/favicon.ico"/>
+    <title>Tân Trường Khoa</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com"/>

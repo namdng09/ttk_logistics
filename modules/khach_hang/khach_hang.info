@@ -1,0 +1,7 @@
+name = "Khách hàng"
+description = "Quản lý khách hàng (Doanh nghiệp, Cá nhân, NCC, Đối tác). RESTful API + Modal CRUD."
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = user_login_api
+dependencies[] = danh_muc
+dependencies[] = nhan_vien

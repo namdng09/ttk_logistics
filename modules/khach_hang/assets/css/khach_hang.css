@@ -1,0 +1,24 @@
+#table-khach-hang th {
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+#table-khach-hang td {
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+.btn-view-khach-hang i,
+.btn-edit-khach-hang i,
+.btn-delete-khach-hang i {
+  font-size: 1rem;
+}
+
+.flatpickr-calendar {
+  z-index: 99999 !important;
+}
+
+.ngan-hang-row {
+  border-left: 3px solid var(--bs-border-color);
+  padding-left: 8px;
+}

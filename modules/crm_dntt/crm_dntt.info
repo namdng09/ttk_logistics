@@ -1,6 +1,6 @@
 name = CRM DNTT
 description = Đề Nghị Thanh Toán — Payment Request entities
 core = 7.x
-package = Logistics
+package = ANDIN JSC API
 dependencies[] = entity
 files[] = crm_dntt.test
