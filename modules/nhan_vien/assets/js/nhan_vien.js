@@ -393,9 +393,9 @@
             '<td>' + escapeHtml(item.ten || '') + '</td>' +
             '<td>' + escapeHtml(item.name || '') + '</td>' +
             '<td>' + escapeHtml(item.mail || '') + '</td>' +
-            '<td>' + escapeHtml(item.phong_ban_ten || '') + '</td>' +
-            '<td>' + escapeHtml(item.chuc_vu_ten || '') + '</td>' +
-            '<td>' + escapeHtml(item.role_name || '') + '</td>' +
+            '<td>' + escapeHtml(item.phong_ban ? item.phong_ban.ten : '') + '</td>' +
+            '<td>' + escapeHtml(item.chuc_vu ? item.chuc_vu.ten : '') + '</td>' +
+            '<td>' + escapeHtml(item.role ? item.role.ten : '') + '</td>' +
             '<td>' + status + '</td>' +
             '</tr>';
         }
@@ -595,11 +595,11 @@
     document.querySelector('#form-nhan-vien input[name="ngan_hang"]').value = d.ngan_hang || '';
 
     var selectPB = document.querySelector('#form-nhan-vien select[name="phong_ban"]');
-    if (selectPB && d.phong_ban) selectPB.value = d.phong_ban;
+    if (selectPB && d.phong_ban) selectPB.value = d.phong_ban.nid;
     var selectCV = document.querySelector('#form-nhan-vien select[name="chuc_vu"]');
-    if (selectCV && d.chuc_vu) selectCV.value = d.chuc_vu;
+    if (selectCV && d.chuc_vu) selectCV.value = d.chuc_vu.nid;
     var selectRole = document.querySelector('#form-nhan-vien select[name="role_rid"]');
-    if (selectRole && d.role_rid) selectRole.value = d.role_rid;
+    if (selectRole && d.role) selectRole.value = d.role.nid;
     // Switch trang thai
     var sw = document.getElementById('switch-trang-thai');
     var hiddenVal = document.getElementById('input-trang-thai');

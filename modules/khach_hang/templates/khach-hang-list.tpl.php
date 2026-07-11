@@ -151,7 +151,7 @@
 
             <div class="col-md-6">
               <label class="form-label">NV Kinh doanh</label>
-              <select class="select2 form-select" name="nv_kinh_doanh" data-placeholder="Chọn nhân viên">
+              <select class="select2 form-select" name="nv_kinh_doanh[]" multiple data-placeholder="Chọn nhân viên">
                 <option value="">Chọn nhân viên</option>
               </select>
             </div>

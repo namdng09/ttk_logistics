@@ -207,12 +207,12 @@
       url: '/api/nhan-vien',
       type: 'GET',
       dataType: 'json',
-      data: { limit: 100 },
+      data: { limit: 100, chuc_vu: 28 },
       success: function (res) {
         if (res.status === 'success' && res.data) {
-          var $select = $('select[name="nv_kinh_doanh"]');
+          var $select = $('select[name="nv_kinh_doanh[]"]');
           if (!$select.length) return;
-          var html = '<option value="">Chọn nhân viên</option>';
+          var html = '';
           var items = res.data.items || [];
           for (var i = 0; i < items.length; i++) {
             var item = items[i];
@@ -354,7 +354,7 @@
 
     var nid = document.querySelector('#form-khach-hang input[name="nid"]').value;
     var phanLoaiVal = getTagifyValue();
-    var nvKdVal = $('select[name="nv_kinh_doanh"]').val();
+    var nvKdVal = $('select[name="nv_kinh_doanh[]"]').val() || [];
 
     var apiData = {
       ten: document.querySelector('#form-khach-hang input[name="ten"]').value,
@@ -364,7 +364,7 @@
       sdt: document.querySelector('#form-khach-hang input[name="sdt"]').value,
       dia_chi: document.querySelector('#form-khach-hang input[name="dia_chi"]').value,
       thong_tin_ngan_hang: collectNganHang(),
-      nv_kinh_doanh: nvKdVal || '',
+      nv_kinh_doanh: nvKdVal.map(Number),
       dob: document.querySelector('#form-khach-hang input[name="dob"]').value,
       ghi_chu: document.querySelector('#form-khach-hang input[name="ghi_chu"]').value
     };
@@ -665,9 +665,9 @@
       setTagifyValue(d.phan_loai_arr);
     }
 
-    // Select2 nv_kinh_doanh
-    if (d.nv_kinh_doanh) {
-      $('select[name="nv_kinh_doanh"]').val(String(d.nv_kinh_doanh)).trigger('change');
+    // Select2 nv_kinh_doanh (multiple)
+    if (d.nv_kinh_doanh && d.nv_kinh_doanh.length) {
+      $('select[name="nv_kinh_doanh[]"]').val(d.nv_kinh_doanh.map(String)).trigger('change');
     }
 
     // Repeater ngan hang

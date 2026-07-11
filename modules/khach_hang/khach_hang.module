@@ -157,21 +157,60 @@ function _khach_hang_normalize_phan_loai($input) {
 }
 
 /**
- * Build row with joins (nv_kinh_doanh name + formatted fields).
+ * Sync junction table nhan_vien_khach_hang.
+ * Soft-deletes old active records and inserts new ones.
+ */
+function _khach_hang_sync_nv_kinh_doanh($nid, $uids) {
+  if (!is_array($uids)) {
+    $uids = array();
+  }
+  $uids = array_unique(array_map('intval', $uids));
+  $uids = array_filter($uids);
+
+  // Soft-delete old active records
+  db_update('nhan_vien_khach_hang')
+    ->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))
+    ->condition('nid', $nid)
+    ->condition('hoat_dong', 1)
+    ->execute();
+
+  // Insert new records
+  $now = date('Y-m-d H:i:s', REQUEST_TIME);
+  foreach ($uids as $uid) {
+    $exists = db_query("SELECT id FROM {nhan_vien_khach_hang} WHERE uid = :uid AND nid = :nid AND hoat_dong = 1", array(
+      ':uid' => $uid,
+      ':nid' => $nid,
+    ))->fetchField();
+    if (!$exists) {
+      db_insert('nhan_vien_khach_hang')
+        ->fields(array(
+          'uid' => $uid,
+          'nid' => $nid,
+          'hoat_dong' => 1,
+          'created' => $now,
+          'changed' => $now,
+        ))
+        ->execute();
+    }
+  }
+}
+
+/**
+ * Build row with joins (nv_kinh_doanh array + formatted fields).
  */
 function _khach_hang_load_row($nid) {
   $kh = db_query("SELECT * FROM {khach_hang} WHERE nid = :nid", array(':nid' => $nid))->fetch();
   if (!$kh) return NULL;
 
-  // Get nv_kinh_doanh name
-  $nv_name = '';
-  $nv_ma = '';
-  if (!empty($kh->nv_kinh_doanh)) {
-    $u = db_query("SELECT name, ma_nhan_vien FROM {users} WHERE uid = :uid", array(':uid' => $kh->nv_kinh_doanh))->fetch();
-    if ($u) {
-      $nv_name = $u->name;
-      $nv_ma = isset($u->ma_nhan_vien) ? $u->ma_nhan_vien : '';
-    }
+  // Get active nv_kinh_doanh array from junction table
+  $nv_kinh_doanh = array();
+  $nv_display_parts = array();
+  $nv_rows = db_query("SELECT nv.uid, u.name, u.ma_nhan_vien FROM {nhan_vien_khach_hang} nv INNER JOIN {users} u ON u.uid = nv.uid WHERE nv.nid = :nid AND nv.hoat_dong = 1 ORDER BY nv.id ASC", array(':nid' => $nid));
+  foreach ($nv_rows as $nv) {
+    $nv_kinh_doanh[] = (int) $nv->uid;
+    $display = $nv->name;
+    if (!empty($nv->ma_nhan_vien)) $display .= ' - ' . $nv->ma_nhan_vien;
+    $nv_display_parts[] = $display;
   }
 
   // Decode thong_tin_ngan_hang JSON
@@ -183,7 +222,7 @@ function _khach_hang_load_row($nid) {
     }
   }
 
-  // Format ngan_hang for display: "so_tai_khoan - ngan_hang"
+  // Format ngan_hang for display
   $ngan_hang_display = '';
   if (!empty($ngan_hang)) {
     $parts = array();
@@ -208,10 +247,8 @@ function _khach_hang_load_row($nid) {
     'dia_chi' => $kh->dia_chi ? $kh->dia_chi : '',
     'thong_tin_ngan_hang' => $ngan_hang,
     'thong_tin_ngan_hang_display' => $ngan_hang_display,
-    'nv_kinh_doanh' => $kh->nv_kinh_doanh ? (int) $kh->nv_kinh_doanh : 0,
-    'nv_kinh_doanh_name' => $nv_name,
-    'nv_kinh_doanh_ma' => $nv_ma,
-    'nv_kinh_doanh_display' => $nv_name ? ($nv_name . ($nv_ma ? ' - ' . $nv_ma : '')) : '',
+    'nv_kinh_doanh' => $nv_kinh_doanh,
+    'nv_kinh_doanh_display' => implode(', ', $nv_display_parts),
     'dob' => $kh->dob ? $kh->dob : '',
     'ghi_chu' => $kh->ghi_chu ? $kh->ghi_chu : '',
     'hoat_dong' => (int) $kh->hoat_dong,
@@ -320,7 +357,6 @@ function _khach_hang_rest_create() {
         'sdt' => !empty($input['sdt']) ? $input['sdt'] : NULL,
         'dia_chi' => !empty($input['dia_chi']) ? $input['dia_chi'] : NULL,
         'thong_tin_ngan_hang' => $ngan_hang_json ? $ngan_hang_json : NULL,
-        'nv_kinh_doanh' => !empty($input['nv_kinh_doanh']) ? (int) $input['nv_kinh_doanh'] : NULL,
         'dob' => !empty($input['dob']) ? $input['dob'] : NULL,
         'ghi_chu' => !empty($input['ghi_chu']) ? $input['ghi_chu'] : NULL,
         'hoat_dong' => 1,
@@ -328,6 +364,9 @@ function _khach_hang_rest_create() {
         'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
       ))
       ->execute();
+
+    // Sync nv_kinh_doanh junction table
+    _khach_hang_sync_nv_kinh_doanh($nid, isset($input['nv_kinh_doanh']) ? $input['nv_kinh_doanh'] : array());
 
     watchdog('khach_hang', 'Tạo khách hàng #%id: %ten', array(
       '%id' => $nid,
@@ -420,9 +459,6 @@ function _khach_hang_rest_update($id) {
   if (isset($input['thong_tin_ngan_hang'])) {
     $update['thong_tin_ngan_hang'] = $ngan_hang_json ? $ngan_hang_json : NULL;
   }
-  if (array_key_exists('nv_kinh_doanh', $input)) {
-    $update['nv_kinh_doanh'] = !empty($input['nv_kinh_doanh']) ? (int) $input['nv_kinh_doanh'] : NULL;
-  }
 
   $transaction = db_transaction();
   try {
@@ -430,6 +466,11 @@ function _khach_hang_rest_update($id) {
       ->fields($update)
       ->condition('nid', $id)
       ->execute();
+
+    // Sync nv_kinh_doanh junction table
+    if (array_key_exists('nv_kinh_doanh', $input)) {
+      _khach_hang_sync_nv_kinh_doanh($id, $input['nv_kinh_doanh'] ? $input['nv_kinh_doanh'] : array());
+    }
 
     watchdog('khach_hang', 'Cập nhật khách hàng #%id', array('%id' => $id));
 
@@ -457,6 +498,13 @@ function _khach_hang_rest_delete($id) {
     db_update('khach_hang')
       ->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))
       ->condition('nid', $id)
+      ->execute();
+
+    // Soft-delete junction records
+    db_update('nhan_vien_khach_hang')
+      ->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))
+      ->condition('nid', $id)
+      ->condition('hoat_dong', 1)
       ->execute();
 
     watchdog('khach_hang', 'Xoá (soft) khách hàng #%id: %ten', array(

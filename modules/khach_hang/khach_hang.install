@@ -82,9 +82,90 @@ function khach_hang_schema() {
     ),
   );
 
+  $schema['nhan_vien_khach_hang'] = array(
+    'description' => 'Quan hệ N-N giữa khách hàng và nhân viên kinh doanh (junction table, có lịch sử).',
+    'fields' => array(
+      'id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'hoat_dong' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'created' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
+      ),
+      'changed' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'uid_nid' => array('uid', 'nid'),
+      'nid' => array('nid'),
+      'uid' => array('uid'),
+    ),
+  );
+
   return $schema;
 }
 
 function khach_hang_update_7001() {
   drupal_install_schema('khach_hang');
+}
+
+function khach_hang_update_7002() {
+  $schema = array();
+  $schema['nhan_vien_khach_hang'] = array(
+    'description' => 'Quan hệ N-N giữa khách hàng và nhân viên kinh doanh.',
+    'fields' => array(
+      'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array('uid_nid' => array('uid', 'nid'), 'nid' => array('nid'), 'uid' => array('uid')),
+  );
+  db_create_table('nhan_vien_khach_hang', $schema['nhan_vien_khach_hang']);
+
+  // Migrate existing nv_kinh_doanh from khach_hang table to junction table
+  $old = db_query("SELECT nid, nv_kinh_doanh FROM {khach_hang} WHERE nv_kinh_doanh IS NOT NULL AND nv_kinh_doanh > 0");
+  foreach ($old as $row) {
+    $exists = db_query("SELECT id FROM {nhan_vien_khach_hang} WHERE uid = :uid AND nid = :nid AND hoat_dong = 1", array(
+      ':uid' => $row->nv_kinh_doanh,
+      ':nid' => $row->nid,
+    ))->fetchField();
+    if (!$exists) {
+      db_insert('nhan_vien_khach_hang')->fields(array(
+        'uid' => $row->nv_kinh_doanh,
+        'nid' => $row->nid,
+        'hoat_dong' => 1,
+        'created' => date('Y-m-d H:i:s'),
+        'changed' => date('Y-m-d H:i:s'),
+      ))->execute();
+    }
+  }
 }
