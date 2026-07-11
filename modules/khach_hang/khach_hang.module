@@ -204,13 +204,14 @@ function _khach_hang_load_row($nid) {
 
   // Get active nv_kinh_doanh array from junction table
   $nv_kinh_doanh = array();
-  $nv_display_parts = array();
-  $nv_rows = db_query("SELECT nv.uid, u.name, u.ma_nhan_vien FROM {nhan_vien_khach_hang} nv INNER JOIN {users} u ON u.uid = nv.uid WHERE nv.nid = :nid AND nv.hoat_dong = 1 ORDER BY nv.id ASC", array(':nid' => $nid));
+  $nv_rows = db_query("SELECT nv.uid, u.name, u.ten, u.ma_nhan_vien FROM {nhan_vien_khach_hang} nv INNER JOIN {users} u ON u.uid = nv.uid WHERE nv.nid = :nid AND nv.hoat_dong = 1 ORDER BY nv.id ASC", array(':nid' => $nid));
   foreach ($nv_rows as $nv) {
-    $nv_kinh_doanh[] = (int) $nv->uid;
-    $display = $nv->name;
-    if (!empty($nv->ma_nhan_vien)) $display .= ' - ' . $nv->ma_nhan_vien;
-    $nv_display_parts[] = $display;
+    $nv_kinh_doanh[] = array(
+      'uid' => (int) $nv->uid,
+      'ten' => isset($nv->ten) ? $nv->ten : $nv->name,
+      'username' => $nv->name,
+      'ma_nhan_vien' => isset($nv->ma_nhan_vien) ? $nv->ma_nhan_vien : '',
+    );
   }
 
   // Decode thong_tin_ngan_hang JSON
@@ -222,33 +223,16 @@ function _khach_hang_load_row($nid) {
     }
   }
 
-  // Format ngan_hang for display
-  $ngan_hang_display = '';
-  if (!empty($ngan_hang)) {
-    $parts = array();
-    foreach ($ngan_hang as $nh) {
-      $line = '';
-      if (!empty($nh['so_tai_khoan'])) $line .= $nh['so_tai_khoan'];
-      if (!empty($nh['ngan_hang'])) $line .= ' - ' . $nh['ngan_hang'];
-      if (!empty($nh['ten_tai_khoan'])) $line .= ' (' . $nh['ten_tai_khoan'] . ')';
-      if ($line) $parts[] = $line;
-    }
-    $ngan_hang_display = implode("\n", $parts);
-  }
-
   return array(
     'nid' => (int) $kh->nid,
     'ten' => $kh->ten,
     'ma_kh' => $kh->ma_kh ? $kh->ma_kh : '',
     'phan_loai' => $kh->phan_loai,
-    'phan_loai_arr' => array_map('trim', explode(',', $kh->phan_loai)),
     'cccd_mst' => $kh->cccd_mst ? $kh->cccd_mst : '',
     'sdt' => $kh->sdt ? $kh->sdt : '',
     'dia_chi' => $kh->dia_chi ? $kh->dia_chi : '',
     'thong_tin_ngan_hang' => $ngan_hang,
-    'thong_tin_ngan_hang_display' => $ngan_hang_display,
     'nv_kinh_doanh' => $nv_kinh_doanh,
-    'nv_kinh_doanh_display' => implode(', ', $nv_display_parts),
     'dob' => $kh->dob ? $kh->dob : '',
     'ghi_chu' => $kh->ghi_chu ? $kh->ghi_chu : '',
     'hoat_dong' => (int) $kh->hoat_dong,
@@ -307,8 +291,6 @@ function _khach_hang_rest_list() {
   $items = array();
   foreach ($rows as $kh) {
     $row = _khach_hang_load_row($kh->nid);
-    // Remove heavy fields for list
-    unset($row['thong_tin_ngan_hang']);
     $items[] = $row;
   }
 

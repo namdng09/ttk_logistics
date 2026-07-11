@@ -18,6 +18,10 @@
   z-index: 99999 !important;
 }
 
+.tagify__dropdown {
+  z-index: 99999 !important;
+}
+
 /* Bank info repeater section */
 .ngan-hang-section {
   background: var(--bs-secondary-bg, #f7f7f9);
