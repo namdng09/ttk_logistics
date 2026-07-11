@@ -7,7 +7,8 @@
   var currentPhanLoai = '';
   var tagifyPhanLoai = null;
   var tagifyNvKinhDoanh = null;
-  var NV_KINH_DOANH_LIST = [];
+  var NV_KINH_DOANH_MAP = {};
+  var NV_KINH_DOANH_WHITELIST = [];
   var PHAN_LOAI_LIST = ['Doanh nghiệp', 'Cá nhân', 'Khách hàng', 'Nhà cung cấp', 'Đối tác', 'Khác'];
 
   function modalShow(id) {
@@ -213,14 +214,17 @@
       success: function (res) {
         if (res.status === 'success' && res.data) {
           var items = res.data.items || [];
+          var map = {};
           var whitelist = [];
           for (var i = 0; i < items.length; i++) {
             var item = items[i];
             var text = item.ten || item.name || '';
             if (item.ma_nhan_vien) text += ' - ' + item.ma_nhan_vien;
-            whitelist.push({ value: String(item.uid), text: text });
+            map[String(item.uid)] = text;
+            whitelist.push(text);
           }
-          NV_KINH_DOANH_LIST = whitelist;
+          NV_KINH_DOANH_MAP = map;
+          NV_KINH_DOANH_WHITELIST = whitelist;
           initTagifyNvKinhDoanh();
         }
       },
@@ -270,37 +274,38 @@
     var el = document.getElementById('tagifyNvKinhDoanh');
     if (!el) return;
     if (tagifyNvKinhDoanh) return;
-    if (!NV_KINH_DOANH_LIST.length) return;
+    if (!NV_KINH_DOANH_WHITELIST.length) return;
     tagifyNvKinhDoanh = new Tagify(el, {
-      whitelist: NV_KINH_DOANH_LIST,
+      whitelist: NV_KINH_DOANH_WHITELIST,
+      enforceWhitelist: true,
       maxTags: 10,
-      tagTextProp: 'text',
       dropdown: {
         maxItems: 20,
         enabled: 0,
         closeOnSelect: false
-      },
-      templates: {
-        tag: function (tagData) {
-          return '<tag title="' + (tagData.text || tagData.value) + '" contenteditable="false" spellcheck="false" class="tagify__tag"><x title="" class="tagify__tag__removeBtn" role="button" aria-label="remove tag"></x><div><span class="tagify__tag-text">' + (tagData.text || tagData.value) + '</span></div></tag>';
-        },
-        dropdownItem: function (tagData) {
-          return '<div class="tagify__dropdown__item" data-value="' + tagData.value + '">' + (tagData.text || tagData.value) + '</div>';
-        }
       }
     });
   }
 
   function getTagifyNvKdValue() {
     if (!tagifyNvKinhDoanh) return [];
-    return tagifyNvKinhDoanh.value.map(function (t) { return t.value; });
+    var rev = {};
+    for (var k in NV_KINH_DOANH_MAP) {
+      rev[NV_KINH_DOANH_MAP[k]] = k;
+    }
+    return tagifyNvKinhDoanh.value.map(function (t) {
+      return rev[t.value] || t.value;
+    });
   }
 
   function setTagifyNvKdValue(arr) {
     if (!tagifyNvKinhDoanh) return;
     tagifyNvKinhDoanh.removeAllTags();
     if (arr && arr.length) {
-      tagifyNvKinhDoanh.addTags(arr);
+      var tags = arr.map(function (item) {
+        return (item.ten || '') + (item.ma_nhan_vien ? ' - ' + item.ma_nhan_vien : '');
+      });
+      tagifyNvKinhDoanh.addTags(tags);
     }
   }
 
@@ -718,12 +723,7 @@
 
     // Tagify nv_kinh_doanh
     if (d.nv_kinh_doanh && d.nv_kinh_doanh.length) {
-      var nvTags = d.nv_kinh_doanh.map(function (nv) {
-        var text = nv.ten || '';
-        if (nv.ma_nhan_vien) text += ' - ' + nv.ma_nhan_vien;
-        return { value: String(nv.uid), text: text };
-      });
-      setTagifyNvKdValue(nvTags);
+      setTagifyNvKdValue(d.nv_kinh_doanh);
     }
 
     // Repeater ngan hang
