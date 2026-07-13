@@ -26,6 +26,7 @@ body,
   --bs-progress-font-size: 0.6875rem;
   --bs-tooltip-font-size: 0.6875rem;
   --bs-toast-font-size: 0.75rem;
+  --bs-menu-width: 220px;
 }
 .btn {
   font-size: var(--bs-btn-font-size);
@@ -33,6 +34,7 @@ body,
 
 h4, .h4, .card-title {
   font-size: 1.125rem !important; /* 18px */
+  margin-bottom: 0 !important;
 }
 .modal-title {
   font-size: 1rem !important; /* 16px */
