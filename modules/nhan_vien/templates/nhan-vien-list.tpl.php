@@ -1,3 +1,5 @@
+<div id="page-nhan-vien">
+<link rel="stylesheet" href="<?php print base_path() . drupal_get_path('module', 'nhan_vien') . '/assets/css/nhan_vien.css'; ?>">
 <div class="card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h4 class="card-title">Danh sách nhân viên</h4>
@@ -52,7 +54,7 @@
             <th>Phòng ban</th>
             <th>Chức vụ</th>
             <th>Vai trò</th>
-            <th style="width:90px">Trạng thái</th>
+            <th style="width:80px">T.thái</th>
           </tr>
         </thead>
         <tbody id="table-nhan-vien-tbody">
@@ -79,9 +81,10 @@
           <input type="text" class="form-control form-control-sm" id="pagination-jump" style="width:60px;text-align:center;" inputmode="numeric">
           <span class="text-muted small" id="pagination-total-pages"></span>
         </div>
-      </div>
     </div>
   </div>
+</div>
+</div>
 </div>
 
 <!-- Create/Edit/View Modal -->

@@ -1,15 +1,36 @@
-#table-danh-muc th {
-  white-space: nowrap;
-  font-size: 0.85rem;
+/* Base font-size: 0.75rem (12px) */
+.card,
+.card-body,
+.modal-body,
+.form-control,
+.form-select,
+.btn,
+.table,
+.table th,
+.table td,
+.page-link,
+.input-group-text,
+button {
+  font-size: 0.75rem !important;
+}
+.form-label,
+.form-text,
+.text-muted,
+small,
+.small,
+label {
+  font-size: 0.6875rem !important;
 }
 
+#table-danh-muc th {
+  white-space: nowrap;
+}
 #table-danh-muc td {
-  font-size: 0.85rem;
   vertical-align: middle;
 }
 
 .btn-view-danh-muc i,
 .btn-edit-danh-muc i,
 .btn-delete-danh-muc i {
-  font-size: 1rem;
+  font-size: 1rem !important;
 }

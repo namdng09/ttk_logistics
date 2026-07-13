@@ -3,6 +3,71 @@
 * File include item demo only specific css only
 ******************************************************************************/
 
+/* Base font-size reduction: 0.9375rem (15px) → 0.75rem (12px) */
+html {
+  font-size: 16px; /* keep 1rem = 16px */
+}
+body,
+.layout-wrapper,
+.layout-page,
+.content-wrapper,
+.container-p-y {
+  font-size: 0.75rem !important; /* 12px */
+}
+
+/* Override Bootstrap CSS variables for consistent sizing */
+:root {
+  --bs-body-font-size: 0.75rem;
+  --bs-btn-font-size: 0.75rem;
+  --bs-nav-link-font-size: 0.75rem;
+  --bs-dropdown-font-size: 0.75rem;
+  --bs-pagination-font-size: 0.75rem;
+  --bs-badge-font-size: 0.6875rem;
+  --bs-progress-font-size: 0.6875rem;
+  --bs-tooltip-font-size: 0.6875rem;
+  --bs-toast-font-size: 0.75rem;
+}
+.btn {
+  font-size: var(--bs-btn-font-size);
+}
+
+h4, .h4, .card-title {
+  font-size: 1.125rem !important; /* 18px */
+}
+.modal-title {
+  font-size: 1rem !important; /* 16px */
+}
+
+/* Explicit overrides for elements that don't use variables */
+small, .small {
+  font-size: 0.6875rem !important; /* 11px */
+}
+.text-muted,
+.form-label,
+.form-text {
+  font-size: 0.6875rem !important; /* 11px */
+}
+.menu .menu-item .menu-link,
+.menu .menu-header small {
+  font-size: 0.6875rem !important;
+}
+
+/* Force inheritance for Bootstrap components with explicit font-size */
+.table,
+.form-control,
+.form-select,
+.input-group-text,
+.page-link {
+  font-size: inherit !important;
+}
+.card-body,
+.modal-body {
+  font-size: inherit !important;
+}
+.btn .ti {
+  font-size: 1.1em;
+}
+
 .menu .app-brand.demo {
   height: 64px;
 }
@@ -13,7 +78,7 @@
 }
 
 .app-brand-text.demo {
-  font-size: 1.375rem;
+  font-size: 1rem !important; /* 22px → 16px */
 }
 
 /* ! For .layout-navbar-fixed added fix padding top to .layout-page */
