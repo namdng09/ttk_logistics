@@ -1,5 +1,6 @@
-name = "Quản lý hợp đồng"
-description = "REST API CRUD cho content type hop_dong (hợp đồng)."
+name = "Hợp đồng"
+description = "Quản lý hợp đồng. RESTful API + Modal CRUD."
 core = 7.x
 package = ANDIN JSC API
 dependencies[] = user_login_api
+dependencies[] = khach_hang

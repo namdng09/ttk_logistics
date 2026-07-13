@@ -2,24 +2,34 @@
 
 /**
  * @file
- * REST API cho content type hop_dong (hợp đồng).
- * Endpoint prefix: /hop-dong
- * Drupal tại subdirectory /api/ → URL đầy đủ: https://site.com/api/hop-dong
+ * Hợp Đồng — Contract management.
+ * RESTful API + Modal CRUD.
  */
 
-module_load_include('inc', 'hop_dong', 'hop_dong.helpers');
-module_load_include('inc', 'hop_dong', 'hop_dong.controller');
-module_load_include('inc', 'hop_dong', 'hop_dong.service');
+/**
+ * Implements hook_permission().
+ */
+function hop_dong_permission() {
+  return array(
+    'hop_dong_view' => array('title' => t('Xem hợp đồng')),
+    'hop_dong_create' => array('title' => t('Tạo/sửa hợp đồng')),
+    'hop_dong_delete' => array('title' => t('Xoá hợp đồng')),
+  );
+}
 
 /**
- * Implements hook_init().
+ * Implements hook_init() — CORS for API routes.
  */
 function hop_dong_init() {
   $path = current_path();
-  if ($path === 'hop-dong' || strpos($path, 'hop-dong/') === 0) {
-    hop_dong_add_cors_headers();
+  if (strpos($path, 'api/hop-dong') === 0) {
+    drupal_add_http_header('Access-Control-Allow-Origin', '*');
+    drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    drupal_add_http_header('Access-Control-Max-Age', '86400');
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-      hop_dong_cors_preflight();
+      drupal_add_http_header('Status', '204 No Content');
+      drupal_exit();
     }
   }
 }
@@ -30,20 +40,414 @@ function hop_dong_init() {
 function hop_dong_menu() {
   $items = array();
 
-  $items['hop-dong'] = array(
-    'title' => 'Danh sách / tạo hợp đồng',
-    'page callback' => 'hop_dong_route_collection',
+  $items['api/hop-dong'] = array(
+    'page callback' => 'hop_dong_rest_collection',
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/hop-dong/%'] = array(
+    'page callback' => 'hop_dong_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
   );
 
-  $items['hop-dong/%'] = array(
-    'title' => 'Chi tiết / cập nhật / xoá hợp đồng',
-    'page callback' => 'hop_dong_route_item',
-    'page arguments' => array(1),
-    'access callback' => TRUE,
-    'type' => MENU_CALLBACK,
+  $items['hop-dong'] = array(
+    'title' => 'Danh sách hợp đồng',
+    'page callback' => 'hop_dong_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
   );
 
   return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function hop_dong_theme() {
+  $path = drupal_get_path('module', 'hop_dong') . '/templates';
+  return array(
+    'hop_dong_list_page' => array(
+      'template' => 'hop-dong-list',
+      'path' => $path,
+    ),
+  );
+}
+
+/*******************************************************************************
+ * HELPERS
+ ******************************************************************************/
+
+function _hop_dong_input() {
+  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+}
+
+function _hop_dong_success($data = NULL) {
+  $response = array('status' => 'success');
+  if ($data !== NULL) {
+    $response['data'] = $data;
+  }
+  return $response;
+}
+
+function _hop_dong_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _hop_dong_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _hop_dong_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _hop_dong_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function _hop_dong_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+/**
+ * Check unique so_hop_dong (active only).
+ */
+function _hop_dong_check_unique_so($value, $exclude_nid = NULL) {
+  $value = trim($value);
+  if ($value === '') return NULL;
+  $query = db_select('hop_dong', 'hd');
+  $query->fields('hd', array('nid', 'hoat_dong'));
+  $query->condition('hd.so_hop_dong', $value);
+  if ($exclude_nid !== NULL) {
+    $query->condition('hd.nid', $exclude_nid, '<>');
+  }
+  $query->range(0, 1);
+  $exists = $query->execute()->fetchObject();
+  if ($exists && $exists->hoat_dong) {
+    return _hop_dong_fail('Số hợp đồng "' . $value . '" đã tồn tại');
+  }
+  return NULL;
+}
+
+/**
+ * Load khach_hang data for nesting in response.
+ */
+function _hop_dong_load_khach_hang($nid) {
+  if (!$nid) return NULL;
+  $kh = db_query("SELECT * FROM {khach_hang} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid))->fetch();
+  if (!$kh) return NULL;
+
+  // Get nv_kinh_doanh from junction table
+  $nv_kinh_doanh = array();
+  $nv_rows = db_query("SELECT nv.uid, u.name, u.ten, u.ma_nhan_vien FROM {nhan_vien_khach_hang} nv INNER JOIN {users} u ON u.uid = nv.uid WHERE nv.nid = :nid AND nv.hoat_dong = 1 ORDER BY nv.id ASC", array(':nid' => $nid));
+  foreach ($nv_rows as $nv) {
+    $nv_kinh_doanh[] = array(
+      'uid' => (int) $nv->uid,
+      'ten' => isset($nv->ten) ? $nv->ten : $nv->name,
+      'username' => $nv->name,
+      'ma_nhan_vien' => isset($nv->ma_nhan_vien) ? $nv->ma_nhan_vien : '',
+    );
+  }
+
+  // Decode thong_tin_ngan_hang JSON
+  $ngan_hang = array();
+  if (!empty($kh->thong_tin_ngan_hang)) {
+    $decoded = json_decode($kh->thong_tin_ngan_hang, TRUE);
+    if (is_array($decoded)) {
+      $ngan_hang = $decoded;
+    }
+  }
+
+  return array(
+    'nid' => (int) $kh->nid,
+    'ten' => $kh->ten,
+    'ma_kh' => $kh->ma_kh ? $kh->ma_kh : '',
+    'phan_loai' => $kh->phan_loai,
+    'cccd_mst' => $kh->cccd_mst ? $kh->cccd_mst : '',
+    'sdt' => $kh->sdt ? $kh->sdt : '',
+    'dia_chi' => $kh->dia_chi ? $kh->dia_chi : '',
+    'thong_tin_ngan_hang' => $ngan_hang,
+    'nv_kinh_doanh' => $nv_kinh_doanh,
+    'dob' => $kh->dob ? $kh->dob : '',
+    'ghi_chu' => $kh->ghi_chu ? $kh->ghi_chu : '',
+  );
+}
+
+/**
+ * Build row with nested khach_hang data.
+ */
+function _hop_dong_load_row($nid) {
+  $hd = db_query("SELECT * FROM {hop_dong} WHERE nid = :nid", array(':nid' => $nid))->fetch();
+  if (!$hd) return NULL;
+
+  $kh_data = NULL;
+  if ($hd->khach_hang) {
+    $kh_data = _hop_dong_load_khach_hang($hd->khach_hang);
+  }
+
+  return array(
+    'nid' => (int) $hd->nid,
+    'so_hop_dong' => $hd->so_hop_dong,
+    'ngay_hop_dong' => $hd->ngay_hop_dong ? $hd->ngay_hop_dong : '',
+    'han_hop_dong' => $hd->han_hop_dong ? $hd->han_hop_dong : '',
+    'khach_hang' => $kh_data,
+    'ghi_chu' => $hd->ghi_chu ? $hd->ghi_chu : '',
+    'hoat_dong' => (int) $hd->hoat_dong,
+  );
+}
+
+/*******************************************************************************
+ * REST: COLLECTION — GET /api/hop-dong, POST /api/hop-dong
+ ******************************************************************************/
+
+function hop_dong_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _hop_dong_rest_list();
+    case 'POST':
+      return _hop_dong_rest_create();
+    default:
+      return _hop_dong_method_not_allowed('GET, POST');
+  }
+}
+
+function _hop_dong_rest_list() {
+  if (!user_access('hop_dong_view')) {
+    return _hop_dong_unauthorized('Bạn không có quyền xem hợp đồng');
+  }
+
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $offset = ($page - 1) * $limit;
+
+  $query = db_select('hop_dong', 'hd');
+  $query->fields('hd');
+  $query->condition('hd.hoat_dong', 1);
+
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like($_GET['keyword']) . '%';
+    $or = db_or()
+      ->condition('hd.so_hop_dong', $like, 'LIKE');
+    // Also search by customer name via subquery
+    $kh_ids = db_select('khach_hang', 'kh')
+      ->fields('kh', array('nid'))
+      ->condition('kh.hoat_dong', 1)
+      ->condition('kh.ten', $like, 'LIKE')
+      ->execute()->fetchCol();
+    if (!empty($kh_ids)) {
+      $or->condition('hd.khach_hang', $kh_ids, 'IN');
+    }
+    $query->condition($or);
+  }
+
+  $count = clone $query;
+  $total = $count->countQuery()->execute()->fetchField();
+
+  $query->orderBy('hd.nid', 'DESC');
+  $query->range($offset, $limit);
+  $rows = $query->execute()->fetchAll();
+
+  $items = array();
+  foreach ($rows as $hd) {
+    $items[] = _hop_dong_load_row($hd->nid);
+  }
+
+  $total_pages = (int) ceil($total / $limit);
+
+  return _hop_dong_success(array(
+    'items' => $items,
+    'total' => (int) $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+  ));
+}
+
+function _hop_dong_rest_create() {
+  if (!user_access('hop_dong_create')) {
+    return _hop_dong_unauthorized('Bạn không có quyền tạo hợp đồng');
+  }
+
+  $input = _hop_dong_input();
+
+  if (empty($input['so_hop_dong'])) {
+    return _hop_dong_fail('Số hợp đồng bắt buộc');
+  }
+
+  $dupSo = _hop_dong_check_unique_so($input['so_hop_dong']);
+  if ($dupSo) return $dupSo;
+
+  $transaction = db_transaction();
+  try {
+    $nid = db_insert('hop_dong')
+      ->fields(array(
+        'so_hop_dong' => $input['so_hop_dong'],
+        'ngay_hop_dong' => !empty($input['ngay_hop_dong']) ? $input['ngay_hop_dong'] : NULL,
+        'han_hop_dong' => !empty($input['han_hop_dong']) ? $input['han_hop_dong'] : NULL,
+        'khach_hang' => !empty($input['khach_hang']) ? (int) $input['khach_hang'] : NULL,
+        'ghi_chu' => !empty($input['ghi_chu']) ? $input['ghi_chu'] : NULL,
+        'hoat_dong' => 1,
+        'created' => date('Y-m-d H:i:s', REQUEST_TIME),
+        'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+      ))
+      ->execute();
+
+    watchdog('hop_dong', 'Tạo hợp đồng #%id: %so', array(
+      '%id' => $nid,
+      '%so' => $input['so_hop_dong'],
+    ));
+
+    return _hop_dong_success(_hop_dong_load_row($nid));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('hop_dong', 'Lỗi tạo hợp đồng: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _hop_dong_error('Lỗi hệ thống khi tạo hợp đồng');
+  }
+}
+
+/*******************************************************************************
+ * REST: ITEM — GET /api/hop-dong/{id}, PUT, DELETE
+ ******************************************************************************/
+
+function hop_dong_rest_item($id) {
+  $id = (int) $id;
+  if (!$id) {
+    return _hop_dong_fail('ID không hợp lệ');
+  }
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _hop_dong_rest_get($id);
+    case 'PUT':
+      return _hop_dong_rest_update($id);
+    case 'DELETE':
+      return _hop_dong_rest_delete($id);
+    default:
+      return _hop_dong_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+function _hop_dong_rest_get($id) {
+  if (!user_access('hop_dong_view')) {
+    return _hop_dong_unauthorized('Bạn không có quyền xem hợp đồng');
+  }
+
+  $row = _hop_dong_load_row($id);
+  if (!$row) {
+    return _hop_dong_not_found('Hợp đồng không tồn tại');
+  }
+  return _hop_dong_success($row);
+}
+
+function _hop_dong_rest_update($id) {
+  if (!user_access('hop_dong_create')) {
+    return _hop_dong_unauthorized('Bạn không có quyền sửa hợp đồng');
+  }
+
+  $existing = db_query("SELECT nid FROM {hop_dong} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  if (!$existing) {
+    return _hop_dong_not_found('Hợp đồng không tồn tại');
+  }
+
+  $input = _hop_dong_input();
+
+  if (empty($input['so_hop_dong'])) {
+    return _hop_dong_fail('Số hợp đồng bắt buộc');
+  }
+
+  $dupSo = _hop_dong_check_unique_so($input['so_hop_dong'], $id);
+  if ($dupSo) return $dupSo;
+
+  $transaction = db_transaction();
+  try {
+    $fields = array(
+      'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+      'so_hop_dong' => $input['so_hop_dong'],
+    );
+
+    $optional = array('ngay_hop_dong', 'han_hop_dong', 'ghi_chu');
+    foreach ($optional as $f) {
+      if (array_key_exists($f, $input)) {
+        $fields[$f] = !empty($input[$f]) ? $input[$f] : NULL;
+      }
+    }
+    if (array_key_exists('khach_hang', $input)) {
+      $fields['khach_hang'] = !empty($input['khach_hang']) ? (int) $input['khach_hang'] : NULL;
+    }
+
+    db_update('hop_dong')
+      ->fields($fields)
+      ->condition('nid', $id)
+      ->execute();
+
+    watchdog('hop_dong', 'Cập nhật hợp đồng #%id', array('%id' => $id));
+
+    return _hop_dong_success(_hop_dong_load_row($id));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('hop_dong', 'Lỗi cập nhật hợp đồng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _hop_dong_error('Lỗi hệ thống khi cập nhật hợp đồng');
+  }
+}
+
+function _hop_dong_rest_delete($id) {
+  if (!user_access('hop_dong_delete')) {
+    return _hop_dong_unauthorized('Bạn không có quyền xoá hợp đồng');
+  }
+
+  $existing = db_query("SELECT nid, so_hop_dong FROM {hop_dong} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  if (!$existing) {
+    return _hop_dong_not_found('Hợp đồng không tồn tại');
+  }
+
+  $transaction = db_transaction();
+  try {
+    db_update('hop_dong')
+      ->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))
+      ->condition('nid', $id)
+      ->execute();
+
+    watchdog('hop_dong', 'Xoá (soft) hợp đồng #%id: %so', array(
+      '%id' => $id,
+      '%so' => $existing->so_hop_dong,
+    ));
+
+    return _hop_dong_success(array('nid' => (int) $id, 'deleted' => TRUE));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('hop_dong', 'Lỗi xoá hợp đồng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _hop_dong_error('Lỗi hệ thống khi xoá hợp đồng');
+  }
+}
+
+/*******************************************************************************
+ * UI PAGE CALLBACKS
+ ******************************************************************************/
+
+function hop_dong_page_list() {
+  drupal_add_css(drupal_get_path('module', 'hop_dong') . '/assets/css/hop_dong.css');
+  drupal_add_js(drupal_get_path('module', 'hop_dong') . '/assets/js/hop_dong.js');
+
+  drupal_add_js(array('hop_dong' => array(
+    'permissions' => array(
+      'hop_dong_view' => user_access('hop_dong_view'),
+      'hop_dong_create' => user_access('hop_dong_create'),
+      'hop_dong_delete' => user_access('hop_dong_delete'),
+    ),
+  )), 'setting');
+
+  return theme('hop_dong_list_page');
 }

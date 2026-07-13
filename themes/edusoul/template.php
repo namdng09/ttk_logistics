@@ -77,9 +77,9 @@ function getMainMenuSoft()
                       </a>
                     </li>
                     <li class="menu-item">
-                        <a href="/trucking/index" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-package-export"></i>
-                            <div data-i18n="Danh sách HĐ">Danh sách HĐ</div>
+                        <a href="/hop-dong" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-file-text"></i>
+                            <div data-i18n="Hợp đồng">Hợp đồng</div>
                         </a>
                     </li>
 
