@@ -64,14 +64,8 @@ function lai_xe_schema() {
         'length' => 10,
         'not null' => FALSE,
       ),
-      'so_tk_ngan_hang' => array(
-        'type' => 'varchar',
-        'length' => 30,
-        'not null' => FALSE,
-      ),
-      'ngan_hang' => array(
-        'type' => 'varchar',
-        'length' => 100,
+      'thong_tin_ngan_hang' => array(
+        'type' => 'text',
         'not null' => FALSE,
       ),
       'hoat_dong' => array(
@@ -102,7 +96,6 @@ function lai_xe_schema() {
       'sdt' => array('sdt'),
       'cccd' => array('cccd'),
       'so_bang_lai' => array('so_bang_lai'),
-      'so_tk_ngan_hang' => array('so_tk_ngan_hang'),
     ),
     'indexes' => array(
       'hoat_dong' => array('hoat_dong'),
@@ -141,4 +134,31 @@ function lai_xe_update_7005() {
       db_query("ALTER TABLE {lai_xe} DROP INDEX `$index_name`");
     }
   }
+}
+
+function lai_xe_update_7006() {
+  // Add thong_tin_ngan_hang column
+  $field = db_query("SHOW COLUMNS FROM {lai_xe} LIKE 'thong_tin_ngan_hang'")->fetch();
+  if (!$field) {
+    db_query("ALTER TABLE {lai_xe} ADD thong_tin_ngan_hang TEXT NULL AFTER ngay_nhan_viec");
+  }
+  // Migrate existing data: so_tk_ngan_hang + ngan_hang -> thong_tin_ngan_hang JSON
+  $rows = db_query("SELECT nid, so_tk_ngan_hang, ngan_hang FROM {lai_xe} WHERE so_tk_ngan_hang IS NOT NULL OR ngan_hang IS NOT NULL");
+  foreach ($rows as $row) {
+    $arr = array();
+    if ($row->so_tk_ngan_hang || $row->ngan_hang) {
+      $arr[] = array(
+        'ten_tai_khoan' => '',
+        'so_tai_khoan' => $row->so_tk_ngan_hang ?: '',
+        'ngan_hang' => $row->ngan_hang ?: '',
+      );
+    }
+    db_update('lai_xe')
+      ->fields(array('thong_tin_ngan_hang' => json_encode($arr)))
+      ->condition('nid', $row->nid)
+      ->execute();
+  }
+  // Drop old columns
+  db_query("ALTER TABLE {lai_xe} DROP COLUMN so_tk_ngan_hang");
+  db_query("ALTER TABLE {lai_xe} DROP COLUMN ngan_hang");
 }

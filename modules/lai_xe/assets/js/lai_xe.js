@@ -96,6 +96,14 @@
       initMasks();
     });
 
+    // Add bank info row
+    var btnThemNh = document.getElementById('btn-them-ngan-hang');
+    if (btnThemNh) {
+      btnThemNh.addEventListener('click', function () {
+        addNganHangRow();
+      });
+    }
+
     // Delegated clicks (dropdown items, pagination)
     doc.addEventListener('click', function (e) {
       var t = e.target;
@@ -115,6 +123,12 @@
           if (t.classList.contains('btn-delete-lai-xe')) {
             e.preventDefault();
             confirmDelete(t.getAttribute('data-id'));
+            return;
+          }
+          if (t.classList.contains('btn-xoa-ngan-hang')) {
+            e.preventDefault();
+            var row = t.closest('.ngan-hang-row');
+            if (row) row.remove();
             return;
           }
           // Pagination jump
@@ -199,6 +213,7 @@
       var inp = inputs[i];
       if (inp.name) data[inp.name] = inp.value;
     }
+    data.thong_tin_ngan_hang = collectNganHang();
 
     var nid = data.nid;
     var url = nid ? '/api/lai-xe/' + nid : '/api/lai-xe';
@@ -237,7 +252,7 @@
   function loadList() {
     var tbody = $('#table-lai-xe-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="15" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="14" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -251,7 +266,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="15" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="14" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -260,7 +275,7 @@
         var pageSize = data.limit || 20;
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="15" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="14" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -270,6 +285,20 @@
           var item = items[i];
           var stt = (data.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(item.nid);
+          // Build bank display from array
+          var nganHangHtml = '';
+          if (item.thong_tin_ngan_hang && item.thong_tin_ngan_hang.length) {
+            var bankParts = [];
+            for (var b = 0; b < item.thong_tin_ngan_hang.length; b++) {
+              var nh = item.thong_tin_ngan_hang[b];
+              var line = '';
+              if (nh.so_tai_khoan) line += nh.so_tai_khoan;
+              if (nh.ngan_hang) line += ' - ' + nh.ngan_hang;
+              if (nh.ten_tai_khoan) line += ' (' + nh.ten_tai_khoan + ')';
+              if (line) bankParts.push(escapeHtml(line));
+            }
+            nganHangHtml = bankParts.join('<br>');
+          }
           html +=
             '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
@@ -285,8 +314,7 @@
             '<td>' + escapeHtml(item.loai_bang_lai || '') + '</td>' +
             '<td>' + (item.han_bang_lai || '') + '</td>' +
             '<td>' + (item.ngay_nhan_viec || '') + '</td>' +
-            '<td>' + escapeHtml(item.so_tk_ngan_hang || '') + '</td>' +
-            '<td>' + escapeHtml(item.ngan_hang || '') + '</td>' +
+            '<td>' + nganHangHtml + '</td>' +
             '</tr>';
         }
         tbody.append(html);
@@ -294,7 +322,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="15" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="14" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -447,6 +475,66 @@
       }
     }
     if (btn) btn.style.display = mode === 'view' ? 'none' : '';
+    var btnThemNh = document.getElementById('btn-them-ngan-hang');
+    if (btnThemNh) {
+      btnThemNh.style.display = mode === 'view' ? 'none' : '';
+    }
+    var btnXoaNh = document.querySelectorAll('.btn-xoa-ngan-hang');
+    for (var j = 0; j < btnXoaNh.length; j++) {
+      btnXoaNh[j].style.display = mode === 'view' ? 'none' : '';
+    }
+  }
+
+  function initRepeater() {
+    var container = document.getElementById('ngan-hang-repeater');
+    if (!container) return;
+    container.innerHTML = '';
+    addNganHangRow();
+  }
+
+  function addNganHangRow(data) {
+    var container = document.getElementById('ngan-hang-repeater');
+    if (!container) return;
+    var html = '<div class="ngan-hang-row row g-2 mb-2 align-items-end">' +
+      '<div class="col-md-3">' +
+        '<label class="form-label small">Tên tài khoản</label>' +
+        '<input type="text" class="form-control form-control-sm nganh-hang-ten-tai-khoan" placeholder="Tên TK">' +
+      '</div>' +
+      '<div class="col-md-4">' +
+        '<label class="form-label small">Số tài khoản</label>' +
+        '<input type="text" class="form-control form-control-sm ngan-hang-so-tai-khoan" placeholder="Số TK">' +
+      '</div>' +
+      '<div class="col-md-4">' +
+        '<label class="form-label small">Ngân hàng</label>' +
+        '<input type="text" class="form-control form-control-sm ngan-hang-ten-ngan-hang" placeholder="Tên ngân hàng">' +
+      '</div>' +
+      '<div class="col-md-1">' +
+        '<button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-ngan-hang"><i class="ti tabler-x"></i></button>' +
+      '</div>' +
+    '</div>';
+    var div = document.createElement('div');
+    div.innerHTML = html;
+    var row = div.querySelector('.ngan-hang-row');
+    container.appendChild(row);
+    if (data) {
+      row.querySelector('.nganh-hang-ten-tai-khoan').value = data.ten_tai_khoan || '';
+      row.querySelector('.ngan-hang-so-tai-khoan').value = data.so_tai_khoan || '';
+      row.querySelector('.ngan-hang-ten-ngan-hang').value = data.ngan_hang || '';
+    }
+  }
+
+  function collectNganHang() {
+    var rows = document.querySelectorAll('#ngan-hang-repeater .ngan-hang-row');
+    var result = [];
+    for (var i = 0; i < rows.length; i++) {
+      var ten = rows[i].querySelector('.nganh-hang-ten-tai-khoan').value.trim();
+      var so = rows[i].querySelector('.ngan-hang-so-tai-khoan').value.trim();
+      var nh = rows[i].querySelector('.ngan-hang-ten-ngan-hang').value.trim();
+      if (ten || so || nh) {
+        result.push({ ten_tai_khoan: ten, so_tai_khoan: so, ngan_hang: nh });
+      }
+    }
+    return result;
   }
 
   function resetForm() {
@@ -454,6 +542,7 @@
     document.getElementById('form-lai-xe').reset();
     document.querySelector('#form-lai-xe input[name="nid"]').value = '';
     document.getElementById('lai-xe-modal-title').textContent = 'Thêm lái xe';
+    initRepeater();
     setFormMode('create');
   }
 
@@ -469,8 +558,17 @@
     document.querySelector('#form-lai-xe input[name="loai_bang_lai"]').value = d.loai_bang_lai || '';
     document.querySelector('#form-lai-xe input[name="han_bang_lai"]').value = d.han_bang_lai || '';
     document.querySelector('#form-lai-xe input[name="ngay_nhan_viec"]').value = d.ngay_nhan_viec || '';
-    document.querySelector('#form-lai-xe input[name="so_tk_ngan_hang"]').value = d.so_tk_ngan_hang || '';
-    document.querySelector('#form-lai-xe input[name="ngan_hang"]').value = d.ngan_hang || '';
+
+    // Repeater ngan hang
+    var container = document.getElementById('ngan-hang-repeater');
+    if (container) container.innerHTML = '';
+    if (d.thong_tin_ngan_hang && d.thong_tin_ngan_hang.length) {
+      for (var i = 0; i < d.thong_tin_ngan_hang.length; i++) {
+        addNganHangRow(d.thong_tin_ngan_hang[i]);
+      }
+    } else {
+      addNganHangRow();
+    }
   }
 
   function initDatePickers() {

@@ -45,13 +45,12 @@
             <th>Loại bằng</th>
             <th>Hạn bằng</th>
             <th>Ngày nhận việc</th>
-            <th>Số TK</th>
-            <th>Ngân hàng</th>
+            <th>Thông tin NH</th>
           </tr>
         </thead>
         <tbody id="table-lai-xe-tbody">
           <tr id="loading-row">
-            <td colspan="15" class="text-center py-4">
+            <td colspan="14" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -141,13 +140,20 @@
               <label class="form-label">Ngày nhận việc</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="ngay_nhan_viec" placeholder="dd/MM/yyyy">
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Số TK ngân hàng</label>
-              <input type="text" class="form-control" name="so_tk_ngan_hang" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Ngân hàng</label>
-              <input type="text" class="form-control" name="ngan_hang" placeholder="Tên ngân hàng">
+
+            <!-- Bank Info Repeater -->
+            <div class="col-12">
+              <div class="ngan-hang-section">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label mb-0"><i class="ti tabler-building-bank me-2"></i>Thông tin ngân hàng</label>
+                  <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-ngan-hang">
+                    <i class="ti tabler-plus me-1"></i>Thêm
+                  </button>
+                </div>
+                <div id="ngan-hang-repeater">
+                  <!-- Repeater items will be added here -->
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -155,7 +155,6 @@ function _lai_xe_check_unique($input, $exclude_nid = NULL) {
     'sdt' => 'SĐT',
     'cccd' => 'CCCD',
     'so_bang_lai' => 'Số bằng lái',
-    'so_tk_ngan_hang' => 'Số TK',
   );
 
   foreach ($labels as $field => $label) {
@@ -219,7 +218,7 @@ function _lai_xe_rest_list() {
     $sort_dir = 'DESC';
     $sort_by = substr($sort_by, 1);
   }
-  $allowed = array('nid', 'ten', 'ma_nhan_vien', 'sdt', 'cccd', 'ngay_cap', 'noi_cap', 'han_cccd', 'so_bang_lai', 'loai_bang_lai', 'han_bang_lai', 'ngay_nhan_viec', 'so_tk_ngan_hang', 'ngan_hang', 'hoat_dong', 'created', 'changed');
+  $allowed = array('nid', 'ten', 'ma_nhan_vien', 'sdt', 'cccd', 'ngay_cap', 'noi_cap', 'han_cccd', 'so_bang_lai', 'loai_bang_lai', 'han_bang_lai', 'ngay_nhan_viec', 'hoat_dong', 'created', 'changed');
   if (!in_array($sort_by, $allowed)) {
     $sort_by = 'nid';
     $sort_dir = 'DESC';
@@ -237,8 +236,22 @@ function _lai_xe_rest_list() {
 
   $total_pages = (int) ceil($total / $limit);
 
+  // Decode thong_tin_ngan_hang JSON
+  $items = array();
+  if ($rows) {
+    foreach ($rows as $row) {
+      if (isset($row->thong_tin_ngan_hang) && $row->thong_tin_ngan_hang) {
+        $decoded = json_decode($row->thong_tin_ngan_hang, TRUE);
+        $row->thong_tin_ngan_hang = is_array($decoded) ? $decoded : array();
+      } else {
+        $row->thong_tin_ngan_hang = array();
+      }
+      $items[] = $row;
+    }
+  }
+
   return _lai_xe_success(array(
-    'items' => $rows ?: array(),
+    'items' => $items ?: array(),
     'total' => (int) $total,
     'current_page' => $total_pages > 0 ? $page : 0,
     'total_pages' => $total_pages,
@@ -275,8 +288,7 @@ function _lai_xe_rest_create() {
         'loai_bang_lai' => isset($input['loai_bang_lai']) ? $input['loai_bang_lai'] : '',
         'han_bang_lai' => isset($input['han_bang_lai']) ? $input['han_bang_lai'] : '',
         'ngay_nhan_viec' => isset($input['ngay_nhan_viec']) ? $input['ngay_nhan_viec'] : '',
-        'so_tk_ngan_hang' => (isset($input['so_tk_ngan_hang']) && trim($input['so_tk_ngan_hang']) !== '') ? $input['so_tk_ngan_hang'] : NULL,
-        'ngan_hang' => isset($input['ngan_hang']) ? $input['ngan_hang'] : '',
+        'thong_tin_ngan_hang' => isset($input['thong_tin_ngan_hang']) ? json_encode($input['thong_tin_ngan_hang'], JSON_UNESCAPED_UNICODE) : NULL,
         'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
         'created' => date('Y-m-d H:i:s', REQUEST_TIME),
         'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
@@ -296,7 +308,7 @@ function _lai_xe_rest_create() {
     $transaction->rollback();
     watchdog('lai_xe', 'Lỗi tạo lái xe: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
     if (strpos($e->getMessage(), 'Duplicate entry') !== FALSE) {
-      return _lai_xe_fail('Dữ liệu đã tồn tại (trùng mã NV, SDT, CCCD, bằng lái hoặc số TK)');
+      return _lai_xe_fail('Dữ liệu đã tồn tại (trùng mã NV, SDT, CCCD hoặc bằng lái)');
     }
     return _lai_xe_error('Lỗi hệ thống khi tạo lái xe');
   }
@@ -329,6 +341,13 @@ function _lai_xe_rest_get($id) {
   if (!$row) {
     return _lai_xe_not_found('Lái xe không tồn tại');
   }
+  // Decode thong_tin_ngan_hang JSON
+  if (isset($row->thong_tin_ngan_hang) && $row->thong_tin_ngan_hang) {
+    $decoded = json_decode($row->thong_tin_ngan_hang, TRUE);
+    $row->thong_tin_ngan_hang = is_array($decoded) ? $decoded : array();
+  } else {
+    $row->thong_tin_ngan_hang = array();
+  }
   return _lai_xe_success($row);
 }
 
@@ -347,11 +366,11 @@ function _lai_xe_rest_update($id) {
   $dup = _lai_xe_check_unique($input, $id);
   if ($dup) return $dup;
 
-  $unique_fields = array('ma_nhan_vien', 'sdt', 'cccd', 'so_bang_lai', 'so_tk_ngan_hang');
+  $unique_fields = array('ma_nhan_vien', 'sdt', 'cccd', 'so_bang_lai');
   $fields = array(
     'ten', 'ma_nhan_vien', 'sdt', 'cccd', 'ngay_cap', 'noi_cap',
     'han_cccd', 'so_bang_lai', 'loai_bang_lai', 'han_bang_lai',
-    'ngay_nhan_viec', 'so_tk_ngan_hang', 'ngan_hang', 'hoat_dong',
+    'ngay_nhan_viec', 'thong_tin_ngan_hang', 'hoat_dong',
   );
 
   $update = array('changed' => date('Y-m-d H:i:s', REQUEST_TIME));
@@ -360,6 +379,9 @@ function _lai_xe_rest_update($id) {
       $val = $input[$f];
       if (in_array($f, $unique_fields) && is_string($val) && trim($val) === '') {
         $val = NULL;
+      }
+      if ($f === 'thong_tin_ngan_hang') {
+        $val = json_encode($val, JSON_UNESCAPED_UNICODE);
       }
       $update[$f] = $val;
     }
@@ -382,7 +404,7 @@ function _lai_xe_rest_update($id) {
     $transaction->rollback();
     watchdog('lai_xe', 'Lỗi cập nhật lái xe #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
     if (strpos($e->getMessage(), 'Duplicate entry') !== FALSE) {
-      return _lai_xe_fail('Dữ liệu đã tồn tại (trùng mã NV, SDT, CCCD, bằng lái hoặc số TK)');
+      return _lai_xe_fail('Dữ liệu đã tồn tại (trùng mã NV, SDT, CCCD hoặc bằng lái)');
     }
     return _lai_xe_error('Lỗi hệ thống khi cập nhật lái xe');
   }
