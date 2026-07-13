@@ -45,12 +45,11 @@
             <th>Loại bằng</th>
             <th>Hạn bằng</th>
             <th>Ngày nhận việc</th>
-            <th>Thông tin NH</th>
           </tr>
         </thead>
         <tbody id="table-lai-xe-tbody">
           <tr id="loading-row">
-            <td colspan="14" class="text-center py-4">
+            <td colspan="13" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>

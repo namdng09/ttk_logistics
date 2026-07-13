@@ -4,6 +4,8 @@
   var notyf;
   var currentPage = 1;
   var currentKeyword = '';
+  var BANK_LIST = [];
+  var BANK_LIST_LOADED = false;
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -24,6 +26,7 @@
       }
 
       if ($('#table-lai-xe', context).length) {
+        loadBankList();
         loadList();
         bindNativeEvents();
       }
@@ -128,7 +131,13 @@
           if (t.classList.contains('btn-xoa-ngan-hang')) {
             e.preventDefault();
             var row = t.closest('.ngan-hang-row');
-            if (row) row.remove();
+            if (row) {
+              var sel = row.querySelector('.ngan-hang-ten-ngan-hang');
+              if (sel && typeof $ === 'function' && $.fn.select2) {
+                $(sel).select2('destroy');
+              }
+              row.remove();
+            }
             return;
           }
           // Pagination jump
@@ -252,7 +261,7 @@
   function loadList() {
     var tbody = $('#table-lai-xe-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="14" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="13" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -266,7 +275,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="14" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="13" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -275,7 +284,7 @@
         var pageSize = data.limit || 20;
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="14" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="13" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -285,20 +294,6 @@
           var item = items[i];
           var stt = (data.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(item.nid);
-          // Build bank display from array
-          var nganHangHtml = '';
-          if (item.thong_tin_ngan_hang && item.thong_tin_ngan_hang.length) {
-            var bankParts = [];
-            for (var b = 0; b < item.thong_tin_ngan_hang.length; b++) {
-              var nh = item.thong_tin_ngan_hang[b];
-              var line = '';
-              if (nh.so_tai_khoan) line += nh.so_tai_khoan;
-              if (nh.ngan_hang) line += ' - ' + nh.ngan_hang;
-              if (nh.ten_tai_khoan) line += ' (' + nh.ten_tai_khoan + ')';
-              if (line) bankParts.push(escapeHtml(line));
-            }
-            nganHangHtml = bankParts.join('<br>');
-          }
           html +=
             '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
@@ -314,7 +309,6 @@
             '<td>' + escapeHtml(item.loai_bang_lai || '') + '</td>' +
             '<td>' + (item.han_bang_lai || '') + '</td>' +
             '<td>' + (item.ngay_nhan_viec || '') + '</td>' +
-            '<td>' + nganHangHtml + '</td>' +
             '</tr>';
         }
         tbody.append(html);
@@ -322,7 +316,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="14" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="13" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -483,30 +477,46 @@
     for (var j = 0; j < btnXoaNh.length; j++) {
       btnXoaNh[j].style.display = mode === 'view' ? 'none' : '';
     }
+    // Handle Select2 bank selects
+    var bankSelects = document.querySelectorAll('#form-lai-xe .ngan-hang-ten-ngan-hang');
+    for (var k = 0; k < bankSelects.length; k++) {
+      var $sel;
+      try { $sel = $(bankSelects[k]); } catch (e) {}
+      if ($sel && typeof $sel.select2 === 'function' && $sel.data && $sel.data('select2')) {
+        $sel.select2(mode === 'view' ? 'disable' : 'enable');
+      }
+    }
   }
 
   function initRepeater() {
     var container = document.getElementById('ngan-hang-repeater');
     if (!container) return;
     container.innerHTML = '';
+    // Header row with labels (only once)
+    var headerHtml = '<div class="row g-2 mb-1">' +
+      '<div class="col-md-3"><label class="form-label mb-0">Tên tài khoản</label></div>' +
+      '<div class="col-md-4"><label class="form-label mb-0">Số tài khoản</label></div>' +
+      '<div class="col-md-4"><label class="form-label mb-0">Ngân hàng</label></div>' +
+      '<div class="col-md-1"></div>' +
+    '</div>';
+    container.innerHTML = headerHtml;
     addNganHangRow();
   }
 
   function addNganHangRow(data) {
     var container = document.getElementById('ngan-hang-repeater');
     if (!container) return;
-    var html = '<div class="ngan-hang-row row g-2 mb-2 align-items-end">' +
+    var html = '<div class="ngan-hang-row row g-2 mb-2">' +
       '<div class="col-md-3">' +
-        '<label class="form-label small">Tên tài khoản</label>' +
-        '<input type="text" class="form-control form-control-sm nganh-hang-ten-tai-khoan" placeholder="Tên TK">' +
+        '<input type="text" class="form-control nganh-hang-ten-tai-khoan" placeholder="Tên TK">' +
       '</div>' +
       '<div class="col-md-4">' +
-        '<label class="form-label small">Số tài khoản</label>' +
-        '<input type="text" class="form-control form-control-sm ngan-hang-so-tai-khoan" placeholder="Số TK">' +
+        '<input type="text" class="form-control ngan-hang-so-tai-khoan" placeholder="Số TK">' +
       '</div>' +
       '<div class="col-md-4">' +
-        '<label class="form-label small">Ngân hàng</label>' +
-        '<input type="text" class="form-control form-control-sm ngan-hang-ten-ngan-hang" placeholder="Tên ngân hàng">' +
+        '<select class="form-select ngan-hang-ten-ngan-hang" style="width:100%">' +
+          '<option value="">Chọn ngân hàng</option>' +
+        '</select>' +
       '</div>' +
       '<div class="col-md-1">' +
         '<button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-ngan-hang"><i class="ti tabler-x"></i></button>' +
@@ -516,10 +526,11 @@
     div.innerHTML = html;
     var row = div.querySelector('.ngan-hang-row');
     container.appendChild(row);
+    var sel = row.querySelector('.ngan-hang-ten-ngan-hang');
+    initBankSelect(sel, data ? data.ngan_hang : null);
     if (data) {
       row.querySelector('.nganh-hang-ten-tai-khoan').value = data.ten_tai_khoan || '';
       row.querySelector('.ngan-hang-so-tai-khoan').value = data.so_tai_khoan || '';
-      row.querySelector('.ngan-hang-ten-ngan-hang').value = data.ngan_hang || '';
     }
   }
 
@@ -529,12 +540,85 @@
     for (var i = 0; i < rows.length; i++) {
       var ten = rows[i].querySelector('.nganh-hang-ten-tai-khoan').value.trim();
       var so = rows[i].querySelector('.ngan-hang-so-tai-khoan').value.trim();
-      var nh = rows[i].querySelector('.ngan-hang-ten-ngan-hang').value.trim();
+      var sel = rows[i].querySelector('.ngan-hang-ten-ngan-hang');
+      var nh = sel ? sel.value.trim() : '';
       if (ten || so || nh) {
         result.push({ ten_tai_khoan: ten, so_tai_khoan: so, ngan_hang: nh });
       }
     }
     return result;
+  }
+
+  function loadBankList() {
+    if (BANK_LIST_LOADED) return;
+    var cached = localStorage.getItem('bankList');
+    if (cached) {
+      try { BANK_LIST = JSON.parse(cached); BANK_LIST_LOADED = true; } catch (e) {}
+    }
+    $.ajax({
+      url: 'https://api.vietqr.io/v2/banks',
+      type: 'GET',
+      dataType: 'json',
+      success: function (res) {
+        if (res && res.data && res.data.length) {
+          BANK_LIST = res.data;
+          BANK_LIST_LOADED = true;
+          try { localStorage.setItem('bankList', JSON.stringify(res.data)); } catch (e) {}
+          // Refresh all existing bank selects
+          var selects = document.querySelectorAll('.ngan-hang-ten-ngan-hang');
+          for (var i = 0; i < selects.length; i++) {
+            var curVal = selects[i].value;
+            initBankSelect(selects[i], curVal || null);
+          }
+        }
+      },
+      error: function () {}
+    });
+  }
+
+  function initBankSelect(selEl, value) {
+    var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
+    if ($jq && $jq.fn.select2) {
+      var $sel = $jq(selEl);
+      if ($sel.data('select2')) $sel.select2('destroy');
+      $sel.select2({
+        dropdownParent: $jq('#lai-xe-modal'),
+        placeholder: 'Chọn ngân hàng',
+        allowClear: true,
+        width: '100%'
+      });
+    }
+    // Populate options from BANK_LIST
+    selEl.innerHTML = '<option value="">Chọn ngân hàng</option>';
+    for (var i = 0; i < BANK_LIST.length; i++) {
+      var b = BANK_LIST[i];
+      var opt = document.createElement('option');
+      opt.value = b.shortName;
+      opt.textContent = b.shortName + ' - ' + b.name;
+      selEl.appendChild(opt);
+    }
+    // Set value
+    if (value) {
+      var found = false;
+      for (var j = 0; j < selEl.options.length; j++) {
+        if (selEl.options[j].value === value || selEl.options[j].textContent.indexOf(value) !== -1) {
+          selEl.value = selEl.options[j].value;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        var newOpt = document.createElement('option');
+        newOpt.value = value;
+        newOpt.textContent = value;
+        selEl.appendChild(newOpt);
+        selEl.value = value;
+      }
+    }
+    // Trigger Select2 change to reflect the value
+    if ($jq && $jq.fn.select2 && $jq(selEl).data('select2')) {
+      $jq(selEl).trigger('change.select2');
+    }
   }
 
   function resetForm() {
