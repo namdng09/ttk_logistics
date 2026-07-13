@@ -1,3 +1,11 @@
 .flatpickr-calendar {
   z-index: 99999 !important;
 }
+
+#phuong-tien-modal input[readonly],
+#phuong-tien-modal input[disabled],
+#phuong-tien-modal select[disabled] {
+  background-color: #f5f5f5 !important;
+  opacity: 1;
+  cursor: default;
+}

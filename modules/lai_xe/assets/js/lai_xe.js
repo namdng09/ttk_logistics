@@ -372,7 +372,6 @@
   }
 
   function openViewModal(id) {
-    setFormMode('view');
     document.getElementById('lai-xe-modal-title').textContent = 'Chi tiết lái xe';
     document.querySelector('.btn-luu-lai-xe').style.display = 'none';
     showLoading(true);
@@ -391,6 +390,7 @@
         populateForm(res.data);
         initDatePickers();
         initMasks();
+        setFormMode('view');
       },
       error: function (jqXHR) {
         showLoading(false);
@@ -440,12 +440,13 @@
     for (var i = 0; i < inputs.length; i++) {
       if (mode === 'view') {
         inputs[i].setAttribute('readonly', 'readonly');
-        btn.style.display = 'none';
+        inputs[i].setAttribute('disabled', 'disabled');
       } else {
         inputs[i].removeAttribute('readonly');
-        btn.style.display = '';
+        inputs[i].removeAttribute('disabled');
       }
     }
+    if (btn) btn.style.display = mode === 'view' ? 'none' : '';
   }
 
   function resetForm() {
@@ -486,11 +487,13 @@
   function initMasks() {
     if (typeof Cleave !== 'undefined') {
       $('.phone-mask').each(function () {
+        if (this.hasAttribute('readonly')) return;
         if (!this._cleave) {
           this._cleave = new Cleave(this, { phone: true, phoneRegionCode: 'VN' });
         }
       });
       $('.date-mask').each(function () {
+        if (this.hasAttribute('readonly')) return;
         if (!this._cleave) {
           this._cleave = new Cleave(this, { date: true, datePattern: ['d', 'm', 'Y'] });
         }

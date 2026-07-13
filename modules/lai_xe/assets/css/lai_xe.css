@@ -18,3 +18,11 @@
 .flatpickr-calendar {
   z-index: 99999 !important;
 }
+
+#lai-xe-modal input[readonly],
+#lai-xe-modal input[disabled],
+#lai-xe-modal select[disabled] {
+  background-color: #f5f5f5 !important;
+  opacity: 1;
+  cursor: default;
+}
