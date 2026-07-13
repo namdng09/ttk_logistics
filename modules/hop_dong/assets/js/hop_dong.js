@@ -522,6 +522,31 @@
   function submitForm() {
     var form = document.getElementById('form-hop-dong');
 
+    // Validate khach hang required
+    var khSelect = document.querySelector('#select-khach-hang');
+    var khNid = khSelect ? khSelect.value : '';
+    if (!khNid) {
+      form.classList.add('was-validated');
+      if (notyf) notyf.error('Vui lòng chọn khách hàng');
+      return;
+    }
+
+    // Validate han_hop_dong >= ngay_hop_dong
+    var ngayStr = document.querySelector('#form-hop-dong input[name="ngay_hop_dong"]').value;
+    var hanStr = document.querySelector('#form-hop-dong input[name="han_hop_dong"]').value;
+    if (ngayStr && hanStr) {
+      var parseDate = function (s) {
+        var parts = s.split('/');
+        return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      };
+      var ngay = parseDate(ngayStr);
+      var han = parseDate(hanStr);
+      if (han < ngay) {
+        if (notyf) notyf.error('Hạn hợp đồng không được trước ngày hợp đồng');
+        return;
+      }
+    }
+
     if (form.checkValidity() === false) {
       form.classList.add('was-validated');
       return;

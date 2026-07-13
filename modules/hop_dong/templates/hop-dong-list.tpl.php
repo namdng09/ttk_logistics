@@ -99,8 +99,8 @@
               <input type="text" class="form-control flatpickr-date date-mask" name="han_hop_dong" placeholder="dd/MM/yyyy">
             </div>
             <div class="col-md-12">
-              <label class="form-label">Khách hàng</label>
-              <select class="form-select select2-khach-hang" name="khach_hang" id="select-khach-hang">
+              <label class="form-label">Khách hàng <span class="text-danger">*</span></label>
+              <select class="form-select select2-khach-hang" name="khach_hang" id="select-khach-hang" required>
                 <option value="">Chọn khách hàng</option>
               </select>
             </div>
