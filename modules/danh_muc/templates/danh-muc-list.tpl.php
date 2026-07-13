@@ -40,7 +40,7 @@
       <table id="table-danh-muc" class="table table-bordered table-hover">
         <thead class="table-light">
           <tr>
-            <th style="width:60px">Chức năng</th>
+            <th style="width:60px;text-align:center !important">CN</th>
             <th style="width:50px">#</th>
             <th>Tên danh mục</th>
             <th>Phân loại</th>

@@ -29,7 +29,7 @@
       <table id="table-hop-dong" class="table table-bordered table-hover">
         <thead class="table-light">
           <tr>
-            <th style="width:60px">Chức năng</th>
+            <th style="width:60px;text-align:center !important">CN</th>
             <th style="width:50px">#</th>
             <th>Số hợp đồng</th>
             <th>Ngày hợp đồng</th>

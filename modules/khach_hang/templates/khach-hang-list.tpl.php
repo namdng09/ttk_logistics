@@ -42,7 +42,7 @@
       <table id="table-khach-hang" class="table table-bordered table-hover">
         <thead class="table-light">
           <tr>
-            <th style="width:60px">Chức năng</th>
+            <th style="width:60px;text-align:center !important">CN</th>
             <th style="width:50px">#</th>
             <th>Phân loại</th>
             <th>Tên công ty</th>

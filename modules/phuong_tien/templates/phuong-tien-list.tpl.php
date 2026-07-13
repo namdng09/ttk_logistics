@@ -31,7 +31,7 @@
       <table id="table-phuong-tien" class="table table-bordered table-hover">
         <thead class="table-light">
           <tr>
-            <th style="width:60px">Chức năng</th>
+            <th style="width:60px;text-align:center !important">CN</th>
             <th style="width:50px">#</th>
             <th>Biển kiểm soát</th>
             <th>Mã Tài sản</th>
