@@ -10,6 +10,7 @@
   var PHAN_LOAI_LIST = ['Doanh nghiệp', 'Cá nhân', 'Khách hàng', 'Nhà cung cấp', 'Đối tác', 'Khác'];
   var BANK_LIST = [];
   var BANK_LIST_LOADED = false;
+  var DIADIEM_LIST = [];
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -32,6 +33,7 @@
       if ($('#table-khach-hang', context).length) {
         loadNvKinhDoanh();
         loadBankList();
+        loadDiaDiem();
         loadList();
         bindNativeEvents();
       }
@@ -121,6 +123,14 @@
       });
     }
 
+    // Add warehouse address row
+    var btnThemDck = doc.getElementById('btn-them-dia-chi-kho');
+    if (btnThemDck) {
+      btnThemDck.addEventListener('click', function () {
+        addDiaChiKhoRow();
+      });
+    }
+
     // Delegated clicks
     doc.addEventListener('click', function (e) {
       var t = e.target;
@@ -150,6 +160,18 @@
                 $(sel).select2('destroy');
               }
               row.remove();
+            }
+            return;
+          }
+          if (t.classList.contains('btn-xoa-dia-chi-kho')) {
+            e.preventDefault();
+            var rowDck = t.closest('.dia-chi-kho-row');
+            if (rowDck) {
+              var selDck = rowDck.querySelector('.dia-chi-kho-dia-chi');
+              if (selDck && typeof $ === 'function' && $.fn.select2) {
+                $(selDck).select2('destroy');
+              }
+              rowDck.remove();
             }
             return;
           }
@@ -395,6 +417,113 @@
     });
   }
 
+  function loadDiaDiem() {
+    $.ajax({
+      url: '/api/danh-muc',
+      type: 'GET',
+      dataType: 'json',
+      data: { phan_loai: 'Địa điểm', limit: 500 },
+      success: function (res) {
+        if (res.status === 'success' && res.data && res.data.items) {
+          var names = [];
+          for (var i = 0; i < res.data.items.length; i++) {
+            var ten = res.data.items[i].ten;
+            if (ten) names.push(ten);
+          }
+          DIADIEM_LIST = names;
+          // Refresh all existing địa điểm selects
+          var selects = document.querySelectorAll('.dia-chi-kho-dia-chi');
+          for (var j = 0; j < selects.length; j++) {
+            var curVal = selects[j].value;
+            initDiaDiemSelect(selects[j], curVal || null);
+          }
+        }
+      },
+      error: function () {}
+    });
+  }
+
+  function initDiaDiemSelect(selEl, value) {
+    selEl.innerHTML = '<option value="">Chọn/Nhập địa điểm</option>';
+    for (var i = 0; i < DIADIEM_LIST.length; i++) {
+      var opt = document.createElement('option');
+      opt.value = DIADIEM_LIST[i];
+      opt.textContent = DIADIEM_LIST[i];
+      selEl.appendChild(opt);
+    }
+    if (value) {
+      selEl.value = value;
+    }
+    var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
+    if ($jq && $jq.fn.select2) {
+      var $sel = $jq(selEl);
+      if ($sel.data('select2')) $sel.select2('destroy');
+      $sel.select2({
+        dropdownParent: $jq('#khach-hang-modal'),
+        placeholder: 'Chọn/Nhập địa điểm',
+        allowClear: true,
+        tags: true,
+        width: '100%'
+      });
+    }
+    if (value && $jq && $jq.fn.select2 && $jq(selEl).data('select2')) {
+      $jq(selEl).trigger('change.select2');
+    }
+  }
+
+  function initDiaChiKhoRepeater() {
+    var container = document.getElementById('dia-chi-kho-repeater');
+    if (!container) return;
+    container.innerHTML = '';
+    var headerHtml = '<div class="row g-2 mb-1">' +
+      '<div class="col-md-5"><label class="form-label mb-0">Địa chỉ kho</label></div>' +
+      '<div class="col-md-5"><label class="form-label mb-0">Khoảng cách (km)</label></div>' +
+      '<div class="col-md-2"></div>' +
+    '</div>';
+    container.innerHTML = headerHtml;
+    addDiaChiKhoRow();
+  }
+
+  function addDiaChiKhoRow(data) {
+    var container = document.getElementById('dia-chi-kho-repeater');
+    if (!container) return;
+    var html = '<div class="dia-chi-kho-row row g-2 mb-2">' +
+      '<div class="col-md-5">' +
+        '<select class="form-select dia-chi-kho-dia-chi" style="width:100%">' +
+          '<option value="">Chọn/Nhập địa điểm</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="col-md-5">' +
+        '<input type="text" class="form-control dia-chi-kho-khoang-cach" placeholder="Khoảng cách (km)">' +
+      '</div>' +
+      '<div class="col-md-2">' +
+        '<button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-dia-chi-kho"><i class="ti tabler-x"></i></button>' +
+      '</div>' +
+    '</div>';
+    var div = document.createElement('div');
+    div.innerHTML = html;
+    var row = div.querySelector('.dia-chi-kho-row');
+    container.appendChild(row);
+    var sel = row.querySelector('.dia-chi-kho-dia-chi');
+    initDiaDiemSelect(sel, data ? data.dia_chi : null);
+    if (data) {
+      row.querySelector('.dia-chi-kho-khoang-cach').value = data.khoang_cach || '';
+    }
+  }
+
+  function collectDiaChiKho() {
+    var rows = document.querySelectorAll('#dia-chi-kho-repeater .dia-chi-kho-row');
+    var result = [];
+    for (var i = 0; i < rows.length; i++) {
+      var dc = rows[i].querySelector('.dia-chi-kho-dia-chi').value.trim();
+      var kc = rows[i].querySelector('.dia-chi-kho-khoang-cach').value.trim();
+      if (dc || kc) {
+        result.push({ dia_chi: dc, khoang_cach: kc });
+      }
+    }
+    return result;
+  }
+
   function initBankSelect(selEl, value) {
     var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
     if ($jq && $jq.fn.select2) {
@@ -466,6 +595,7 @@
       sdt: document.querySelector('#form-khach-hang input[name="sdt"]').value,
       dia_chi: document.querySelector('#form-khach-hang input[name="dia_chi"]').value,
       thong_tin_ngan_hang: collectNganHang(),
+      dia_chi_kho: collectDiaChiKho(),
       nv_kinh_doanh: nvKdVal.map(Number),
       dob: document.querySelector('#form-khach-hang input[name="dob"]').value,
       ghi_chu: document.querySelector('#form-khach-hang input[name="ghi_chu"]').value
@@ -669,6 +799,7 @@
         }
         initTagify();
         initRepeater();
+        initDiaChiKhoRepeater();
         populateForm(res.data);
         setFormMode('view');
       },
@@ -704,6 +835,7 @@
         }
         initTagify();
         initRepeater();
+        initDiaChiKhoRepeater();
         populateForm(res.data);
         setFormMode('edit');
       },
@@ -742,9 +874,17 @@
     if (btnThemNh) {
       btnThemNh.style.display = mode === 'view' ? 'none' : '';
     }
+    var btnThemDck = document.getElementById('btn-them-dia-chi-kho');
+    if (btnThemDck) {
+      btnThemDck.style.display = mode === 'view' ? 'none' : '';
+    }
     var btnXoaNh = document.querySelectorAll('.btn-xoa-ngan-hang');
     for (var j = 0; j < btnXoaNh.length; j++) {
       btnXoaNh[j].style.display = mode === 'view' ? 'none' : '';
+    }
+    var btnXoaDck = document.querySelectorAll('.btn-xoa-dia-chi-kho');
+    for (var l = 0; l < btnXoaDck.length; l++) {
+      btnXoaDck[l].style.display = mode === 'view' ? 'none' : '';
     }
     // Handle Select2 bank selects
     var bankSelects = document.querySelectorAll('#form-khach-hang .ngan-hang-ten-ngan-hang');
@@ -753,6 +893,15 @@
       try { $sel = $(bankSelects[k]); } catch (e) {}
       if ($sel && typeof $sel.select2 === 'function' && $sel.data && $sel.data('select2')) {
         $sel.select2(mode === 'view' ? 'disable' : 'enable');
+      }
+    }
+    // Handle Select2 địa điểm selects
+    var dcSelects = document.querySelectorAll('#form-khach-hang .dia-chi-kho-dia-chi');
+    for (var m = 0; m < dcSelects.length; m++) {
+      var $selDc;
+      try { $selDc = $(dcSelects[m]); } catch (e) {}
+      if ($selDc && typeof $selDc.select2 === 'function' && $selDc.data && $selDc.data('select2')) {
+        $selDc.select2(mode === 'view' ? 'disable' : 'enable');
       }
     }
   }
@@ -766,6 +915,7 @@
     if (nvSel) nvSel.value = '';
     document.getElementById('khach-hang-modal-title').textContent = 'Thêm khách hàng';
     initRepeater();
+    initDiaChiKhoRepeater();
     setFormMode('create');
   }
 
@@ -798,6 +948,17 @@
       }
     } else {
       addNganHangRow();
+    }
+
+    // Repeater dia chi kho
+    var dcContainer = document.getElementById('dia-chi-kho-repeater');
+    if (dcContainer) dcContainer.innerHTML = '';
+    if (d.dia_chi_kho && d.dia_chi_kho.length) {
+      for (var j = 0; j < d.dia_chi_kho.length; j++) {
+        addDiaChiKhoRow(d.dia_chi_kho[j]);
+      }
+    } else {
+      addDiaChiKhoRow();
     }
 
     initDatePickers();

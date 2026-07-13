@@ -223,6 +223,15 @@ function _khach_hang_load_row($nid) {
     }
   }
 
+  // Decode dia_chi_kho JSON
+  $dia_chi_kho = array();
+  if (!empty($kh->dia_chi_kho)) {
+    $decoded = json_decode($kh->dia_chi_kho, TRUE);
+    if (is_array($decoded)) {
+      $dia_chi_kho = $decoded;
+    }
+  }
+
   return array(
     'nid' => (int) $kh->nid,
     'ten' => $kh->ten,
@@ -232,6 +241,7 @@ function _khach_hang_load_row($nid) {
     'sdt' => $kh->sdt ? $kh->sdt : '',
     'dia_chi' => $kh->dia_chi ? $kh->dia_chi : '',
     'thong_tin_ngan_hang' => $ngan_hang,
+    'dia_chi_kho' => $dia_chi_kho,
     'nv_kinh_doanh' => !empty($nv_kinh_doanh) ? $nv_kinh_doanh[0] : NULL,
     'dob' => $kh->dob ? $kh->dob : '',
     'ghi_chu' => $kh->ghi_chu ? $kh->ghi_chu : '',
@@ -327,6 +337,10 @@ function _khach_hang_rest_create() {
   if (!empty($input['thong_tin_ngan_hang']) && is_array($input['thong_tin_ngan_hang'])) {
     $ngan_hang_json = json_encode($input['thong_tin_ngan_hang']);
   }
+  $dia_chi_kho_json = '';
+  if (!empty($input['dia_chi_kho']) && is_array($input['dia_chi_kho'])) {
+    $dia_chi_kho_json = json_encode($input['dia_chi_kho']);
+  }
 
   $transaction = db_transaction();
   try {
@@ -339,6 +353,7 @@ function _khach_hang_rest_create() {
         'sdt' => !empty($input['sdt']) ? $input['sdt'] : NULL,
         'dia_chi' => !empty($input['dia_chi']) ? $input['dia_chi'] : NULL,
         'thong_tin_ngan_hang' => $ngan_hang_json ? $ngan_hang_json : NULL,
+        'dia_chi_kho' => $dia_chi_kho_json ? $dia_chi_kho_json : NULL,
         'dob' => !empty($input['dob']) ? $input['dob'] : NULL,
         'ghi_chu' => !empty($input['ghi_chu']) ? $input['ghi_chu'] : NULL,
         'hoat_dong' => 1,
@@ -425,6 +440,10 @@ function _khach_hang_rest_update($id) {
   if (isset($input['thong_tin_ngan_hang']) && is_array($input['thong_tin_ngan_hang'])) {
     $ngan_hang_json = json_encode($input['thong_tin_ngan_hang']);
   }
+  $dia_chi_kho_json = '';
+  if (isset($input['dia_chi_kho']) && is_array($input['dia_chi_kho'])) {
+    $dia_chi_kho_json = json_encode($input['dia_chi_kho']);
+  }
 
   $update = array(
     'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
@@ -440,6 +459,9 @@ function _khach_hang_rest_update($id) {
   }
   if (isset($input['thong_tin_ngan_hang'])) {
     $update['thong_tin_ngan_hang'] = $ngan_hang_json ? $ngan_hang_json : NULL;
+  }
+  if (isset($input['dia_chi_kho'])) {
+    $update['dia_chi_kho'] = $dia_chi_kho_json ? $dia_chi_kho_json : NULL;
   }
 
   $transaction = db_transaction();

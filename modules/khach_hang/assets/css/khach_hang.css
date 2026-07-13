@@ -65,3 +65,22 @@ label {
   padding: 0.75rem;
   margin-bottom: 0.5rem;
 }
+
+.dia-chi-kho-section {
+  background: var(--bs-secondary-bg, #f7f7f9);
+  border: 1px dashed var(--bs-border-color, #e3e3e3);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.dia-chi-kho-row {
+  background: var(--bs-body-bg, #fff);
+  border: 1px solid var(--bs-border-color, #e3e3e3);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.select2-container--open {
+  z-index: 99999 !important;
+}

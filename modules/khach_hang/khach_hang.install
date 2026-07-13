@@ -43,6 +43,10 @@ function khach_hang_schema() {
         'type' => 'text',
         'not null' => FALSE,
       ),
+      'dia_chi_kho' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
       'nv_kinh_doanh' => array(
         'type' => 'int',
         'unsigned' => TRUE,
@@ -168,4 +172,12 @@ function khach_hang_update_7002() {
       ))->execute();
     }
   }
+}
+
+function khach_hang_update_7003() {
+  $field = array(
+    'type' => 'text',
+    'not null' => FALSE,
+  );
+  db_add_field('khach_hang', 'dia_chi_kho', $field);
 }

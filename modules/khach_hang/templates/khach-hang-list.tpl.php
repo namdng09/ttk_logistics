@@ -149,6 +149,21 @@
               </div>
             </div>
 
+            <!-- Warehouse Address Repeater -->
+            <div class="col-12">
+              <div class="dia-chi-kho-section">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label mb-0"><i class="ti tabler-map-pin me-2"></i>Địa chỉ kho</label>
+                  <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-dia-chi-kho">
+                    <i class="ti tabler-plus me-1"></i>Thêm
+                  </button>
+                </div>
+                <div id="dia-chi-kho-repeater">
+                  <!-- Repeater items will be added here -->
+                </div>
+              </div>
+            </div>
+
             <div class="col-md-6">
               <label class="form-label">NV Kinh doanh</label>
               <select id="nv-kinh-doanh-select" class="form-select" name="nv_kinh_doanh">
