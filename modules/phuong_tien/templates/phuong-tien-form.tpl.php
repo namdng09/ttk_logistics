@@ -26,7 +26,7 @@
       </div>
       <div class="col-md-4">
         <label class="form-label">Giá mua</label>
-        <input type="text" name="gia_mua" class="form-control">
+        <input type="text" name="gia_mua" class="form-control money-mask" placeholder="1.000.000">
       </div>
       <div class="col-md-4">
         <label class="form-label">Ngày mua</label>

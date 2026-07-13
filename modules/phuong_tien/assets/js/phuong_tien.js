@@ -515,13 +515,23 @@
           this._cleave = new Cleave(this, { date: true, datePattern: ['d', 'm', 'Y'] });
         }
       });
-      $('.money-mask').each(function () {
-        if (this.hasAttribute('readonly')) return;
-        if (!this._cleave) {
-          this._cleave = new Cleave(this, { numeral: true, numeralPositiveOnly: true });
+    }
+    // Money mask with thousands separator (no Cleave dependency)
+    $('.money-mask').each(function () {
+      if (this.hasAttribute('readonly')) return;
+      if (this._moneyHandler) return;
+      this._moneyHandler = true;
+      this.addEventListener('input', function () {
+        var cursor = this.selectionStart;
+        var raw = this.value.replace(/[^\d]/g, '');
+        var formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        if (formatted !== this.value) {
+          var diff = formatted.length - this.value.length;
+          this.value = formatted;
+          this.setSelectionRange(cursor + diff, cursor + diff);
         }
       });
-    }
+    });
   }
 
   function confirmDelete(id) {
