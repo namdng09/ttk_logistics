@@ -279,6 +279,10 @@
         closeOnSelect: false
       }
     });
+    tagifyPhanLoai.on('change', function () {
+      var wrapper = el.closest('.tagify');
+      if (wrapper) wrapper.classList.remove('is-invalid');
+    });
   }
 
   function getTagifyValue() {
@@ -288,6 +292,11 @@
 
   function setTagifyValue(arr) {
     if (!tagifyPhanLoai) return;
+    var el = document.getElementById('tagifyPhanLoai');
+    if (el) {
+      var wrapper = el.closest('.tagify');
+      if (wrapper) wrapper.classList.remove('is-invalid');
+    }
     tagifyPhanLoai.removeAllTags();
     if (arr && arr.length) {
       tagifyPhanLoai.addTags(arr);
@@ -574,6 +583,11 @@
     var phanLoai = getTagifyValue();
     if (!phanLoai || phanLoai.length === 0) {
       form.classList.add('was-validated');
+      var tagifyEl = document.querySelector('#tagifyPhanLoai');
+      if (tagifyEl) {
+        var wrapper = tagifyEl.closest('.tagify');
+        if (wrapper) wrapper.classList.add('is-invalid');
+      }
       if (notyf) notyf.error('Vui lòng chọn phân loại');
       return;
     }

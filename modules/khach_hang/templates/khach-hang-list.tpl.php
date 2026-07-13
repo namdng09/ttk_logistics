@@ -118,7 +118,7 @@
             </div>
             <div class="col-md-6">
               <label class="form-label">Phân loại <span class="text-danger">*</span></label>
-              <input id="tagifyPhanLoai" class="form-control" name="phan_loai_tags" placeholder="Chọn phân loại">
+              <input id="tagifyPhanLoai" class="form-control" name="phan_loai_tags" placeholder="Chọn phân loại" required>
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>
             </div>
             <div class="col-md-3">
