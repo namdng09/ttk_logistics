@@ -151,7 +151,9 @@
 
             <div class="col-md-6">
               <label class="form-label">NV Kinh doanh</label>
-              <input id="tagifyNvKinhDoanh" class="form-control" name="nv_kinh_doanh_tags" placeholder="Chọn nhân viên">
+              <select id="nv-kinh-doanh-select" class="form-select" name="nv_kinh_doanh">
+                <option value="">Chọn nhân viên</option>
+              </select>
             </div>
             <div class="col-md-6">
               <label class="form-label">Ghi chú</label>

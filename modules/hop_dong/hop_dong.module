@@ -177,7 +177,7 @@ function _hop_dong_load_khach_hang($nid) {
     'sdt' => $kh->sdt ? $kh->sdt : '',
     'dia_chi' => $kh->dia_chi ? $kh->dia_chi : '',
     'thong_tin_ngan_hang' => $ngan_hang,
-    'nv_kinh_doanh' => $nv_kinh_doanh,
+    'nv_kinh_doanh' => !empty($nv_kinh_doanh) ? $nv_kinh_doanh[0] : NULL,
     'dob' => $kh->dob ? $kh->dob : '',
     'ghi_chu' => $kh->ghi_chu ? $kh->ghi_chu : '',
   );

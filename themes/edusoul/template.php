@@ -71,12 +71,6 @@ function getMainMenuSoft()
                         <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
                     </li>
                     <li class="menu-item">
-                       <a href="#" class="menu-link" data-bs-toggle="modal" data-bs-target="#modal-them-yeu-cau">
-                          <i class="menu-icon icon-base ti tabler-circle-plus"></i>
-                          <div>Thêm hợp đồng</div>
-                      </a>
-                    </li>
-                    <li class="menu-item">
                         <a href="/hop-dong" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-file-text"></i>
                             <div data-i18n="Hợp đồng">Hợp đồng</div>
@@ -99,43 +93,6 @@ function getMainMenuSoft()
                         </a>
                     </li>
 
-                   <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="Nhập xuất kho">Nhập xuất kho</span>
-                    </li> 
-                    <li class="menu-item">
-                        <a href="/trucking/index" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-package-export"></i>
-                            <div data-i18n="Phiếu nhập">Phiếu nhập</div>
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="/trucking/index" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-package-export"></i>
-                            <div data-i18n="Phiếu xuất">Phiếu xuất</div>
-                        </a>
-                    </li>
-
-                    <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="Tài chính">Tài chính</span>
-                    </li>
-                    <li class="menu-item">
-                      <a href="/d2d/them" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-circle-plus"></i>
-                            <div data-i18n="Đề nghị TT">Đề nghị TT</div>
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="/d2d" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-float-right"></i>
-                            <div data-i18n="Công nợ KH">Công nợ KH</div>
-                        </a>
-                    </li>
-                     <li class="menu-item">
-                        <a href="/d2d" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-float-right"></i>
-                            <div data-i18n="Công nợ NCC">Công nợ NCC</div>
-                        </a>
-                    </li>
                     <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="DANH MỤC">DANH MỤC</span>
                     </li>
@@ -166,6 +123,7 @@ function getMainMenuSoft()
                             <div data-i18n="Hệ thống">Hệ thống</div>
                         </a>
                         <ul class="menu-sub">
+                    <!-- 
                             <li class="menu-item">
                                 <a href="/vai-tro" class="menu-link">
                                     <div data-i18n="Bộ phận">Bộ phận</div>
@@ -181,6 +139,7 @@ function getMainMenuSoft()
                                     <div data-i18n="Hồ sơ cá nhân">Hồ sơ cá nhân</div>
                                 </a>
                             </li>
+                    Hệ thống -->
                             <li class="menu-item">
                                 <a href="/user/logout" class="menu-link">
                                     <div data-i18n="Đăng xuất">Đăng xuất</div>
