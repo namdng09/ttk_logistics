@@ -1,0 +1,4 @@
+name = Cấu hình giá bán
+description = Quản lý cấu hình giá bán / bảng giá
+core = 7.x
+package = ANDIN JSC API

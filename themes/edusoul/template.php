@@ -76,6 +76,12 @@ function getMainMenuSoft()
                             <div data-i18n="Hợp đồng">Hợp đồng</div>
                         </a>
                     </li>
+                    <li class="menu-item">
+                        <a href="/cau-hinh-gia-ban" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-currency-dollar"></i>
+                            <div data-i18n="Cấu hình giá bán">Cấu hình giá bán</div>
+                        </a>
+                    </li>
 
                      <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="Hệ Thống">Hệ Thống</span>

@@ -1,0 +1,120 @@
+/* Base font-size: 0.75rem (12px) */
+.card,
+.card-body,
+.modal-body,
+.form-control,
+.form-select,
+.btn,
+.table,
+.table th,
+.table td,
+.page-link,
+.input-group-text,
+button {
+  font-size: 0.75rem !important;
+}
+.form-label,
+.form-text,
+.text-muted,
+small,
+.small,
+label {
+  font-size: 0.6875rem !important;
+}
+
+#table-cau-hinh-gia-ban th {
+  white-space: nowrap;
+}
+#table-cau-hinh-gia-ban td {
+  vertical-align: middle;
+}
+
+#cau-hinh-gia-ban-modal input[readonly],
+#cau-hinh-gia-ban-modal input[disabled],
+#cau-hinh-gia-ban-modal select[disabled] {
+  background-color: #f5f5f5 !important;
+  opacity: 1;
+  cursor: default;
+}
+
+.flatpickr-calendar {
+  z-index: 99999 !important;
+}
+
+.tagify__dropdown {
+  z-index: 99999 !important;
+}
+
+.chi-phi-section {
+  background: var(--bs-secondary-bg, #f7f7f9);
+  border: 1px dashed var(--bs-border-color, #e3e3e3);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.chi-phi-row {
+  background: var(--bs-body-bg, #fff);
+  border: 1px solid var(--bs-border-color, #e3e3e3);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Select2 inside modal */
+#cau-hinh-gia-ban-modal .select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+#cau-hinh-gia-ban-modal .select2-container .select2-selection--single .select2-selection__rendered {
+  line-height: 1.5;
+  padding: 0;
+  padding-right: 1.75rem;
+  font-size: 0.75rem;
+}
+#cau-hinh-gia-ban-modal .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+  top: 0;
+  right: 0.375rem;
+  width: 1rem;
+}
+#cau-hinh-gia-ban-modal .select2-container .select2-selection--single .select2-selection__clear {
+  margin-right: 1.25rem;
+  position: relative;
+  z-index: 1;
+  font-size: 0.875rem;
+}
+#cau-hinh-gia-ban-modal .select2-container--open {
+  z-index: 99999 !important;
+}
+
+/* Tagify */
+#cau-hinh-gia-ban-modal .tagify {
+  min-height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.1875rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  align-items: center;
+}
+#cau-hinh-gia-ban-modal .tagify__tag {
+  font-size: 0.75rem;
+  margin: 0 4px 0 0;
+  line-height: 1.5;
+}
+#cau-hinh-gia-ban-modal .tagify__input {
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+  font-size: 0.75rem;
+}
+#cau-hinh-gia-ban-modal .tagify__input:empty::before {
+  line-height: 1.5;
+}
+
+/* Money mask input */
+input.money-mask {
+  text-align: right;
+}

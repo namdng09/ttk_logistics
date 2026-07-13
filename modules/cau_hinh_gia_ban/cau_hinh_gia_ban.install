@@ -1,0 +1,79 @@
+<?php
+
+function cau_hinh_gia_ban_schema() {
+  $schema['cau_hinh_gia_ban'] = array(
+    'fields' => array(
+      'nid' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'nid_khach_hang' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'dia_chi_kho' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'khoang_cach' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'loai_cont' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'chi_phi' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'loai_cong_no' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'trang_thai' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'hoat_dong' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'created' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'changed' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('nid'),
+  );
+  return $schema;
+}

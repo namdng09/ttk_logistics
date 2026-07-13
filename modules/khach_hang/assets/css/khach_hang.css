@@ -84,3 +84,60 @@ label {
 .select2-container--open {
   z-index: 99999 !important;
 }
+
+/* Match Tagify height with form-control */
+#khach-hang-modal .tagify {
+  min-height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.1875rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  align-items: center;
+}
+#khach-hang-modal .tagify.tagify--focus {
+  border-color: #86b7fe;
+}
+#khach-hang-modal .tagify.is-invalid {
+  border-color: #dc3545;
+}
+#khach-hang-modal .tagify__tag {
+  font-size: 0.75rem;
+  margin: 0 4px 0 0;
+  line-height: 1.5;
+}
+#khach-hang-modal .tagify__input {
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+  font-size: 0.75rem;
+}
+#khach-hang-modal .tagify__input:empty::before {
+  line-height: 1.5;
+}
+
+/* Match Select2 height with form-select */
+#khach-hang-modal .select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+#khach-hang-modal .select2-container .select2-selection--single .select2-selection__rendered {
+  line-height: 1.5;
+  padding: 0;
+  padding-right: 1.75rem;
+  font-size: 0.75rem;
+}
+#khach-hang-modal .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+  top: 0;
+  right: 0.375rem;
+  width: 1rem;
+}
+#khach-hang-modal .select2-container .select2-selection--single .select2-selection__clear {
+  margin-right: 1.25rem;
+  position: relative;
+  z-index: 1;
+  font-size: 0.875rem;
+}

@@ -27,6 +27,7 @@
 │   ├── ben_thu_ba/
 │   ├── lai_xe/
 │   ├── hop_dong/
+│   ├── cau_hinh_gia_ban/          # Module cấu hình giá bán (bảng giá)
 │   └── ben_thu_ba_api/
 │
 ├── themes/                      # Drupal theme

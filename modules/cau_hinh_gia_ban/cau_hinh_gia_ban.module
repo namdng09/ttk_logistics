@@ -1,0 +1,406 @@
+<?php
+
+define('CAU_HINH_GIA_BAN_PER_PAGE', 20);
+
+/*******************************************************************************
+ * hook_permission
+ ******************************************************************************/
+function cau_hinh_gia_ban_permission() {
+  return array(
+    'cau_hinh_gia_ban_view' => array('title' => t('Xem cấu hình giá bán')),
+    'cau_hinh_gia_ban_create' => array('title' => t('Tạo/sửa cấu hình giá bán')),
+    'cau_hinh_gia_ban_delete' => array('title' => t('Xoá cấu hình giá bán')),
+  );
+}
+
+/*******************************************************************************
+ * hook_menu
+ ******************************************************************************/
+function cau_hinh_gia_ban_menu() {
+  $items = array();
+
+  // UI page
+  $items['cau-hinh-gia-ban'] = array(
+    'title' => 'Cấu hình giá bán',
+    'page callback' => 'cau_hinh_gia_ban_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  // REST collection
+  $items['api/cau-hinh-gia-ban'] = array(
+    'page callback' => 'cau_hinh_gia_ban_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  // REST item
+  $items['api/cau-hinh-gia-ban/%'] = array(
+    'page callback' => 'cau_hinh_gia_ban_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  return $items;
+}
+
+/*******************************************************************************
+ * hook_theme
+ ******************************************************************************/
+function cau_hinh_gia_ban_theme() {
+  $path = drupal_get_path('module', 'cau_hinh_gia_ban') . '/templates';
+  return array(
+    'cau_hinh_gia_ban_list_page' => array(
+      'template' => 'cau-hinh-gia-ban-list',
+      'path' => $path,
+    ),
+  );
+}
+
+/*******************************************************************************
+ * hook_menu — load CSS/JS via template <link>/<script>
+ ******************************************************************************/
+
+/*******************************************************************************
+ * UI: List page
+ ******************************************************************************/
+function cau_hinh_gia_ban_page_list() {
+  drupal_add_css(drupal_get_path('module', 'cau_hinh_gia_ban') . '/assets/css/cau_hinh_gia_ban.css');
+  drupal_add_js(drupal_get_path('module', 'cau_hinh_gia_ban') . '/assets/js/cau_hinh_gia_ban.js');
+  // Pass permissions
+  drupal_add_js(array('cau_hinh_gia_ban' => array(
+    'permissions' => array(
+      'view' => user_access('cau_hinh_gia_ban_view'),
+      'create' => user_access('cau_hinh_gia_ban_create'),
+      'delete' => user_access('cau_hinh_gia_ban_delete'),
+    ),
+  )), 'setting');
+  return theme('cau_hinh_gia_ban_list_page');
+}
+
+/*******************************************************************************
+ * REST: COLLECTION — GET/POST
+ ******************************************************************************/
+function cau_hinh_gia_ban_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _cau_hinh_gia_ban_rest_list();
+    case 'POST':
+      return _cau_hinh_gia_ban_rest_create();
+    default:
+      return _cau_hinh_gia_ban_error('Method not allowed');
+  }
+}
+
+/*******************************************************************************
+ * REST: ITEM — GET/PUT/DELETE
+ ******************************************************************************/
+function cau_hinh_gia_ban_rest_item($id) {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _cau_hinh_gia_ban_rest_detail($id);
+    case 'PUT':
+      return _cau_hinh_gia_ban_rest_update($id);
+    case 'DELETE':
+      return _cau_hinh_gia_ban_rest_delete($id);
+    default:
+      return _cau_hinh_gia_ban_error('Method not allowed');
+  }
+}
+
+/*******************************************************************************
+ * HELPERS
+ ******************************************************************************/
+function _cau_hinh_gia_ban_success($data) {
+  return array('status' => 'success', 'data' => $data);
+}
+function _cau_hinh_gia_ban_fail($msg) {
+  return array('status' => 'fail', 'message' => $msg);
+}
+function _cau_hinh_gia_ban_error($msg) {
+  return array('status' => 'error', 'message' => $msg);
+}
+function _cau_hinh_gia_ban_not_found($msg = 'Không tìm thấy') {
+  return array('status' => 'fail', 'message' => $msg);
+}
+function _cau_hinh_gia_ban_unauthorized($msg = 'Không có quyền') {
+  return array('status' => 'fail', 'message' => $msg);
+}
+
+function _cau_hinh_gia_ban_input() {
+  $body = file_get_contents('php://input');
+  $data = json_decode($body, TRUE);
+  return $data ? $data : array();
+}
+
+/*******************************************************************************
+ * Load a single row
+ ******************************************************************************/
+function _cau_hinh_gia_ban_load_row($nid) {
+  $row = db_query("SELECT * FROM {cau_hinh_gia_ban} WHERE nid = :nid", array(':nid' => $nid))->fetch();
+  if (!$row) return NULL;
+
+  // Decode chi_phi
+  $chi_phi = array();
+  if (!empty($row->chi_phi)) {
+    $decoded = json_decode($row->chi_phi, TRUE);
+    if (is_array($decoded)) $chi_phi = $decoded;
+  }
+
+  // Get KH info
+  $khach_hang = NULL;
+  if ($row->nid_khach_hang) {
+    $kh = db_query("SELECT nid, ten FROM {khach_hang} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $row->nid_khach_hang))->fetch();
+    if ($kh) {
+      $khach_hang = array('nid' => (int) $kh->nid, 'ten' => $kh->ten);
+    }
+  }
+
+  // Get user info
+  $nguoi_tao = NULL;
+  if ($row->uid) {
+    $u = user_load($row->uid);
+    if ($u) {
+      $nguoi_tao = array('uid' => (int) $u->uid, 'name' => $u->name);
+    }
+  }
+
+  return array(
+    'nid' => (int) $row->nid,
+    'uid' => (int) $row->uid,
+    'nid_khach_hang' => (int) $row->nid_khach_hang,
+    'khach_hang' => $khach_hang,
+    'nguoi_tao' => $nguoi_tao,
+    'dia_chi_kho' => $row->dia_chi_kho ? $row->dia_chi_kho : '',
+    'khoang_cach' => $row->khoang_cach ? $row->khoang_cach : '',
+    'loai_cont' => $row->loai_cont ? $row->loai_cont : '',
+    'chi_phi' => $chi_phi,
+    'loai_cong_no' => $row->loai_cong_no ? $row->loai_cong_no : '',
+    'trang_thai' => (int) $row->trang_thai,
+    'hoat_dong' => (int) $row->hoat_dong,
+    'created' => $row->created,
+    'changed' => $row->changed,
+  );
+}
+
+/*******************************************************************************
+ * REST: LIST — GET /api/cau-hinh-gia-ban
+ ******************************************************************************/
+function _cau_hinh_gia_ban_rest_list() {
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $keyword = isset($_GET['keyword']) ? trim($_GET['keyword']) : '';
+  $khach_hang_id = isset($_GET['khach_hang_id']) ? (int) $_GET['khach_hang_id'] : 0;
+  $limit = CAU_HINH_GIA_BAN_PER_PAGE;
+  $offset = ($page - 1) * $limit;
+
+  $query = db_select('cau_hinh_gia_ban', 'c');
+  $query->condition('c.hoat_dong', 1);
+
+  if ($keyword) {
+    $query->condition(
+      db_or()
+        ->condition('c.loai_cont', '%' . db_like($keyword) . '%', 'LIKE')
+        ->condition('c.dia_chi_kho', '%' . db_like($keyword) . '%', 'LIKE')
+    );
+  }
+  if ($khach_hang_id) {
+    $query->condition('c.nid_khach_hang', $khach_hang_id);
+  }
+
+  $count_query = clone $query;
+  $total = $count_query->countQuery()->execute()->fetchField();
+
+  $query->fields('c');
+  $query->orderBy('c.nid', 'DESC');
+  $query->range($offset, $limit);
+  $result = $query->execute();
+
+  $items = array();
+  while ($row = $result->fetch()) {
+    $items[] = _cau_hinh_gia_ban_load_row($row->nid);
+  }
+
+  $total_pages = max(1, ceil($total / $limit));
+
+  return _cau_hinh_gia_ban_success(array(
+    'items' => $items,
+    'total' => (int) $total,
+    'current_page' => $page,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+  ));
+}
+
+/*******************************************************************************
+ * REST: CREATE — POST /api/cau-hinh-gia-ban
+ ******************************************************************************/
+function _cau_hinh_gia_ban_rest_create() {
+  if (!user_access('cau_hinh_gia_ban_create')) {
+    return _cau_hinh_gia_ban_unauthorized('Bạn không có quyền tạo cấu hình giá bán');
+  }
+
+  $input = _cau_hinh_gia_ban_input();
+
+  if (empty($input['nid_khach_hang'])) {
+    return _cau_hinh_gia_ban_fail('Khách hàng bắt buộc');
+  }
+
+  global $user;
+  $uid = $user->uid;
+
+  $chi_phi_json = '';
+  if (!empty($input['chi_phi']) && is_array($input['chi_phi'])) {
+    $chi_phi_json = json_encode($input['chi_phi']);
+  }
+
+  $loai_cong_no = '';
+  if (!empty($input['loai_cong_no']) && is_array($input['loai_cong_no'])) {
+    $loai_cong_no = implode(', ', $input['loai_cong_no']);
+  }
+  elseif (!empty($input['loai_cong_no']) && is_string($input['loai_cong_no'])) {
+    $loai_cong_no = $input['loai_cong_no'];
+  }
+
+  $transaction = db_transaction();
+  try {
+    $nid = db_insert('cau_hinh_gia_ban')
+      ->fields(array(
+        'uid' => $uid,
+        'nid_khach_hang' => $input['nid_khach_hang'],
+        'dia_chi_kho' => !empty($input['dia_chi_kho']) ? $input['dia_chi_kho'] : '',
+        'khoang_cach' => !empty($input['khoang_cach']) ? $input['khoang_cach'] : '',
+        'loai_cont' => !empty($input['loai_cont']) ? $input['loai_cont'] : '',
+        'chi_phi' => $chi_phi_json ? $chi_phi_json : NULL,
+        'loai_cong_no' => $loai_cong_no,
+        'trang_thai' => isset($input['trang_thai']) ? (int) $input['trang_thai'] : 1,
+        'hoat_dong' => 1,
+        'created' => date('Y-m-d H:i:s', REQUEST_TIME),
+        'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+      ))
+      ->execute();
+
+    watchdog('cau_hinh_gia_ban', 'Tạo cấu hình giá bán #%id', array('%id' => $nid));
+
+    return _cau_hinh_gia_ban_success(_cau_hinh_gia_ban_load_row($nid));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('cau_hinh_gia_ban', 'Lỗi tạo: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _cau_hinh_gia_ban_error('Lỗi hệ thống khi tạo');
+  }
+}
+
+/*******************************************************************************
+ * REST: DETAIL — GET /api/cau-hinh-gia-ban/{id}
+ ******************************************************************************/
+function _cau_hinh_gia_ban_rest_detail($id) {
+  $row = _cau_hinh_gia_ban_load_row($id);
+  if (!$row) {
+    return _cau_hinh_gia_ban_not_found('Cấu hình giá bán không tồn tại');
+  }
+  return _cau_hinh_gia_ban_success($row);
+}
+
+/*******************************************************************************
+ * REST: UPDATE — PUT /api/cau-hinh-gia-ban/{id}
+ ******************************************************************************/
+function _cau_hinh_gia_ban_rest_update($id) {
+  if (!user_access('cau_hinh_gia_ban_create')) {
+    return _cau_hinh_gia_ban_unauthorized('Bạn không có quyền sửa cấu hình giá bán');
+  }
+
+  $existing = db_query("SELECT nid FROM {cau_hinh_gia_ban} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  if (!$existing) {
+    return _cau_hinh_gia_ban_not_found('Cấu hình giá bán không tồn tại');
+  }
+
+  $input = _cau_hinh_gia_ban_input();
+
+  if (empty($input['nid_khach_hang'])) {
+    return _cau_hinh_gia_ban_fail('Khách hàng bắt buộc');
+  }
+
+  $chi_phi_json = '';
+  if (isset($input['chi_phi']) && is_array($input['chi_phi'])) {
+    $chi_phi_json = json_encode($input['chi_phi']);
+  }
+
+  $loai_cong_no = '';
+  if (isset($input['loai_cong_no']) && is_array($input['loai_cong_no'])) {
+    $loai_cong_no = implode(', ', $input['loai_cong_no']);
+  }
+  elseif (isset($input['loai_cong_no']) && is_string($input['loai_cong_no'])) {
+    $loai_cong_no = $input['loai_cong_no'];
+  }
+
+  $update = array(
+    'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+  );
+
+  $fields = array('nid_khach_hang', 'dia_chi_kho', 'khoang_cach', 'loai_cont', 'trang_thai');
+  foreach ($fields as $f) {
+    if (array_key_exists($f, $input)) {
+      $update[$f] = $input[$f];
+    }
+  }
+  if (isset($input['chi_phi'])) {
+    $update['chi_phi'] = $chi_phi_json ? $chi_phi_json : NULL;
+  }
+  if (isset($input['loai_cong_no'])) {
+    $update['loai_cong_no'] = $loai_cong_no;
+  }
+
+  $transaction = db_transaction();
+  try {
+    db_update('cau_hinh_gia_ban')
+      ->fields($update)
+      ->condition('nid', $id)
+      ->execute();
+
+    watchdog('cau_hinh_gia_ban', 'Cập nhật #%id', array('%id' => $id));
+
+    return _cau_hinh_gia_ban_success(_cau_hinh_gia_ban_load_row($id));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('cau_hinh_gia_ban', 'Lỗi cập nhật: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _cau_hinh_gia_ban_error('Lỗi hệ thống khi cập nhật');
+  }
+}
+
+/*******************************************************************************
+ * REST: DELETE — DELETE /api/cau-hinh-gia-ban/{id}
+ ******************************************************************************/
+function _cau_hinh_gia_ban_rest_delete($id) {
+  if (!user_access('cau_hinh_gia_ban_delete')) {
+    return _cau_hinh_gia_ban_unauthorized('Bạn không có quyền xoá');
+  }
+
+  $existing = db_query("SELECT nid FROM {cau_hinh_gia_ban} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  if (!$existing) {
+    return _cau_hinh_gia_ban_not_found('Cấu hình giá bán không tồn tại');
+  }
+
+  $transaction = db_transaction();
+  try {
+    db_update('cau_hinh_gia_ban')
+      ->fields(array(
+        'hoat_dong' => 0,
+        'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+      ))
+      ->condition('nid', $id)
+      ->execute();
+
+    watchdog('cau_hinh_gia_ban', 'Xoá #%id', array('%id' => $id));
+
+    return _cau_hinh_gia_ban_success(array('nid' => (int) $id));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('cau_hinh_gia_ban', 'Lỗi xoá: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _cau_hinh_gia_ban_error('Lỗi hệ thống khi xoá');
+  }
+}
