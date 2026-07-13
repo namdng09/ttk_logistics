@@ -51,15 +51,14 @@
             <th>MST / CCCD</th>
             <th>SĐT</th>
             <th>Địa chỉ</th>
-            <th>Ngân hàng</th>
-            <th>NV Kinh doanh</th>
+            <th>NV</th>
             <th>DOB</th>
             <th>Ghi chú</th>
           </tr>
         </thead>
         <tbody id="table-khach-hang-tbody">
           <tr id="loading-row">
-            <td colspan="12" class="text-center py-4">
+            <td colspan="11" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>

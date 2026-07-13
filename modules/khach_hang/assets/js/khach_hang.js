@@ -418,7 +418,7 @@
   function loadList() {
     var tbody = $('#table-khach-hang-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="12" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="11" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -437,7 +437,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="12" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="11" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -446,7 +446,7 @@
         var pageSize = data.limit || 20;
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="12" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="11" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -457,20 +457,6 @@
           var stt = (data.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(item.nid);
           var phanLoaiHtml = escapeHtml(item.phan_loai || '');
-          // Build bank display from array — mỗi dòng một ngân hàng
-          var nganHangHtml = '';
-          if (item.thong_tin_ngan_hang && item.thong_tin_ngan_hang.length) {
-            var bankParts = [];
-            for (var b = 0; b < item.thong_tin_ngan_hang.length; b++) {
-              var nh = item.thong_tin_ngan_hang[b];
-              var line = '';
-              if (nh.so_tai_khoan) line += nh.so_tai_khoan;
-              if (nh.ngan_hang) line += ' - ' + nh.ngan_hang;
-              if (nh.ten_tai_khoan) line += ' (' + nh.ten_tai_khoan + ')';
-              if (line) bankParts.push(escapeHtml(line));
-            }
-            nganHangHtml = bankParts.join('<br>');
-          }
           // Build NV display from single object
           var nvKdHtml = '';
           if (item.nv_kinh_doanh) {
@@ -488,7 +474,6 @@
             '<td>' + escapeHtml(item.cccd_mst || '') + '</td>' +
             '<td>' + escapeHtml(item.sdt || '') + '</td>' +
             '<td>' + escapeHtml(item.dia_chi || '') + '</td>' +
-            '<td>' + nganHangHtml + '</td>' +
             '<td>' + nvKdHtml + '</td>' +
             '<td>' + (item.dob || '') + '</td>' +
             '<td>' + escapeHtml(item.ghi_chu || '') + '</td>' +
@@ -499,7 +484,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="12" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="11" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });

@@ -28,6 +28,31 @@ body,
   --bs-toast-font-size: 0.75rem;
   --bs-menu-width: 220px;
 }
+
+/* Flatpickr font-size reduction */
+.flatpickr-calendar {
+  font-size: 0.75rem !important;
+}
+.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-calendar .flatpickr-current-month input.cur-year {
+  font-size: 0.75rem !important;
+}
+.flatpickr-calendar .flatpickr-weekday {
+  font-size: 0.6875rem !important;
+}
+.flatpickr-calendar .flatpickr-day {
+  max-width: 32px;
+  height: 32px;
+  line-height: 32px;
+  font-size: 0.75rem !important;
+}
+.flatpickr-calendar .flatpickr-time input {
+  font-size: 0.75rem !important;
+}
+.flatpickr-calendar .flatpickr-time .flatpickr-am-pm {
+  font-size: 0.75rem !important;
+}
+
 .btn {
   font-size: var(--bs-btn-font-size);
 }
