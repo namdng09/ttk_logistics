@@ -76,7 +76,7 @@ small, .small {
 }
 .menu .menu-item .menu-link,
 .menu .menu-header small {
-  font-size: 0.6875rem !important;
+  font-size: 0.75rem !important;
 }
 
 /* Force inheritance for Bootstrap components with explicit font-size */
