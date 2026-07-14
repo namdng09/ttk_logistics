@@ -103,38 +103,67 @@
               <div class="invalid-feedback">Vui lòng chọn khách hàng</div>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Loại công nợ</label>
-              <input id="tagifyLoaiCongNo" class="form-control" name="loai_cong_no_tags" placeholder="Chọn loại công nợ">
+              <label class="form-label">Loại công nợ <span class="text-danger">*</span></label>
+              <select class="form-select" name="loai_cong_no" id="loai-cong-no-select" required>
+                <option value="">Chọn loại công nợ</option>
+                <option value="Cuối tháng">Cuối tháng</option>
+                <option value="Thanh toán ngay">Thanh toán ngay</option>
+              </select>
+              <div class="invalid-feedback">Vui lòng chọn loại công nợ</div>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Địa chỉ kho</label>
-              <select id="dia-chi-kho-select" class="form-select" name="dia_chi_kho" style="width:100%">
+              <label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label>
+              <select id="dia-chi-kho-select" class="form-select" name="dia_chi_kho" style="width:100%" required>
                 <option value="">Chọn/Nhập địa chỉ kho</option>
               </select>
+              <div class="invalid-feedback">Vui lòng chọn địa chỉ kho</div>
             </div>
-            <div class="col-md-3">
-              <label class="form-label">Khoảng cách (km)</label>
-              <input type="text" class="form-control" name="khoang_cach" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+            <div class="col-md-2">
+              <label class="form-label">Khoảng cách <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">km</span>
+                <input type="text" class="form-control" name="khoang_cach" placeholder="0" required inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              </div>
+              <div class="invalid-feedback">Vui lòng nhập khoảng cách</div>
             </div>
-            <div class="col-md-3">
-              <label class="form-label">Loại cont</label>
-              <select id="loai-cont-select" class="form-select" name="loai_cont" style="width:100%">
+            <div class="col-md-4">
+              <label class="form-label">Loại cont <span class="text-danger">*</span></label>
+              <select id="loai-cont-select" class="form-select" name="loai_cont" style="width:100%" required>
                 <option value="">Chọn/Nhập loại cont</option>
               </select>
-            </div>
-            <div class="col-md-12">
-              <label class="form-label">Trạng thái</label>
-              <select class="form-select" name="trang_thai">
-                <option value="1">Hoạt động</option>
-                <option value="2">Khoá</option>
-              </select>
+              <div class="invalid-feedback">Vui lòng chọn loại cont</div>
             </div>
 
-            <!-- Chi phí Repeater -->
+            <div class="col-md-4">
+              <label class="form-label">Đơn giá <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">đ</span>
+                <input type="text" class="form-control money-mask" name="don_gia" placeholder="1.000.000" required>
+              </div>
+              <div class="invalid-feedback">Vui lòng nhập đơn giá</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Phí neo xe <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">đ</span>
+                <input type="text" class="form-control money-mask" name="phi_neo_xe" placeholder="1.000.000" required>
+              </div>
+              <div class="invalid-feedback">Vui lòng nhập phí neo xe</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Phụ cấp/Chi phí lái xe <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">đ</span>
+                <input type="text" class="form-control money-mask" name="phu_cap" placeholder="1.000.000" required>
+              </div>
+              <div class="invalid-feedback">Vui lòng nhập phụ cấp</div>
+            </div>
+
+            <!-- Chi phí khác Repeater -->
             <div class="col-12">
               <div class="chi-phi-section">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                  <label class="form-label mb-0"><i class="ti tabler-coin me-2"></i>Chi phí</label>
+                  <label class="form-label mb-0"><i class="ti tabler-coin me-2"></i>Chi phí khác</label>
                   <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-chi-phi">
                     <i class="ti tabler-plus me-1"></i>Thêm
                   </button>
@@ -142,6 +171,21 @@
                 <div id="chi-phi-repeater">
                   <!-- Repeater items will be added here -->
                 </div>
+              </div>
+            </div>
+
+            <div class="col-md-12">
+              <label class="form-label">Trạng thái</label>
+              <div>
+                <label class="switch switch-success">
+                  <input type="checkbox" class="switch-input" id="switch-trang-thai" checked>
+                  <span class="switch-toggle-slider">
+                    <span class="switch-on"><i class="icon-base ti tabler-check"></i></span>
+                    <span class="switch-off"><i class="icon-base ti tabler-x"></i></span>
+                  </span>
+                  <span class="switch-label" id="switch-trang-thai-label">Hoạt động</span>
+                </label>
+                <input type="hidden" name="trang_thai" value="1" id="input-trang-thai">
               </div>
             </div>
           </div>

@@ -486,7 +486,7 @@
     container.innerHTML = '';
     var headerHtml = '<div class="row g-2 mb-1">' +
       '<div class="col-md-5"><label class="form-label mb-0">Địa chỉ kho</label></div>' +
-      '<div class="col-md-5"><label class="form-label mb-0">Khoảng cách (km)</label></div>' +
+      '<div class="col-md-5"><label class="form-label mb-0">Khoảng cách</label></div>' +
       '<div class="col-md-2"></div>' +
     '</div>';
     container.innerHTML = headerHtml;
@@ -502,10 +502,13 @@
           '<option value="">Chọn/Nhập địa điểm</option>' +
         '</select>' +
       '</div>' +
-      '<div class="col-md-5">' +
-        '<input type="text" class="form-control dia-chi-kho-khoang-cach" placeholder="Khoảng cách (km)">' +
+      '<div class="col-md-4">' +
+        '<div class="input-group">' +
+          '<span class="input-group-text">km</span>' +
+          '<input type="text" class="form-control dia-chi-kho-khoang-cach" placeholder="Khoảng cách" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">' +
+        '</div>' +
       '</div>' +
-      '<div class="col-md-2">' +
+      '<div class="col-md-3">' +
         '<button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-dia-chi-kho"><i class="ti tabler-x"></i></button>' +
       '</div>' +
     '</div>';
