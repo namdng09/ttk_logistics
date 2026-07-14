@@ -678,7 +678,7 @@
   padding-inline: var(--tagify-item-padding);
 }
 .tagify__tag-text {
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   font-weight: 500;
 }
 .tagify[readonly]:not(.tagify--focus):not(.tagify--invalid), .tagify[readonly]:not(.tagify--focus):not(.tagify--invalid):hover, .tagify[readonly]:not(.tagify--focus):not(.tagify--invalid):focus {

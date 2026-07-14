@@ -237,7 +237,7 @@
 }
 .bs-stepper .bs-stepper-header .step .step-trigger .bs-stepper-label .bs-stepper-subtitle {
   color: var(--bs-body-color);
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   font-weight: 400;
 }
 .bs-stepper .bs-stepper-header .step .step-trigger:hover {

@@ -714,7 +714,7 @@ div.dt-container div.dt-paging ul.pagination .page-link {
 }
 @media screen and (width <= 575.98px) {
   div.dt-container div.dt-paging ul.pagination .page-link {
-    font-size: 0.8125rem;
+    font-size: 0.85rem;
     min-block-size: calc(1.7501875rem + calc(1px * 2));
     min-inline-size: calc(1.7509515rem + calc(1px * 2));
     padding-block: 0.211rem;

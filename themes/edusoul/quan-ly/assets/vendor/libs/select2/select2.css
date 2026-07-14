@@ -600,7 +600,7 @@
   padding-inline: 0.75rem;
 }
 .select2-results__option .select2-results__group {
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   font-weight: 500;
   padding-block: 0.5rem;
   padding-inline: 0.46875rem;
@@ -611,7 +611,7 @@
   /* Select option levels loop for padding left/right */
 }
 .select2-results__options .select2-results__options .select2-results__group {
-  margin-inline-start: -0.8125rem;
+  margin-inline-start: -0.85rem;
 }
 .select2-results__options .select2-results__options .select2-results__option .select2-results__option {
   margin-inline-start: 2rem;
@@ -734,7 +734,7 @@
   border-radius: 0.25rem;
   background-color: var(--bs-select-multiple-choice-bg);
   color: var(--bs-select-multiple-choice-color);
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   line-height: var(--bs-select-multiple-line-height);
   padding-inline: 0.5rem 1rem;
 }

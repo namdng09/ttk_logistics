@@ -555,7 +555,7 @@
   border: 0.0625rem solid color-mix(in sRGB, var(--bs-base-color) 22%, var(--bs-paper-bg));
   margin: 0;
   background-color: var(--bs-paper-bg);
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   inline-size: 10.625rem;
   padding-block: 0.1875rem;
   padding-inline: 0.3125rem;
@@ -755,7 +755,7 @@
   border: none;
   background: transparent;
   color: var(--bs-white);
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   inline-size: 100%;
   padding-block: 0.625rem;
   padding-inline: 1.25rem;

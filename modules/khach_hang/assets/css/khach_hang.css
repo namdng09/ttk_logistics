@@ -70,7 +70,7 @@
   min-height: calc(1.5em + 0.75rem + 2px);
   padding: 0.1875rem 0.75rem;
   border-radius: 0.375rem;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   line-height: 1.5;
   align-items: center;
 }
@@ -81,7 +81,7 @@
   border-color: #dc3545;
 }
 #khach-hang-modal .tagify__tag {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   margin: 0 4px 0 0;
   line-height: 1.5;
 }
@@ -89,7 +89,7 @@
   margin: 0;
   padding: 0;
   line-height: 1.5;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
 }
 #khach-hang-modal .tagify__input:empty::before {
   line-height: 1.5;
@@ -100,14 +100,14 @@
   height: calc(1.5em + 0.75rem + 2px);
   padding: 0.375rem 0.75rem;
   border-radius: 0.375rem;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   line-height: 1.5;
 }
 #khach-hang-modal .select2-container .select2-selection--single .select2-selection__rendered {
   line-height: 1.5;
   padding: 0;
   padding-right: 1.75rem;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
 }
 #khach-hang-modal .select2-container .select2-selection--single .select2-selection__arrow {
   height: 100%;

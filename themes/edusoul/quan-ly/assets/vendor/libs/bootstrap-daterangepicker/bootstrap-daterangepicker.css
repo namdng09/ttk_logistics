@@ -71,7 +71,7 @@
 }
 .daterangepicker .calendar-table table thead tr:last-child th {
   color: var(--bs-heading-color);
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   font-weight: 500;
   border-radius: 0;
 }
@@ -178,7 +178,7 @@
 }
 .daterangepicker .drp-selected {
   display: block;
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   inline-size: 100%;
   padding-block-end: 0.5rem;
 }
@@ -217,7 +217,7 @@
   border: 1px solid transparent;
   background: var(--bs-gray-100);
   color: var(--bs-body-color);
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   inline-size: 3.125rem;
   margin-block: 0;
   margin-inline: auto;

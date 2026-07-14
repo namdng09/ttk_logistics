@@ -206,7 +206,7 @@
 }
 .fc .fc-timegrid-axis-cushion,
 .fc .fc-timegrid-slot-label-cushion {
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
 }
 .fc .fc-timegrid-axis-cushion {
   color: var(--bs-secondary-color);

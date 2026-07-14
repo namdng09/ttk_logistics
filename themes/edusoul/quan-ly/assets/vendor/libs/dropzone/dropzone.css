@@ -84,7 +84,7 @@
   background: var(--bs-paper-bg);
   box-shadow: var(--bs-box-shadow);
   cursor: default;
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   margin-block: calc(1.25rem - 0.25rem);
   margin-inline: calc(1.25rem - 0.25rem) calc(1.25rem - 1rem);
 }
