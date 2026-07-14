@@ -1,5 +1,4 @@
 <div class="card">
-<link rel="stylesheet" href="<?php print base_path() . drupal_get_path('module', 'phuong_tien') . '/assets/css/phuong_tien.css'; ?>">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h4 class="card-title">Danh sách phương tiện</h4>
   </div>

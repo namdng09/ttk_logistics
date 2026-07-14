@@ -1,40 +1,20 @@
-/* Base font-size: 0.75rem (12px) */
-.card,
-.card-body,
-.modal-body,
-.form-control,
-.form-select,
-.btn,
-.table,
-.table th,
-.table td,
-.page-link,
-.input-group-text,
-button {
-  font-size: 0.75rem !important;
-}
-.form-label,
-.form-text,
-.text-muted,
-small,
-.small,
-label {
-  font-size: 0.6875rem !important;
-}
-
 #table-lai-xe th {
   white-space: nowrap;
+  font-size: 0.85rem;
 }
+
 #table-lai-xe td {
+  font-size: 0.85rem;
   vertical-align: middle;
 }
 
 .btn-view-lai-xe i,
 .btn-edit-lai-xe i,
 .btn-delete-lai-xe i {
-  font-size: 1rem !important;
+  font-size: 1rem;
 }
 
+/* Flatpickr above Bootstrap 5 modal backdrop */
 .flatpickr-calendar {
   z-index: 99999 !important;
 }

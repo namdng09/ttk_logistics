@@ -1,32 +1,6 @@
-/* Base font-size: 0.75rem (12px) */
-.card,
-.card-body,
-.modal-body,
-.form-control,
-.form-select,
-.btn,
-.table,
-.table th,
-.table td,
-.page-link,
-.input-group-text,
-button {
-  font-size: 0.75rem !important;
-}
-.form-label,
-.form-text,
-.text-muted,
-small,
-.small,
-label {
-  font-size: 0.6875rem !important;
-}
-
 #table-khach-hang th {
   white-space: nowrap;
-}
-#table-khach-hang td {
-  vertical-align: middle;
+  font-size: 0.85rem;
 }
 
 #khach-hang-modal input[readonly],
@@ -37,10 +11,15 @@ label {
   cursor: default;
 }
 
+#table-khach-hang td {
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
 .btn-view-khach-hang i,
 .btn-edit-khach-hang i,
 .btn-delete-khach-hang i {
-  font-size: 1rem !important;
+  font-size: 1rem;
 }
 
 .flatpickr-calendar {
@@ -51,6 +30,7 @@ label {
   z-index: 99999 !important;
 }
 
+/* Bank info repeater section */
 .ngan-hang-section {
   background: var(--bs-secondary-bg, #f7f7f9);
   border: 1px dashed var(--bs-border-color, #e3e3e3);
