@@ -5,9 +5,11 @@
   var currentPage = 1;
   var currentKeyword = '';
   var currentKhachHangId = 0;
+  var tagifyLoaiCongNo = null;
   var KHACH_HANG_LIST = [];
   var KHACH_HANG_DETAIL_CACHE = {};
   var LOAI_CONT_LIST = ['40RF', '20RF', '40HC', '20HC', '40OT', '20OT', '45HC', '45RF', '20RF'];
+  var LOAI_CONG_NO_LIST = ['Cuối tháng', 'Thanh toán ngay'];
   var currentKhachHangData = null;
 
   function modalShow(id) {
@@ -107,9 +109,13 @@
       resetForm();
     });
     modal.addEventListener('shown.bs.modal', function () {
-      initKhachHangSelect();
-      initDiaChiKhoSelect();
-      initLoaiContSelect();
+      var nid = document.querySelector('#form-cau-hinh-gia-ban input[name="nid"]').value;
+      if (!nid) {
+        initKhachHangSelect();
+        initDiaChiKhoSelect();
+        initLoaiContSelect();
+        initTagify();
+      }
       initMoneyMasks();
     });
 
@@ -172,33 +178,19 @@
       }
     });
 
-    // KH change handler (use jQuery for Select2 compatibility)
+    // KH change handler via native event + Select2 event
     var khSelEl = document.getElementById('khach-hang-select');
     if (khSelEl) {
-      var $jqKh = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' ? jQuery : null);
-      if ($jqKh) {
-        $jqKh(khSelEl).on('change', function () {
-          var val = this.value;
-          if (val) {
-            loadKhachHangDetail(parseInt(val));
-          } else {
-            currentKhachHangData = null;
-            resetDiaChiKhoSelect();
-            doc.querySelector('input[name="khoang_cach"]').value = '';
-          }
-        });
-      } else {
-        khSelEl.addEventListener('change', function () {
-          var val = this.value;
-          if (val) {
-            loadKhachHangDetail(parseInt(val));
-          } else {
-            currentKhachHangData = null;
-            resetDiaChiKhoSelect();
-            doc.querySelector('input[name="khoang_cach"]').value = '';
-          }
-        });
-      }
+      khSelEl.addEventListener('change', function () {
+        var val = this.value;
+        if (val) {
+          loadKhachHangDetail(parseInt(val));
+        } else {
+          currentKhachHangData = null;
+          resetDiaChiKhoSelect();
+          doc.querySelector('input[name="khoang_cach"]').value = '';
+        }
+      });
     }
 
     // Dropdown hover
@@ -284,8 +276,6 @@
     });
   }
 
-  var _pendingKhDetail = {};
-
   function loadKhachHangDetail(id, callback) {
     if (KHACH_HANG_DETAIL_CACHE[id]) {
       currentKhachHangData = KHACH_HANG_DETAIL_CACHE[id];
@@ -293,31 +283,19 @@
       if (callback) callback(currentKhachHangData);
       return;
     }
-    if (_pendingKhDetail[id]) {
-      if (callback) _pendingKhDetail[id].push(callback);
-      return;
-    }
-    _pendingKhDetail[id] = [];
-    if (callback) _pendingKhDetail[id].push(callback);
     $.ajax({
       url: '/api/khach-hang/' + id,
       type: 'GET',
       dataType: 'json',
       success: function (res) {
-        var cbs = _pendingKhDetail[id];
-        delete _pendingKhDetail[id];
         if (res.status === 'success' && res.data) {
           KHACH_HANG_DETAIL_CACHE[id] = res.data;
           currentKhachHangData = res.data;
           populateDiaChiKhoSelect(res.data);
-          for (var i = 0; i < cbs.length; i++) {
-            if (cbs[i]) cbs[i](res.data);
-          }
+          if (callback) callback(res.data);
         }
       },
-      error: function () {
-        delete _pendingKhDetail[id];
-      }
+      error: function () {}
     });
   }
 
@@ -337,7 +315,6 @@
     var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
     if ($jq && $jq.fn.select2) {
       var $sel = $jq(sel);
-      $sel.off('.dc');
       if ($sel.data('select2')) $sel.select2('destroy');
       $sel.select2({
         dropdownParent: $jq('#cau-hinh-gia-ban-modal'),
@@ -346,22 +323,8 @@
         tags: true,
         width: '100%'
       });
-      $sel.on('select2:select.dc', function (e) {
-        var val = e.params.data.id;
-        var dist = '';
-        if (currentKhachHangData && currentKhachHangData.dia_chi_kho) {
-          for (var k = 0; k < currentKhachHangData.dia_chi_kho.length; k++) {
-            if (currentKhachHangData.dia_chi_kho[k].dia_chi === val) {
-              dist = currentKhachHangData.dia_chi_kho[k].khoang_cach || '';
-              break;
-            }
-          }
-        }
-        doc.querySelector('input[name="khoang_cach"]').value = dist;
-      });
-      $sel.on('change.dc', function () {
+      $jq(sel).on('change', function () {
         var val = $jq(this).val();
-        if (!val) return;
         var dist = '';
         if (currentKhachHangData && currentKhachHangData.dia_chi_kho) {
           for (var k = 0; k < currentKhachHangData.dia_chi_kho.length; k++) {
@@ -451,6 +414,42 @@
     }
   }
 
+  function initTagify() {
+    var el = document.getElementById('tagifyLoaiCongNo');
+    if (!el) return;
+    if (tagifyLoaiCongNo) return;
+    tagifyLoaiCongNo = new Tagify(el, {
+      whitelist: LOAI_CONG_NO_LIST,
+      enforceWhitelist: false,
+      maxTags: 10,
+      dropdown: {
+        maxItems: 20,
+        enabled: 0,
+        closeOnSelect: false
+      }
+    });
+  }
+
+  function getTagifyValue() {
+    if (!tagifyLoaiCongNo) return [];
+    return tagifyLoaiCongNo.value.map(function (t) { return t.value; });
+  }
+
+  function setTagifyValue(arr) {
+    if (!tagifyLoaiCongNo) return;
+    tagifyLoaiCongNo.removeAllTags();
+    if (arr && arr.length) {
+      tagifyLoaiCongNo.addTags(arr);
+    }
+  }
+
+  function destroyTagify() {
+    if (tagifyLoaiCongNo) {
+      tagifyLoaiCongNo.destroy();
+      tagifyLoaiCongNo = null;
+    }
+  }
+
   function initChiPhiRepeater() {
     var container = document.getElementById('chi-phi-repeater');
     if (!container) return;
@@ -471,7 +470,10 @@
         '<input type="text" class="form-control chi-phi-ten" placeholder="Tên chi phí">' +
       '</div>' +
       '<div class="col-md-5">' +
-        '<input type="text" class="form-control chi-phi-so-tien money-mask" placeholder="0" inputmode="numeric">' +
+        '<div class="input-group">' +
+          '<span class="input-group-text">đ</span>' +
+          '<input type="text" class="form-control chi-phi-so-tien money-mask" placeholder="0" inputmode="numeric">' +
+        '</div>' +
       '</div>' +
       '<div class="col-md-1">' +
         '<button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-chi-phi"><i class="ti tabler-x"></i></button>' +
@@ -557,7 +559,7 @@
     ];
     var additionalChiPhi = collectChiPhi();
     var chiPhiData = mandatoryChiPhi.concat(additionalChiPhi);
-    var loaiCongNoVal = document.querySelector('#form-cau-hinh-gia-ban select[name="loai_cong_no"]').value;
+    var loaiCongNoVal = getTagifyValue();
 
     var apiData = {
       nid_khach_hang: parseInt(khachHangVal),
@@ -768,6 +770,7 @@
         }
         initKhachHangSelect();
         initLoaiContSelect();
+        initTagify();
         initChiPhiRepeater();
         populateForm(res.data);
         setFormMode('view');
@@ -804,6 +807,7 @@
         }
         initKhachHangSelect();
         initLoaiContSelect();
+        initTagify();
         initChiPhiRepeater();
         populateForm(res.data);
         setFormMode('edit');
@@ -830,6 +834,13 @@
         btn.style.display = '';
       }
     }
+    if (mode === 'view') {
+      if (tagifyLoaiCongNo) tagifyLoaiCongNo.setReadonly(true);
+    } else {
+      if (tagifyLoaiCongNo) tagifyLoaiCongNo.setReadonly(false);
+    }
+    var sw = document.getElementById('switch-trang-thai');
+    if (sw) sw.disabled = mode === 'view';
     var btnThemCp = document.getElementById('btn-them-chi-phi');
     if (btnThemCp) btnThemCp.style.display = mode === 'view' ? 'none' : '';
     var btnXoaCp = document.querySelectorAll('.btn-xoa-chi-phi');
@@ -845,20 +856,15 @@
         $sel.select2(mode === 'view' ? 'disable' : 'enable');
       }
     }
-    // Handle switch
-    var sw = document.getElementById('switch-trang-thai');
-    if (sw) {
-      sw.disabled = mode === 'view';
-    }
   }
 
   function resetForm() {
     showLoading(false);
+    destroyTagify();
     document.getElementById('form-cau-hinh-gia-ban').reset();
     document.querySelector('#form-cau-hinh-gia-ban input[name="nid"]').value = '';
     document.getElementById('cau-hinh-gia-ban-modal-title').textContent = 'Thêm cấu hình giá bán';
     currentKhachHangData = null;
-    // Reset switch
     var sw = document.getElementById('switch-trang-thai');
     var hiddenVal = document.getElementById('input-trang-thai');
     if (sw) sw.checked = true;
@@ -872,13 +878,13 @@
   function populateForm(d) {
     document.querySelector('#form-cau-hinh-gia-ban input[name="nid"]').value = d.nid || '';
 
-    // KH select — set value + update Select2 display
+    // KH select
     var khSel = document.querySelector('#form-cau-hinh-gia-ban select[name="nid_khach_hang"]');
     if (d.nid_khach_hang) {
       khSel.value = d.nid_khach_hang;
       var $kjq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
       if ($kjq && $kjq.fn.select2 && $kjq(khSel).data('select2')) {
-        $kjq(khSel).val(d.nid_khach_hang).trigger('change');
+        $kjq(khSel).trigger('change.select2');
       }
     }
 
@@ -888,9 +894,10 @@
       loadKhachHangDetail(d.nid_khach_hang, function () {
         var dcSel = document.getElementById('dia-chi-kho-select');
         if (dcSel && d.dia_chi_kho) {
+          dcSel.value = d.dia_chi_kho;
           var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
           if ($jq && $jq.fn.select2) {
-            $jq(dcSel).val(d.dia_chi_kho).trigger('change');
+            $jq(dcSel).trigger('change.select2');
           }
         }
       });
@@ -919,12 +926,11 @@
 
     // Loại công nợ
     if (d.loai_cong_no) {
-      document.querySelector('#form-cau-hinh-gia-ban select[name="loai_cong_no"]').value = d.loai_cong_no;
+      setTagifyValue(d.loai_cong_no.split(',').map(function (s) { return s.trim(); }));
     }
 
     // Separate mandatory fields + additional chi phí
     if (d.chi_phi && d.chi_phi.length) {
-      // First 3 items are mandatory fields
       if (d.chi_phi[0]) {
         document.querySelector('input[name="don_gia"]').value = d.chi_phi[0].so_tien ? formatMoney(d.chi_phi[0].so_tien) : '';
       }
@@ -934,7 +940,6 @@
       if (d.chi_phi[2]) {
         document.querySelector('input[name="phu_cap"]').value = d.chi_phi[2].so_tien ? formatMoney(d.chi_phi[2].so_tien) : '';
       }
-      // Additional items go into repeater
       var container = document.getElementById('chi-phi-repeater');
       if (container) container.innerHTML = '';
       for (var i = 3; i < d.chi_phi.length; i++) {

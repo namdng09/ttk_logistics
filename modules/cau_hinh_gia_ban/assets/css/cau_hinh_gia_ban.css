@@ -1,3 +1,31 @@
+/* Base font-size: 0.85rem */
+.card,
+.card-body,
+.modal-body,
+.form-control,
+.form-select,
+.btn,
+.table,
+.table th,
+.table td,
+.page-link,
+.input-group-text,
+#cau-hinh-gia-ban-modal button {
+  font-size: 0.85rem !important;
+}
+.form-label,
+.form-text,
+.text-muted,
+small,
+.small,
+label {
+  font-size: 0.75rem !important;
+}
+#cau-hinh-gia-ban-modal .form-label,
+#cau-hinh-gia-ban-modal label {
+  font-size: 1rem !important;
+}
+
 #table-cau-hinh-gia-ban th {
   white-space: nowrap;
 }
@@ -14,6 +42,10 @@
 }
 
 .flatpickr-calendar {
+  z-index: 99999 !important;
+}
+
+.tagify__dropdown {
   z-index: 99999 !important;
 }
 
@@ -62,8 +94,37 @@
   z-index: 99999 !important;
 }
 
+/* Tagify */
+#cau-hinh-gia-ban-modal .tagify {
+  min-height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.1875rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  align-items: center;
+}
+#cau-hinh-gia-ban-modal .tagify__tag {
+  font-size: 0.85rem;
+  margin: 0 4px 0 0;
+  line-height: 1.5;
+}
+#cau-hinh-gia-ban-modal .tagify__input {
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+  font-size: 0.85rem;
+}
+#cau-hinh-gia-ban-modal .tagify__input:empty::before {
+  line-height: 1.5;
+}
+
 /* Money mask input */
 input.money-mask {
   text-align: right;
 }
 
+/* Action buttons in function column */
+#table-cau-hinh-gia-ban .btn-icon,
+#table-cau-hinh-gia-ban .dropdown-item {
+  font-size: 0.9375rem !important;
+}

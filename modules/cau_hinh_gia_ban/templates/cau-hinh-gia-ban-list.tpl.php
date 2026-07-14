@@ -104,11 +104,7 @@
             </div>
             <div class="col-md-6">
               <label class="form-label">Loại công nợ <span class="text-danger">*</span></label>
-              <select class="form-select" name="loai_cong_no" id="loai-cong-no-select" required>
-                <option value="">Chọn loại công nợ</option>
-                <option value="Cuối tháng">Cuối tháng</option>
-                <option value="Thanh toán ngay">Thanh toán ngay</option>
-              </select>
+              <input id="tagifyLoaiCongNo" class="form-control" name="loai_cong_no_tags" placeholder="Chọn loại công nợ" required>
               <div class="invalid-feedback">Vui lòng chọn loại công nợ</div>
             </div>
             <div class="col-md-6">
@@ -118,7 +114,7 @@
               </select>
               <div class="invalid-feedback">Vui lòng chọn địa chỉ kho</div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
               <label class="form-label">Khoảng cách <span class="text-danger">*</span></label>
               <div class="input-group">
                 <span class="input-group-text">km</span>
@@ -126,14 +122,13 @@
               </div>
               <div class="invalid-feedback">Vui lòng nhập khoảng cách</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Loại cont <span class="text-danger">*</span></label>
               <select id="loai-cont-select" class="form-select" name="loai_cont" style="width:100%" required>
                 <option value="">Chọn/Nhập loại cont</option>
               </select>
               <div class="invalid-feedback">Vui lòng chọn loại cont</div>
             </div>
-
             <div class="col-md-4">
               <label class="form-label">Đơn giá <span class="text-danger">*</span></label>
               <div class="input-group">
@@ -151,7 +146,7 @@
               <div class="invalid-feedback">Vui lòng nhập phí neo xe</div>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Phụ cấp/Chi phí lái xe <span class="text-danger">*</span></label>
+              <label class="form-label">Phụ cấp <span class="text-danger">*</span></label>
               <div class="input-group">
                 <span class="input-group-text">đ</span>
                 <input type="text" class="form-control money-mask" name="phu_cap" placeholder="1.000.000" required>
@@ -175,7 +170,6 @@
             </div>
 
             <div class="col-md-12">
-              <label class="form-label">Trạng thái</label>
               <div>
                 <label class="switch switch-success">
                   <input type="checkbox" class="switch-input" id="switch-trang-thai" checked>
