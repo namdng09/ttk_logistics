@@ -104,7 +104,11 @@
             </div>
             <div class="col-md-6">
               <label class="form-label">Loại công nợ <span class="text-danger">*</span></label>
-              <input id="tagifyLoaiCongNo" class="form-control" name="loai_cong_no_tags" placeholder="Chọn loại công nợ" required>
+              <select class="form-select" name="loai_cong_no" id="loai-cong-no-select" required>
+                <option value="">Chọn loại công nợ</option>
+                <option value="Cuối tháng">Cuối tháng</option>
+                <option value="Thanh toán ngay">Thanh toán ngay</option>
+              </select>
               <div class="invalid-feedback">Vui lòng chọn loại công nợ</div>
             </div>
             <div class="col-md-6">

@@ -5,11 +5,9 @@
   var currentPage = 1;
   var currentKeyword = '';
   var currentKhachHangId = 0;
-  var tagifyLoaiCongNo = null;
   var KHACH_HANG_LIST = [];
   var KHACH_HANG_DETAIL_CACHE = {};
   var LOAI_CONT_LIST = ['40RF', '20RF', '40HC', '20HC', '40OT', '20OT', '45HC', '45RF', '20RF'];
-  var LOAI_CONG_NO_LIST = ['Cuối tháng', 'Thanh toán ngay'];
   var currentKhachHangData = null;
 
   function modalShow(id) {
@@ -114,7 +112,6 @@
         initKhachHangSelect();
         initDiaChiKhoSelect();
         initLoaiContSelect();
-        initTagify();
       }
       initMoneyMasks();
     });
@@ -414,41 +411,6 @@
     }
   }
 
-  function initTagify() {
-    var el = document.getElementById('tagifyLoaiCongNo');
-    if (!el) return;
-    if (tagifyLoaiCongNo) return;
-    tagifyLoaiCongNo = new Tagify(el, {
-      whitelist: LOAI_CONG_NO_LIST,
-      enforceWhitelist: false,
-      maxTags: 10,
-      dropdown: {
-        maxItems: 20,
-        enabled: 0,
-        closeOnSelect: false
-      }
-    });
-  }
-
-  function getTagifyValue() {
-    if (!tagifyLoaiCongNo) return [];
-    return tagifyLoaiCongNo.value.map(function (t) { return t.value; });
-  }
-
-  function setTagifyValue(arr) {
-    if (!tagifyLoaiCongNo) return;
-    tagifyLoaiCongNo.removeAllTags();
-    if (arr && arr.length) {
-      tagifyLoaiCongNo.addTags(arr);
-    }
-  }
-
-  function destroyTagify() {
-    if (tagifyLoaiCongNo) {
-      tagifyLoaiCongNo.destroy();
-      tagifyLoaiCongNo = null;
-    }
-  }
 
   function initChiPhiRepeater() {
     var container = document.getElementById('chi-phi-repeater');
@@ -489,6 +451,7 @@
         row.querySelector('.chi-phi-so-tien').value = formatMoney(data.so_tien);
       }
     }
+    initMoneyMasks();
   }
 
   function collectChiPhi() {
@@ -559,7 +522,7 @@
     ];
     var additionalChiPhi = collectChiPhi();
     var chiPhiData = mandatoryChiPhi.concat(additionalChiPhi);
-    var loaiCongNoVal = getTagifyValue();
+    var loaiCongNoVal = document.querySelector('#form-cau-hinh-gia-ban select[name="loai_cong_no"]').value;
 
     var apiData = {
       nid_khach_hang: parseInt(khachHangVal),
@@ -770,7 +733,6 @@
         }
         initKhachHangSelect();
         initLoaiContSelect();
-        initTagify();
         initChiPhiRepeater();
         populateForm(res.data);
         setFormMode('view');
@@ -807,7 +769,6 @@
         }
         initKhachHangSelect();
         initLoaiContSelect();
-        initTagify();
         initChiPhiRepeater();
         populateForm(res.data);
         setFormMode('edit');
@@ -834,11 +795,6 @@
         btn.style.display = '';
       }
     }
-    if (mode === 'view') {
-      if (tagifyLoaiCongNo) tagifyLoaiCongNo.setReadonly(true);
-    } else {
-      if (tagifyLoaiCongNo) tagifyLoaiCongNo.setReadonly(false);
-    }
     var sw = document.getElementById('switch-trang-thai');
     if (sw) sw.disabled = mode === 'view';
     var btnThemCp = document.getElementById('btn-them-chi-phi');
@@ -860,7 +816,6 @@
 
   function resetForm() {
     showLoading(false);
-    destroyTagify();
     document.getElementById('form-cau-hinh-gia-ban').reset();
     document.querySelector('#form-cau-hinh-gia-ban input[name="nid"]').value = '';
     document.getElementById('cau-hinh-gia-ban-modal-title').textContent = 'Thêm cấu hình giá bán';
@@ -926,7 +881,7 @@
 
     // Loại công nợ
     if (d.loai_cong_no) {
-      setTagifyValue(d.loai_cong_no.split(',').map(function (s) { return s.trim(); }));
+      document.querySelector('#form-cau-hinh-gia-ban select[name="loai_cong_no"]').value = d.loai_cong_no;
     }
 
     // Separate mandatory fields + additional chi phí
