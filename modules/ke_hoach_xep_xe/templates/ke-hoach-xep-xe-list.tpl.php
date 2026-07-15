@@ -42,10 +42,8 @@
             <th>bkg</th>
             <th>Địa chỉ kho</th>
             <th>Container</th>
-            <th>Lái xe</th>
-            <th>BKS</th>
-            <th>Bãi lấy cont</th>
-            <th>Bãi hạ cont</th>
+            <th>Tài xế / PT</th>
+            <th>Hành trình</th>
             <th>Cut off</th>
             <th>Cảng xuất</th>
             <th>T.Thái VC</th>
@@ -53,7 +51,7 @@
         </thead>
         <tbody id="list-body">
           <tr id="loading-row">
-            <td colspan="15" class="text-center py-4">
+            <td colspan="13" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>

@@ -21,10 +21,41 @@
     }
   }
 
-  function escHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-  }
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function cutOffBadge(val) {
+      if (!val) return '<span class="text-muted fst-italic small">cut-off</span>';
+      var normalized = apiToDatetime(val);
+      var d = parseCutOff(normalized);
+      if (!d) return escHtml(val);
+      var now = new Date();
+      var diffMs = d - now;
+      var diffDays = diffMs / (1000 * 60 * 60 * 24);
+      var color;
+      if (diffMs < 0) {
+        color = 'bg-label-danger';
+      } else if (diffDays <= 1) {
+        color = 'bg-label-warning';
+      } else {
+        color = 'bg-label-success';
+      }
+      return '<span class="badge ' + color + '">' + toDdMmYyyyHm(val) + '</span>';
+    }
+
+    function parseCutOff(val) {
+      var parts = val.split(' ');
+      if (parts.length < 1) return null;
+      var dParts = parts[0].split('/');
+      if (dParts.length !== 3) return null;
+      var dd = parseInt(dParts[0], 10), mm = parseInt(dParts[1], 10) - 1, yyyy = parseInt(dParts[2], 10);
+      if (isNaN(dd) || isNaN(mm) || isNaN(yyyy)) return null;
+      var tParts = parts[1] ? parts[1].split(':') : [];
+      var hh = tParts[0] ? parseInt(tParts[0], 10) : 0, mi = tParts[1] ? parseInt(tParts[1], 10) : 0;
+      return new Date(yyyy, mm, dd, hh, mi);
+    }
 
   var HINH_THUC_MAP = {
     cat_keo: 'Cắt kéo',
@@ -216,8 +247,8 @@
 
   function loadList() {
     var tbody = document.getElementById('list-body');
-    tbody.innerHTML =
-      '<tr id="loading-row"><td colspan="18" class="text-center py-4">' +
+        tbody.innerHTML =
+          '<tr id="loading-row"><td colspan="13" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>';
 
@@ -234,7 +265,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.innerHTML = '<tr><td colspan="18" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="13" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
           return;
         }
 
@@ -243,7 +274,7 @@
         var pageSize = resp.limit || 20;
 
         if (!items.length) {
-          tbody.innerHTML = '<tr><td colspan="18" class="text-center py-4">Không có dữ liệu</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="13" class="text-center py-4">Không có dữ liệu</td></tr>';
           renderPagination(resp);
           return;
         }
@@ -259,7 +290,7 @@
           html += '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
-            '<td>' + (row.created ? row.created.substring(0, 16) : '') + '</td>' +
+            '<td>' + formatDateBadge(row.created) + '</td>' +
             '<td><span class="badge ' + (HINH_THUC_COLOR[row.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</span></td>' +
             '<td>' + escHtml(khName) + '</td>' +
             '<td>' + escHtml(row.so_bkg || '') + '</td>' +
@@ -270,12 +301,16 @@
               (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '<br>' +
               (row.so_seal_tam ? escHtml(row.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') +
             '</td>' +
-            '<td>' + escHtml(lxName) + '</td>' +
-            '<td>' + escHtml(ptBks) + '</td>' +
-
-            '<td>' + escHtml(row.bai_lay_cont || '') + '</td>' +
-            '<td>' + escHtml(row.bai_ha_cont || '') + '</td>' +
-            '<td>' + escHtml(row.cut_off || '') + '</td>' +
+            '<td style="line-height:1.6">' +
+              (ptBks ? escHtml(ptBks) : '<span class="text-muted fst-italic small">BKS</span>') + '<br>' +
+              (lxName ? escHtml(lxName) : '<span class="text-muted fst-italic small">lái xe</span>') +
+              (row.lai_xe && row.lai_xe.sdt ? ' - ' + escHtml(row.lai_xe.sdt) : '') +
+            '</td>' +
+            '<td class="text-nowrap" style="line-height:1.6">' +
+              (row.bai_lay_cont ? escHtml(row.bai_lay_cont) : '<span class="text-muted fst-italic small">bãi lấy</span>') + '<br>' +
+              (row.bai_ha_cont ? escHtml(row.bai_ha_cont) : '<span class="text-muted fst-italic small">bãi hạ</span>') +
+            '</td>' +
+            '<td>' + cutOffBadge(row.cut_off) + '</td>' +
             '<td>' + escHtml(row.cang_xuat || '') + '</td>' +
             '<td><span class="badge bg-label-info">' + escHtml(row.trang_thai_van_chuyen || '') + '</span></td>' +
             '</tr>';
@@ -285,7 +320,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.innerHTML = '<tr><td colspan="18" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -823,16 +858,17 @@
         var d = res.data;
         var khName = (d.khach_hang && d.khach_hang.ten) || '';
         var lxName = (d.lai_xe && d.lai_xe.ten) || '';
+        var lxSdt = (d.lai_xe && d.lai_xe.sdt) || '';
         var ptName = (d.phuong_tien && d.phuong_tien.bks) || '';
         var rows = [
           { label: 'Ngày lập KH', value: d.created ? d.created.substring(0, 16) : '' },
           { label: 'Khách hàng', value: khName },
-          { label: 'Lái xe', value: lxName },
+          { label: 'Lái xe', value: lxName + (lxSdt ? ' - ' + lxSdt : '') },
+          { label: 'Phương tiện', value: ptName },
           { label: 'Số BKG', value: d.so_bkg },
           { label: 'Địa chỉ kho', value: d.dia_chi_kho },
           { label: 'Loại cont', value: d.loai_cont },
           { label: 'Số cont', value: d.so_cont },
-          { label: 'Phương tiện', value: ptName },
           { label: 'Số seal chính', value: d.so_seal_chinh },
           { label: 'Số seal tạm', value: d.so_seal_tam },
           { label: 'Trạng thái', value: d.trang_thai_van_chuyen },
@@ -862,6 +898,21 @@
     var parts = val.split('-');
     if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
     return val;
+  }
+
+  function formatDateBadge(val) {
+    if (!val) return '';
+    return '<span class="badge bg-label-info fw-normal">' + toDdMmYyyyHm(val) + '</span>';
+  }
+
+  function toDdMmYyyyHm(val) {
+    if (!val) return '';
+    var parts = val.split(' ');
+    var d = parts[0] ? parts[0].split('-') : [];
+    if (d.length !== 3) return escHtml(val);
+    var dateStr = d[2] + '-' + d[1] + '-' + d[0];
+    if (parts[1]) dateStr += ' ' + parts[1].substring(0, 5);
+    return dateStr;
   }
 
   function apiToDatetime(val) {
