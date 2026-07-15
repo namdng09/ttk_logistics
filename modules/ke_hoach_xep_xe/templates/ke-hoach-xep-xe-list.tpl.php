@@ -41,12 +41,9 @@
             <th>Khách hàng</th>
             <th>bkg</th>
             <th>Địa chỉ kho</th>
-            <th>Loại cont</th>
-            <th>Số cont</th>
+            <th>Container</th>
             <th>Lái xe</th>
             <th>BKS</th>
-            <th>Số seal chính</th>
-            <th>Số seal tạm</th>
             <th>Bãi lấy cont</th>
             <th>Bãi hạ cont</th>
             <th>Cut off</th>
@@ -56,7 +53,7 @@
         </thead>
         <tbody id="list-body">
           <tr id="loading-row">
-            <td colspan="18" class="text-center py-4">
+            <td colspan="15" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>

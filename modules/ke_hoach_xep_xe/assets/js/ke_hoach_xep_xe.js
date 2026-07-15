@@ -264,12 +264,15 @@
             '<td>' + escHtml(khName) + '</td>' +
             '<td>' + escHtml(row.so_bkg || '') + '</td>' +
             '<td>' + escHtml(row.dia_chi_kho || '') + '</td>' +
-            '<td>' + escHtml(row.loai_cont || '') + '</td>' +
-            '<td>' + escHtml(row.so_cont || '') + '</td>' +
+            '<td style="line-height:1.6">' +
+              (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '<br>' +
+              (row.so_cont ? escHtml(row.so_cont) : '<span class="text-muted fst-italic small">số cont</span>') + '<br>' +
+              (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '<br>' +
+              (row.so_seal_tam ? escHtml(row.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') +
+            '</td>' +
             '<td>' + escHtml(lxName) + '</td>' +
             '<td>' + escHtml(ptBks) + '</td>' +
-            '<td>' + escHtml(row.so_seal_chinh || '') + '</td>' +
-            '<td>' + escHtml(row.so_seal_tam || '') + '</td>' +
+
             '<td>' + escHtml(row.bai_lay_cont || '') + '</td>' +
             '<td>' + escHtml(row.bai_ha_cont || '') + '</td>' +
             '<td>' + escHtml(row.cut_off || '') + '</td>' +
