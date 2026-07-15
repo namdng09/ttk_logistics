@@ -267,8 +267,7 @@
     if (!items) return '';
 
     return '<div class="dropdown">' +
-      '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill" type="button" data-bs-toggle="dropdown">' +
-      '<i class="ti tabler-dots-vertical"></i></button>' +
+      '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill" type="button"><i class="ti tabler-dots-vertical"></i></button>' +
       '<ul class="dropdown-menu">' + items + '</ul></div>';
   }
 
@@ -593,6 +592,53 @@
       setTimeout(initDatepickers, 100);
     }
 
+    // --- Validation helper (manual, not relying on was-validated + :valid/:invalid) ---
+    function isValidForm() {
+      var ok = true;
+
+      function resetValidation(el) {
+        el.classList.remove('is-invalid');
+        var c = el.nextElementSibling;
+        if (c && c.classList.contains('select2-container')) c.classList.remove('is-invalid');
+      }
+
+      function markInvalid(el) {
+        ok = false;
+        el.classList.add('is-invalid');
+        var c = el.nextElementSibling;
+        if (c && c.classList.contains('select2-container')) c.classList.add('is-invalid');
+      }
+
+      function getFeedback(el) {
+        var parent = el.closest('.col-md-4') || el.parentElement;
+        return parent.querySelector('.invalid-feedback');
+      }
+
+      // Reset
+      var requiredFields = ['nid_khach_hang-input', 'nid_lai_xe-input', 'so_bkg-input', 'nid_phuong_tien-input'];
+      for (var ri = 0; ri < requiredFields.length; ri++) {
+        var el = document.getElementById(requiredFields[ri]);
+        if (!el) continue;
+        resetValidation(el);
+        var fb = getFeedback(el);
+        if (fb) fb.style.display = '';
+      }
+
+      // Check
+      for (var ri = 0; ri < requiredFields.length; ri++) {
+        var el = document.getElementById(requiredFields[ri]);
+        if (!el) continue;
+        var val = el.value;
+        if (!val || val === '0') {
+          markInvalid(el);
+          var fb = getFeedback(el);
+          if (fb) fb.style.display = 'block';
+        }
+      }
+
+      return ok;
+    }
+
     // --- Submit on Enter ---
     $('#ke-hoach-form').on('keydown', function (e) {
       if (e.which === 13 && !$(e.target).is('textarea')) {
@@ -603,6 +649,8 @@
 
     // --- Submit ---
     $('#save-btn').on('click', function () {
+      if (!isValidForm()) return;
+
       var payload = gatherForm();
       var nid = $('#nid-input').val();
       var url = '/api/ke-hoach-xep-xe/' + (nid ? nid : '');

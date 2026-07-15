@@ -392,7 +392,7 @@ function _ke_hoach_xep_xe_rest_delete($id) {
 
 function ke_hoach_xep_xe_page_list() {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
-  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js');
+  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
 
   $statuses = _ke_hoach_xep_xe_statuses();
   drupal_add_js(array('ke_hoach_xep_xe' => array(
@@ -409,7 +409,7 @@ function ke_hoach_xep_xe_page_list() {
 
 function ke_hoach_xep_xe_page_form($id = NULL) {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
-  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js');
+  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
 
   $data = NULL;
   $mode = 'create';
@@ -472,6 +472,7 @@ function ke_hoach_xep_xe_page_detail($id) {
   }
 
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
+  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
 
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'mode' => 'detail',

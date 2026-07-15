@@ -79,3 +79,7 @@
   z-index: 1;
   font-size: 0.875rem;
 }
+
+.select2-container.is-invalid .select2-selection {
+  border-color: #ea5455 !important;
+}

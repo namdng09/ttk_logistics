@@ -11,38 +11,42 @@
       <div class="spinner-border text-primary"></div>
     </div>
 
-    <form id="ke-hoach-form" class="row g-2 needs-validation" novalidate>
+    <form id="ke-hoach-form" class="row g-2" novalidate>
       <input type="hidden" id="nid-input" value="">
 
       <div class="col-md-4">
-        <label class="form-label">Khách hàng</label>
-        <select id="nid_khach_hang-input" class="form-select select2-searchable" style="width:100%">
+        <label class="form-label">Khách hàng <span class="text-danger">*</span></label>
+        <select id="nid_khach_hang-input" class="form-select select2-searchable" style="width:100%" required>
           <option value="0">— Chọn —</option>
         </select>
+        <div class="invalid-feedback">Vui lòng chọn khách hàng</div>
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Lái xe</label>
-        <select id="nid_lai_xe-input" class="form-select select2-searchable" style="width:100%">
+        <label class="form-label">Lái xe <span class="text-danger">*</span></label>
+        <select id="nid_lai_xe-input" class="form-select select2-searchable" style="width:100%" required>
           <option value="0">— Chọn —</option>
         </select>
+        <div class="invalid-feedback">Vui lòng chọn lái xe</div>
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Số BKG</label>
+        <label class="form-label">Số BKG <span class="text-danger">*</span></label>
         <div class="input-group">
-          <input type="text" id="so_bkg-input" class="form-control" placeholder="Nhập số BKG">
+          <input type="text" id="so_bkg-input" class="form-control" placeholder="Nhập số BKG" required>
           <button class="btn btn-outline-secondary" type="button" id="paste-bkg-btn" title="Dán từ clipboard">
             <i class="ti tabler-clipboard-copy"></i>
           </button>
         </div>
+        <div class="invalid-feedback">Vui lòng nhập số BKG</div>
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Phương tiện</label>
-        <select id="nid_phuong_tien-input" class="form-select select2-searchable" style="width:100%">
+        <label class="form-label">Phương tiện <span class="text-danger">*</span></label>
+        <select id="nid_phuong_tien-input" class="form-select select2-searchable" style="width:100%" required>
           <option value="0">— Chọn —</option>
         </select>
+        <div class="invalid-feedback">Vui lòng chọn phương tiện</div>
       </div>
 
       <div class="col-md-4">
@@ -98,7 +102,7 @@
       </div>
 
       <div class="col-12 mt-3 text-end">
-        <button type="submit" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu</button>
+        <button type="button" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu</button>
       </div>
     </form>
   </div>

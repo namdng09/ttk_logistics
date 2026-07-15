@@ -323,6 +323,16 @@ notyf.error('Lỗi');
 - `hoat_dong`: int tiny, default 1 (soft-delete: 0 = deleted, 1 = active).
 - FK trong bảng hướng đến entity khác: `<entity>_<entity>_id` (VD: `phuong_tien_lai_xe_id` cho junction n-n).
 
+### Select2 (searchable dropdown)
+- **Select2** — thư viện jQuery, biến `<select>` thành ô vừa search vừa chọn.
+- File trong Vuexy: `quan-ly/assets/vendor/libs/select2/select2.js` + `quan-ly/assets/js/select2.min.js`.
+- Khởi tạo: gọi `$(sel).select2({ placeholder, allowClear, width: '100%' })`.
+- `tags: true` — cho phép nhập giá trị mới không có trong list (dùng cho `loai_cont`).
+- Helper `_jq()` kiểm tra cả `$` và `jQuery` để tìm instance có `$.fn.select2`.
+- Khi làm việc với API: **populate `<option>` trước, init Select2 sau** (gọi `destroy()` rồi tạo lại nếu select đã có Select2).
+- `dropdownParent` — chỉ định container (cần khi ở trong modal).
+- Select2 mặc định có ô search cho single-select.
+
 ## TODO
 
 - Migrate các module cũ (danh_muc, ben_thu_ba, ...) sang schema + RESTful + hybrid.
