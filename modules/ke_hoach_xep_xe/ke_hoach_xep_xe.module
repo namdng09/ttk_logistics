@@ -155,6 +155,35 @@ function _ke_hoach_xep_xe_method_not_allowed($allowed) {
   return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
 }
 
+function _ke_hoach_xep_xe_enrich_row($row) {
+  $result = (array) $row;
+
+  if (!empty($result['nid_khach_hang'])) {
+    $kh = db_query("SELECT nid, ten, ma_kh, phan_loai, cccd_mst, sdt, dia_chi, dob, ghi_chu FROM {khach_hang} WHERE nid = :nid", array(':nid' => $result['nid_khach_hang']))->fetch();
+    $result['khach_hang'] = $kh ? (array) $kh : NULL;
+  } else {
+    $result['khach_hang'] = NULL;
+  }
+
+  if (!empty($result['nid_lai_xe'])) {
+    $lx = db_query("SELECT nid, ten, ma_nhan_vien, sdt, cccd, so_bang_lai, loai_bang_lai, han_bang_lai FROM {lai_xe} WHERE nid = :nid", array(':nid' => $result['nid_lai_xe']))->fetch();
+    $result['lai_xe'] = $lx ? (array) $lx : NULL;
+  } else {
+    $result['lai_xe'] = NULL;
+  }
+
+  if (!empty($result['nid_phuong_tien'])) {
+    $pt = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $result['nid_phuong_tien']))->fetch();
+    $result['phuong_tien'] = $pt ? (array) $pt : NULL;
+  } else {
+    $result['phuong_tien'] = NULL;
+  }
+
+  unset($result['nid_khach_hang'], $result['nid_lai_xe'], $result['nid_phuong_tien']);
+
+  return $result;
+}
+
 /**
  * Statuses for trang_thai_van_chuyen — easy to update later.
  */
@@ -219,8 +248,15 @@ function _ke_hoach_xep_xe_rest_list() {
 
   $total_pages = (int) ceil($total / $limit);
 
+  $items = array();
+  if ($rows) {
+    foreach ($rows as $r) {
+      $items[] = _ke_hoach_xep_xe_enrich_row($r);
+    }
+  }
+
   return _ke_hoach_xep_xe_success(array(
-    'items' => $rows ?: array(),
+    'items' => $items,
     'total' => (int) $total,
     'current_page' => $total_pages > 0 ? $page : 0,
     'total_pages' => $total_pages,
@@ -267,7 +303,7 @@ function _ke_hoach_xep_xe_rest_create() {
       '%bkg' => $input['so_bkg'],
     ));
 
-    return _ke_hoach_xep_xe_success($row);
+    return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_enrich_row($row));
   }
   catch (Exception $e) {
     $transaction->rollback();
@@ -299,11 +335,11 @@ function ke_hoach_xep_xe_rest_item($id) {
 }
 
 function _ke_hoach_xep_xe_rest_get($id) {
-  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$row) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
-  return _ke_hoach_xep_xe_success($row);
+  return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_enrich_row($row));
 }
 
 function _ke_hoach_xep_xe_rest_update($id) {
@@ -346,7 +382,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
 
     watchdog('ke_hoach_xep_xe', 'Cập nhật kế hoạch #%id', array('%id' => $id));
 
-    return _ke_hoach_xep_xe_success($row);
+    return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_enrich_row($row));
   }
   catch (Exception $e) {
     $transaction->rollback();
@@ -422,7 +458,7 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
     if (!$row) {
       return MENU_NOT_FOUND;
     }
-    $data = $row;
+    $data = _ke_hoach_xep_xe_enrich_row($row);
     $mode = 'edit';
   }
 
@@ -452,34 +488,12 @@ function ke_hoach_xep_xe_page_detail($id) {
     return MENU_NOT_FOUND;
   }
 
-  // Resolve display names
-  $khach_hang_name = '';
-  if ($row->nid_khach_hang) {
-    $kh = db_query("SELECT ten FROM {khach_hang} WHERE nid = :nid", array(':nid' => $row->nid_khach_hang))->fetch();
-    if ($kh) $khach_hang_name = $kh->ten;
-  }
-
-  $lai_xe_name = '';
-  if ($row->nid_lai_xe) {
-    $lx = db_query("SELECT ten FROM {lai_xe} WHERE nid = :nid", array(':nid' => $row->nid_lai_xe))->fetch();
-    if ($lx) $lai_xe_name = $lx->ten;
-  }
-
-  $phuong_tien_name = '';
-  if ($row->nid_phuong_tien) {
-    $pt = db_query("SELECT bks FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $row->nid_phuong_tien))->fetch();
-    if ($pt) $phuong_tien_name = $pt->bks;
-  }
-
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
 
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'mode' => 'detail',
-    'data' => $row,
-    'khach_hang_name' => $khach_hang_name,
-    'lai_xe_name' => $lai_xe_name,
-    'phuong_tien_name' => $phuong_tien_name,
+    'data' => _ke_hoach_xep_xe_enrich_row($row),
     'permissions' => array(
       'delete' => user_access('ke_hoach_xep_xe_delete'),
     ),

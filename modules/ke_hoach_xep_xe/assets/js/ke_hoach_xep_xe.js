@@ -517,13 +517,13 @@
     // --- Form populate / gather ---
     function populateForm(row) {
       $('#nid-input').val(row.nid || '');
-      $('#nid_khach_hang-input').val(row.nid_khach_hang || 0).trigger('change');
-      $('#nid_lai_xe-input').val(row.nid_lai_xe || 0).trigger('change');
+      $('#nid_khach_hang-input').val((row.khach_hang && row.khach_hang.nid) || 0).trigger('change');
+      $('#nid_lai_xe-input').val((row.lai_xe && row.lai_xe.nid) || 0).trigger('change');
       $('#so_bkg-input').val(row.so_bkg || '');
       $('#dia_chi_kho-input').val(row.dia_chi_kho || '');
       $('#loai_cont-input').val(row.loai_cont || '').trigger('change');
       $('#so_cont-input').val(row.so_cont || '');
-      $('#nid_phuong_tien-input').val(row.nid_phuong_tien || 0).trigger('change');
+      $('#nid_phuong_tien-input').val((row.phuong_tien && row.phuong_tien.nid) || 0).trigger('change');
       $('#so_seal_chinh-input').val(row.so_seal_chinh || '');
       $('#so_seal_tam-input').val(row.so_seal_tam || '');
       $('#trang_thai_van_chuyen-input').val(row.trang_thai_van_chuyen || 'Chưa xếp xe');
@@ -697,9 +697,9 @@
   function initDetail(context) {
     if (!data) return;
 
-    var khName = settings.khach_hang_name || '';
-    var lxName = settings.lai_xe_name || '';
-    var ptName = settings.phuong_tien_name || '';
+    var khName = (data.khach_hang && data.khach_hang.ten) || '';
+    var lxName = (data.lai_xe && data.lai_xe.ten) || '';
+    var ptName = (data.phuong_tien && data.phuong_tien.bks) || '';
 
     var rows = [
       { label: 'Ngày', value: apiToDate(data.ngay) },
