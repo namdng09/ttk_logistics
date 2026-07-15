@@ -15,12 +15,12 @@
           </button>
         </div>
       </div>
-      <div class="col-6 col-md-5 mb-2 mb-md-0">
-        <select class="form-select" id="filter-khach-hang">
+      <div class="col-6 col-md-3 mb-2 mb-md-0">
+        <select class="form-select select2-searchable" id="filter-khach-hang">
           <option value="">Tất cả khách hàng</option>
         </select>
       </div>
-      <div class="col-6 col-md-3">
+      <div class="col-6 col-md-5">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-primary btn-them-cau-hinh-gia-ban" data-bs-toggle="modal" data-bs-target="#cau-hinh-gia-ban-modal">
             <i class="ti tabler-plus me-1"></i>Thêm

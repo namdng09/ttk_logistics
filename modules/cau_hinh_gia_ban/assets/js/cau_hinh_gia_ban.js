@@ -8,6 +8,8 @@
   var KHACH_HANG_LIST = [];
   var LOAI_CONT_LIST = ['40RF', '20RF', '40HC', '20HC', '40OT', '20OT', '45HC', '45RF', '20RF'];
   var currentKhachHangData = null;
+  var DANH_MUC_CHI_PHI = [];
+  var DANH_MUC_CHI_PHI_LOADED = false;
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -51,13 +53,6 @@
         currentPage = 1;
         loadList();
       }
-    });
-
-    // Filter KH
-    doc.getElementById('filter-khach-hang').addEventListener('change', function () {
-      currentKhachHangId = parseInt(this.value) || 0;
-      currentPage = 1;
-      loadList();
     });
 
     // Enter key submit
@@ -221,9 +216,11 @@
         }
       });
     }
-  }
+    }
 
-  function loadKhachHangList() {
+    loadDanhMucChiPhi();
+
+    function loadKhachHangList() {
     $.ajax({
       url: '/api/khach-hang',
       type: 'GET',
@@ -251,6 +248,17 @@
               opt2.value = items[j].nid;
               opt2.textContent = items[j].ten || 'KH #' + items[j].nid;
               filterSel.appendChild(opt2);
+            }
+            var $jqF = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
+            if ($jqF && $jqF.fn.select2) {
+              var $filterSel = $jqF(filterSel);
+              if ($filterSel.data('select2')) $filterSel.select2('destroy');
+              $filterSel.select2({ placeholder: 'Tất cả khách hàng', allowClear: false, width: '100%' });
+              $filterSel.bind('change', function () {
+                currentKhachHangId = parseInt(this.value) || 0;
+                currentPage = 1;
+                loadList();
+              });
             }
           }
         }
@@ -399,6 +407,30 @@
   }
 
 
+  function loadDanhMucChiPhi(callback) {
+    if (DANH_MUC_CHI_PHI_LOADED) {
+      if (callback) callback();
+      return;
+    }
+    $.ajax({
+      url: '/api/danh-muc',
+      type: 'GET',
+      dataType: 'json',
+      data: { phan_loai: 'Chi phí', limit: 999 },
+      success: function (res) {
+        if (res.status === 'success' && res.data && res.data.items) {
+          DANH_MUC_CHI_PHI = res.data.items;
+        }
+        DANH_MUC_CHI_PHI_LOADED = true;
+        if (callback) callback();
+      },
+      error: function () {
+        DANH_MUC_CHI_PHI_LOADED = true;
+        if (callback) callback();
+      }
+    });
+  }
+
   function initChiPhiRepeater() {
     var container = document.getElementById('chi-phi-repeater');
     if (!container) return;
@@ -411,17 +443,41 @@
     container.innerHTML = headerHtml;
   }
 
+  function initChiPhiSelect2(row) {
+    var sel = row.querySelector('.chi-phi-ten');
+    if (!sel) return;
+    var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
+    if ($jq && $jq.fn.select2) {
+      var $sel = $jq(sel);
+      if ($sel.data('select2')) $sel.select2('destroy');
+      $sel.select2({
+        dropdownParent: $jq('#cau-hinh-gia-ban-modal'),
+        placeholder: 'Chọn/Nhập tên chi phí',
+        allowClear: true,
+        tags: true,
+        width: '100%'
+      });
+    }
+  }
+
   function addChiPhiRow(data) {
     var container = document.getElementById('chi-phi-repeater');
     if (!container) return;
+    var selectedVal = data ? (data.ten || '') : '';
+    var opts = '<option value="">Chọn/Nhập tên chi phí</option>';
+    for (var i = 0; i < DANH_MUC_CHI_PHI.length; i++) {
+      var v = DANH_MUC_CHI_PHI[i].ten;
+      opts += '<option value="' + escapeHtml(v) + '"' + (v === selectedVal ? ' selected' : '') + '>' + escapeHtml(v) + '</option>';
+    }
     var html = '<div class="chi-phi-row row g-2 mb-2">' +
       '<div class="col-md-6">' +
-        '<input type="text" class="form-control chi-phi-ten" placeholder="Tên chi phí">' +
+        '<select class="form-control chi-phi-ten select2-chi-phi">' + opts + '</select>' +
       '</div>' +
       '<div class="col-md-5">' +
         '<div class="input-group">' +
           '<span class="input-group-text">đ</span>' +
-          '<input type="text" class="form-control chi-phi-so-tien money-mask" placeholder="0" inputmode="numeric">' +
+          '<input type="text" class="form-control chi-phi-so-tien money-mask" placeholder="0" inputmode="numeric"' +
+            (data && data.so_tien ? ' value="' + formatMoney(data.so_tien) + '"' : '') + '>' +
         '</div>' +
       '</div>' +
       '<div class="col-md-1">' +
@@ -432,12 +488,7 @@
     div.innerHTML = html;
     var row = div.querySelector('.chi-phi-row');
     container.appendChild(row);
-    if (data) {
-      row.querySelector('.chi-phi-ten').value = data.ten || '';
-      if (data.so_tien) {
-        row.querySelector('.chi-phi-so-tien').value = formatMoney(data.so_tien);
-      }
-    }
+    initChiPhiSelect2(row);
     initMoneyMasks();
   }
 

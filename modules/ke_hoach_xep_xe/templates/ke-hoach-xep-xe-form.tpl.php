@@ -53,7 +53,9 @@
 
       <div class="col-md-4">
         <label class="form-label">Địa chỉ kho</label>
-        <input type="text" id="dia_chi_kho-input" class="form-control" placeholder="Nhập địa chỉ kho hàng">
+        <select id="dia_chi_kho-input" class="form-select select2-searchable" style="width:100%">
+          <option value="">— Chọn —</option>
+        </select>
       </div>
 
       <div class="col-md-4">
