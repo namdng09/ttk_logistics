@@ -26,6 +26,14 @@
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
 
+  var HINH_THUC_MAP = {
+    cat_keo: 'Cắt kéo',
+    cat_keo_cheo: 'Cắt kéo chéo',
+    tha_mooc: 'Thả mooc',
+    rut_mooc: 'Rút mooc',
+    dong_hang_trong_ngay: 'Đóng hàng trong ngày',
+  };
+
   function getNidFromUrl() {
     var parts = window.location.pathname.split('/');
     if (parts.length >= 3 && parts[1] === 'ke-hoach-xep-xe') {
@@ -202,7 +210,7 @@
   function loadList() {
     var tbody = document.getElementById('list-body');
     tbody.innerHTML =
-      '<tr id="loading-row"><td colspan="17" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="18" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>';
 
@@ -219,7 +227,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.innerHTML = '<tr><td colspan="17" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="18" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
           return;
         }
 
@@ -228,7 +236,7 @@
         var pageSize = resp.limit || 20;
 
         if (!items.length) {
-          tbody.innerHTML = '<tr><td colspan="17" class="text-center py-4">Không có dữ liệu</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="18" class="text-center py-4">Không có dữ liệu</td></tr>';
           renderPagination(resp);
           return;
         }
@@ -258,6 +266,7 @@
             '<td>' + escHtml(row.bai_ha_cont || '') + '</td>' +
             '<td>' + escHtml(row.cut_off || '') + '</td>' +
             '<td>' + escHtml(row.cang_xuat || '') + '</td>' +
+            '<td>' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</td>' +
             '<td><span class="badge bg-label-info">' + escHtml(row.trang_thai_van_chuyen || '') + '</span></td>' +
             '</tr>';
         }
@@ -266,7 +275,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.innerHTML = '<tr><td colspan="17" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="18" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -389,12 +398,6 @@
       $('#form-loading').toggle(show);
       $('#save-btn').prop('disabled', show);
     }
-
-    // Populate status select
-    var $statusSelect = $('#trang_thai_van_chuyen-input');
-    $.each(statuses, function (i, s) {
-      $statusSelect.append('<option value="' + esc(s) + '">' + esc(s) + '</option>');
-    });
 
     var LOAI_CONT_LIST = ['40RF', '20RF', '40HC', '20HC', '40OT', '20OT', '45HC', '45RF'];
 
@@ -559,11 +562,11 @@
       $('#nid_phuong_tien-input').val((row.phuong_tien && row.phuong_tien.nid) || 0).trigger('change');
       $('#so_seal_chinh-input').val(row.so_seal_chinh || '');
       $('#so_seal_tam-input').val(row.so_seal_tam || '');
-      $('#trang_thai_van_chuyen-input').val(row.trang_thai_van_chuyen || 'Chưa xếp xe');
       $('#bai_lay_cont-input').val(row.bai_lay_cont || '');
       $('#bai_ha_cont-input').val(row.bai_ha_cont || '');
       $('#cang_xuat-input').val(row.cang_xuat || '');
       $('#cut_off-input').val(apiToDatetime(row.cut_off));
+      $('#hinh_thuc_van_tai-input').val(row.hinh_thuc_van_tai || '');
     }
 
     function gatherForm() {
@@ -577,11 +580,11 @@
         nid_phuong_tien: parseInt($('#nid_phuong_tien-input').val()) || 0,
         so_seal_chinh: $('#so_seal_chinh-input').val().trim(),
         so_seal_tam: $('#so_seal_tam-input').val().trim(),
-        trang_thai_van_chuyen: $('#trang_thai_van_chuyen-input').val(),
         bai_lay_cont: $('#bai_lay_cont-input').val().trim(),
         bai_ha_cont: $('#bai_ha_cont-input').val().trim(),
         cang_xuat: $('#cang_xuat-input').val().trim(),
         cut_off: datetimeToApi($('#cut_off-input').val()),
+        hinh_thuc_van_tai: $('#hinh_thuc_van_tai-input').val(),
       };
     }
 
@@ -700,7 +703,6 @@
               $('#nid_lai_xe-input').val(0).trigger('change');
               $('#nid_phuong_tien-input').val(0).trigger('change');
               $('#loai_cont-input').val('').trigger('change');
-              $('#trang_thai_van_chuyen-input').val('Chưa xếp xe');
               showLoading(false);
               initDatepickers();
             }
@@ -756,6 +758,7 @@
           { label: 'Bãi hạ cont', value: d.bai_ha_cont },
           { label: 'Cảng xuất', value: d.cang_xuat },
           { label: 'Cut-off', value: apiToDatetime(d.cut_off) },
+          { label: 'Hình thức vận tải', value: HINH_THUC_MAP[d.hinh_thuc_van_tai] },
         ];
         var html = '';
         $.each(rows, function (i, r) {

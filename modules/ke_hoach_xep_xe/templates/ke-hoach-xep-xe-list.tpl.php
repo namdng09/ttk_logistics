@@ -49,12 +49,13 @@
             <th>Bãi hạ cont</th>
             <th>Cut off</th>
             <th>Cảng xuất</th>
+            <th>Hình thức vận tải</th>
             <th>Trạng thái vận chuyển</th>
           </tr>
         </thead>
         <tbody id="list-body">
           <tr id="loading-row">
-            <td colspan="17" class="text-center py-4">
+            <td colspan="18" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>

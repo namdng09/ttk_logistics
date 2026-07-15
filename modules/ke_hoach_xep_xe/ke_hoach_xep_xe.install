@@ -88,6 +88,11 @@ function ke_hoach_xep_xe_schema() {
         'length' => 19,
         'not null' => FALSE,
       ),
+      'hinh_thuc_van_tai' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ),
       'created' => array(
         'type' => 'varchar',
         'length' => 19,
@@ -118,4 +123,13 @@ function ke_hoach_xep_xe_schema() {
 
 function ke_hoach_xep_xe_update_7001() {
   drupal_install_schema('ke_hoach_xep_xe');
+}
+
+function ke_hoach_xep_xe_update_7002() {
+  $field = array(
+    'type' => 'varchar',
+    'length' => 50,
+    'not null' => FALSE,
+  );
+  db_add_field('ke_hoach_xep_xe', 'hinh_thuc_van_tai', $field);
 }

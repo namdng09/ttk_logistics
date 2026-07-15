@@ -79,11 +79,6 @@
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Trạng thái vận chuyển</label>
-        <select id="trang_thai_van_chuyen-input" class="form-select"></select>
-      </div>
-
-      <div class="col-md-4">
         <label class="form-label">Bãi lấy cont</label>
         <input type="text" id="bai_lay_cont-input" class="form-control" placeholder="Nhập bãi lấy container">
       </div>
@@ -101,6 +96,18 @@
       <div class="col-md-4">
         <label class="form-label">Cut-off</label>
         <input type="text" id="cut_off-input" class="form-control flatpickr-datetime" placeholder="dd/mm/yyyy HH:MM">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Hình thức vận tải</label>
+        <select id="hinh_thuc_van_tai-input" class="form-select">
+          <option value="">— Chọn —</option>
+          <option value="cat_keo">Cắt kéo</option>
+          <option value="cat_keo_cheo">Cắt kéo chéo</option>
+          <option value="tha_mooc">Thả mooc</option>
+          <option value="rut_mooc">Rút mooc</option>
+          <option value="dong_hang_trong_ngay">Đóng hàng trong ngày</option>
+        </select>
       </div>
 
       <div class="col-12 mt-3 text-end">

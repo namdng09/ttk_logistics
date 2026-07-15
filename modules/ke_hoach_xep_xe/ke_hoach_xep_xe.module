@@ -292,6 +292,7 @@ function _ke_hoach_xep_xe_rest_create() {
         'bai_ha_cont' => isset($input['bai_ha_cont']) ? $input['bai_ha_cont'] : '',
         'cang_xuat' => isset($input['cang_xuat']) ? $input['cang_xuat'] : '',
         'cut_off' => isset($input['cut_off']) ? $input['cut_off'] : '',
+        'hinh_thuc_van_tai' => isset($input['hinh_thuc_van_tai']) ? $input['hinh_thuc_van_tai'] : '',
         'created' => date('Y-m-d H:i:s', REQUEST_TIME),
         'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
         'hoat_dong' => 1,
@@ -359,7 +360,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
   $fields = array(
     'ngay', 'nid_khach_hang', 'nid_lai_xe', 'so_bkg', 'dia_chi_kho',
     'loai_cont', 'so_cont', 'nid_phuong_tien', 'so_seal_chinh', 'so_seal_tam',
-    'trang_thai_van_chuyen', 'bai_lay_cont', 'bai_ha_cont', 'cang_xuat', 'cut_off',
+    'trang_thai_van_chuyen', 'bai_lay_cont', 'bai_ha_cont', 'cang_xuat', 'cut_off', 'hinh_thuc_van_tai',
   );
 
   $update = array('changed' => date('Y-m-d H:i:s', REQUEST_TIME));
