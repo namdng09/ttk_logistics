@@ -35,17 +35,26 @@
           <tr>
             <th style="width:60px;text-align:center">CN</th>
             <th style="width:50px">#</th>
-            <th>Ngày</th>
-            <th>Số BKG</th>
-            <th>Số cont</th>
-            <th>Loại cont</th>
+            <th>Ngày lập KH</th>
+            <th>Khách hàng</th>
+            <th>Số bkg</th>
             <th>Địa chỉ kho</th>
-            <th>Trạng thái</th>
+            <th>Loại cont</th>
+            <th>Số cont</th>
+            <th>Lái xe</th>
+            <th>Biển số đầu xe</th>
+            <th>Số seal chính</th>
+            <th>Số seal tạm</th>
+            <th>Bãi lấy cont</th>
+            <th>Bãi hạ cont</th>
+            <th>Cut off</th>
+            <th>Cảng xuất</th>
+            <th>Trạng thái vận chuyển</th>
           </tr>
         </thead>
         <tbody id="list-body">
           <tr id="loading-row">
-            <td colspan="8" class="text-center py-4">
+            <td colspan="17" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>

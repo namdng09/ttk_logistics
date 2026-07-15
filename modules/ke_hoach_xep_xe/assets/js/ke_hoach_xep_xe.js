@@ -130,17 +130,17 @@
       var t = e.target;
       while (t && t !== doc) {
         if (t.classList) {
-          if (t.classList.contains('btn-view')) {
+          if (t.classList.contains('btn-view-ke-hoach-xep-xe')) {
             e.preventDefault();
             window.location.href = '/ke-hoach-xep-xe/' + t.getAttribute('data-id');
             return;
           }
-          if (t.classList.contains('btn-edit')) {
+          if (t.classList.contains('btn-edit-ke-hoach-xep-xe')) {
             e.preventDefault();
             window.location.href = '/ke-hoach-xep-xe/' + t.getAttribute('data-id') + '/sua';
             return;
           }
-          if (t.classList.contains('btn-delete')) {
+          if (t.classList.contains('btn-delete-ke-hoach-xep-xe')) {
             e.preventDefault();
             confirmDelete(t.getAttribute('data-id'));
             return;
@@ -194,7 +194,7 @@
   function loadList() {
     var tbody = document.getElementById('list-body');
     tbody.innerHTML =
-      '<tr id="loading-row"><td colspan="8" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="17" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>';
 
@@ -211,7 +211,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="17" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
           return;
         }
 
@@ -220,7 +220,7 @@
         var pageSize = resp.limit || 20;
 
         if (!items.length) {
-          tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">Không có dữ liệu</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="17" class="text-center py-4">Không có dữ liệu</td></tr>';
           renderPagination(resp);
           return;
         }
@@ -230,14 +230,26 @@
           var row = items[i];
           var stt = (resp.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(row.nid);
+          var khName = (row.khach_hang && row.khach_hang.ten) || '';
+          var lxName = (row.lai_xe && row.lai_xe.ten) || '';
+          var ptBks = (row.phuong_tien && row.phuong_tien.bks) || '';
           html += '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
             '<td>' + (row.ngay || '') + '</td>' +
+            '<td>' + escHtml(khName) + '</td>' +
             '<td>' + escHtml(row.so_bkg || '') + '</td>' +
-            '<td>' + escHtml(row.so_cont || '') + '</td>' +
-            '<td>' + escHtml(row.loai_cont || '') + '</td>' +
             '<td>' + escHtml(row.dia_chi_kho || '') + '</td>' +
+            '<td>' + escHtml(row.loai_cont || '') + '</td>' +
+            '<td>' + escHtml(row.so_cont || '') + '</td>' +
+            '<td>' + escHtml(lxName) + '</td>' +
+            '<td>' + escHtml(ptBks) + '</td>' +
+            '<td>' + escHtml(row.so_seal_chinh || '') + '</td>' +
+            '<td>' + escHtml(row.so_seal_tam || '') + '</td>' +
+            '<td>' + escHtml(row.bai_lay_cont || '') + '</td>' +
+            '<td>' + escHtml(row.bai_ha_cont || '') + '</td>' +
+            '<td>' + escHtml(row.cut_off || '') + '</td>' +
+            '<td>' + escHtml(row.cang_xuat || '') + '</td>' +
             '<td><span class="badge bg-label-info">' + escHtml(row.trang_thai_van_chuyen || '') + '</span></td>' +
             '</tr>';
         }
@@ -246,29 +258,21 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="17" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
   }
 
   function buildActions(nid) {
-    var items = '';
-    if (perms.view) {
-      items += '<li><button type="button" class="dropdown-item btn-view" data-id="' + nid + '"><i class="ti tabler-eye me-2"></i>Xem</button></li>';
-    }
-    if (perms.create) {
-      items += '<li><button type="button" class="dropdown-item btn-edit" data-id="' + nid + '"><i class="ti tabler-edit me-2"></i>Sửa</button></li>';
-    }
-    if (perms.delete) {
-      items += '<li><hr class="dropdown-divider"></li>';
-      items += '<li><button type="button" class="dropdown-item text-danger btn-delete" data-id="' + nid + '"><i class="ti tabler-trash me-2"></i>Xoá</button></li>';
-    }
-    if (!items) return '';
-
     return '<div class="dropdown">' +
-      '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill" type="button"><i class="ti tabler-dots-vertical"></i></button>' +
-      '<ul class="dropdown-menu">' + items + '</ul></div>';
+      '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill"><i class="ti tabler-dots-vertical"></i></button>' +
+      '<ul class="dropdown-menu">' +
+      '<li><button type="button" class="dropdown-item btn-view-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-eye me-2"></i>Xem</button></li>' +
+      '<li><button type="button" class="dropdown-item btn-edit-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-edit me-2"></i>Sửa</button></li>' +
+      '<li><hr class="dropdown-divider"></li>' +
+      '<li><button type="button" class="dropdown-item text-danger btn-delete-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-trash me-2"></i>Xoá</button></li>' +
+      '</ul></div>';
   }
 
   function renderPagination(resp) {
