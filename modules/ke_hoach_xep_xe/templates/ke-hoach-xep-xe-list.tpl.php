@@ -36,21 +36,21 @@
             <th style="width:60px;text-align:center">CN</th>
             <th style="width:50px">#</th>
             <th>Ngày lập KH</th>
+            <th>H.Thức vận tải</th>
             <th>Khách hàng</th>
-            <th>Số bkg</th>
+            <th>bkg</th>
             <th>Địa chỉ kho</th>
             <th>Loại cont</th>
             <th>Số cont</th>
             <th>Lái xe</th>
-            <th>Biển số đầu xe</th>
+            <th>BKS</th>
             <th>Số seal chính</th>
             <th>Số seal tạm</th>
             <th>Bãi lấy cont</th>
             <th>Bãi hạ cont</th>
             <th>Cut off</th>
             <th>Cảng xuất</th>
-            <th>Hình thức vận tải</th>
-            <th>Trạng thái vận chuyển</th>
+            <th>T.Thái VC</th>
           </tr>
         </thead>
         <tbody id="list-body">

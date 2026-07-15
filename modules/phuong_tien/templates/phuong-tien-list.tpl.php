@@ -8,13 +8,20 @@
     <div class="row mb-3 align-items-center">
       <div class="col-12 col-md-4 mb-2 mb-md-0">
         <div class="input-group">
-          <input type="text" class="form-control" id="search-phuong-tien" placeholder="Tìm kiếm (BKS, mã TS, hãng xe, loại PT)...">
+          <input type="text" class="form-control" id="search-phuong-tien" placeholder="Tìm kiếm (BKS, mã TS, hãng xe)...">
           <button class="btn btn-primary" type="button" id="btn-search-phuong-tien">
             <i class="ti tabler-search"></i> Tìm
           </button>
         </div>
       </div>
-      <div class="col-12 col-md-8">
+      <div class="col-6 col-md-3 mb-2 mb-md-0">
+        <select class="form-select" id="filter-loai-phuong-tien">
+          <option value="">Tất cả loại</option>
+          <option value="dau_keo">Đầu kéo</option>
+          <option value="mooc">Mooc</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-5">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-primary btn-them-phuong-tien" data-bs-toggle="modal" data-bs-target="#phuong-tien-modal">
             <i class="ti tabler-plus me-1"></i>Thêm phương tiện
@@ -33,9 +40,9 @@
           <tr>
             <th style="width:60px;text-align:center !important">CN</th>
             <th style="width:50px">#</th>
-            <th>Biển kiểm soát</th>
+            <th>BKS</th>
             <th>Mã Tài sản</th>
-            <th>Loại phương tiện</th>
+            <th>Loại</th>
             <th>Hãng xe</th>
             <th>Năm sản xuất</th>
             <th>Giá mua</th>
@@ -107,8 +114,13 @@
               <input type="text" class="form-control" name="ma_tai_san" placeholder="VD: HMN">
             </div>
             <div class="col-md-4">
-              <label class="form-label">Loại phương tiện</label>
-              <input type="text" class="form-control" name="loai_phuong_tien" placeholder="VD: Mooc, Container...">
+              <label class="form-label">Loại phương tiện <span class="text-danger">*</span></label>
+              <select class="form-select" name="loai_phuong_tien" required>
+                <option value="">Chọn loại</option>
+                <option value="dau_keo">Đầu kéo</option>
+                <option value="mooc">Mooc</option>
+              </select>
+              <div class="invalid-feedback">Vui lòng chọn loại phương tiện</div>
             </div>
             <div class="col-md-4">
               <label class="form-label">Hãng xe</label>

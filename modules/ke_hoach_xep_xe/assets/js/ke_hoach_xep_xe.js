@@ -33,6 +33,13 @@
     rut_mooc: 'Rút mooc',
     dong_hang_trong_ngay: 'Đóng hàng trong ngày',
   };
+  var HINH_THUC_COLOR = {
+    cat_keo: 'bg-label-success',
+    cat_keo_cheo: 'bg-label-primary',
+    tha_mooc: 'bg-label-warning',
+    rut_mooc: 'bg-label-info',
+    dong_hang_trong_ngay: 'bg-label-danger',
+  };
 
   function getNidFromUrl() {
     var parts = window.location.pathname.split('/');
@@ -253,6 +260,7 @@
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
             '<td>' + (row.created ? row.created.substring(0, 16) : '') + '</td>' +
+            '<td><span class="badge ' + (HINH_THUC_COLOR[row.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</span></td>' +
             '<td>' + escHtml(khName) + '</td>' +
             '<td>' + escHtml(row.so_bkg || '') + '</td>' +
             '<td>' + escHtml(row.dia_chi_kho || '') + '</td>' +
@@ -266,7 +274,6 @@
             '<td>' + escHtml(row.bai_ha_cont || '') + '</td>' +
             '<td>' + escHtml(row.cut_off || '') + '</td>' +
             '<td>' + escHtml(row.cang_xuat || '') + '</td>' +
-            '<td>' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</td>' +
             '<td><span class="badge bg-label-info">' + escHtml(row.trang_thai_van_chuyen || '') + '</span></td>' +
             '</tr>';
         }

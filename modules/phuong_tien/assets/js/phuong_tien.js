@@ -4,6 +4,15 @@
   var notyf;
   var currentPage = 1;
   var currentKeyword = '';
+  var currentLoai = '';
+  var LOAI_PHUONG_TIEN_MAP = {
+    dau_keo: 'Đầu kéo',
+    mooc: 'Mooc',
+  };
+  var LOAI_PHUONG_TIEN_COLOR = {
+    dau_keo: 'bg-label-primary',
+    mooc: 'bg-label-warning',
+  };
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -48,6 +57,13 @@
       }
     });
 
+    // Filter loại phương tiện
+    doc.getElementById('filter-loai-phuong-tien').addEventListener('change', function () {
+      currentLoai = this.value;
+      currentPage = 1;
+      loadList();
+    });
+
     // Enter key submit
     doc.getElementById('form-phuong-tien').addEventListener('keydown', function (e) {
       if (e.which === 13 && !e.shiftKey) {
@@ -62,7 +78,9 @@
     if (reloadBtn) {
       reloadBtn.addEventListener('click', function () {
         currentKeyword = '';
+        currentLoai = '';
         doc.getElementById('search-phuong-tien').value = '';
+        doc.getElementById('filter-loai-phuong-tien').value = '';
         currentPage = 1;
         loadList();
       });
@@ -190,10 +208,10 @@
       return;
     }
 
-    var inputs = form.querySelectorAll('input');
     var data = {};
-    for (var i = 0; i < inputs.length; i++) {
-      var inp = inputs[i];
+    var allInputs = form.querySelectorAll('input, select');
+    for (var i = 0; i < allInputs.length; i++) {
+      var inp = allInputs[i];
       if (inp.name) {
         var val = inp.value;
         if (inp.classList.contains('money-mask')) {
@@ -249,7 +267,7 @@
       url: '/api/phuong-tien',
       type: 'GET',
       dataType: 'json',
-      data: { page: currentPage, keyword: currentKeyword },
+      data: { page: currentPage, keyword: currentKeyword, loai_phuong_tien: currentLoai },
       success: function (res) {
         $('#loading-row').remove();
 
@@ -280,7 +298,7 @@
             '<td>' + stt + '</td>' +
             '<td>' + escapeHtml(item.bks || '') + '</td>' +
             '<td>' + escapeHtml(item.ma_tai_san || '') + '</td>' +
-            '<td>' + escapeHtml(item.loai_phuong_tien || '') + '</td>' +
+            '<td><span class="badge ' + (LOAI_PHUONG_TIEN_COLOR[item.loai_phuong_tien] || 'bg-label-secondary') + '">' + escapeHtml(LOAI_PHUONG_TIEN_MAP[item.loai_phuong_tien] || item.loai_phuong_tien || '') + '</span></td>' +
             '<td>' + escapeHtml(item.hang_xe || '') + '</td>' +
             '<td>' + (item.nam_san_xuat || '') + '</td>' +
             '<td class="text-end">' + giaMua + '</td>' +
@@ -475,7 +493,7 @@
   function populateForm(d) {
     document.querySelector('#form-phuong-tien input[name="bks"]').value = d.bks || '';
     document.querySelector('#form-phuong-tien input[name="ma_tai_san"]').value = d.ma_tai_san || '';
-    document.querySelector('#form-phuong-tien input[name="loai_phuong_tien"]').value = d.loai_phuong_tien || '';
+    document.querySelector('#form-phuong-tien select[name="loai_phuong_tien"]').value = d.loai_phuong_tien || '';
     document.querySelector('#form-phuong-tien input[name="hang_xe"]').value = d.hang_xe || '';
     document.querySelector('#form-phuong-tien input[name="nam_san_xuat"]').value = d.nam_san_xuat || '';
     document.querySelector('#form-phuong-tien input[name="gia_mua"]').value = d.gia_mua ? formatMoney(d.gia_mua) : '';
