@@ -1,11 +1,11 @@
 <div class="card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-2">
-      <a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary btn-sm waves-effect"><i class="ti ti-arrow-left me-1"></i> Quay lại</a>
+      <a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary btn-sm waves-effect"><i class="ti tabler-arrow-left me-1"></i> Quay lại</a>
       <h4 class="card-title mb-0">Chi tiết kế hoạch xếp xe</h4>
     </div>
     <div>
-      <a href="#" class="btn btn-primary waves-effect" id="edit-btn"><i class="ti ti-pencil me-1"></i> Sửa</a>
+      <a href="#" class="btn btn-primary waves-effect" id="edit-btn"><i class="ti tabler-pencil me-1"></i> Sửa</a>
     </div>
   </div>
 

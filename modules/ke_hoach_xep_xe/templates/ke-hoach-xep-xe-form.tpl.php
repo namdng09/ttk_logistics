@@ -1,8 +1,10 @@
 <div class="card" id="ke-hoach-form-app">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-2">
-      <h4 class="card-title mb-0" id="form-title">Tạo kế hoạch xếp xe</h4>
-      <span id="form-mode-badge" class="badge bg-label-success" style="display:none;">Đang sửa</span>
+      <?php if ($mode === 'edit'): ?>
+      <a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary btn-sm waves-effect"><i class="icon-base ti tabler-arrow-left me-1"></i> Quay lại</a>
+      <?php endif; ?>
+      <h4 class="card-title mb-0" id="form-title"><?php print $mode === 'edit' ? 'Sửa' : 'Tạo'; ?> kế hoạch xếp xe</h4>
     </div>
   </div>
 
@@ -102,6 +104,9 @@
       </div>
 
       <div class="col-12 mt-3 text-end">
+        <?php if ($mode === 'edit'): ?>
+        <a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary waves-effect me-1">Huỷ</a>
+        <?php endif; ?>
         <button type="button" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu</button>
       </div>
     </form>

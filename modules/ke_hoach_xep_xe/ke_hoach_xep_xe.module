@@ -75,7 +75,7 @@ function ke_hoach_xep_xe_menu() {
   $items['ke-hoach-xep-xe/%'] = array(
     'title' => 'Chi tiết kế hoạch',
     'page callback' => 'ke_hoach_xep_xe_page_detail',
-    'page arguments' => array(2),
+    'page arguments' => array(1),
     'access callback' => 'user_is_logged_in',
     'type' => MENU_CALLBACK,
   );
@@ -84,7 +84,7 @@ function ke_hoach_xep_xe_menu() {
   $items['ke-hoach-xep-xe/%/sua'] = array(
     'title' => 'Sửa kế hoạch',
     'page callback' => 'ke_hoach_xep_xe_page_form',
-    'page arguments' => array(2),
+    'page arguments' => array(1),
     'access callback' => 'user_is_logged_in',
     'type' => MENU_CALLBACK,
   );
@@ -105,10 +105,12 @@ function ke_hoach_xep_xe_theme() {
     'ke_hoach_xep_xe_form_page' => array(
       'template' => 'ke-hoach-xep-xe-form',
       'path' => $path,
+      'variables' => array('mode' => 'create', 'data' => NULL),
     ),
     'ke_hoach_xep_xe_detail_page' => array(
       'template' => 'ke-hoach-xep-xe-detail',
       'path' => $path,
+      'variables' => array('mode' => 'detail', 'data' => NULL),
     ),
   );
 }
@@ -475,7 +477,7 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
     ),
   )), 'setting');
 
-  return theme('ke_hoach_xep_xe_form_page');
+  return theme('ke_hoach_xep_xe_form_page', array('mode' => $mode, 'data' => $data));
 }
 
 function ke_hoach_xep_xe_page_detail($id) {
@@ -491,13 +493,14 @@ function ke_hoach_xep_xe_page_detail($id) {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
 
+  $data = _ke_hoach_xep_xe_enrich_row($row);
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'mode' => 'detail',
-    'data' => _ke_hoach_xep_xe_enrich_row($row),
+    'data' => $data,
     'permissions' => array(
       'delete' => user_access('ke_hoach_xep_xe_delete'),
     ),
   )), 'setting');
 
-  return theme('ke_hoach_xep_xe_detail_page');
+  return theme('ke_hoach_xep_xe_detail_page', array('mode' => 'detail', 'data' => $data));
 }

@@ -26,6 +26,14 @@
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
 
+  function getNidFromUrl() {
+    var parts = window.location.pathname.split('/');
+    if (parts.length >= 3 && parts[1] === 'ke-hoach-xep-xe') {
+      return parseInt(parts[2]) || 0;
+    }
+    return 0;
+  }
+
   Drupal.behaviors.keHoachXepXe = {
     attach: function (context, settingsBehavior) {
       if (typeof Notyf !== 'undefined' && !notyf) {
@@ -236,7 +244,7 @@
           html += '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
-            '<td>' + (row.ngay || '') + '</td>' +
+            '<td>' + (row.created ? row.created.substring(0, 16) : '') + '</td>' +
             '<td>' + escHtml(khName) + '</td>' +
             '<td>' + escHtml(row.so_bkg || '') + '</td>' +
             '<td>' + escHtml(row.dia_chi_kho || '') + '</td>' +
@@ -429,14 +437,16 @@
 
     // --- Load dropdowns with Select2 ---
     var dropdownReady = { kh: false, lx: false, pt: false };
+    var rowData = null;
+    var dataReady = false;
 
-    function checkDropdownsReady() {
+    function checkReady() {
       if (dropdownReady.kh && dropdownReady.lx && dropdownReady.pt) {
         initSelect2(document.getElementById('nid_khach_hang-input'), '— Chọn khách hàng —');
         initSelect2(document.getElementById('nid_lai_xe-input'), '— Chọn lái xe —');
         initSelect2(document.getElementById('nid_phuong_tien-input'), '— Chọn phương tiện —');
-        if (isEdit) {
-          populateForm(data);
+        if (dataReady) {
+          populateForm(rowData);
           initDatepickers();
           showLoading(false);
         }
@@ -454,11 +464,30 @@
       }
     }
 
+    function loadRowData(nid) {
+      $.ajax({
+        url: '/api/ke-hoach-xep-xe/' + nid,
+        type: 'GET',
+        dataType: 'json',
+        success: function (res) {
+          if (res.status === 'success' && res.data) {
+            rowData = res.data;
+            dataReady = true;
+            checkReady();
+          }
+        },
+        error: function (jqXHR) {
+          if (notyf) notyf.error(apiMsg(jqXHR));
+          showLoading(false);
+        }
+      });
+    }
+
     function loadDropdownData() {
       var pending = 3;
       function done(readyKey) {
         dropdownReady[readyKey] = true;
-        checkDropdownsReady();
+        checkReady();
       }
       function loadOne(url, selId, textKey, readyKey) {
         $.ajax({
@@ -579,18 +608,11 @@
     loadDropdownData();
     initLoaiContSelect();
 
-    var isEdit = mode === 'edit' && data;
-    if (isEdit) {
-      $('.card-header .d-flex.align-items-center.gap-2').prepend(
-        '<a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary btn-sm waves-effect"><i class="icon-base ti tabler-arrow-left me-1"></i> Quay lại</a>'
-      );
-      $('.text-end').prepend(
-        '<a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary waves-effect me-1">Huỷ</a>'
-      );
-      $('#form-title').text('Sửa kế hoạch xếp xe');
-      $('#form-mode-badge').show();
-      $('#nid-input').val(data.nid);
+    var editNid = getNidFromUrl();
+    if (editNid) {
+      $('#nid-input').val(editNid);
       showLoading(true);
+      loadRowData(editNid);
     } else {
       showLoading(false);
       setTimeout(initDatepickers, 100);
@@ -699,42 +721,57 @@
   // DETAIL
   // ==========================================================================
   function initDetail(context) {
-    if (!data) return;
-
-    var khName = (data.khach_hang && data.khach_hang.ten) || '';
-    var lxName = (data.lai_xe && data.lai_xe.ten) || '';
-    var ptName = (data.phuong_tien && data.phuong_tien.bks) || '';
-
-    var rows = [
-      { label: 'Ngày', value: apiToDate(data.ngay) },
-      { label: 'Khách hàng', value: khName },
-      { label: 'Lái xe', value: lxName },
-      { label: 'Số BKG', value: data.so_bkg },
-      { label: 'Địa chỉ kho', value: data.dia_chi_kho },
-      { label: 'Loại cont', value: data.loai_cont },
-      { label: 'Số cont', value: data.so_cont },
-      { label: 'Phương tiện', value: ptName },
-      { label: 'Số seal chính', value: data.so_seal_chinh },
-      { label: 'Số seal tạm', value: data.so_seal_tam },
-      { label: 'Trạng thái', value: data.trang_thai_van_chuyen },
-      { label: 'Bãi lấy cont', value: data.bai_lay_cont },
-      { label: 'Bãi hạ cont', value: data.bai_ha_cont },
-      { label: 'Cảng xuất', value: data.cang_xuat },
-      { label: 'Cut-off', value: apiToDatetime(data.cut_off) },
-    ];
-
-    var html = '';
-    $.each(rows, function (i, r) {
-      html += '<tr><th class="text-nowrap" style="width:180px;">' + r.label + '</th><td>' + escHtml(r.value || '') + '</td></tr>';
-    });
-    $('#detail-body').html(html);
-
-    if (data.nid) {
-      $('#edit-btn').attr('href', '/ke-hoach-xep-xe/' + data.nid + '/sua');
+    var nid = getNidFromUrl();
+    if (!nid) {
+      $('#detail-body').html('<tr><td colspan="2" class="text-center text-danger py-4">ID không hợp lệ</td></tr>');
+      return;
     }
+
+    $.ajax({
+      url: '/api/ke-hoach-xep-xe/' + nid,
+      type: 'GET',
+      dataType: 'json',
+      success: function (res) {
+        if (res.status !== 'success' || !res.data) {
+          $('#detail-body').html('<tr><td colspan="2" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi tải dữ liệu') + '</td></tr>');
+          return;
+        }
+        var d = res.data;
+        var khName = (d.khach_hang && d.khach_hang.ten) || '';
+        var lxName = (d.lai_xe && d.lai_xe.ten) || '';
+        var ptName = (d.phuong_tien && d.phuong_tien.bks) || '';
+        var rows = [
+          { label: 'Ngày lập KH', value: d.created ? d.created.substring(0, 16) : '' },
+          { label: 'Khách hàng', value: khName },
+          { label: 'Lái xe', value: lxName },
+          { label: 'Số BKG', value: d.so_bkg },
+          { label: 'Địa chỉ kho', value: d.dia_chi_kho },
+          { label: 'Loại cont', value: d.loai_cont },
+          { label: 'Số cont', value: d.so_cont },
+          { label: 'Phương tiện', value: ptName },
+          { label: 'Số seal chính', value: d.so_seal_chinh },
+          { label: 'Số seal tạm', value: d.so_seal_tam },
+          { label: 'Trạng thái', value: d.trang_thai_van_chuyen },
+          { label: 'Bãi lấy cont', value: d.bai_lay_cont },
+          { label: 'Bãi hạ cont', value: d.bai_ha_cont },
+          { label: 'Cảng xuất', value: d.cang_xuat },
+          { label: 'Cut-off', value: apiToDatetime(d.cut_off) },
+        ];
+        var html = '';
+        $.each(rows, function (i, r) {
+          html += '<tr><th class="text-nowrap" style="width:180px;">' + r.label + '</th><td>' + escHtml(r.value || '') + '</td></tr>';
+        });
+        $('#detail-body').html(html);
+        if (d.nid) {
+          $('#edit-btn').attr('href', '/ke-hoach-xep-xe/' + d.nid + '/sua');
+        }
+      },
+      error: function (jqXHR) {
+        $('#detail-body').html('<tr><td colspan="2" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>');
+      }
+    });
   }
 
-  // Reusable conversion utils (used by detail too)
   function apiToDate(val) {
     if (!val) return '';
     var parts = val.split('-');
