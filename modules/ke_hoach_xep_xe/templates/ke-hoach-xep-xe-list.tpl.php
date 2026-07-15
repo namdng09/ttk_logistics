@@ -21,7 +21,8 @@
       </div>
       <div class="col-6 col-md-3">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
-          <button type="button" class="btn btn-icon btn-label-secondary btn-reload">
+          <a href="/tao-ke-hoach-xep-xe" class="btn btn-primary waves-effect waves-light"><i class="ti tabler-plus me-1"></i>Tạo kế hoạch</a>
+          <button type="button" class="btn btn-icon btn-label-secondary btn-reload waves-effect">
             <i class="ti tabler-refresh"></i>
           </button>
         </div>

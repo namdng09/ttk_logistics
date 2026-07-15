@@ -406,8 +406,6 @@
       $('#save-btn').prop('disabled', show);
     }
 
-    var LOAI_CONT_LIST = ['40RF', '20RF', '40HC', '20HC', '40OT', '20OT', '45HC', '45RF'];
-
     // --- Select2 helpers ---
     function _jq() {
       return (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ :
@@ -430,7 +428,7 @@
       var sel = document.getElementById('loai_cont-input');
       if (!sel) return;
       sel.innerHTML = '<option value="">Chọn/Nhập loại cont</option>';
-      var list = opts && opts.length ? opts : LOAI_CONT_LIST;
+      var list = opts && opts.length ? opts : [];
       for (var i = 0; i < list.length; i++) {
         sel.appendChild(new Option(list[i], list[i]));
       }
@@ -472,7 +470,7 @@
     function loadCauHinhGiaBan(khId) {
       if (!khId) {
         initDiaChiKhoSelect([]);
-        initLoaiContSelect();
+        initLoaiContSelect([]);
         return;
       }
       $.ajax({

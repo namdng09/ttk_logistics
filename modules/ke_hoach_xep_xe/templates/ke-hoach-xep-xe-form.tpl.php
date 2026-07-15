@@ -25,11 +25,11 @@
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Lái xe <span class="text-danger">*</span></label>
-        <select id="nid_lai_xe-input" class="form-select select2-searchable" style="width:100%" required>
+        <label class="form-label">Phương tiện <span class="text-danger">*</span></label>
+        <select id="nid_phuong_tien-input" class="form-select select2-searchable" style="width:100%" required>
           <option value="0">— Chọn —</option>
         </select>
-        <div class="invalid-feedback">Vui lòng chọn lái xe</div>
+        <div class="invalid-feedback">Vui lòng chọn phương tiện</div>
       </div>
 
       <div class="col-md-4">
@@ -44,11 +44,11 @@
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Phương tiện <span class="text-danger">*</span></label>
-        <select id="nid_phuong_tien-input" class="form-select select2-searchable" style="width:100%" required>
+        <label class="form-label">Lái xe <span class="text-danger">*</span></label>
+        <select id="nid_lai_xe-input" class="form-select select2-searchable" style="width:100%" required>
           <option value="0">— Chọn —</option>
         </select>
-        <div class="invalid-feedback">Vui lòng chọn phương tiện</div>
+        <div class="invalid-feedback">Vui lòng chọn lái xe</div>
       </div>
 
       <div class="col-md-4">
@@ -113,6 +113,9 @@
       </div>
 
       <div class="col-12 mt-3 text-end">
+        <?php if ($mode !== 'edit'): ?>
+        <a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary waves-effect me-1"><i class="icon-base ti tabler-list me-1"></i> Danh sách kế hoạch</a>
+        <?php endif; ?>
         <?php if ($mode === 'edit'): ?>
         <a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary waves-effect me-1">Huỷ</a>
         <?php endif; ?>
