@@ -49,3 +49,33 @@
 .pagination .page-item.active .page-link {
   z-index: 0;
 }
+
+.select2-container--open {
+  z-index: 99999 !important;
+}
+
+#ke-hoach-form-app .select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+#ke-hoach-form-app .select2-container .select2-selection--single .select2-selection__rendered {
+  line-height: 1.5;
+  padding: 0;
+  padding-right: 1.75rem;
+  font-size: 0.85rem;
+}
+#ke-hoach-form-app .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+  top: 0;
+  right: 0.375rem;
+  width: 1rem;
+}
+#ke-hoach-form-app .select2-container .select2-selection--single .select2-selection__clear {
+  margin-right: 1.25rem;
+  position: relative;
+  z-index: 1;
+  font-size: 0.875rem;
+}

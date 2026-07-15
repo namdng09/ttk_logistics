@@ -382,36 +382,106 @@
     // Populate status select
     var $statusSelect = $('#trang_thai_van_chuyen-input');
     $.each(statuses, function (i, s) {
-      $statusSelect.append('<option value="' + s + '">' + s + '</option>');
+      $statusSelect.append('<option value="' + esc(s) + '">' + esc(s) + '</option>');
     });
 
-    function loadDropdowns() {
-      $.getJSON('/api/khach-hang?limit=500')
-        .done(function (res) {
-          if (res.status === 'success' && res.data && res.data.items) {
-            $.each(res.data.items, function (i, item) {
-              $('#nid_khach_hang-input').append('<option value="' + item.nid + '">' + esc(item.ten) + '</option>');
-            });
-          }
-        });
-      $.getJSON('/api/lai-xe?limit=500')
-        .done(function (res) {
-          if (res.status === 'success' && res.data && res.data.items) {
-            $.each(res.data.items, function (i, item) {
-              $('#nid_lai_xe-input').append('<option value="' + item.nid + '">' + esc(item.ten) + '</option>');
-            });
-          }
-        });
-      $.getJSON('/api/phuong-tien?limit=500')
-        .done(function (res) {
-          if (res.status === 'success' && res.data && res.data.items) {
-            $.each(res.data.items, function (i, item) {
-              $('#nid_phuong_tien-input').append('<option value="' + item.nid + '">' + esc(item.bks || '#' + item.nid) + '</option>');
-            });
-          }
-        });
+    var LOAI_CONT_LIST = ['40RF', '20RF', '40HC', '20HC', '40OT', '20OT', '45HC', '45RF'];
+
+    // --- Select2 helpers ---
+    function _jq() {
+      return (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ :
+             (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function') ? jQuery : null;
     }
 
+    function initSelect2(el, placeholder) {
+      var jq = _jq();
+      if (!jq) return;
+      var $el = jq(el);
+      if ($el.data('select2')) $el.select2('destroy');
+      $el.select2({
+        placeholder: placeholder || '— Chọn —',
+        allowClear: true,
+        width: '100%'
+      });
+    }
+
+    function initLoaiContSelect() {
+      var sel = document.getElementById('loai_cont-input');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">Chọn/Nhập loại cont</option>';
+      for (var i = 0; i < LOAI_CONT_LIST.length; i++) {
+        sel.appendChild(new Option(LOAI_CONT_LIST[i], LOAI_CONT_LIST[i]));
+      }
+      var jq = _jq();
+      if (!jq) return;
+      var $sel = jq('#loai_cont-input');
+      if ($sel.data('select2')) $sel.select2('destroy');
+      $sel.select2({
+        placeholder: 'Chọn/Nhập loại cont',
+        allowClear: true,
+        tags: true,
+        width: '100%'
+      });
+    }
+
+    // --- Load dropdowns with Select2 ---
+    var dropdownReady = { kh: false, lx: false, pt: false };
+
+    function checkDropdownsReady() {
+      if (dropdownReady.kh && dropdownReady.lx && dropdownReady.pt) {
+        initSelect2(document.getElementById('nid_khach_hang-input'), '— Chọn khách hàng —');
+        initSelect2(document.getElementById('nid_lai_xe-input'), '— Chọn lái xe —');
+        initSelect2(document.getElementById('nid_phuong_tien-input'), '— Chọn phương tiện —');
+        if (isEdit) {
+          populateForm(data);
+          initDatepickers();
+          showLoading(false);
+        }
+      }
+    }
+
+    function populateSelect(selId, items, textKey) {
+      var sel = document.getElementById(selId);
+      if (!sel) return;
+      for (var i = 0; i < items.length; i++) {
+        var label = textKey === 'bks'
+          ? (items[i].bks || '#' + items[i].nid)
+          : (items[i][textKey] || '#' + items[i].nid);
+        sel.appendChild(new Option(label, items[i].nid));
+      }
+    }
+
+    function loadDropdownData() {
+      var pending = 3;
+      function done(readyKey) {
+        dropdownReady[readyKey] = true;
+        checkDropdownsReady();
+      }
+      function loadOne(url, selId, textKey, readyKey) {
+        $.ajax({
+          url: url,
+          type: 'GET',
+          dataType: 'json',
+          data: { limit: 500 },
+          success: function (res) {
+            if (res.status === 'success' && res.data && res.data.items) {
+              populateSelect(selId, res.data.items, textKey);
+            }
+          },
+          error: function (jqXHR) {
+            console.error('API error (' + url + '):', jqXHR.status, jqXHR.responseText);
+          },
+          complete: function () {
+            done(readyKey);
+          }
+        });
+      }
+      loadOne('/api/khach-hang', 'nid_khach_hang-input', 'ten', 'kh');
+      loadOne('/api/lai-xe', 'nid_lai_xe-input', 'ten', 'lx');
+      loadOne('/api/phuong-tien', 'nid_phuong_tien-input', 'bks', 'pt');
+    }
+
+    // --- Date/time helpers ---
     function initDatepickers() {
       if (typeof flatpickr !== 'undefined') {
         $('.flatpickr-date').each(function () {
@@ -425,13 +495,6 @@
       }
     }
 
-    function dateToApi(val) {
-      if (!val) return '';
-      var parts = val.split('/');
-      if (parts.length === 3) return parts[2] + '-' + parts[1] + '-' + parts[0];
-      return val;
-    }
-
     function datetimeToApi(val) {
       if (!val) return '';
       var parts = val.split(' ');
@@ -439,13 +502,6 @@
         var d = parts[0].split('/');
         if (d.length === 3) return d[2] + '-' + d[1] + '-' + d[0] + ' ' + parts[1];
       }
-      return val;
-    }
-
-    function apiToDate(val) {
-      if (!val) return '';
-      var parts = val.split('-');
-      if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
       return val;
     }
 
@@ -459,16 +515,16 @@
       return val;
     }
 
+    // --- Form populate / gather ---
     function populateForm(row) {
       $('#nid-input').val(row.nid || '');
-      $('#ngay-input').val(apiToDate(row.ngay));
-      $('#nid_khach_hang-input').val(row.nid_khach_hang || 0);
-      $('#nid_lai_xe-input').val(row.nid_lai_xe || 0);
+      $('#nid_khach_hang-input').val(row.nid_khach_hang || 0).trigger('change');
+      $('#nid_lai_xe-input').val(row.nid_lai_xe || 0).trigger('change');
       $('#so_bkg-input').val(row.so_bkg || '');
       $('#dia_chi_kho-input').val(row.dia_chi_kho || '');
-      $('#loai_cont-input').val(row.loai_cont || '');
+      $('#loai_cont-input').val(row.loai_cont || '').trigger('change');
       $('#so_cont-input').val(row.so_cont || '');
-      $('#nid_phuong_tien-input').val(row.nid_phuong_tien || 0);
+      $('#nid_phuong_tien-input').val(row.nid_phuong_tien || 0).trigger('change');
       $('#so_seal_chinh-input').val(row.so_seal_chinh || '');
       $('#so_seal_tam-input').val(row.so_seal_tam || '');
       $('#trang_thai_van_chuyen-input').val(row.trang_thai_van_chuyen || 'Chưa xếp xe');
@@ -480,7 +536,6 @@
 
     function gatherForm() {
       return {
-        ngay: dateToApi($('#ngay-input').val()),
         nid_khach_hang: parseInt($('#nid_khach_hang-input').val()) || 0,
         nid_lai_xe: parseInt($('#nid_lai_xe-input').val()) || 0,
         so_bkg: $('#so_bkg-input').val().trim(),
@@ -498,8 +553,28 @@
       };
     }
 
-    // Init
-    loadDropdowns();
+    // --- Paste button ---
+    var pasteBtn = document.getElementById('paste-bkg-btn');
+    if (pasteBtn) {
+      pasteBtn.addEventListener('click', function () {
+        var input = document.getElementById('so_bkg-input');
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then(function (text) {
+            if (text) input.value = text;
+          }).catch(function () {
+            var val = prompt('Dán nội dung từ clipboard:');
+            if (val) input.value = val;
+          });
+        } else {
+          var val = prompt('Dán nội dung từ clipboard:');
+          if (val) input.value = val;
+        }
+      });
+    }
+
+    // --- Init ---
+    loadDropdownData();
+    initLoaiContSelect();
 
     var isEdit = mode === 'edit' && data;
     if (isEdit) {
@@ -512,31 +587,13 @@
       $('#form-title').text('Sửa kế hoạch xếp xe');
       $('#form-mode-badge').show();
       $('#nid-input').val(data.nid);
-
-      var popInterval = setInterval(function () {
-        var kh = $('#nid_khach_hang-input option[value="' + data.nid_khach_hang + '"]').length;
-        var lx = $('#nid_lai_xe-input option[value="' + data.nid_lai_xe + '"]').length;
-        var pt = $('#nid_phuong_tien-input option[value="' + data.nid_phuong_tien + '"]').length;
-        if (kh > 0 && lx > 0 && pt > 0) {
-          clearInterval(popInterval);
-          populateForm(data);
-          initDatepickers();
-          showLoading(false);
-        }
-      }, 200);
-
-      setTimeout(function () {
-        clearInterval(popInterval);
-        populateForm(data);
-        initDatepickers();
-        showLoading(false);
-      }, 10000);
+      showLoading(true);
     } else {
       showLoading(false);
-      setTimeout(initDatepickers, 50);
+      setTimeout(initDatepickers, 100);
     }
 
-    // Submit on Enter
+    // --- Submit on Enter ---
     $('#ke-hoach-form').on('keydown', function (e) {
       if (e.which === 13 && !$(e.target).is('textarea')) {
         e.preventDefault();
@@ -544,13 +601,8 @@
       }
     });
 
-    // Submit
+    // --- Submit ---
     $('#save-btn').on('click', function () {
-      if (!$('#ngay-input').val()) {
-        if (notyf) notyf.error('Vui lòng nhập ngày');
-        return;
-      }
-
       var payload = gatherForm();
       var nid = $('#nid-input').val();
       var url = '/api/ke-hoach-xep-xe/' + (nid ? nid : '');
@@ -570,6 +622,11 @@
               showLoading(false);
             } else {
               $('#ke-hoach-form')[0].reset();
+              $('#nid_khach_hang-input').val(0).trigger('change');
+              $('#nid_lai_xe-input').val(0).trigger('change');
+              $('#nid_phuong_tien-input').val(0).trigger('change');
+              $('#loai_cont-input').val('').trigger('change');
+              $('#trang_thai_van_chuyen-input').val('Chưa xếp xe');
               showLoading(false);
               initDatepickers();
             }
@@ -584,10 +641,6 @@
         }
       });
     });
-
-    if (isEdit) {
-      showLoading(true);
-    }
   }
 
   // ==========================================================================

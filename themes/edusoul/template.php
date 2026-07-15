@@ -71,7 +71,7 @@ function getMainMenuSoft()
                         <span class="menu-header-text" data-i18n="Vận tải">Vận tải</span>
                     </li>
                     <li class="menu-item">
-                        <a href="/ke-hoach-xep-xe/tao-moi" class="menu-link">
+                        <a href="/tao-ke-hoach-xep-xe" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-calendar-plus"></i>
                             <div data-i18n="Tạo kế hoạch">Tạo kế hoạch</div>
                         </a>

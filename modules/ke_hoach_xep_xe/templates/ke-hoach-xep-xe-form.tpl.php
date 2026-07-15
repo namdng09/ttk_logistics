@@ -15,59 +15,61 @@
       <input type="hidden" id="nid-input" value="">
 
       <div class="col-md-4">
-        <label class="form-label">Ngày <span class="text-danger">*</span></label>
-        <input type="text" id="ngay-input" class="form-control flatpickr-date" required>
-      </div>
-
-      <div class="col-md-4">
         <label class="form-label">Khách hàng</label>
-        <select id="nid_khach_hang-input" class="form-select">
+        <select id="nid_khach_hang-input" class="form-select select2-searchable" style="width:100%">
           <option value="0">— Chọn —</option>
         </select>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Lái xe</label>
-        <select id="nid_lai_xe-input" class="form-select">
+        <select id="nid_lai_xe-input" class="form-select select2-searchable" style="width:100%">
           <option value="0">— Chọn —</option>
         </select>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Số BKG</label>
-        <input type="text" id="so_bkg-input" class="form-control">
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label">Địa chỉ kho</label>
-        <input type="text" id="dia_chi_kho-input" class="form-control">
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label">Loại cont</label>
-        <input type="text" id="loai_cont-input" class="form-control" placeholder="VD: 20DC, 40HC…">
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label">Số cont</label>
-        <input type="text" id="so_cont-input" class="form-control">
+        <div class="input-group">
+          <input type="text" id="so_bkg-input" class="form-control" placeholder="Nhập số BKG">
+          <button class="btn btn-outline-secondary" type="button" id="paste-bkg-btn" title="Dán từ clipboard">
+            <i class="ti tabler-clipboard-copy"></i>
+          </button>
+        </div>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Phương tiện</label>
-        <select id="nid_phuong_tien-input" class="form-select">
+        <select id="nid_phuong_tien-input" class="form-select select2-searchable" style="width:100%">
           <option value="0">— Chọn —</option>
         </select>
       </div>
 
       <div class="col-md-4">
+        <label class="form-label">Địa chỉ kho</label>
+        <input type="text" id="dia_chi_kho-input" class="form-control" placeholder="Nhập địa chỉ kho hàng">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Loại cont</label>
+        <select id="loai_cont-input" class="form-select select2-tags" style="width:100%">
+          <option value="">Chọn/Nhập loại cont</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Số cont</label>
+        <input type="text" id="so_cont-input" class="form-control" placeholder="Nhập số container">
+      </div>
+
+      <div class="col-md-4">
         <label class="form-label">Số seal chính</label>
-        <input type="text" id="so_seal_chinh-input" class="form-control">
+        <input type="text" id="so_seal_chinh-input" class="form-control" placeholder="Nhập số seal chính">
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Số seal tạm</label>
-        <input type="text" id="so_seal_tam-input" class="form-control">
+        <input type="text" id="so_seal_tam-input" class="form-control" placeholder="Nhập số seal tạm">
       </div>
 
       <div class="col-md-4">
@@ -77,22 +79,22 @@
 
       <div class="col-md-4">
         <label class="form-label">Bãi lấy cont</label>
-        <input type="text" id="bai_lay_cont-input" class="form-control">
+        <input type="text" id="bai_lay_cont-input" class="form-control" placeholder="Nhập bãi lấy container">
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Bãi hạ cont</label>
-        <input type="text" id="bai_ha_cont-input" class="form-control">
+        <input type="text" id="bai_ha_cont-input" class="form-control" placeholder="Nhập bãi hạ container">
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Cảng xuất</label>
-        <input type="text" id="cang_xuat-input" class="form-control">
+        <input type="text" id="cang_xuat-input" class="form-control" placeholder="Nhập cảng xuất">
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Cut-off</label>
-        <input type="text" id="cut_off-input" class="form-control flatpickr-datetime">
+        <input type="text" id="cut_off-input" class="form-control flatpickr-datetime" placeholder="dd/mm/yyyy HH:MM">
       </div>
 
       <div class="col-12 mt-3 text-end">

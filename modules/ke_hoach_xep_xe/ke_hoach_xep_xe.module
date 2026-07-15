@@ -64,7 +64,7 @@ function ke_hoach_xep_xe_menu() {
   );
 
   // --- UI Create ---
-  $items['ke-hoach-xep-xe/tao-moi'] = array(
+  $items['tao-ke-hoach-xep-xe'] = array(
     'title' => 'Tạo kế hoạch',
     'page callback' => 'ke_hoach_xep_xe_page_form',
     'access callback' => 'user_is_logged_in',
