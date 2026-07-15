@@ -68,6 +68,22 @@ function getMainMenuSoft()
                     </li>
 
                     <li class="menu-header small">
+                        <span class="menu-header-text" data-i18n="Vận tải">Vận tải</span>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/ke-hoach-xep-xe/tao-moi" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-calendar-plus"></i>
+                            <div data-i18n="Tạo kế hoạch">Tạo kế hoạch</div>
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/ke-hoach-xep-xe" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-calendar-stats"></i>
+                            <div data-i18n="Kế hoạch xếp xe">Kế hoạch xếp xe</div>
+                        </a>
+                    </li>
+                    
+                    <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
                     </li>
                     <li class="menu-item">
@@ -121,7 +137,6 @@ function getMainMenuSoft()
                             <div data-i18n="Lái xe">Lái xe</div>
                         </a>
                     </li>
-                    
                     <!-- Hệ thống -->
                     <li class="menu-item">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">

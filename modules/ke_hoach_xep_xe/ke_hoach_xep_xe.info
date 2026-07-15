@@ -1,0 +1,4 @@
+name = Kế hoạch xếp xe
+description = Quản lý kế hoạch xếp container — custom schema, RESTful API + full-page UI
+core = 7.x
+package = ANDIN JSC API
