@@ -6,7 +6,6 @@
   var currentKeyword = '';
   var currentKhachHangId = 0;
   var KHACH_HANG_LIST = [];
-  var KHACH_HANG_DETAIL_CACHE = {};
   var LOAI_CONT_LIST = ['40RF', '20RF', '40HC', '20HC', '40OT', '20OT', '45HC', '45RF', '20RF'];
   var currentKhachHangData = null;
 
@@ -175,20 +174,7 @@
       }
     });
 
-    // KH change handler via native event + Select2 event
-    var khSelEl = document.getElementById('khach-hang-select');
-    if (khSelEl) {
-      khSelEl.addEventListener('change', function () {
-        var val = this.value;
-        if (val) {
-          loadKhachHangDetail(parseInt(val));
-        } else {
-          currentKhachHangData = null;
-          resetDiaChiKhoSelect();
-          doc.querySelector('input[name="khoang_cach"]').value = '';
-        }
-      });
-    }
+    // KH change handler is now bound inside initKhachHangSelect()
 
     // Dropdown hover
     doc.addEventListener('mouseover', function (e) {
@@ -273,29 +259,6 @@
     });
   }
 
-  function loadKhachHangDetail(id, callback) {
-    if (KHACH_HANG_DETAIL_CACHE[id]) {
-      currentKhachHangData = KHACH_HANG_DETAIL_CACHE[id];
-      populateDiaChiKhoSelect(currentKhachHangData);
-      if (callback) callback(currentKhachHangData);
-      return;
-    }
-    $.ajax({
-      url: '/api/khach-hang/' + id,
-      type: 'GET',
-      dataType: 'json',
-      success: function (res) {
-        if (res.status === 'success' && res.data) {
-          KHACH_HANG_DETAIL_CACHE[id] = res.data;
-          currentKhachHangData = res.data;
-          populateDiaChiKhoSelect(res.data);
-          if (callback) callback(res.data);
-        }
-      },
-      error: function () {}
-    });
-  }
-
   function populateDiaChiKhoSelect(data) {
     var sel = document.getElementById('dia-chi-kho-select');
     if (!sel) return;
@@ -320,7 +283,7 @@
         tags: true,
         width: '100%'
       });
-      $jq(sel).on('change', function () {
+      $jq(sel).bind('change', function () {
         var val = $jq(this).val();
         var dist = '';
         if (currentKhachHangData && currentKhachHangData.dia_chi_kho) {
@@ -331,7 +294,7 @@
             }
           }
         }
-        doc.querySelector('input[name="khoang_cach"]').value = dist;
+        document.querySelector('input[name="khoang_cach"]').value = dist;
       });
     }
   }
@@ -366,6 +329,30 @@
         placeholder: 'Chọn khách hàng',
         allowClear: true,
         width: '100%'
+      });
+      // Bind KH change handler after Select2 init (compatible with jQuery 1.4.4)
+      $sel.bind('change', function () {
+        var val = parseInt(this.value);
+        if (val) {
+          var found = null;
+          for (var i = 0; i < KHACH_HANG_LIST.length; i++) {
+            if (KHACH_HANG_LIST[i].nid === val) {
+              found = KHACH_HANG_LIST[i];
+              break;
+            }
+          }
+          currentKhachHangData = found;
+          if (found) {
+            populateDiaChiKhoSelect(found);
+          } else {
+            resetDiaChiKhoSelect();
+            document.querySelector('input[name="khoang_cach"]').value = '';
+          }
+        } else {
+          currentKhachHangData = null;
+          resetDiaChiKhoSelect();
+          document.querySelector('input[name="khoang_cach"]').value = '';
+        }
       });
     }
   }
@@ -846,7 +833,16 @@
     // Địa chỉ kho & khoảng cách
     document.querySelector('#form-cau-hinh-gia-ban input[name="khoang_cach"]').value = d.khoang_cach || '';
     if (d.nid_khach_hang) {
-      loadKhachHangDetail(d.nid_khach_hang, function () {
+      var found = null;
+      for (var i = 0; i < KHACH_HANG_LIST.length; i++) {
+        if (KHACH_HANG_LIST[i].nid == d.nid_khach_hang) {
+          found = KHACH_HANG_LIST[i];
+          break;
+        }
+      }
+      if (found) {
+        currentKhachHangData = found;
+        populateDiaChiKhoSelect(found);
         var dcSel = document.getElementById('dia-chi-kho-select');
         if (dcSel && d.dia_chi_kho) {
           dcSel.value = d.dia_chi_kho;
@@ -855,7 +851,7 @@
             $jq(dcSel).trigger('change.select2');
           }
         }
-      });
+      }
     }
 
     // Loại cont
