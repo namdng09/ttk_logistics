@@ -704,7 +704,6 @@
             '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
-            '<td>' + phanLoaiHtml + '</td>' +
             '<td>' + escapeHtml(item.ten || '') + '</td>' +
             '<td>' + escapeHtml(item.ma_kh || '') + '</td>' +
             '<td>' + escapeHtml(item.cccd_mst || '') + '</td>' +
@@ -712,6 +711,7 @@
             '<td>' + escapeHtml(item.dia_chi || '') + '</td>' +
             '<td>' + nvKdHtml + '</td>' +
             '<td>' + (item.dob || '') + '</td>' +
+            '<td>' + phanLoaiHtml + '</td>' +
             '<td>' + escapeHtml(item.ghi_chu || '') + '</td>' +
             '</tr>';
         }

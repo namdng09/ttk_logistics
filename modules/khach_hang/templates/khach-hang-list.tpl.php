@@ -44,7 +44,6 @@
           <tr>
             <th style="width:60px;text-align:center !important">CN</th>
             <th style="width:50px">#</th>
-            <th>Phân loại</th>
             <th>Tên công ty</th>
             <th>Tên ngắn gọn</th>
             <th>MST / CCCD</th>
@@ -52,6 +51,7 @@
             <th>Địa chỉ</th>
             <th>NV</th>
             <th>DOB</th>
+            <th>Phân loại</th>
             <th>Ghi chú</th>
           </tr>
         </thead>
