@@ -183,8 +183,9 @@ function khach_hang_update_7003() {
 }
 
 function khach_hang_update_7004() {
-  db_rename_field('khach_hang', 'dia_chi_kho', 'bang_gia_cuoc', array(
-    'type' => 'text',
-    'not null' => FALSE,
-  ));
+  $spec = array('type' => 'text', 'not null' => FALSE);
+  db_add_field('khach_hang', 'bang_gia_cuoc', $spec);
+  // Copy data from old column
+  db_query("UPDATE {khach_hang} SET bang_gia_cuoc = dia_chi_kho");
+  db_drop_field('khach_hang', 'dia_chi_kho');
 }
