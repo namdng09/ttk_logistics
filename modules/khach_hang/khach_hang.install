@@ -43,7 +43,7 @@ function khach_hang_schema() {
         'type' => 'text',
         'not null' => FALSE,
       ),
-      'dia_chi_kho' => array(
+      'bang_gia_cuoc' => array(
         'type' => 'text',
         'not null' => FALSE,
       ),
@@ -180,4 +180,11 @@ function khach_hang_update_7003() {
     'not null' => FALSE,
   );
   db_add_field('khach_hang', 'dia_chi_kho', $field);
+}
+
+function khach_hang_update_7004() {
+  db_rename_field('khach_hang', 'dia_chi_kho', 'bang_gia_cuoc', array(
+    'type' => 'text',
+    'not null' => FALSE,
+  ));
 }

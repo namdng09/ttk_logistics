@@ -11,6 +11,7 @@
   var BANK_LIST = [];
   var BANK_LIST_LOADED = false;
   var DIADIEM_LIST = [];
+  var moneyFormatter = new Intl.NumberFormat('vi-VN');
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -123,11 +124,11 @@
       });
     }
 
-    // Add warehouse address row
-    var btnThemDck = doc.getElementById('btn-them-dia-chi-kho');
-    if (btnThemDck) {
-      btnThemDck.addEventListener('click', function () {
-        addDiaChiKhoRow();
+    // Add warehouse
+    var btnThemKho = doc.getElementById('btn-them-kho');
+    if (btnThemKho) {
+      btnThemKho.addEventListener('click', function () {
+        addWarehouse();
       });
     }
 
@@ -163,16 +164,32 @@
             }
             return;
           }
-          if (t.classList.contains('btn-xoa-dia-chi-kho')) {
+          if (t.classList.contains('btn-xoa-kho')) {
             e.preventDefault();
-            var rowDck = t.closest('.dia-chi-kho-row');
-            if (rowDck) {
-              var selDck = rowDck.querySelector('.dia-chi-kho-dia-chi');
-              if (selDck && typeof $ === 'function' && $.fn.select2) {
-                $(selDck).select2('destroy');
+            if (confirm('Bạn có chắc muốn xóa kho và toàn bộ bảng giá của kho này?')) {
+              var card = t.closest('.kho-card');
+              if (card) {
+                card.querySelectorAll('.kho-dia-chi').forEach(function (sel) {
+                  if (typeof $ === 'function' && $.fn.select2 && $(sel).data('select2')) {
+                    $(sel).select2('destroy');
+                  }
+                });
+                card.remove();
               }
-              rowDck.remove();
             }
+            return;
+          }
+          if (t.classList.contains('btn-them-dong-gia')) {
+            e.preventDefault();
+            var kCard = t.closest('.kho-card');
+            if (kCard) addPriceRow(kCard);
+            return;
+          }
+          if (t.classList.contains('btn-xoa-dong-gia')) {
+            e.preventDefault();
+            var kCard2 = t.closest('.kho-card');
+            t.closest('tr').remove();
+            if (kCard2) refreshKhoSummary(kCard2);
             return;
           }
           if (t.classList.contains('page-link')) {
@@ -188,6 +205,29 @@
         t = t.parentElement;
       }
     });
+
+    // Delegated change on money inputs and checkboxes
+    doc.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t.classList.contains('dg-hoat-dong')) {
+        // no-op, just checkbox
+      }
+    });
+
+    doc.addEventListener('input', function (e) {
+      var t = e.target;
+      if (t.classList.contains('dg-don-gia')) {
+        var kCard = t.closest('.kho-card');
+        if (kCard) refreshKhoSummary(kCard);
+      }
+    });
+
+    doc.addEventListener('blur', function (e) {
+      var t = e.target;
+      if (t.classList.contains('money-input')) {
+        formatMoneyInput(t);
+      }
+    }, true);
 
     // Dropdown hover
     doc.addEventListener('mouseover', function (e) {
@@ -233,6 +273,28 @@
     });
   }
 
+  /* =====================================================
+     Money helpers
+     ===================================================== */
+
+  function parseMoney(value) {
+    return Number(String(value || '').replace(/\D/g, '')) || 0;
+  }
+
+  function formatMoneyInput(input) {
+    var number = parseMoney(input.value);
+    input.value = number ? moneyFormatter.format(number) : '';
+  }
+
+  function formatMoneyValue(n) {
+    if (!n) return '';
+    return moneyFormatter.format(n);
+  }
+
+  /* =====================================================
+     NV Kinh Doanh
+     ===================================================== */
+
   function loadNvKinhDoanh() {
     $.ajax({
       url: '/api/nhan-vien',
@@ -264,6 +326,10 @@
       }
     });
   }
+
+  /* =====================================================
+     Tagify (Phân loại)
+     ===================================================== */
 
   function initTagify() {
     var el = document.getElementById('tagifyPhanLoai');
@@ -310,6 +376,10 @@
     }
   }
 
+  /* =====================================================
+     NV Kinh Doanh select
+     ===================================================== */
+
   function getNvKdValue() {
     var sel = document.getElementById('nv-kinh-doanh-select');
     if (!sel) return [];
@@ -338,11 +408,14 @@
     }
   }
 
+  /* =====================================================
+     Bank info repeater
+     ===================================================== */
+
   function initRepeater() {
     var container = document.getElementById('ngan-hang-repeater');
     if (!container) return;
     container.innerHTML = '';
-    // Header row with labels (only once)
     var headerHtml = '<div class="row g-2 mb-1">' +
       '<div class="col-md-3"><label class="form-label mb-0">Tên tài khoản</label></div>' +
       '<div class="col-md-4"><label class="form-label mb-0">Số tài khoản</label></div>' +
@@ -414,7 +487,6 @@
           BANK_LIST = res.data;
           BANK_LIST_LOADED = true;
           try { localStorage.setItem('bankList', JSON.stringify(res.data)); } catch (e) {}
-          // Refresh all existing bank selects
           var selects = document.querySelectorAll('.ngan-hang-ten-ngan-hang');
           for (var i = 0; i < selects.length; i++) {
             var curVal = selects[i].value;
@@ -425,6 +497,49 @@
       error: function () {}
     });
   }
+
+  function initBankSelect(selEl, value) {
+    selEl.innerHTML = '<option value="">Chọn ngân hàng</option>';
+    for (var i = 0; i < BANK_LIST.length; i++) {
+      var b = BANK_LIST[i];
+      var opt = document.createElement('option');
+      opt.value = b.shortName;
+      opt.textContent = b.shortName + ' - ' + b.name;
+      selEl.appendChild(opt);
+    }
+    if (value) {
+      var found = false;
+      for (var j = 0; j < selEl.options.length; j++) {
+        if (selEl.options[j].value === value || selEl.options[j].textContent.indexOf(value) !== -1) {
+          selEl.value = selEl.options[j].value;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        var newOpt = document.createElement('option');
+        newOpt.value = value;
+        newOpt.textContent = value;
+        selEl.appendChild(newOpt);
+        selEl.value = value;
+      }
+    }
+    var $jq = _jqSelect2();
+    if ($jq) {
+      var $sel = $jq(selEl);
+      if ($sel.data('select2')) $sel.select2('destroy');
+      $sel.select2({
+        dropdownParent: $jq('#khach-hang-modal'),
+        placeholder: 'Chọn ngân hàng',
+        allowClear: true,
+        width: '100%'
+      });
+    }
+  }
+
+  /* =====================================================
+     Dia Diem (for warehouse address selects)
+     ===================================================== */
 
   function loadDiaDiem() {
     $.ajax({
@@ -440,8 +555,7 @@
             if (ten) names.push(ten);
           }
           DIADIEM_LIST = names;
-          // Refresh all existing địa điểm selects
-          var selects = document.querySelectorAll('.dia-chi-kho-dia-chi');
+          var selects = document.querySelectorAll('.kho-dia-chi');
           for (var j = 0; j < selects.length; j++) {
             var curVal = selects[j].value;
             initDiaDiemSelect(selects[j], curVal || null);
@@ -462,9 +576,16 @@
     }
     if (value) {
       selEl.value = value;
+      if (!selEl.value) {
+        var newOpt = document.createElement('option');
+        newOpt.value = value;
+        newOpt.textContent = value;
+        selEl.appendChild(newOpt);
+        selEl.value = value;
+      }
     }
-    var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
-    if ($jq && $jq.fn.select2) {
+    var $jq = _jqSelect2();
+    if ($jq) {
       var $sel = $jq(selEl);
       if ($sel.data('select2')) $sel.select2('destroy');
       $sel.select2({
@@ -475,110 +596,160 @@
         width: '100%'
       });
     }
-    if (value && $jq && $jq.fn.select2 && $jq(selEl).data('select2')) {
-      $jq(selEl).trigger('change.select2');
-    }
   }
 
-  function initDiaChiKhoRepeater() {
-    var container = document.getElementById('dia-chi-kho-repeater');
-    if (!container) return;
-    container.innerHTML = '';
-    var headerHtml = '<div class="row g-2 mb-1">' +
-      '<div class="col-md-5"><label class="form-label mb-0">Địa chỉ kho</label></div>' +
-      '<div class="col-md-5"><label class="form-label mb-0">Khoảng cách</label></div>' +
-      '<div class="col-md-2"></div>' +
-    '</div>';
-    container.innerHTML = headerHtml;
-    addDiaChiKhoRow();
+  function _jqSelect2() {
+    if (typeof $ === 'function' && typeof $.fn.select2 === 'function') return $;
+    if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function') return jQuery;
+    return null;
   }
 
-  function addDiaChiKhoRow(data) {
-    var container = document.getElementById('dia-chi-kho-repeater');
-    if (!container) return;
-    var html = '<div class="dia-chi-kho-row row g-2 mb-2">' +
-      '<div class="col-md-5">' +
-        '<select class="form-select dia-chi-kho-dia-chi" style="width:100%">' +
-          '<option value="">Chọn/Nhập địa điểm</option>' +
-        '</select>' +
-      '</div>' +
-      '<div class="col-md-4">' +
-        '<div class="input-group">' +
-          '<span class="input-group-text">km</span>' +
-          '<input type="text" class="form-control dia-chi-kho-khoang-cach" placeholder="Khoảng cách" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">' +
-        '</div>' +
-      '</div>' +
-      '<div class="col-md-3">' +
-        '<button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-dia-chi-kho"><i class="ti tabler-x"></i></button>' +
-      '</div>' +
-    '</div>';
+  /* =====================================================
+     Warehouse + Pricing (bang_gia_cuoc)
+     ===================================================== */
+
+  function addWarehouse(data) {
+    var tpl = document.getElementById('tpl-kho-card');
     var div = document.createElement('div');
-    div.innerHTML = html;
-    var row = div.querySelector('.dia-chi-kho-row');
-    container.appendChild(row);
-    var sel = row.querySelector('.dia-chi-kho-dia-chi');
+    div.innerHTML = tpl.innerHTML;
+    var card = div.querySelector('.kho-card');
+
+    var sel = card.querySelector('.kho-dia-chi');
     initDiaDiemSelect(sel, data ? data.dia_chi : null);
+
     if (data) {
-      row.querySelector('.dia-chi-kho-khoang-cach').value = data.khoang_cach || '';
+      card.querySelector('.kho-khoang-cach').value = data.khoang_cach || '';
+      var prices = data.bang_gia && data.bang_gia.length ? data.bang_gia : [];
+      if (prices.length) {
+        for (var i = 0; i < prices.length; i++) {
+          addPriceRow(card, prices[i]);
+        }
+      } else {
+        addPriceRow(card);
+      }
+    } else {
+      addPriceRow(card);
     }
+
+    document.getElementById('kho-list').appendChild(card);
+    refreshKhoSummary(card);
   }
 
-  function collectDiaChiKho() {
-    var rows = document.querySelectorAll('#dia-chi-kho-repeater .dia-chi-kho-row');
+  function addPriceRow($warehouse, data) {
+    var tpl = document.getElementById('tpl-dong-gia');
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = '<table><tbody>' + tpl.innerHTML + '</tbody></table>';
+    var row = wrapper.querySelector('tr');
+    if (data) {
+      var loaiContSel = row.querySelector('.dg-loai-cont');
+      if (loaiContSel && data.loai_cont) loaiContSel.value = data.loai_cont;
+
+      var donGia = row.querySelector('.dg-don-gia');
+      if (donGia && data.don_gia_chua_vat) donGia.value = data.don_gia_chua_vat ? moneyFormatter.format(data.don_gia_chua_vat) : '';
+
+      var phiNeo = row.querySelector('.dg-phi-neo-xe');
+      if (phiNeo && data.phi_neo_xe) phiNeo.value = data.phi_neo_xe ? moneyFormatter.format(data.phi_neo_xe) : '';
+
+      var phuPhi = row.querySelector('.dg-phu-phi-1');
+      if (phuPhi && data.phu_phi_1) phuPhi.value = data.phu_phi_1 ? moneyFormatter.format(data.phu_phi_1) : '';
+
+      var congNoSel = row.querySelector('.dg-loai-cong-no');
+      if (congNoSel && data.loai_cong_no) congNoSel.value = data.loai_cong_no;
+
+      var tongPhuCap = row.querySelector('.dg-tong-phu-cap');
+      if (tongPhuCap && data.tong_phu_cap) tongPhuCap.value = data.tong_phu_cap ? moneyFormatter.format(data.tong_phu_cap) : '';
+
+      var tienAn = row.querySelector('.dg-tien-an');
+      if (tienAn && data.tien_an) tienAn.value = data.tien_an ? moneyFormatter.format(data.tien_an) : '';
+
+      var veCaDuong = row.querySelector('.dg-ve-cau-duong');
+      if (veCaDuong && data.ve_cau_duong) veCaDuong.value = data.ve_cau_duong ? moneyFormatter.format(data.ve_cau_duong) : '';
+
+      var tienDau = row.querySelector('.dg-tien-dau');
+      if (tienDau && data.tien_dau) tienDau.value = data.tien_dau ? moneyFormatter.format(data.tien_dau) : '';
+
+      var luongCL = row.querySelector('.dg-luong-con-lai');
+      if (luongCL && data.luong_con_lai) luongCL.value = data.luong_con_lai ? moneyFormatter.format(data.luong_con_lai) : '';
+
+      var hd = row.querySelector('.dg-hoat-dong');
+      if (hd) hd.checked = data.hoat_dong !== 0;
+    }
+
+    var tbody = $warehouse.querySelector('tbody');
+    tbody.appendChild(row);
+  }
+
+  function refreshKhoSummary($warehouse) {
+    var prices = [];
+    $warehouse.querySelectorAll('.dg-don-gia').forEach(function (inp) {
+      var val = parseMoney(inp.value);
+      if (val > 0) prices.push(val);
+    });
+
+    var countEl = $warehouse.querySelector('.kho-summary-count');
+    var minEl = $warehouse.querySelector('.kho-summary-min');
+    var maxEl = $warehouse.querySelector('.kho-summary-max');
+
+    if (countEl) countEl.textContent = $warehouse.querySelectorAll('tbody tr').length;
+    if (minEl) minEl.textContent = prices.length ? moneyFormatter.format(Math.min.apply(null, prices)) + ' đ' : '0 đ';
+    if (maxEl) maxEl.textContent = prices.length ? moneyFormatter.format(Math.max.apply(null, prices)) + ' đ' : '0 đ';
+  }
+
+  function collectBangGiaCuoc() {
     var result = [];
-    for (var i = 0; i < rows.length; i++) {
-      var dc = rows[i].querySelector('.dia-chi-kho-dia-chi').value.trim();
-      var kc = rows[i].querySelector('.dia-chi-kho-khoang-cach').value.trim();
-      if (dc || kc) {
-        result.push({ dia_chi: dc, khoang_cach: kc });
+    var cards = document.querySelectorAll('#kho-list .kho-card');
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      var diaChiSel = card.querySelector('.kho-dia-chi');
+      var diaChi = diaChiSel ? diaChiSel.value.trim() : '';
+      var kcInput = card.querySelector('.kho-khoang-cach');
+      var khoangCach = kcInput ? kcInput.value.trim() : '';
+
+      var bangGia = [];
+      var rows = card.querySelectorAll('tbody tr');
+      for (var j = 0; j < rows.length; j++) {
+        var row = rows[j];
+        var loaiCont = row.querySelector('.dg-loai-cont').value;
+        var donGia = parseMoney(row.querySelector('.dg-don-gia').value);
+        var phiNeo = parseMoney(row.querySelector('.dg-phi-neo-xe').value);
+        var phuPhi1 = parseMoney(row.querySelector('.dg-phu-phi-1').value);
+        var loaiCN = row.querySelector('.dg-loai-cong-no').value;
+        var tongPC = parseMoney(row.querySelector('.dg-tong-phu-cap').value);
+        var tienAn = parseMoney(row.querySelector('.dg-tien-an').value);
+        var veCD = parseMoney(row.querySelector('.dg-ve-cau-duong').value);
+        var tienDau = parseMoney(row.querySelector('.dg-tien-dau').value);
+        var luongCL = parseMoney(row.querySelector('.dg-luong-con-lai').value);
+        var hd = row.querySelector('.dg-hoat-dong').checked ? 1 : 0;
+
+        bangGia.push({
+          loai_cont: loaiCont,
+          don_gia_chua_vat: donGia,
+          phi_neo_xe: phiNeo,
+          phu_phi_1: phuPhi1,
+          loai_cong_no: loaiCN,
+          tong_phu_cap: tongPC,
+          tien_an: tienAn,
+          ve_cau_duong: veCD,
+          tien_dau: tienDau,
+          luong_con_lai: luongCL,
+          hoat_dong: hd
+        });
+      }
+
+      if (diaChi || bangGia.length > 0) {
+        result.push({
+          dia_chi: diaChi,
+          khoang_cach: khoangCach,
+          bang_gia: bangGia
+        });
       }
     }
     return result;
   }
 
-  function initBankSelect(selEl, value) {
-    var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
-    if ($jq && $jq.fn.select2) {
-      var $sel = $jq(selEl);
-      if ($sel.data('select2')) $sel.select2('destroy');
-      $sel.select2({
-        dropdownParent: $jq('#khach-hang-modal'),
-        placeholder: 'Chọn ngân hàng',
-        allowClear: true,
-        width: '100%'
-      });
-    }
-    // Populate options from BANK_LIST
-    selEl.innerHTML = '<option value="">Chọn ngân hàng</option>';
-    for (var i = 0; i < BANK_LIST.length; i++) {
-      var b = BANK_LIST[i];
-      var opt = document.createElement('option');
-      opt.value = b.shortName;
-      opt.textContent = b.shortName + ' - ' + b.name;
-      selEl.appendChild(opt);
-    }
-    // Set value
-    if (value) {
-      var found = false;
-      for (var j = 0; j < selEl.options.length; j++) {
-        if (selEl.options[j].value === value || selEl.options[j].textContent.indexOf(value) !== -1) {
-          selEl.value = selEl.options[j].value;
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        var newOpt = document.createElement('option');
-        newOpt.value = value;
-        newOpt.textContent = value;
-        selEl.appendChild(newOpt);
-        selEl.value = value;
-      }
-    }
-    if ($jq && $jq.fn.select2 && $jq(selEl).data('select2')) {
-      $jq(selEl).trigger('change.select2');
-    }
-  }
+  /* =====================================================
+     Submit
+     ===================================================== */
 
   function submitForm() {
     var form = document.getElementById('form-khach-hang');
@@ -612,7 +783,7 @@
       sdt: document.querySelector('#form-khach-hang input[name="sdt"]').value,
       dia_chi: document.querySelector('#form-khach-hang input[name="dia_chi"]').value,
       thong_tin_ngan_hang: collectNganHang(),
-      dia_chi_kho: collectDiaChiKho(),
+      bang_gia_cuoc: collectBangGiaCuoc(),
       nv_kinh_doanh: nvKdVal.map(Number),
       dob: document.querySelector('#form-khach-hang input[name="dob"]').value,
       ghi_chu: document.querySelector('#form-khach-hang input[name="ghi_chu"]').value
@@ -651,6 +822,10 @@
     });
   }
 
+  /* =====================================================
+     Load list
+     ===================================================== */
+
   function loadList() {
     var tbody = $('#table-khach-hang-tbody');
     tbody.html(
@@ -688,12 +863,11 @@
         }
 
         var html = '';
-        for (var i =  0; i < items.length; i++) {
+        for (var i = 0; i < items.length; i++) {
           var item = items[i];
           var stt = (data.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(item.nid);
           var phanLoaiHtml = escapeHtml(item.phan_loai || '');
-          // Build NV display from single object
           var nvKdHtml = '';
           if (item.nv_kinh_doanh) {
             var nvText = item.nv_kinh_doanh.ten || '';
@@ -792,6 +966,10 @@
     ul.innerHTML = html;
   }
 
+  /* =====================================================
+     Modal: View / Edit
+     ===================================================== */
+
   function showLoading(show) {
     var loading = document.getElementById('modal-loading');
     loading.style.display = show ? '' : 'none';
@@ -816,7 +994,6 @@
         }
         initTagify();
         initRepeater();
-        initDiaChiKhoRepeater();
         populateForm(res.data);
         setFormMode('view');
       },
@@ -852,7 +1029,6 @@
         }
         initTagify();
         initRepeater();
-        initDiaChiKhoRepeater();
         populateForm(res.data);
         setFormMode('edit');
       },
@@ -863,6 +1039,10 @@
       }
     });
   }
+
+  /* =====================================================
+     Form mode / populate / reset
+     ===================================================== */
 
   function setFormMode(mode) {
     var inputs = document.querySelectorAll('#form-khach-hang input, #form-khach-hang select, #form-khach-hang textarea');
@@ -884,41 +1064,58 @@
       if (nvSel) nvSel.setAttribute('disabled', 'disabled');
     } else {
       if (tagifyPhanLoai) tagifyPhanLoai.setReadonly(false);
-      var nvSel = document.getElementById('nv-kinh-doanh-select');
-      if (nvSel) nvSel.removeAttribute('disabled');
+      var nvSel2 = document.getElementById('nv-kinh-doanh-select');
+      if (nvSel2) nvSel2.removeAttribute('disabled');
     }
     var btnThemNh = document.getElementById('btn-them-ngan-hang');
     if (btnThemNh) {
       btnThemNh.style.display = mode === 'view' ? 'none' : '';
     }
-    var btnThemDck = document.getElementById('btn-them-dia-chi-kho');
-    if (btnThemDck) {
-      btnThemDck.style.display = mode === 'view' ? 'none' : '';
-    }
     var btnXoaNh = document.querySelectorAll('.btn-xoa-ngan-hang');
     for (var j = 0; j < btnXoaNh.length; j++) {
       btnXoaNh[j].style.display = mode === 'view' ? 'none' : '';
     }
-    var btnXoaDck = document.querySelectorAll('.btn-xoa-dia-chi-kho');
-    for (var l = 0; l < btnXoaDck.length; l++) {
-      btnXoaDck[l].style.display = mode === 'view' ? 'none' : '';
+    var btnThemKho = document.getElementById('btn-them-kho');
+    if (btnThemKho) {
+      btnThemKho.style.display = mode === 'view' ? 'none' : '';
+    }
+    var btnXoaKho = document.querySelectorAll('.btn-xoa-kho');
+    for (var k = 0; k < btnXoaKho.length; k++) {
+      btnXoaKho[k].style.display = mode === 'view' ? 'none' : '';
+    }
+    var btnThemDG = document.querySelectorAll('.btn-them-dong-gia');
+    for (var l = 0; l < btnThemDG.length; l++) {
+      btnThemDG[l].style.display = mode === 'view' ? 'none' : '';
+    }
+    var btnXoaDG = document.querySelectorAll('.btn-xoa-dong-gia');
+    for (var m = 0; m < btnXoaDG.length; m++) {
+      btnXoaDG[m].style.display = mode === 'view' ? 'none' : '';
     }
     // Handle Select2 bank selects
     var bankSelects = document.querySelectorAll('#form-khach-hang .ngan-hang-ten-ngan-hang');
-    for (var k = 0; k < bankSelects.length; k++) {
+    for (var n = 0; n < bankSelects.length; n++) {
       var $sel;
-      try { $sel = $(bankSelects[k]); } catch (e) {}
+      try { $sel = $(bankSelects[n]); } catch (e) {}
       if ($sel && typeof $sel.select2 === 'function' && $sel.data && $sel.data('select2')) {
         $sel.select2(mode === 'view' ? 'disable' : 'enable');
       }
     }
-    // Handle Select2 địa điểm selects
-    var dcSelects = document.querySelectorAll('#form-khach-hang .dia-chi-kho-dia-chi');
-    for (var m = 0; m < dcSelects.length; m++) {
-      var $selDc;
-      try { $selDc = $(dcSelects[m]); } catch (e) {}
-      if ($selDc && typeof $selDc.select2 === 'function' && $selDc.data && $selDc.data('select2')) {
-        $selDc.select2(mode === 'view' ? 'disable' : 'enable');
+    // Handle Select2 warehouse address selects
+    var khoSelects = document.querySelectorAll('#form-khach-hang .kho-dia-chi');
+    for (var p = 0; p < khoSelects.length; p++) {
+      var $selKho;
+      try { $selKho = $(khoSelects[p]); } catch (e) {}
+      if ($selKho && typeof $selKho.select2 === 'function' && $selKho.data && $selKho.data('select2')) {
+        $selKho.select2(mode === 'view' ? 'disable' : 'enable');
+      }
+    }
+    // Disable pricing table inputs in view mode
+    var pricingInputs = document.querySelectorAll('#form-khach-hang .kho-pricing-table input, #form-khach-hang .kho-pricing-table select');
+    for (var q = 0; q < pricingInputs.length; q++) {
+      if (mode === 'view') {
+        pricingInputs[q].setAttribute('disabled', 'disabled');
+      } else {
+        pricingInputs[q].removeAttribute('disabled');
       }
     }
   }
@@ -932,7 +1129,10 @@
     if (nvSel) nvSel.value = '';
     document.getElementById('khach-hang-modal-title').textContent = 'Thêm khách hàng';
     initRepeater();
-    initDiaChiKhoRepeater();
+    // Reset warehouse list
+    var khoList = document.getElementById('kho-list');
+    if (khoList) khoList.innerHTML = '';
+    addWarehouse();
     setFormMode('create');
   }
 
@@ -957,8 +1157,15 @@
     }
 
     // Repeater ngan hang
-    var container = document.getElementById('ngan-hang-repeater');
-    if (container) container.innerHTML = '';
+    var nhContainer = document.getElementById('ngan-hang-repeater');
+    if (nhContainer) nhContainer.innerHTML = '';
+    var headerHtml = '<div class="row g-2 mb-1">' +
+      '<div class="col-md-3"><label class="form-label mb-0">Tên tài khoản</label></div>' +
+      '<div class="col-md-4"><label class="form-label mb-0">Số tài khoản</label></div>' +
+      '<div class="col-md-4"><label class="form-label mb-0">Ngân hàng</label></div>' +
+      '<div class="col-md-1"></div>' +
+    '</div>';
+    if (nhContainer) nhContainer.innerHTML = headerHtml;
     if (d.thong_tin_ngan_hang && d.thong_tin_ngan_hang.length) {
       for (var i = 0; i < d.thong_tin_ngan_hang.length; i++) {
         addNganHangRow(d.thong_tin_ngan_hang[i]);
@@ -967,15 +1174,15 @@
       addNganHangRow();
     }
 
-    // Repeater dia chi kho
-    var dcContainer = document.getElementById('dia-chi-kho-repeater');
-    if (dcContainer) dcContainer.innerHTML = '';
-    if (d.dia_chi_kho && d.dia_chi_kho.length) {
-      for (var j = 0; j < d.dia_chi_kho.length; j++) {
-        addDiaChiKhoRow(d.dia_chi_kho[j]);
+    // Warehouse + pricing (bang_gia_cuoc)
+    var khoList = document.getElementById('kho-list');
+    if (khoList) khoList.innerHTML = '';
+    if (d.bang_gia_cuoc && d.bang_gia_cuoc.length) {
+      for (var j = 0; j < d.bang_gia_cuoc.length; j++) {
+        addWarehouse(d.bang_gia_cuoc[j]);
       }
     } else {
-      addDiaChiKhoRow();
+      addWarehouse();
     }
 
     initDatePickers();
@@ -991,6 +1198,10 @@
       });
     }
   }
+
+  /* =====================================================
+     Delete
+     ===================================================== */
 
   function confirmDelete(id) {
     if (typeof Swal !== 'undefined') {
@@ -1034,6 +1245,10 @@
       }
     });
   }
+
+  /* =====================================================
+     Helpers
+     ===================================================== */
 
   function apiMsg(jqXHR) {
     try {

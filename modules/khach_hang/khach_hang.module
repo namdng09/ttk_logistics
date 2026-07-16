@@ -197,8 +197,9 @@ function _khach_hang_sync_nv_kinh_doanh($nid, $uids) {
 
 /**
  * Build row with joins (nv_kinh_doanh array + formatted fields).
+ * @param bool $include_bang_gia  When FALSE (list mode), strip bang_gia from each warehouse to keep response small.
  */
-function _khach_hang_load_row($nid) {
+function _khach_hang_load_row($nid, $include_bang_gia = FALSE) {
   $kh = db_query("SELECT * FROM {khach_hang} WHERE nid = :nid", array(':nid' => $nid))->fetch();
   if (!$kh) return NULL;
 
@@ -223,12 +224,19 @@ function _khach_hang_load_row($nid) {
     }
   }
 
-  // Decode dia_chi_kho JSON
-  $dia_chi_kho = array();
-  if (!empty($kh->dia_chi_kho)) {
-    $decoded = json_decode($kh->dia_chi_kho, TRUE);
+  // Decode bang_gia_cuoc JSON
+  $bang_gia_cuoc = array();
+  if (!empty($kh->bang_gia_cuoc)) {
+    $decoded = json_decode($kh->bang_gia_cuoc, TRUE);
     if (is_array($decoded)) {
-      $dia_chi_kho = $decoded;
+      $bang_gia_cuoc = $decoded;
+      // List mode: strip bang_gia from each warehouse to keep response small
+      if (!$include_bang_gia) {
+        foreach ($bang_gia_cuoc as &$wh) {
+          unset($wh['bang_gia']);
+        }
+        unset($wh);
+      }
     }
   }
 
@@ -241,7 +249,7 @@ function _khach_hang_load_row($nid) {
     'sdt' => $kh->sdt ? $kh->sdt : '',
     'dia_chi' => $kh->dia_chi ? $kh->dia_chi : '',
     'thong_tin_ngan_hang' => $ngan_hang,
-    'dia_chi_kho' => $dia_chi_kho,
+    'bang_gia_cuoc' => $bang_gia_cuoc,
     'nv_kinh_doanh' => !empty($nv_kinh_doanh) ? $nv_kinh_doanh[0] : NULL,
     'dob' => $kh->dob ? $kh->dob : '',
     'ghi_chu' => $kh->ghi_chu ? $kh->ghi_chu : '',
@@ -300,7 +308,7 @@ function _khach_hang_rest_list() {
 
   $items = array();
   foreach ($rows as $kh) {
-    $row = _khach_hang_load_row($kh->nid);
+    $row = _khach_hang_load_row($kh->nid, FALSE);
     $items[] = $row;
   }
 
@@ -337,9 +345,9 @@ function _khach_hang_rest_create() {
   if (!empty($input['thong_tin_ngan_hang']) && is_array($input['thong_tin_ngan_hang'])) {
     $ngan_hang_json = json_encode($input['thong_tin_ngan_hang']);
   }
-  $dia_chi_kho_json = '';
-  if (!empty($input['dia_chi_kho']) && is_array($input['dia_chi_kho'])) {
-    $dia_chi_kho_json = json_encode($input['dia_chi_kho']);
+  $bang_gia_cuoc_json = '';
+  if (!empty($input['bang_gia_cuoc']) && is_array($input['bang_gia_cuoc'])) {
+    $bang_gia_cuoc_json = json_encode($input['bang_gia_cuoc']);
   }
 
   $transaction = db_transaction();
@@ -353,7 +361,7 @@ function _khach_hang_rest_create() {
         'sdt' => !empty($input['sdt']) ? $input['sdt'] : NULL,
         'dia_chi' => !empty($input['dia_chi']) ? $input['dia_chi'] : NULL,
         'thong_tin_ngan_hang' => $ngan_hang_json ? $ngan_hang_json : NULL,
-        'dia_chi_kho' => $dia_chi_kho_json ? $dia_chi_kho_json : NULL,
+        'bang_gia_cuoc' => $bang_gia_cuoc_json ? $bang_gia_cuoc_json : NULL,
         'dob' => !empty($input['dob']) ? $input['dob'] : NULL,
         'ghi_chu' => !empty($input['ghi_chu']) ? $input['ghi_chu'] : NULL,
         'hoat_dong' => 1,
@@ -370,7 +378,7 @@ function _khach_hang_rest_create() {
       '%ten' => $input['ten'],
     ));
 
-    return _khach_hang_success(_khach_hang_load_row($nid));
+    return _khach_hang_success(_khach_hang_load_row($nid, TRUE));
   }
   catch (Exception $e) {
     $transaction->rollback();
@@ -406,7 +414,7 @@ function _khach_hang_rest_get($id) {
     return _khach_hang_unauthorized('Bạn không có quyền xem khách hàng');
   }
 
-  $row = _khach_hang_load_row($id);
+  $row = _khach_hang_load_row($id, TRUE);
   if (!$row) {
     return _khach_hang_not_found('Khách hàng không tồn tại');
   }
@@ -440,9 +448,9 @@ function _khach_hang_rest_update($id) {
   if (isset($input['thong_tin_ngan_hang']) && is_array($input['thong_tin_ngan_hang'])) {
     $ngan_hang_json = json_encode($input['thong_tin_ngan_hang']);
   }
-  $dia_chi_kho_json = '';
-  if (isset($input['dia_chi_kho']) && is_array($input['dia_chi_kho'])) {
-    $dia_chi_kho_json = json_encode($input['dia_chi_kho']);
+  $bang_gia_cuoc_json = '';
+  if (isset($input['bang_gia_cuoc']) && is_array($input['bang_gia_cuoc'])) {
+    $bang_gia_cuoc_json = json_encode($input['bang_gia_cuoc']);
   }
 
   $update = array(
@@ -460,8 +468,8 @@ function _khach_hang_rest_update($id) {
   if (isset($input['thong_tin_ngan_hang'])) {
     $update['thong_tin_ngan_hang'] = $ngan_hang_json ? $ngan_hang_json : NULL;
   }
-  if (isset($input['dia_chi_kho'])) {
-    $update['dia_chi_kho'] = $dia_chi_kho_json ? $dia_chi_kho_json : NULL;
+  if (isset($input['bang_gia_cuoc'])) {
+    $update['bang_gia_cuoc'] = $bang_gia_cuoc_json ? $bang_gia_cuoc_json : NULL;
   }
 
   $transaction = db_transaction();
@@ -478,7 +486,7 @@ function _khach_hang_rest_update($id) {
 
     watchdog('khach_hang', 'Cập nhật khách hàng #%id', array('%id' => $id));
 
-    return _khach_hang_success(_khach_hang_load_row($id));
+    return _khach_hang_success(_khach_hang_load_row($id, TRUE));
   }
   catch (Exception $e) {
     $transaction->rollback();

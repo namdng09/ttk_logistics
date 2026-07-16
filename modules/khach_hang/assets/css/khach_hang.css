@@ -121,3 +121,98 @@
   z-index: 1;
   font-size: 0.875rem;
 }
+
+/* Section divider */
+.section {
+  border-top: 1px solid #eff1f5;
+  padding-top: 20px;
+}
+
+/* =====================================================
+   Warehouse card + Pricing table
+   ===================================================== */
+
+.kho-card {
+  border: 1px solid #e1e4eb;
+  border-radius: 14px;
+  margin-bottom: 18px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.kho-card-header {
+  padding: 16px;
+  background: #fafbfe;
+  border-bottom: 1px solid #eaedf3;
+}
+
+.kho-toolbar h6 {
+  font-size: 14px;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  padding: 0 16px 16px;
+}
+
+.kho-pricing-table {
+  min-width: 1200px;
+  vertical-align: middle;
+}
+
+.kho-pricing-table thead th {
+  background: #eef2fb;
+  color: #33374a;
+  font-size: 12px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  padding: 10px 8px;
+}
+
+.kho-pricing-table thead th.kho-driver-th {
+  background: #e6f7f2;
+}
+
+.kho-pricing-table td {
+  padding: 7px;
+  vertical-align: middle;
+  background: #fff;
+}
+
+.kho-pricing-table .form-control,
+.kho-pricing-table .form-select {
+  min-height: 36px;
+  height: 36px;
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.kho-pricing-table .money-input {
+  text-align: right;
+}
+
+.kho-summary {
+  padding: 0 16px 16px;
+}
+
+.kho-summary-item {
+  border: 1px solid #e5e8ef;
+  background: #fbfcff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 170px;
+}
+
+.kho-summary-item span {
+  display: block;
+  color: #7a7f91;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.kho-summary-item strong {
+  font-size: 14px;
+}
