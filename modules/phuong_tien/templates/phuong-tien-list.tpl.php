@@ -44,6 +44,7 @@
             <th>Mã Tài sản</th>
             <th>Loại</th>
             <th>Hãng xe</th>
+            <th>Lái xe</th>
             <th>Năm sản xuất</th>
             <th>Giá mua</th>
             <th>Ngày mua</th>
@@ -59,7 +60,7 @@
         </thead>
         <tbody id="table-phuong-tien-tbody">
           <tr id="loading-row">
-            <td colspan="17" class="text-center py-4">
+            <td colspan="18" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -178,6 +179,45 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
           <button type="button" class="btn btn-primary btn-luu-phuong-tien">
+            <i class="ti tabler-device-floppy me-1"></i> Lưu
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Chọn Lái Xe Modal -->
+<div class="modal fade" id="phuong-tien-lai-xe-modal" tabindex="-1" aria-hidden="true" data-current-id="">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <form id="form-ptlx-assign">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ptlx-modal-title">Chọn lái xe</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" style="position:relative;">
+          <div id="ptlx-modal-loading" class="text-center py-4" style="position:absolute;inset:0;display:none;background:rgba(255,255,255,0.85);z-index:10;border-radius:0.375rem;">
+            <div class="spinner-border text-primary" style="position:sticky;top:50%;margin-top:4rem;" role="status">
+              <span class="visually-hidden">Đang tải...</span>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-medium text-muted">Phương tiện</label>
+            <div class="form-control-plaintext fw-semibold" id="ptlx-display-bks">---</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Chọn lái xe <span class="text-danger">*</span></label>
+            <select class="form-select" id="ptlx-select-lai-xe" required>
+              <option value="">Đang tải...</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+          <button type="button" class="btn btn-primary btn-luu-ptlx">
             <i class="ti tabler-device-floppy me-1"></i> Lưu
           </button>
         </div>

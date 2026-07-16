@@ -193,6 +193,17 @@ function _phuong_tien_rest_list() {
   $query = db_select('phuong_tien', 'pt');
   $query->fields('pt');
 
+  // Join active driver assignment
+  $query->leftJoin('phuong_tien_lai_xe', 'ptlx', 'pt.nid = ptlx.nid_phuong_tien AND ptlx.hoat_dong = 1');
+  $query->addField('ptlx', 'id', 'ptlx_id');
+  $query->addField('ptlx', 'nid_lai_xe', 'nid_lai_xe');
+
+  // Join lai_xe for name
+  $query->leftJoin('lai_xe', 'lx', 'ptlx.nid_lai_xe = lx.nid');
+  $query->addField('lx', 'ten', 'lai_xe_ten');
+  $query->addField('lx', 'sdt', 'lai_xe_sdt');
+  $query->addField('lx', 'so_bang_lai', 'lai_xe_bang_lai');
+
   $query->condition('pt.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
@@ -213,6 +224,26 @@ function _phuong_tien_rest_list() {
   $query->orderBy('pt.nid', 'DESC');
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();
+
+  // Build nested lai_xe object
+  foreach ($rows as &$row) {
+    if (!empty($row->nid_lai_xe)) {
+      $row->lai_xe = (object) array(
+        'nid' => (int) $row->nid_lai_xe,
+        'ten' => $row->lai_xe_ten,
+        'sdt' => $row->lai_xe_sdt,
+        'so_bang_lai' => $row->lai_xe_bang_lai,
+      );
+    } else {
+      $row->lai_xe = NULL;
+    }
+    unset($row->ptlx_id);
+    unset($row->nid_lai_xe);
+    unset($row->lai_xe_ten);
+    unset($row->lai_xe_sdt);
+    unset($row->lai_xe_bang_lai);
+  }
+  unset($row);
 
   $total_pages = (int) ceil($total / $limit);
 
@@ -303,10 +334,38 @@ function phuong_tien_rest_item($id) {
 }
 
 function _phuong_tien_rest_get($id) {
-  $row = db_query("SELECT * FROM {phuong_tien} WHERE nid = :id", array(':id' => $id))->fetch();
+  $query = db_select('phuong_tien', 'pt');
+  $query->fields('pt');
+  $query->leftJoin('phuong_tien_lai_xe', 'ptlx', 'pt.nid = ptlx.nid_phuong_tien AND ptlx.hoat_dong = 1');
+  $query->addField('ptlx', 'id', 'ptlx_id');
+  $query->addField('ptlx', 'nid_lai_xe', 'nid_lai_xe');
+  $query->leftJoin('lai_xe', 'lx', 'ptlx.nid_lai_xe = lx.nid');
+  $query->addField('lx', 'ten', 'lai_xe_ten');
+  $query->addField('lx', 'sdt', 'lai_xe_sdt');
+  $query->addField('lx', 'so_bang_lai', 'lai_xe_bang_lai');
+  $query->condition('pt.nid', $id);
+  $row = $query->execute()->fetch();
+
   if (!$row) {
     return _phuong_tien_not_found('Phương tiện không tồn tại');
   }
+
+  if (!empty($row->nid_lai_xe)) {
+    $row->lai_xe = (object) array(
+      'nid' => (int) $row->nid_lai_xe,
+      'ten' => $row->lai_xe_ten,
+      'sdt' => $row->lai_xe_sdt,
+      'so_bang_lai' => $row->lai_xe_bang_lai,
+    );
+  } else {
+    $row->lai_xe = NULL;
+  }
+  unset($row->ptlx_id);
+  unset($row->nid_lai_xe);
+  unset($row->lai_xe_ten);
+  unset($row->lai_xe_sdt);
+  unset($row->lai_xe_bang_lai);
+
   return _phuong_tien_success($row);
 }
 
@@ -406,6 +465,13 @@ function _phuong_tien_rest_delete($id) {
 function phuong_tien_page_list() {
   drupal_add_css(drupal_get_path('module', 'phuong_tien') . '/assets/css/phuong_tien.css');
   drupal_add_js(drupal_get_path('module', 'phuong_tien') . '/assets/js/phuong_tien.js');
+
+  // Load phuong_tien_lai_xe assets for assign driver feature
+  $ptlx_path = drupal_get_path('module', 'phuong_tien_lai_xe');
+  if ($ptlx_path) {
+    drupal_add_css($ptlx_path . '/assets/css/phuong_tien_lai_xe.css');
+    drupal_add_js($ptlx_path . '/assets/js/phuong_tien_lai_xe.js');
+  }
 
   drupal_add_js(array('phuong_tien' => array(
     'permissions' => array(

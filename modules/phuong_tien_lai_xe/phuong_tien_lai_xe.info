@@ -1,0 +1,6 @@
+name = Phương tiện - Lái xe
+description = Quản lý quan hệ phương tiện và lái xe (gán tài xế cho xe)
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = phuong_tien
+dependencies[] = lai_xe

@@ -1,0 +1,359 @@
+<?php
+
+/**
+ * @file
+ * Phương Tiện - Lái Xe — Gán tài xế cho xe. Custom schema, RESTful API.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function phuong_tien_lai_xe_permission() {
+  return array(
+    'ptlx_view' => array('title' => t('Xem quan hệ PT-LX')),
+    'ptlx_create' => array('title' => t('Gán/sửa lái xe cho phương tiện')),
+    'ptlx_delete' => array('title' => t('Xoá quan hệ PT-LX')),
+  );
+}
+
+/**
+ * Implements hook_init() — CORS for API routes.
+ */
+function phuong_tien_lai_xe_init() {
+  $path = current_path();
+  if (strpos($path, 'api/phuong-tien-lai-xe') === 0) {
+    drupal_add_http_header('Access-Control-Allow-Origin', '*');
+    drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    drupal_add_http_header('Access-Control-Max-Age', '86400');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      drupal_add_http_header('Status', '204 No Content');
+      drupal_exit();
+    }
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function phuong_tien_lai_xe_menu() {
+  $items = array();
+
+  $items['api/phuong-tien-lai-xe'] = array(
+    'page callback' => 'ptlx_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/phuong-tien-lai-xe/%'] = array(
+    'page callback' => 'ptlx_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  return $items;
+}
+
+/*******************************************************************************
+ * HELPERS
+ ******************************************************************************/
+
+function _ptlx_input() {
+  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+}
+
+function _ptlx_success($data = NULL) {
+  $response = array('status' => 'success');
+  if ($data !== NULL) { $response['data'] = $data; }
+  return $response;
+}
+
+function _ptlx_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _ptlx_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _ptlx_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _ptlx_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function _ptlx_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+/*******************************************************************************
+ * REST: COLLECTION — GET /api/phuong-tien-lai-xe, POST /api/phuong-tien-lai-xe
+ ******************************************************************************/
+
+function ptlx_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ptlx_rest_list();
+    case 'POST':
+      return _ptlx_rest_create();
+    default:
+      return _ptlx_method_not_allowed('GET, POST');
+  }
+}
+
+function _ptlx_rest_list() {
+  $params = array_merge($_GET, array());
+
+  $page = isset($params['page']) ? max(1, (int) $params['page']) : 1;
+  $limit = isset($params['limit']) ? max(1, min(100, (int) $params['limit'])) : 20;
+  $offset = ($page - 1) * $limit;
+
+  $query = db_select('phuong_tien_lai_xe', 'ptlx');
+  $query->fields('ptlx');
+
+  // Filter by nid_phuong_tien (required for this module's use case)
+  if (!empty($params['nid_phuong_tien'])) {
+    $query->condition('ptlx.nid_phuong_tien', (int) $params['nid_phuong_tien']);
+  }
+
+  // By default only show active records; include_inactive=1 to show all
+  $include_inactive = !empty($params['include_inactive']);
+  if (!$include_inactive) {
+    $query->condition('ptlx.hoat_dong', 1);
+  }
+
+  // Count total
+  $count = clone $query;
+  $total = $count->countQuery()->execute()->fetchField();
+
+  $query->orderBy('ptlx.id', 'DESC');
+  $query->range($offset, $limit);
+  $rows = $query->execute()->fetchAll();
+
+  // Join names
+  foreach ($rows as &$row) {
+    $row->ten_phuong_tien = _ptlx_get_bks($row->nid_phuong_tien);
+    $lx_info = _ptlx_get_lai_xe_info($row->nid_lai_xe);
+    $row->ten_lai_xe = $lx_info['ten'];
+    $row->lai_xe_sdt = $lx_info['sdt'];
+  }
+  unset($row);
+
+  $total_pages = (int) ceil($total / $limit);
+
+  return _ptlx_success(array(
+    'items' => $rows ?: array(),
+    'total' => (int) $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+  ));
+}
+
+function _ptlx_get_bks($nid) {
+  if (!$nid) return '';
+  $bks = db_query("SELECT bks FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $nid))->fetchField();
+  return $bks !== FALSE ? $bks : '';
+}
+
+function _ptlx_get_lai_xe_name($nid) {
+  if (!$nid) return '';
+  $name = db_query("SELECT ten FROM {lai_xe} WHERE nid = :nid", array(':nid' => $nid))->fetchField();
+  return $name !== FALSE ? $name : '';
+}
+
+function _ptlx_get_lai_xe_info($nid) {
+  if (!$nid) return array('ten' => '', 'sdt' => '');
+  $row = db_query("SELECT ten, sdt FROM {lai_xe} WHERE nid = :nid", array(':nid' => $nid))->fetch();
+  if (!$row) return array('ten' => '', 'sdt' => '');
+  return array('ten' => $row->ten, 'sdt' => $row->sdt);
+}
+
+/**
+ * Deactivate all active records for a given vehicle.
+ */
+function _ptlx_deactivate_old($nid_phuong_tien, $exclude_id = 0) {
+  $query = db_update('phuong_tien_lai_xe');
+  $query->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)));
+  $query->condition('nid_phuong_tien', (int) $nid_phuong_tien);
+  $query->condition('hoat_dong', 1);
+  if ($exclude_id > 0) {
+    $query->condition('id', (int) $exclude_id, '!=');
+  }
+  $query->execute();
+}
+
+function _ptlx_rest_create() {
+  if (!user_access('ptlx_create')) {
+    return _ptlx_unauthorized('Bạn không có quyền gán lái xe');
+  }
+
+  $input = _ptlx_input();
+  $nid_pt = isset($input['nid_phuong_tien']) ? (int) $input['nid_phuong_tien'] : 0;
+  $nid_lx = isset($input['nid_lai_xe']) ? (int) $input['nid_lai_xe'] : 0;
+
+  if ($nid_pt <= 0) {
+    return _ptlx_fail('Phương tiện là bắt buộc');
+  }
+  if ($nid_lx <= 0) {
+    return _ptlx_fail('Lái xe là bắt buộc');
+  }
+
+  // Validate exists
+  $pt_exists = db_query("SELECT nid FROM {phuong_tien} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid_pt))->fetchField();
+  if (!$pt_exists) {
+    return _ptlx_fail('Phương tiện không tồn tại hoặc đã bị xoá');
+  }
+
+  $lx_exists = db_query("SELECT nid FROM {lai_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid_lx))->fetchField();
+  if (!$lx_exists) {
+    return _ptlx_fail('Lái xe không tồn tại hoặc đã bị xoá');
+  }
+
+  $transaction = db_transaction();
+  try {
+    // Deactivate old assignment for this vehicle
+    _ptlx_deactivate_old($nid_pt);
+
+    $now = date('Y-m-d H:i:s', REQUEST_TIME);
+    $id = db_insert('phuong_tien_lai_xe')
+      ->fields(array(
+        'nid_phuong_tien' => $nid_pt,
+        'nid_lai_xe' => $nid_lx,
+        'hoat_dong' => 1,
+        'created' => $now,
+        'changed' => $now,
+      ))
+      ->execute();
+
+    $row = db_query("SELECT * FROM {phuong_tien_lai_xe} WHERE id = :id", array(':id' => $id))->fetch();
+    $row->ten_phuong_tien = _ptlx_get_bks($nid_pt);
+    $row->ten_lai_xe = _ptlx_get_lai_xe_name($nid_lx);
+
+    watchdog('phuong_tien_lai_xe', 'Gán lái xe #%lx cho phương tiện #%pt', array(
+      '%lx' => $nid_lx, '%pt' => $nid_pt,
+    ));
+
+    return _ptlx_success($row);
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('phuong_tien_lai_xe', 'Lỗi gán lái xe: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ptlx_error('Lỗi hệ thống khi gán lái xe');
+  }
+}
+
+/*******************************************************************************
+ * REST: ITEM — GET /api/phuong-tien-lai-xe/{id}, PUT, DELETE
+ ******************************************************************************/
+
+function ptlx_rest_item($id) {
+  $id = (int) $id;
+  if (!$id) {
+    return _ptlx_fail('ID không hợp lệ');
+  }
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ptlx_rest_get($id);
+    case 'PUT':
+      return _ptlx_rest_update($id);
+    case 'DELETE':
+      return _ptlx_rest_delete($id);
+    default:
+      return _ptlx_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+function _ptlx_rest_get($id) {
+  $row = db_query("SELECT * FROM {phuong_tien_lai_xe} WHERE id = :id", array(':id' => $id))->fetch();
+  if (!$row) {
+    return _ptlx_not_found('Không tìm thấy bản ghi');
+  }
+  $row->ten_phuong_tien = _ptlx_get_bks($row->nid_phuong_tien);
+  $row->ten_lai_xe = _ptlx_get_lai_xe_name($row->nid_lai_xe);
+  return _ptlx_success($row);
+}
+
+function _ptlx_rest_update($id) {
+  if (!user_access('ptlx_create')) {
+    return _ptlx_unauthorized('Bạn không có quyền cập nhật');
+  }
+
+  $existing = db_query("SELECT * FROM {phuong_tien_lai_xe} WHERE id = :id", array(':id' => $id))->fetch();
+  if (!$existing) {
+    return _ptlx_not_found('Không tìm thấy bản ghi');
+  }
+
+  $input = _ptlx_input();
+  $update = array('changed' => date('Y-m-d H:i:s', REQUEST_TIME));
+
+  if (isset($input['nid_lai_xe'])) {
+    $update['nid_lai_xe'] = (int) $input['nid_lai_xe'];
+  }
+  if (isset($input['nid_phuong_tien'])) {
+    $update['nid_phuong_tien'] = (int) $input['nid_phuong_tien'];
+  }
+  if (isset($input['hoat_dong'])) {
+    $update['hoat_dong'] = (int) $input['hoat_dong'];
+  }
+
+  $transaction = db_transaction();
+  try {
+    db_update('phuong_tien_lai_xe')
+      ->fields($update)
+      ->condition('id', $id)
+      ->execute();
+
+    $row = db_query("SELECT * FROM {phuong_tien_lai_xe} WHERE id = :id", array(':id' => $id))->fetch();
+    $row->ten_phuong_tien = _ptlx_get_bks($row->nid_phuong_tien);
+    $row->ten_lai_xe = _ptlx_get_lai_xe_name($row->nid_lai_xe);
+
+    watchdog('phuong_tien_lai_xe', 'Cập nhật PT-LX #%id', array('%id' => $id));
+
+    return _ptlx_success($row);
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('phuong_tien_lai_xe', 'Lỗi cập nhật PT-LX #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ptlx_error('Lỗi hệ thống khi cập nhật');
+  }
+}
+
+function _ptlx_rest_delete($id) {
+  if (!user_access('ptlx_delete')) {
+    return _ptlx_unauthorized('Bạn không có quyền xoá');
+  }
+
+  $existing = db_query("SELECT id FROM {phuong_tien_lai_xe} WHERE id = :id", array(':id' => $id))->fetchField();
+  if (!$existing) {
+    return _ptlx_not_found('Không tìm thấy bản ghi');
+  }
+
+  $transaction = db_transaction();
+  try {
+    db_update('phuong_tien_lai_xe')
+      ->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))
+      ->condition('id', $id)
+      ->execute();
+
+    watchdog('phuong_tien_lai_xe', 'Xoá (soft) PT-LX #%id', array('%id' => $id));
+
+    return _ptlx_success(array('id' => $id, 'deleted' => TRUE));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('phuong_tien_lai_xe', 'Lỗi xoá PT-LX #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ptlx_error('Lỗi hệ thống khi xoá');
+  }
+}

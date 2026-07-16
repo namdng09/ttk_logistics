@@ -89,7 +89,7 @@ thead.tableFloatingHeaderOriginal{
   display: none;
 }
 input.form-control.so-cont-seal {
-  font-size: 9pt;
+  font-size: 0.75rem;
   padding: 4px 3px;
   border-radius: 4px;
 }
@@ -120,12 +120,12 @@ input.form-control.so-cont-seal {
 }
 
 table#table-hack-toan-trucking td {
-  font-size: 10pt;
+  font-size: 0.85rem;
 }
 table#table-hack-toan-trucking thead tr th {
   text-align: center;
   padding: 5px 8px;
-  font-size: 9pt;
+  font-size: 0.75rem;
   background: #cccccc29;
 }
 #chi-phi-modal .table-phat-sinh {
