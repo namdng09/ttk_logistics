@@ -1,4 +1,4 @@
-.badge-qua-han { background-color: rgba(234,84,85,.18); color:#ea5455; }
-.badge-sap-het-han { background-color: rgba(255,159,67,.18); color:#ff9f43; }
-.badge-con-han { background-color: rgba(40,199,111,.18); color:#28c76f; }
-.badge-chua-co { background-color: rgba(130,135,146,.18); color:#828792; }
+#table-han .badge.badge-qua-han { background-color: rgba(234,84,85,.18) !important; color: #ea5455 !important; }
+#table-han .badge.badge-sap-het-han { background-color: rgba(255,159,67,.18) !important; color: #ff9f43 !important; }
+#table-han .badge.badge-con-han { background-color: rgba(40,199,111,.18) !important; color: #28c76f !important; }
+#table-han .badge.badge-chua-co { background-color: rgba(130,135,146,.18) !important; color: #828792 !important; }

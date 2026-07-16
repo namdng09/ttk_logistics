@@ -125,33 +125,33 @@ function getMainMenuSoft()
                             <div data-i18n="Danh mục">Danh mục</div>
                         </a>
                     </li>
-                    <li class="menu-item">
+                    ' . ((strpos(current_path(), 'phuong-tien') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon icon-base ti tabler-truck"></i>
                             <div data-i18n="Phương tiện">Phương tiện</div>
                         </a>
                         <ul class="menu-sub">
-                            <li class="menu-item">
+                            <li class="menu-item' . ((current_path() === 'phuong-tien') ? ' active' : '') . '">
                                 <a href="/phuong-tien" class="menu-link">
                                     <div data-i18n="Danh sách">Danh sách</div>
                                 </a>
                             </li>
-                            <li class="menu-item">
+                            <li class="menu-item' . ((current_path() === 'phuong-tien/dang-kiem') ? ' active' : '') . '">
                                 <a href="/phuong-tien/dang-kiem" class="menu-link">
                                     <div data-i18n="Đăng kiểm">Đăng kiểm</div>
                                 </a>
                             </li>
-                            <li class="menu-item">
+                            <li class="menu-item' . ((current_path() === 'phuong-tien/bao-hiem-than-vo') ? ' active' : '') . '">
                                 <a href="/phuong-tien/bao-hiem-than-vo" class="menu-link">
                                     <div data-i18n="Bảo hiểm thân vỏ">Bảo hiểm thân vỏ</div>
                                 </a>
                             </li>
-                            <li class="menu-item">
+                            <li class="menu-item' . ((current_path() === 'phuong-tien/tnds') ? ' active' : '') . '">
                                 <a href="/phuong-tien/tnds" class="menu-link">
                                     <div data-i18n="TNDS">TNDS</div>
                                 </a>
                             </li>
-                            <li class="menu-item">
+                            <li class="menu-item' . ((current_path() === 'phuong-tien/phu-hieu') ? ' active' : '') . '">
                                 <a href="/phuong-tien/phu-hieu" class="menu-link">
                                     <div data-i18n="Phù hiệu">Phù hiệu</div>
                                 </a>

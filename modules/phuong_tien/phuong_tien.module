@@ -209,7 +209,7 @@ function phuong_tien_rest_collection() {
 
 function _phuong_tien_rest_list() {
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $limit = isset($_GET['limit']) ? max(1, min(500, (int) $_GET['limit'])) : 20;
   $offset = ($page - 1) * $limit;
 
   $query = db_select('phuong_tien', 'pt');

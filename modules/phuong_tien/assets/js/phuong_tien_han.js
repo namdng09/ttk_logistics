@@ -2,10 +2,11 @@
   'use strict';
 
   var notyf;
-  var currentHanPage = 1;
-  var currentHanKeyword = '';
-  var currentHanTrangThai = '';
   var screenType = '';
+  var allItems = [];
+  var filteredItems = [];
+  var currentHanPage = 1;
+  var PAGE_SIZE = 20;
 
   var LOAI_PHUONG_TIEN_MAP = {
     dau_keo: 'Đầu kéo',
@@ -43,12 +44,6 @@
     },
   };
 
-  function _jq(sel) {
-    var j = typeof jQuery !== 'undefined' ? jQuery : (typeof $ !== 'undefined' ? $ : null);
-    if (!j) return null;
-    return j(sel);
-  }
-
   Drupal.behaviors.phuongTienHan = {
     attach: function (context, settings) {
       if (typeof Notyf !== 'undefined' && !notyf) {
@@ -71,7 +66,7 @@
           }
           document.getElementById('th-han').textContent = cfg.hanLabel;
           bindHanEvents();
-          loadHanList();
+          loadAllItems();
         }
       }
     }
@@ -81,44 +76,41 @@
     var doc = document;
 
     doc.getElementById('btn-search-han').addEventListener('click', function () {
-      currentHanKeyword = doc.getElementById('search-han').value.trim();
-      currentHanPage = 1;
-      loadHanList();
+      applyFilters();
     });
 
     doc.getElementById('search-han').addEventListener('keypress', function (e) {
       if (e.which === 13) {
-        currentHanKeyword = this.value.trim();
-        currentHanPage = 1;
-        loadHanList();
+        applyFilters();
       }
     });
 
     doc.getElementById('filter-trang-thai').addEventListener('change', function () {
-      currentHanTrangThai = this.value;
-      currentHanPage = 1;
-      loadHanList();
+      applyFilters();
+    });
+
+    doc.getElementById('filter-loai-pt').addEventListener('change', function () {
+      applyFilters();
     });
 
     var reloadBtn = doc.querySelector('.btn-reload-han');
     if (reloadBtn) {
       reloadBtn.addEventListener('click', function () {
-        currentHanKeyword = '';
-        currentHanTrangThai = '';
+        sessionStorage.removeItem(STORAGE_KEY);
         doc.getElementById('search-han').value = '';
         doc.getElementById('filter-trang-thai').value = '';
-        currentHanPage = 1;
-        loadHanList();
+        doc.getElementById('filter-loai-pt').value = '';
+        loadAllItems();
       });
     }
 
     doc.getElementById('pagination-jump-han').addEventListener('keypress', function (e) {
       if (e.which === 13) {
         var page = parseInt(this.value);
-        var total = parseInt(this.getAttribute('data-total-pages'));
-        if (page > 0 && page <= total) {
+        var totalPages = Math.ceil(filteredItems.length / PAGE_SIZE);
+        if (page > 0 && page <= totalPages) {
           currentHanPage = page;
-          loadHanList();
+          renderTable();
         }
       }
     });
@@ -126,25 +118,15 @@
     doc.addEventListener('click', function (e) {
       var t = e.target;
       while (t && t !== doc) {
-        if (t.classList) {
-          if (t.id === 'pagination-jump-han' && e.type === 'keypress' && e.which === 13) {
-            var page = parseInt(t.value);
-            var total = parseInt(t.getAttribute('data-total-pages'));
-            if (page > 0 && page <= total) {
-              currentHanPage = page;
-              loadHanList();
-            }
-            return;
+        if (t.classList && t.classList.contains('page-link') && t.getAttribute('data-page')) {
+          var pageLink = parseInt(t.getAttribute('data-page'));
+          var totalPages = Math.ceil(filteredItems.length / PAGE_SIZE);
+          if (pageLink && pageLink !== currentHanPage && pageLink >= 1 && pageLink <= totalPages) {
+            e.preventDefault();
+            currentHanPage = pageLink;
+            renderTable();
           }
-          if (t.classList.contains('page-link')) {
-            var pageLink = parseInt(t.getAttribute('data-page'));
-            if (pageLink && pageLink !== currentHanPage) {
-              e.preventDefault();
-              currentHanPage = pageLink;
-              loadHanList();
-            }
-            return;
-          }
+          return;
         }
         t = t.parentElement;
       }
@@ -167,9 +149,7 @@
     if (!hanDate) return null;
     var now = new Date();
     now.setHours(0, 0, 0, 0);
-    var diffMs = hanDate.getTime() - now.getTime();
     var diffMonths = (hanDate.getFullYear() - now.getFullYear()) * 12 + (hanDate.getMonth() - now.getMonth());
-    var daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     var remainingDays = hanDate.getDate() - now.getDate();
     if (remainingDays < 0) diffMonths--;
     return diffMonths;
@@ -177,14 +157,28 @@
 
   function getTrangThaiInfo(hanStr) {
     var months = calcMonthsRemaining(hanStr);
-    if (months === null) return { label: 'Chưa có thông tin', cls: 'badge-chua-co' };
-    if (months < 0) return { label: 'Quá hạn', cls: 'badge-qua-han' };
-    if (months <= 3) return { label: 'Sắp hết hạn', cls: 'badge-sap-het-han' };
-    return { label: 'Còn hạn', cls: 'badge-con-han' };
+    if (months === null) return { key: 'chua_co', label: 'Chưa có thông tin', cls: 'badge-chua-co' };
+    if (months < 0) return { key: 'qua_han', label: 'Quá hạn', cls: 'badge-qua-han' };
+    if (months <= 3) return { key: 'sap_het_han', label: 'Sắp hết hạn', cls: 'badge-sap-het-han' };
+    return { key: 'con_han', label: 'Còn hạn', cls: 'badge-con-han' };
   }
 
-  function loadHanList() {
+  var STORAGE_KEY = 'phuong_tien_all_items';
+
+  function loadAllItems() {
     var tbody = $('#table-han-tbody');
+
+    var cached = sessionStorage.getItem(STORAGE_KEY);
+    if (cached) {
+      try {
+        allItems = JSON.parse(cached);
+        applyFilters();
+        return;
+      } catch (e) {
+        sessionStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
     tbody.html(
       '<tr id="loading-row-han"><td colspan="7" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
@@ -195,104 +189,132 @@
       url: '/api/phuong-tien',
       type: 'GET',
       dataType: 'json',
-      data: { page: currentHanPage, keyword: currentHanKeyword, limit: 20 },
+      data: { page: 1, limit: 9999 },
       success: function (res) {
-        $('#loading-row-han').remove();
-
-        if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="7" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
-          return;
-        }
-
-        var data = res.data;
-        var items = data.items || [];
-        var cfg = TYPE_CONFIG[screenType];
-
-        if (items.length === 0) {
-          tbody.append('<tr><td colspan="7" class="text-center">Không có dữ liệu</td></tr>');
-          renderHanPagination(data);
-          return;
-        }
-
-        var html = '';
-        for (var i = 0; i < items.length; i++) {
-          var item = items[i];
-          var stt = (data.current_page - 1) * (data.limit || 20) + i + 1;
-          var hanVal = cfg.hanField ? (item[cfg.hanField] || '') : '';
-          var soVal = cfg.soField ? (item[cfg.soField] || '') : '';
-          var months = calcMonthsRemaining(hanVal);
-          var monthsText = months !== null ? months : '—';
-          var tt = getTrangThaiInfo(hanVal);
-
-          if (currentHanTrangThai && tt.cls !== 'badge-' + currentHanTrangThai) {
-            continue;
-          }
-
-          html += '<tr>';
-          html += '<td>' + stt + '</td>';
-          html += '<td>' + escapeHtml(item.bks || '') + '</td>';
-          html += '<td>' + escapeHtml(LOAI_PHUONG_TIEN_MAP[item.loai_phuong_tien] || item.loai_phuong_tien || '') + '</td>';
-          if (cfg.soField) {
-            html += '<td>' + escapeHtml(soVal) + '</td>';
-          }
-          html += '<td>' + escapeHtml(hanVal) + '</td>';
-          html += '<td class="text-center">' + monthsText + '</td>';
-          html += '<td class="text-center"><span class="badge ' + tt.cls + '">' + tt.label + '</span></td>';
-          html += '</tr>';
-        }
-
-        if (html === '') {
-          tbody.append('<tr><td colspan="7" class="text-center">Không có dữ liệu phù hợp</td></tr>');
+        if (res.status === 'success' && res.data && res.data.items) {
+          allItems = res.data.items;
         } else {
-          tbody.append(html);
+          allItems = [];
         }
-        renderHanPagination(data);
+        try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(allItems)); } catch (e) {}
+        applyFilters();
       },
       error: function (jqXHR) {
-        $('#loading-row-han').remove();
-        tbody.append('<tr><td colspan="7" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        allItems = [];
+        applyFilters();
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
   }
 
-  function renderHanPagination(data) {
+  function applyFilters() {
+    var keyword = document.getElementById('search-han').value.trim().toLowerCase();
+    var loai = document.getElementById('filter-loai-pt').value;
+    var trangThai = document.getElementById('filter-trang-thai').value;
+    var cfg = TYPE_CONFIG[screenType];
+
+    filteredItems = [];
+    for (var i = 0; i < allItems.length; i++) {
+      var item = allItems[i];
+
+      if (keyword) {
+        var bks = (item.bks || '').toLowerCase();
+        var maTS = (item.ma_tai_san || '').toLowerCase();
+        if (bks.indexOf(keyword) === -1 && maTS.indexOf(keyword) === -1) continue;
+      }
+
+      if (loai && item.loai_phuong_tien !== loai) continue;
+
+      if (trangThai) {
+        var hanVal = cfg.hanField ? (item[cfg.hanField] || '') : '';
+        var tt = getTrangThaiInfo(hanVal);
+        if (tt.key !== trangThai) continue;
+      }
+
+      filteredItems.push(item);
+    }
+
+    currentHanPage = 1;
+    renderTable();
+  }
+
+  function renderTable() {
+    $('#loading-row-han').remove();
+    var tbody = $('#table-han-tbody');
+    tbody.empty();
+
+    var cfg = TYPE_CONFIG[screenType];
+    var totalPages = Math.ceil(filteredItems.length / PAGE_SIZE);
+    var start = (currentHanPage - 1) * PAGE_SIZE;
+    var pageItems = filteredItems.slice(start, start + PAGE_SIZE);
+
+    if (pageItems.length === 0) {
+      tbody.append('<tr><td colspan="7" class="text-center">Không có dữ liệu</td></tr>');
+      renderPagination(totalPages);
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < pageItems.length; i++) {
+      var item = pageItems[i];
+      var stt = start + i + 1;
+      var hanVal = cfg.hanField ? (item[cfg.hanField] || '') : '';
+      var soVal = cfg.soField ? (item[cfg.soField] || '') : '';
+      var months = calcMonthsRemaining(hanVal);
+      var monthsText = months !== null ? months : '—';
+      var tt = getTrangThaiInfo(hanVal);
+
+      html += '<tr>';
+      html += '<td>' + stt + '</td>';
+      html += '<td>' + escapeHtml(item.bks || '') + '</td>';
+      html += '<td>' + escapeHtml(LOAI_PHUONG_TIEN_MAP[item.loai_phuong_tien] || item.loai_phuong_tien || '') + '</td>';
+      if (cfg.soField) {
+        html += '<td>' + escapeHtml(soVal) + '</td>';
+      }
+      html += '<td>' + escapeHtml(hanVal) + '</td>';
+      html += '<td class="text-center">' + monthsText + '</td>';
+      html += '<td class="text-center"><span class="badge ' + tt.cls + '">' + tt.label + '</span></td>';
+      html += '</tr>';
+    }
+    tbody.append(html);
+    renderPagination(totalPages);
+  }
+
+  function renderPagination(totalPages) {
     var container = document.getElementById('pagination-han');
     var ul = container.querySelector('ul.pagination');
     ul.innerHTML = '';
 
-    var total = data.total_pages || 0;
-    var current = data.current_page || 0;
-    var totalItems = data.total || 0;
+    var totalItems = filteredItems.length;
 
     document.getElementById('pagination-info-han').textContent = 'Tổng số: ' + totalItems + ' bản ghi';
-    document.getElementById('pagination-total-pages-han').textContent = '/ ' + total;
+    document.getElementById('pagination-total-pages-han').textContent = '/ ' + totalPages;
 
     var jumpInput = document.getElementById('pagination-jump-han');
-    jumpInput.value = current;
-    jumpInput.setAttribute('data-total-pages', total);
+    jumpInput.value = currentHanPage;
+    jumpInput.setAttribute('data-total-pages', totalPages);
 
     container.style.display = '';
 
     var html = '';
-    html += '<li class="page-item ' + (current <= 1 ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="1"><i class="ti tabler-chevrons-left"></i></a></li>';
-    html += '<li class="page-item ' + (current <= 1 ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="' + (current - 1) + '"><i class="ti tabler-chevron-left"></i></a></li>';
+    html += '<li class="page-item ' + (currentHanPage <= 1 ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="1"><i class="ti tabler-chevrons-left"></i></a></li>';
+    html += '<li class="page-item ' + (currentHanPage <= 1 ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="' + (currentHanPage - 1) + '"><i class="ti tabler-chevron-left"></i></a></li>';
 
-    var start = Math.max(1, current - 2);
-    var end = Math.min(total, current + 2);
+    var start = Math.max(1, currentHanPage - 2);
+    var end = Math.min(totalPages, currentHanPage + 2);
 
     if (start > 1) {
       html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
     }
     for (var p = start; p <= end; p++) {
-      html += '<li class="page-item ' + (p === current ? 'active' : '') + '"><a class="page-link" href="#" data-page="' + p + '">' + p + '</a></li>';
+      html += '<li class="page-item ' + (p === currentHanPage ? 'active' : '') + '"><a class="page-link" href="#" data-page="' + p + '">' + p + '</a></li>';
     }
-    if (end < total) {
+    if (end < totalPages) {
       html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
     }
 
-    html += '<li class="page-item ' + (current >= total ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="' + (current + 1) + '"><i class="ti tabler-chevron-right"></i></a></li>';
-    html += '<li class="page-item ' + (current >= total ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="' + total + '"><i class="ti tabler-chevrons-right"></i></a></li>';
+    html += '<li class="page-item ' + (currentHanPage >= totalPages ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="' + (currentHanPage + 1) + '"><i class="ti tabler-chevron-right"></i></a></li>';
+    html += '<li class="page-item ' + (currentHanPage >= totalPages ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="' + totalPages + '"><i class="ti tabler-chevrons-right"></i></a></li>';
 
     ul.innerHTML = html;
   }

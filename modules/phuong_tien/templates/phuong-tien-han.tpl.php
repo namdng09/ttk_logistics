@@ -1,3 +1,9 @@
+<style>
+#table-han .badge.badge-qua-han { background-color: rgba(234,84,85,.18) !important; color: #ea5455 !important; }
+#table-han .badge.badge-sap-het-han { background-color: rgba(255,159,67,.18) !important; color: #ff9f43 !important; }
+#table-han .badge.badge-con-han { background-color: rgba(40,199,111,.18) !important; color: #28c76f !important; }
+#table-han .badge.badge-chua-co { background-color: rgba(130,135,146,.18) !important; color: #828792 !important; }
+</style>
 <div class="card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h4 class="card-title" id="han-page-title">Thông báo hạn</h4>
@@ -7,13 +13,20 @@
     <div class="row mb-3 align-items-center">
       <div class="col-12 col-md-4 mb-2 mb-md-0">
         <div class="input-group">
-          <input type="text" class="form-control" id="search-han" placeholder="Tìm kiếm BKS, loại phương tiện...">
+          <input type="text" class="form-control" id="search-han" placeholder="Tìm kiếm BKS, mã tài sản...">
           <button class="btn btn-primary" type="button" id="btn-search-han">
             <i class="ti tabler-search"></i> Tìm
           </button>
         </div>
       </div>
-      <div class="col-6 col-md-4 mb-2 mb-md-0">
+      <div class="col-6 col-md-2 mb-2 mb-md-0">
+        <select class="form-select" id="filter-loai-pt">
+          <option value="">Tất cả loại</option>
+          <option value="dau_keo">Đầu kéo</option>
+          <option value="mooc">Mooc</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3 mb-2 mb-md-0">
         <select class="form-select" id="filter-trang-thai">
           <option value="">Tất cả trạng thái</option>
           <option value="qua_han">Quá hạn</option>
@@ -22,7 +35,7 @@
           <option value="chua_co">Chưa có thông tin</option>
         </select>
       </div>
-      <div class="col-6 col-md-4">
+      <div class="col-12 col-md-3">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-han">
             <i class="ti tabler-refresh"></i>
