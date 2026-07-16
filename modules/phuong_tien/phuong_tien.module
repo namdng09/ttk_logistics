@@ -62,6 +62,24 @@ function phuong_tien_menu() {
     'type' => MENU_NORMAL_ITEM,
   );
 
+  // --- UI Hạn (expiry notification screens) ---
+  $expiry_types = array('dang-kiem', 'bao-hiem-than-vo', 'tnds', 'phu-hieu');
+  $expiry_titles = array(
+    'dang-kiem' => 'Đăng kiểm',
+    'bao-hiem-than-vo' => 'Bảo hiểm thân vỏ',
+    'tnds' => 'Bảo hiểm TNDS',
+    'phu-hieu' => 'Phù hiệu',
+  );
+  foreach ($expiry_types as $type) {
+    $items['phuong-tien/' . $type] = array(
+      'title' => $expiry_titles[$type],
+      'page callback' => 'phuong_tien_page_han',
+      'page arguments' => array($type),
+      'access callback' => 'user_is_logged_in',
+      'type' => MENU_NORMAL_ITEM,
+    );
+  }
+
   return $items;
 }
 
@@ -73,6 +91,10 @@ function phuong_tien_theme() {
   return array(
     'phuong_tien_list_page' => array(
       'template' => 'phuong-tien-list',
+      'path' => $path,
+    ),
+    'phuong_tien_han_page' => array(
+      'template' => 'phuong-tien-han',
       'path' => $path,
     ),
   );
@@ -482,4 +504,24 @@ function phuong_tien_page_list() {
   )), 'setting');
 
   return theme('phuong_tien_list_page');
+}
+
+function phuong_tien_page_han($type) {
+  $valid_types = array('dang-kiem', 'bao-hiem-than-vo', 'tnds', 'phu-hieu');
+  if (!in_array($type, $valid_types)) {
+    drupal_not_found();
+    return;
+  }
+
+  drupal_add_css(drupal_get_path('module', 'phuong_tien') . '/assets/css/phuong_tien_han.css');
+  drupal_add_js(drupal_get_path('module', 'phuong_tien') . '/assets/js/phuong_tien_han.js');
+
+  drupal_add_js(array('phuong_tien_han' => array(
+    'type' => $type,
+    'permissions' => array(
+      'phuong_tien_view' => user_access('phuong_tien_view'),
+    ),
+  )), 'setting');
+
+  return theme('phuong_tien_han_page');
 }

@@ -271,7 +271,7 @@
   function loadList() {
     var tbody = $('#table-phuong-tien-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="18" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="7" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -285,7 +285,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="18" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="7" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -299,7 +299,7 @@
         }
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="18" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="7" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -327,17 +327,6 @@
             '<td><span class="badge ' + (LOAI_PHUONG_TIEN_COLOR[item.loai_phuong_tien] || 'bg-label-secondary') + '">' + escapeHtml(LOAI_PHUONG_TIEN_MAP[item.loai_phuong_tien] || item.loai_phuong_tien || '') + '</span></td>' +
             '<td>' + escapeHtml(item.hang_xe || '') + '</td>' +
             '<td>' + laixeName + laixeSDT + '</td>' +
-            '<td>' + (item.nam_san_xuat || '') + '</td>' +
-            '<td class="text-end">' + giaMua + '</td>' +
-            '<td>' + (item.ngay_mua || '') + '</td>' +
-            '<td>' + escapeHtml(item.so_dang_kiem || '') + '</td>' +
-            '<td>' + (item.han_dang_kiem || '') + '</td>' +
-            '<td>' + escapeHtml(item.so_bao_hiem_than_vo || '') + '</td>' +
-            '<td>' + (item.han_bao_hiem_than_vo || '') + '</td>' +
-            '<td>' + escapeHtml(item.so_bao_hiem_tnds || '') + '</td>' +
-            '<td>' + (item.han_bao_hiem_tnds || '') + '</td>' +
-            '<td>' + (item.ngay_phu_hieu || '') + '</td>' +
-            '<td>' + (item.han_phu_hieu || '') + '</td>' +
             '</tr>';
         }
         tbody.append(html);
@@ -345,7 +334,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="18" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="7" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });

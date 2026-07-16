@@ -45,22 +45,11 @@
             <th>Loại</th>
             <th>Hãng xe</th>
             <th>Lái xe</th>
-            <th>Năm sản xuất</th>
-            <th>Giá mua</th>
-            <th>Ngày mua</th>
-            <th>Số đăng kiểm</th>
-            <th>Hạn đăng kiểm</th>
-            <th>Số BH thân vỏ</th>
-            <th>Hạn BH thân vỏ</th>
-            <th>Số BH TNDS</th>
-            <th>Hạn BH TNDS</th>
-            <th>Ngày phù hiệu</th>
-            <th>Hạn phù hiệu</th>
           </tr>
         </thead>
         <tbody id="table-phuong-tien-tbody">
           <tr id="loading-row">
-            <td colspan="18" class="text-center py-4">
+            <td colspan="7" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
