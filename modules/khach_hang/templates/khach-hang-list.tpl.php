@@ -88,17 +88,17 @@
 <div class="modal fade" id="khach-hang-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen">
     <div class="modal-content">
-      <form id="form-khach-hang" class="needs-validation" novalidate>
-        <div class="modal-header">
-          <h5 class="modal-title" id="khach-hang-modal-title">Thêm khách hàng</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body" style="position:relative;">
-          <div id="modal-loading" class="text-center py-4" style="position:absolute;inset:0;display:none;background:rgba(255,255,255,0.85);z-index:10;border-radius:0.375rem;">
-            <div class="spinner-border text-primary" style="position:sticky;top:50%;margin-top:6rem;" role="status">
-              <span class="visually-hidden">Đang tải...</span>
-            </div>
+      <div class="modal-header">
+        <h5 class="modal-title" id="khach-hang-modal-title">Thêm khách hàng</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="position:relative;">
+        <div id="modal-loading" class="text-center py-4" style="position:absolute;inset:0;display:none;background:rgba(255,255,255,0.85);z-index:10;border-radius:0.375rem;">
+          <div class="spinner-border text-primary" style="position:sticky;top:50%;margin-top:6rem;" role="status">
+            <span class="visually-hidden">Đang tải...</span>
           </div>
+        </div>
+        <form id="form-khach-hang" class="needs-validation" novalidate>
           <input type="hidden" name="nid" value="">
 
           <!-- Customer Info -->
@@ -172,14 +172,14 @@
               <input type="text" class="form-control" name="ghi_chu" placeholder="Ghi chú">
             </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
-          <button type="button" class="btn btn-primary btn-luu-khach-hang">
-            <i class="ti tabler-device-floppy me-1"></i> Lưu
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary btn-luu-khach-hang">
+          <i class="ti tabler-device-floppy me-1"></i> Lưu
+        </button>
+      </div>
     </div>
   </div>
 </div>
