@@ -246,6 +246,12 @@ function _lai_xe_rest_list() {
       } else {
         $row->thong_tin_ngan_hang = array();
       }
+      if (isset($row->luong) && $row->luong) {
+        $decoded = json_decode($row->luong, TRUE);
+        $row->luong = is_array($decoded) ? $decoded : array();
+      } else {
+        $row->luong = array();
+      }
       $items[] = $row;
     }
   }
@@ -289,6 +295,7 @@ function _lai_xe_rest_create() {
         'han_bang_lai' => isset($input['han_bang_lai']) ? $input['han_bang_lai'] : '',
         'ngay_nhan_viec' => isset($input['ngay_nhan_viec']) ? $input['ngay_nhan_viec'] : '',
         'thong_tin_ngan_hang' => isset($input['thong_tin_ngan_hang']) ? json_encode($input['thong_tin_ngan_hang'], JSON_UNESCAPED_UNICODE) : NULL,
+        'luong' => isset($input['luong']) ? json_encode($input['luong'], JSON_UNESCAPED_UNICODE) : NULL,
         'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
         'created' => date('Y-m-d H:i:s', REQUEST_TIME),
         'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
@@ -348,6 +355,12 @@ function _lai_xe_rest_get($id) {
   } else {
     $row->thong_tin_ngan_hang = array();
   }
+  if (isset($row->luong) && $row->luong) {
+    $decoded = json_decode($row->luong, TRUE);
+    $row->luong = is_array($decoded) ? $decoded : array();
+  } else {
+    $row->luong = array();
+  }
   return _lai_xe_success($row);
 }
 
@@ -370,7 +383,7 @@ function _lai_xe_rest_update($id) {
   $fields = array(
     'ten', 'ma_nhan_vien', 'sdt', 'cccd', 'ngay_cap', 'noi_cap',
     'han_cccd', 'so_bang_lai', 'loai_bang_lai', 'han_bang_lai',
-    'ngay_nhan_viec', 'thong_tin_ngan_hang', 'hoat_dong',
+    'ngay_nhan_viec', 'thong_tin_ngan_hang', 'luong', 'hoat_dong',
   );
 
   $update = array('changed' => date('Y-m-d H:i:s', REQUEST_TIME));
@@ -382,6 +395,9 @@ function _lai_xe_rest_update($id) {
       }
       if ($f === 'thong_tin_ngan_hang') {
         $val = json_encode($val, JSON_UNESCAPED_UNICODE);
+      }
+      if ($f === 'luong') {
+        $val = is_string($val) ? $val : json_encode($val, JSON_UNESCAPED_UNICODE);
       }
       $update[$f] = $val;
     }

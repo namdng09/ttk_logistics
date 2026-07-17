@@ -68,6 +68,10 @@ function lai_xe_schema() {
         'type' => 'text',
         'not null' => FALSE,
       ),
+      'luong' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
       'hoat_dong' => array(
         'type' => 'int',
         'size' => 'tiny',
@@ -161,4 +165,11 @@ function lai_xe_update_7006() {
   // Drop old columns
   db_query("ALTER TABLE {lai_xe} DROP COLUMN so_tk_ngan_hang");
   db_query("ALTER TABLE {lai_xe} DROP COLUMN ngan_hang");
+}
+
+function lai_xe_update_7007() {
+  $field = db_query("SHOW COLUMNS FROM {lai_xe} LIKE 'luong'")->fetch();
+  if (!$field) {
+    db_query("ALTER TABLE {lai_xe} ADD luong TEXT NULL AFTER thong_tin_ngan_hang");
+  }
 }
