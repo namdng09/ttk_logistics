@@ -29,6 +29,11 @@ function hop_dong_schema() {
         'unsigned' => TRUE,
         'not null' => FALSE,
       ),
+      'files' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ),
       'ghi_chu' => array(
         'type' => 'text',
         'not null' => FALSE,
@@ -63,4 +68,12 @@ function hop_dong_schema() {
 
 function hop_dong_update_7001() {
   drupal_install_schema('hop_dong');
+}
+
+function hop_dong_update_7002() {
+  db_add_field('hop_dong', 'files', array(
+    'type' => 'text',
+    'size' => 'big',
+    'not null' => FALSE,
+  ));
 }

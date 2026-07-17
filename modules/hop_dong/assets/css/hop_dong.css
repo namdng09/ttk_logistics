@@ -1,1 +1,9 @@
 .flatpickr-calendar { z-index: 99999 !important; }
+
+#hop-dong-modal .file-row { transition: opacity 0.2s; }
+#hop-dong-modal .file-row.file-uploading { opacity: 0.6; }
+#hop-dong-modal .file-row:hover { background-color: #f8f9fa; }
+#hop-dong-modal #file-upload-area { padding: 0.5rem 0; }
+#hop-dong-modal #file-table { font-size: 0.875rem; }
+#hop-dong-modal #file-table th { font-weight: 600; }
+#hop-dong-modal #file-list-empty { padding: 0.75rem 0; }

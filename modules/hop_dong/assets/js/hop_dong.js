@@ -6,6 +6,9 @@
   var currentKeyword = '';
   var KHACH_HANG_OPTIONS = [];
   var KHACH_HANG_DATA = {};
+  var CURRENT_FILES = [];
+  var PENDING_FILES = [];
+  var CURRENT_HOP_DONG_ID = null;
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -121,6 +124,21 @@
             }
             return;
           }
+          if (t.classList.contains('btn-delete-file')) {
+            e.preventDefault();
+            var fid = t.getAttribute('data-file-id');
+            if (fid) confirmDeleteFile(fid);
+            return;
+          }
+          if (t.classList.contains('btn-remove-pending-file')) {
+            e.preventDefault();
+            var idx = parseInt(t.getAttribute('data-pending-index'));
+            if (!isNaN(idx) && PENDING_FILES[idx]) {
+              PENDING_FILES.splice(idx, 1);
+              renderFileList();
+            }
+            return;
+          }
         }
         t = t.parentElement;
       }
@@ -175,6 +193,21 @@
         }
       }
     });
+
+    // File upload
+    var btnChonFile = doc.getElementById('btn-chon-file');
+    var fileInput = doc.getElementById('file-input-hop-dong');
+    if (btnChonFile && fileInput) {
+      btnChonFile.addEventListener('click', function () {
+        fileInput.click();
+      });
+      fileInput.addEventListener('change', function () {
+        if (this.files.length > 0) {
+          uploadFiles(this.files);
+          this.value = '';
+        }
+      });
+    }
   }
 
   function showNvKinhDoanh(khNid) {
@@ -485,6 +518,12 @@
         sel.removeAttribute('disabled');
       }
     }
+
+    // File upload area: show in create/edit, hide in view
+    var uploadArea = document.getElementById('file-upload-area');
+    if (uploadArea) {
+      uploadArea.style.display = (mode === 'view') ? 'none' : '';
+    }
   }
 
   function resetForm() {
@@ -499,6 +538,16 @@
     document.getElementById('nv-kinh-doanh-section').style.display = 'none';
     document.getElementById('nv-kinh-doanh-display').innerHTML = '';
     setFormMode('create');
+
+    // Reset file section
+    CURRENT_FILES = [];
+    PENDING_FILES = [];
+    CURRENT_HOP_DONG_ID = null;
+    document.getElementById('file-section').style.display = '';
+    document.getElementById('file-table-tbody').innerHTML = '';
+    document.getElementById('file-table').style.display = 'none';
+    document.getElementById('file-list-empty').style.display = 'none';
+    document.getElementById('file-upload-progress').style.display = 'none';
   }
 
   function populateForm(d) {
@@ -517,12 +566,234 @@
     }
 
     initDatePickers();
+
+    // Show file section for edit/view
+    CURRENT_HOP_DONG_ID = d.nid || null;
+    CURRENT_FILES = d.files || [];
+    renderFileList();
+  }
+
+  function renderFileList() {
+    var section = document.getElementById('file-section');
+    var tbody = document.getElementById('file-table-tbody');
+    var table = document.getElementById('file-table');
+    var empty = document.getElementById('file-list-empty');
+
+    section.style.display = '';
+    tbody.innerHTML = '';
+
+    var allFiles = CURRENT_FILES.slice();
+    var hasPending = PENDING_FILES.length > 0;
+
+    for (var p = 0; p < PENDING_FILES.length; p++) {
+      var pf = PENDING_FILES[p];
+      allFiles.push({
+        id: 'pending_' + p,
+        file_name: pf.name,
+        file_size: pf.size,
+        file_type: pf.type || '',
+        created: '',
+        _pending: true,
+        _pendingIndex: p
+      });
+    }
+
+    if (allFiles.length === 0) {
+      table.style.display = 'none';
+      empty.style.display = '';
+      return;
+    }
+
+    empty.style.display = 'none';
+    table.style.display = '';
+
+    var html = '';
+    for (var i = 0; i < allFiles.length; i++) {
+      var f = allFiles[i];
+      var sizeText = formatFileSize(f.file_size);
+      var dateText = f.created || '';
+      if (dateText.length > 10) dateText = dateText.substring(0, 10);
+      var isPending = f._pending;
+      html += '<tr class="file-row">' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' +
+          '<i class="ti tabler-file me-1 text-primary"></i>' +
+          '<span class="file-name-text">' + escapeHtml(f.file_name) + '</span>' +
+          (isPending ? ' <span class="badge bg-label-warning ms-1">Chờ lưu</span>' : '') +
+        '</td>' +
+        '<td>' + sizeText + '</td>' +
+        '<td>' + dateText + '</td>' +
+        '<td class="text-center">' +
+          (isPending ?
+            '<button type="button" class="btn btn-sm btn-icon btn-outline-danger btn-remove-pending-file" data-pending-index="' + f._pendingIndex + '" title="Bỏ file"><i class="ti tabler-x"></i></button>' :
+            '<div class="d-inline-flex gap-1">' +
+              '<a href="' + escapeHtml(f.file_url || '#') + '" target="_blank" class="btn btn-sm btn-icon btn-outline-primary" title="Tải xuống"><i class="ti tabler-download"></i></a>' +
+              '<button type="button" class="btn btn-sm btn-icon btn-outline-danger btn-delete-file" data-file-id="' + f.id + '" title="Xoá file"><i class="ti tabler-x"></i></button>' +
+            '</div>') +
+        '</td>' +
+        '</tr>';
+    }
+    tbody.innerHTML = html;
+  }
+
+  function renderPendingFiles() {
+    renderFileList();
+  }
+
+  function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    var units = ['B', 'KB', 'MB', 'GB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+  }
+
+  var ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
+  var ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'gif'];
+  var MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+  function validateFile(file) {
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (ALLOWED_EXTENSIONS.indexOf(ext) === -1) {
+      return 'File "' + file.name + '" không được hỗ trợ. Chỉ chấp nhận PDF, JPG, PNG, GIF';
+    }
+    if (ALLOWED_TYPES.indexOf(file.type) === -1 && file.type !== '') {
+      return 'File "' + file.name + '" không được hỗ trợ. Chỉ chấp nhận PDF, JPG, PNG, GIF';
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return 'File "' + file.name + '" vượt quá 10MB (' + formatFileSize(file.size) + ')';
+    }
+    return null;
+  }
+
+  function uploadFiles(fileList) {
+    var validFiles = [];
+    for (var v = 0; v < fileList.length; v++) {
+      var err = validateFile(fileList[v]);
+      if (err) {
+        if (notyf) notyf.error(err);
+      } else {
+        validFiles.push(fileList[v]);
+      }
+    }
+    if (validFiles.length === 0) return;
+
+    if (!CURRENT_HOP_DONG_ID) {
+      for (var k = 0; k < validFiles.length; k++) {
+        PENDING_FILES.push(validFiles[k]);
+      }
+      renderPendingFiles();
+      return;
+    }
+
+    var progress = document.getElementById('file-upload-progress');
+    var progressBar = progress.querySelector('.progress-bar');
+    var statusText = document.getElementById('file-upload-status');
+    progress.style.display = '';
+
+    var total = validFiles.length;
+    var done = 0;
+
+    function uploadNext() {
+      if (done >= total) {
+        progress.style.display = 'none';
+        progressBar.style.width = '0%';
+        return;
+      }
+
+      var file = validFiles[done];
+      var pct = Math.round(((done) / total) * 100);
+      progressBar.style.width = pct + '%';
+      statusText.textContent = 'Đang tải ' + (done + 1) + '/' + total + ': ' + file.name;
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var base64Data = e.target.result;
+        var payload = JSON.stringify({
+          file: base64Data,
+          filename: file.name,
+          filesize: file.size,
+          filetype: file.type
+        });
+
+        $.ajax({
+          url: '/api/hop-dong/' + CURRENT_HOP_DONG_ID + '/file',
+          type: 'POST',
+          data: payload,
+          contentType: 'application/json; charset=utf-8',
+          dataType: 'json',
+          success: function (res) {
+            if (res.status === 'success' && res.data) {
+              CURRENT_FILES.push(res.data);
+              renderFileList();
+              if (notyf) notyf.success('Tải lên thành công: ' + file.name);
+            } else {
+              if (notyf) notyf.error(res.message || 'Lỗi tải file');
+            }
+            done++;
+            uploadNext();
+          },
+          error: function (jqXHR) {
+            if (notyf) notyf.error(apiMsg(jqXHR));
+            done++;
+            uploadNext();
+          }
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    uploadNext();
+  }
+
+  function confirmDeleteFile(fileId) {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: 'Xoá file',
+        text: 'Bạn có chắc chắn muốn xoá file này?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Xoá',
+        cancelButtonText: 'Huỷ',
+        confirmButtonColor: '#d33',
+        customClass: { confirmButton: 'btn btn-danger', cancelButton: 'btn btn-label-secondary ms-1' },
+        buttonsStyling: false
+      }).then(function (result) {
+        if (result.isConfirmed) {
+          deleteFile(fileId);
+        }
+      });
+    } else {
+      if (confirm('Xoá file này?')) {
+        deleteFile(fileId);
+      }
+    }
+  }
+
+  function deleteFile(fileId) {
+    if (!CURRENT_HOP_DONG_ID) return;
+
+    $.ajax({
+      url: '/api/hop-dong/' + CURRENT_HOP_DONG_ID + '/file/' + fileId,
+      type: 'DELETE',
+      dataType: 'json',
+      success: function (res) {
+        if (res.status === 'success') {
+          CURRENT_FILES = CURRENT_FILES.filter(function (f) { return f.id !== fileId; });
+          renderFileList();
+          if (notyf) notyf.success('Xoá file thành công');
+        } else {
+          if (notyf) notyf.error(res.message || 'Lỗi xoá file');
+        }
+      },
+      error: function (jqXHR) {
+        if (notyf) notyf.error(apiMsg(jqXHR));
+      }
+    });
   }
 
   function submitForm() {
     var form = document.getElementById('form-hop-dong');
 
-    // Validate khach hang required
     var khSelect = document.querySelector('#select-khach-hang');
     var khNid = khSelect ? khSelect.value : '';
     if (!khNid) {
@@ -531,7 +802,6 @@
       return;
     }
 
-    // Validate han_hop_dong >= ngay_hop_dong
     var ngayStr = document.querySelector('#form-hop-dong input[name="ngay_hop_dong"]').value;
     var hanStr = document.querySelector('#form-hop-dong input[name="han_hop_dong"]').value;
     if (ngayStr && hanStr) {
@@ -580,9 +850,20 @@
         btn.innerHTML = '<i class="ti tabler-device-floppy me-1"></i> Lưu';
         if (res.status === 'success') {
           if (notyf) notyf.success(nid ? 'Cập nhật thành công' : 'Tạo mới thành công');
-          modalHide('hop-dong-modal');
-          resetForm();
-          loadList();
+          if (!nid && res.data && res.data.nid && PENDING_FILES.length > 0) {
+            var newId = res.data.nid;
+            var pending = PENDING_FILES.slice();
+            PENDING_FILES = [];
+            modalHide('hop-dong-modal');
+            resetForm();
+            loadList();
+            CURRENT_HOP_DONG_ID = newId;
+            uploadFiles(pending);
+          } else {
+            modalHide('hop-dong-modal');
+            resetForm();
+            loadList();
+          }
         } else {
           if (notyf) notyf.error(res.message || 'Lỗi không xác định');
         }

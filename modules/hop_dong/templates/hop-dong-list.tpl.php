@@ -112,6 +112,43 @@
               <input type="text" class="form-control" name="ghi_chu" placeholder="Ghi chú">
             </div>
           </div>
+
+          <div id="file-section" class="mt-4">
+            <hr class="my-3">
+            <h6 class="mb-3"><i class="ti tabler-paperclip me-1"></i>File đính kèm</h6>
+
+            <div id="file-upload-area" style="display:none;">
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <input type="file" id="file-input-hop-dong" class="d-none" accept=".pdf,image/jpeg,image/png,image/gif" multiple>
+                <button type="button" class="btn btn-label-secondary btn-sm" id="btn-chon-file">
+                  <i class="ti tabler-upload me-1"></i>Chọn file
+                </button>
+                <span class="text-muted small">Chỉ chấp nhận: <strong>.PDF, .JPG, .JPEG, .PNG, .GIF</strong> — Tối đa 10MB/file</span>
+              </div>
+              <div id="file-upload-progress" style="display:none;">
+                <div class="progress" style="height:6px;">
+                  <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div>
+                </div>
+                <small class="text-muted" id="file-upload-status"></small>
+              </div>
+            </div>
+
+            <div id="file-list">
+              <div id="file-list-empty" class="text-muted small" style="display:none;">Chưa có file nào</div>
+              <table class="table table-sm table-bordered mb-0" id="file-table" style="display:none;">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width:40px;">#</th>
+                    <th>Tên file</th>
+                    <th style="width:90px;">Kích thước</th>
+                    <th style="width:100px;">Ngày tải</th>
+                    <th style="width:90px;text-align:center;">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="file-table-tbody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>

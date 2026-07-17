@@ -3,7 +3,7 @@
 /**
  * @file
  * Hợp Đồng — Contract management.
- * RESTful API + Modal CRUD.
+ * RESTful API + Modal CRUD. Files stored as JSON in hop_dong.files column.
  */
 
 /**
@@ -51,7 +51,6 @@ function hop_dong_menu() {
     'page arguments' => array(2),
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
-    'delivery callback' => 'drupal_json_output',
   );
 
   $items['hop-dong'] = array(
@@ -147,7 +146,6 @@ function _hop_dong_load_khach_hang($nid) {
   $kh = db_query("SELECT * FROM {khach_hang} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid))->fetch();
   if (!$kh) return NULL;
 
-  // Get nv_kinh_doanh from junction table
   $nv_kinh_doanh = array();
   $nv_rows = db_query("SELECT nv.uid, u.name, u.ten, u.ma_nhan_vien FROM {nhan_vien_khach_hang} nv INNER JOIN {users} u ON u.uid = nv.uid WHERE nv.nid = :nid AND nv.hoat_dong = 1 ORDER BY nv.id ASC", array(':nid' => $nid));
   foreach ($nv_rows as $nv) {
@@ -159,7 +157,6 @@ function _hop_dong_load_khach_hang($nid) {
     );
   }
 
-  // Decode thong_tin_ngan_hang JSON
   $ngan_hang = array();
   if (!empty($kh->thong_tin_ngan_hang)) {
     $decoded = json_decode($kh->thong_tin_ngan_hang, TRUE);
@@ -184,9 +181,25 @@ function _hop_dong_load_khach_hang($nid) {
 }
 
 /**
- * Build row with nested khach_hang data.
+ * Decode files JSON from hop_dong row.
  */
-function _hop_dong_load_row($nid) {
+function _hop_dong_decode_files($hd) {
+  if (empty($hd->files)) return array();
+  $decoded = json_decode($hd->files, TRUE);
+  if (!is_array($decoded)) return array();
+  foreach ($decoded as &$f) {
+    if (!isset($f['file_url']) && !empty($f['file_path'])) {
+      $f['file_url'] = file_create_url(file_default_scheme() . '://' . $f['file_path']);
+    }
+  }
+  return $decoded;
+}
+
+/**
+ * Build row with nested khach_hang data.
+ * $with_files = TRUE only for GET detail (not list).
+ */
+function _hop_dong_load_row($nid, $with_files = FALSE) {
   $hd = db_query("SELECT * FROM {hop_dong} WHERE nid = :nid", array(':nid' => $nid))->fetch();
   if (!$hd) return NULL;
 
@@ -195,7 +208,7 @@ function _hop_dong_load_row($nid) {
     $kh_data = _hop_dong_load_khach_hang($hd->khach_hang);
   }
 
-  return array(
+  $row = array(
     'nid' => (int) $hd->nid,
     'so_hop_dong' => $hd->so_hop_dong,
     'ngay_hop_dong' => $hd->ngay_hop_dong ? $hd->ngay_hop_dong : '',
@@ -204,6 +217,165 @@ function _hop_dong_load_row($nid) {
     'ghi_chu' => $hd->ghi_chu ? $hd->ghi_chu : '',
     'hoat_dong' => (int) $hd->hoat_dong,
   );
+
+  if ($with_files) {
+    $row['files'] = _hop_dong_decode_files($hd);
+  }
+
+  return $row;
+}
+
+/**
+ * Allowed MIME types for file upload.
+ */
+function _hop_dong_allowed_types() {
+  return array(
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+  );
+}
+
+/**
+ * Read current files JSON from DB for a hop_dong.
+ */
+function _hop_dong_get_files($hop_dong_id) {
+  $hd = db_query("SELECT files FROM {hop_dong} WHERE nid = :nid", array(':nid' => $hop_dong_id))->fetch();
+  if (!$hd) return NULL;
+  return _hop_dong_decode_files($hd);
+}
+
+/**
+ * Write files JSON back to DB for a hop_dong.
+ */
+function _hop_dong_set_files($hop_dong_id, $files) {
+  db_update('hop_dong')
+    ->fields(array(
+      'files' => json_encode($files),
+      'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+    ))
+    ->condition('nid', $hop_dong_id)
+    ->execute();
+}
+
+/**
+ * Validate and save uploaded file for a hop_dong.
+ * Appends to the files JSON array.
+ */
+function _hop_dong_save_file($hop_dong_id) {
+  $raw = file_get_contents('php://input');
+  $input = drupal_json_decode($raw);
+
+  if (empty($input['file']) || empty($input['filename'])) {
+    return _hop_dong_fail('Dữ liệu file không hợp lệ');
+  }
+
+  $data_url = $input['file'];
+  $original_name = $input['filename'];
+  $client_size = isset($input['filesize']) ? (int) $input['filesize'] : 0;
+  $client_type = isset($input['filetype']) ? $input['filetype'] : '';
+
+  if (strpos($data_url, 'base64,') === FALSE) {
+    return _hop_dong_fail('Dữ liệu file không đúng định dạng base64');
+  }
+
+  $parts = explode('base64,', $data_url, 2);
+  $binary = base64_decode($parts[1]);
+  if ($binary === FALSE) {
+    return _hop_dong_fail('Không thể giải mã file');
+  }
+
+  $actual_size = strlen($binary);
+  if ($client_size > 0 && $client_size !== $actual_size) {
+    watchdog('hop_dong_dbg', 'Size mismatch: client=@c actual=@a', array('@c' => $client_size, '@a' => $actual_size), WATCHDOG_WARNING);
+  }
+
+  $max_size = 10 * 1024 * 1024;
+  if ($actual_size > $max_size) {
+    return _hop_dong_fail('File vượt quá 10MB');
+  }
+
+  $finfo = finfo_open(FILEINFO_MIME_TYPE);
+  $mime = finfo_buffer($finfo, $binary);
+  finfo_close($finfo);
+
+  if (!in_array($mime, _hop_dong_allowed_types())) {
+    return _hop_dong_fail('Định dạng file không được hỗ trợ. Chỉ chấp nhận PDF, JPG, PNG, GIF');
+  }
+
+  $dest_dir = file_default_scheme() . '://hop_dong_files/' . $hop_dong_id;
+  file_prepare_directory($dest_dir, FILE_CREATE_DIRECTORY);
+
+  $ext = pathinfo($original_name, PATHINFO_EXTENSION);
+  $safe_name = 'file_' . REQUEST_TIME . '_' . uniqid() . '.' . $ext;
+  $dest = $dest_dir . '/' . $safe_name;
+
+  if (file_put_contents($dest, $binary) === FALSE) {
+    return _hop_dong_error('Không thể lưu file lên server');
+  }
+
+  $relative_path = 'hop_dong_files/' . $hop_dong_id . '/' . $safe_name;
+  $file_id = uniqid('f_', TRUE);
+
+  $file_entry = array(
+    'id' => $file_id,
+    'file_name' => $original_name,
+    'file_path' => $relative_path,
+    'file_url' => file_create_url(file_default_scheme() . '://' . $relative_path),
+    'file_size' => $actual_size,
+    'file_type' => $mime,
+    'created' => date('Y-m-d H:i:s', REQUEST_TIME),
+  );
+
+  $files = _hop_dong_get_files($hop_dong_id);
+  $files[] = $file_entry;
+  _hop_dong_set_files($hop_dong_id, $files);
+
+  watchdog('hop_dong', 'Upload file %id cho hợp đồng #%hd: %name', array(
+    '%id' => $file_id,
+    '%hd' => $hop_dong_id,
+    '%name' => $original_name,
+  ));
+
+  return $file_entry;
+}
+
+/**
+ * Delete a file from the JSON array + physical file.
+ */
+function _hop_dong_delete_file($hop_dong_id, $file_id) {
+  $files = _hop_dong_get_files($hop_dong_id);
+  if ($files === NULL) {
+    return _hop_dong_not_found('Hợp đồng không tồn tại');
+  }
+
+  $found = FALSE;
+  $new_files = array();
+  foreach ($files as $f) {
+    if ($f['id'] === $file_id) {
+      $full_path = file_default_scheme() . '://' . $f['file_path'];
+      if (file_exists($full_path)) {
+        file_unmanaged_delete($full_path);
+      }
+      $found = TRUE;
+      continue;
+    }
+    $new_files[] = $f;
+  }
+
+  if (!$found) {
+    return _hop_dong_not_found('File không tồn tại');
+  }
+
+  _hop_dong_set_files($hop_dong_id, $new_files);
+
+  watchdog('hop_dong', 'Xoá file %id từ hợp đồng #%hd', array(
+    '%id' => $file_id,
+    '%hd' => $hop_dong_id,
+  ));
+
+  return TRUE;
 }
 
 /*******************************************************************************
@@ -238,7 +410,6 @@ function _hop_dong_rest_list() {
     $like = '%' . db_like($_GET['keyword']) . '%';
     $or = db_or()
       ->condition('hd.so_hop_dong', $like, 'LIKE');
-    // Also search by customer name via subquery
     $kh_ids = db_select('khach_hang', 'kh')
       ->fields('kh', array('nid'))
       ->condition('kh.hoat_dong', 1)
@@ -323,18 +494,39 @@ function _hop_dong_rest_create() {
 function hop_dong_rest_item($id) {
   $id = (int) $id;
   if (!$id) {
-    return _hop_dong_fail('ID không hợp lệ');
+    drupal_json_output(_hop_dong_fail('ID không hợp lệ'));
+    return;
+  }
+
+  if (arg(3) === 'file') {
+    $file_id = arg(4);
+    $result = NULL;
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($file_id)) {
+      $result = _hop_dong_rest_file_upload($id);
+    }
+    elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE' && !empty($file_id)) {
+      $result = _hop_dong_rest_file_delete($id, $file_id);
+    }
+    else {
+      $result = _hop_dong_method_not_allowed('POST, DELETE');
+    }
+    drupal_json_output($result);
+    return;
   }
 
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'GET':
-      return _hop_dong_rest_get($id);
+      drupal_json_output(_hop_dong_rest_get($id));
+      break;
     case 'PUT':
-      return _hop_dong_rest_update($id);
+      drupal_json_output(_hop_dong_rest_update($id));
+      break;
     case 'DELETE':
-      return _hop_dong_rest_delete($id);
+      drupal_json_output(_hop_dong_rest_delete($id));
+      break;
     default:
-      return _hop_dong_method_not_allowed('GET, PUT, DELETE');
+      drupal_json_output(_hop_dong_method_not_allowed('GET, PUT, DELETE'));
+      break;
   }
 }
 
@@ -343,7 +535,7 @@ function _hop_dong_rest_get($id) {
     return _hop_dong_unauthorized('Bạn không có quyền xem hợp đồng');
   }
 
-  $row = _hop_dong_load_row($id);
+  $row = _hop_dong_load_row($id, TRUE);
   if (!$row) {
     return _hop_dong_not_found('Hợp đồng không tồn tại');
   }
@@ -393,7 +585,7 @@ function _hop_dong_rest_update($id) {
 
     watchdog('hop_dong', 'Cập nhật hợp đồng #%id', array('%id' => $id));
 
-    return _hop_dong_success(_hop_dong_load_row($id));
+    return _hop_dong_success(_hop_dong_load_row($id, TRUE));
   }
   catch (Exception $e) {
     $transaction->rollback();
@@ -431,6 +623,45 @@ function _hop_dong_rest_delete($id) {
     watchdog('hop_dong', 'Lỗi xoá hợp đồng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
     return _hop_dong_error('Lỗi hệ thống khi xoá hợp đồng');
   }
+}
+
+/*******************************************************************************
+ * REST: FILE — POST /api/hop-dong/{id}/file, DELETE /api/hop-dong/{id}/file/{fid}
+ ******************************************************************************/
+
+function _hop_dong_rest_file_upload($id) {
+  if (!user_access('hop_dong_create')) {
+    return _hop_dong_unauthorized('Bạn không có quyền tải file lên');
+  }
+
+  $existing = db_query("SELECT nid FROM {hop_dong} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  if (!$existing) {
+    return _hop_dong_not_found('Hợp đồng không tồn tại');
+  }
+
+  $result = _hop_dong_save_file($id);
+  if (isset($result['status']) && $result['status'] !== 'success') {
+    return $result;
+  }
+
+  return _hop_dong_success($result);
+}
+
+function _hop_dong_rest_file_delete($id, $file_id) {
+  if (!user_access('hop_dong_create')) {
+    return _hop_dong_unauthorized('Bạn không có quyền xoá file');
+  }
+
+  $existing = db_query("SELECT nid FROM {hop_dong} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  if (!$existing) {
+    return _hop_dong_not_found('Hợp đồng không tồn tại');
+  }
+
+  $result = _hop_dong_delete_file($id, $file_id);
+  if ($result === TRUE) {
+    return _hop_dong_success(array('deleted' => TRUE));
+  }
+  return $result;
 }
 
 /*******************************************************************************
