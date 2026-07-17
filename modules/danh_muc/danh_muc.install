@@ -2,7 +2,7 @@
 
 function danh_muc_schema() {
   $schema['danh_muc'] = array(
-    'description' => 'Danh mục (Phòng ban, Chức vụ, Địa điểm, Chi phí).',
+    'description' => 'Danh mục (Phòng ban, Chức vụ, Địa điểm, Chi phí, Bãi).',
     'fields' => array(
       'nid' => array(
         'type' => 'serial',
@@ -18,6 +18,11 @@ function danh_muc_schema() {
         'type' => 'varchar',
         'length' => 50,
         'not null' => TRUE,
+      ),
+      'thong_tin_json' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
       ),
       'hoat_dong' => array(
         'type' => 'int',
@@ -43,9 +48,81 @@ function danh_muc_schema() {
     ),
   );
 
+  $schema['danh_muc_phu_phi'] = array(
+    'description' => 'Phụ phí gắn với danh mục bãi.',
+    'fields' => array(
+      'nid' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'danh_muc_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'ten_phu_phi' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'so_tien' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'weight' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'hoat_dong' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'created' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
+      ),
+      'changed' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'danh_muc_id' => array('danh_muc_id'),
+      'hoat_dong' => array('hoat_dong'),
+      'weight' => array('weight'),
+    ),
+  );
+
   return $schema;
 }
 
 function danh_muc_update_7001() {
   drupal_install_schema('danh_muc');
+}
+
+function danh_muc_update_7002() {
+  if (!db_field_exists('danh_muc', 'thong_tin_json')) {
+    db_add_field('danh_muc', 'thong_tin_json', array(
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => FALSE,
+    ));
+  }
+}
+
+function danh_muc_update_7003() {
+  if (!db_table_exists('danh_muc_phu_phi')) {
+    $schema = danh_muc_schema();
+    db_create_table('danh_muc_phu_phi', $schema['danh_muc_phu_phi']);
+  }
 }
