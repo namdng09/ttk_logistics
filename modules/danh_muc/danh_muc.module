@@ -305,6 +305,7 @@ function _danh_muc_bai_save_phu_phi($danh_muc_id, $items, $phan_loai) {
 function _danh_muc_bai_enrich_row($row) {
   $result = is_array($row) ? $row : (array) $row;
   $result['phan_loai'] = _danh_muc_normalize_dia_diem_phan_loai($result['phan_loai']);
+  $result['thong_tin_json'] = _danh_muc_decode_thong_tin(isset($result['thong_tin_json']) ? $result['thong_tin_json'] : '');
   return $result;
 }
 
