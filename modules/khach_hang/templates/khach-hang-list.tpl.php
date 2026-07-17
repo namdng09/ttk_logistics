@@ -150,8 +150,8 @@
 
           <!-- Warehouse + Pricing Section -->
           <div class="section mt-4 mb-3">
-            <div class="section-head d-flex justify-content-between align-items-center mb-2">
-              <label class="form-label mb-0 fw-bold"><i class="ti tabler-map-pin me-2"></i>Địa chỉ kho và bảng giá cước vận chuyển</label>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label mb-0 fw-bold"><i class="ti tabler-truck me-2"></i>Địa chỉ kho & Bảng giá cước vận chuyển</label>
               <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-kho">
                 <i class="ti tabler-plus me-1"></i>Thêm kho
               </button>
@@ -188,27 +188,27 @@
 <template id="tpl-kho-card">
   <div class="kho-card">
     <div class="kho-card-header">
+      <!-- Address inputs row + delete kho -->
       <div class="row g-2 align-items-center">
         <div class="col-md-6">
           <select class="form-select kho-dia-chi" style="width:100%">
             <option value="">Chọn hoặc nhập địa chỉ kho</option>
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-5">
           <div class="input-group">
             <span class="input-group-text">km</span>
             <input type="number" min="0" class="form-control kho-khoang-cach" placeholder="Khoảng cách">
           </div>
         </div>
-        <div class="col-md-2 text-end">
+        <div class="col-md-1 text-end">
           <button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-kho" title="Xóa kho"><i class="ti tabler-x"></i></button>
         </div>
       </div>
-    </div>
-
-    <div class="kho-toolbar d-flex justify-content-between align-items-center px-3 py-2">
-      <h6 class="mb-0 fw-bold"><i class="ti tabler-truck me-2"></i>Bảng giá cước vận chuyển theo kho</h6>
-      <button type="button" class="btn btn-sm btn-label-primary btn-them-dong-gia"><i class="ti tabler-plus me-1"></i>Thêm dòng giá</button>
+      <!-- Add price row button -->
+      <div class="mt-2 text-end">
+        <button type="button" class="btn btn-sm btn-label-primary btn-them-dong-gia"><i class="ti tabler-plus me-1"></i>Thêm dòng giá</button>
+      </div>
     </div>
 
     <div class="table-wrap">
