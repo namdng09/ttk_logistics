@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Danh Mục — Catalog management (Danh mục chung + bãi/phụ phí).
+ * Danh Mục — Catalog management (Danh mục chung + địa điểm/phụ phí).
  */
 
 /**
@@ -21,7 +21,7 @@ function danh_muc_permission() {
  */
 function danh_muc_init() {
   $path = current_path();
-  if (strpos($path, 'api/danh-muc') === 0 || strpos($path, 'api/danh-muc-bai') === 0) {
+  if (strpos($path, 'api/danh-muc') === 0 || strpos($path, 'api/danh-muc-dia-diem') === 0 || strpos($path, 'api/danh-muc-bai') === 0) {
     drupal_add_http_header('Access-Control-Allow-Origin', '*');
     drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
@@ -53,6 +53,19 @@ function danh_muc_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/danh-muc-dia-diem'] = array(
+    'page callback' => 'danh_muc_bai_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/danh-muc-dia-diem/%'] = array(
+    'page callback' => 'danh_muc_bai_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/danh-muc-bai'] = array(
     'page callback' => 'danh_muc_bai_rest_collection',
     'access callback' => TRUE,
@@ -74,11 +87,16 @@ function danh_muc_menu() {
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
   );
-  $items['danh-muc-bai'] = array(
-    'title' => 'Danh mục bãi',
+  $items['danh-muc-dia-diem'] = array(
+    'title' => 'Danh mục địa điểm',
     'page callback' => 'danh_muc_page_bai_list',
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
+  );
+  $items['danh-muc-bai'] = array(
+    'page callback' => 'danh_muc_page_bai_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_CALLBACK,
   );
 
   return $items;
@@ -182,16 +200,35 @@ function _danh_muc_validate_phan_loai($value) {
   return in_array($value, _danh_muc_phan_loai_options());
 }
 
+function _danh_muc_dia_diem_legacy_phan_loai_map() {
+  return array(
+    'Bãi lấy' => 'Bãi',
+    'Bãi hạ' => 'Bãi',
+    'Bãi hạ ngoài' => 'Bãi',
+    'Cảng xuất' => 'Cảng',
+    'Cảng hạ' => 'Cảng',
+  );
+}
+
+function _danh_muc_normalize_dia_diem_phan_loai($value) {
+  $map = _danh_muc_dia_diem_legacy_phan_loai_map();
+  return isset($map[$value]) ? $map[$value] : $value;
+}
+
 function _danh_muc_bai_phan_loai_options() {
-  return array('Bãi lấy', 'Bãi hạ', 'Cảng xuất', 'Cảng hạ', 'Bãi hạ ngoài');
+  return array('Bãi', 'Cảng');
+}
+
+function _danh_muc_bai_query_phan_loai_options() {
+  return array_merge(_danh_muc_bai_phan_loai_options(), array_keys(_danh_muc_dia_diem_legacy_phan_loai_map()));
 }
 
 function _danh_muc_validate_bai_phan_loai($value) {
-  return in_array($value, _danh_muc_bai_phan_loai_options());
+  return in_array(_danh_muc_normalize_dia_diem_phan_loai($value), _danh_muc_bai_phan_loai_options());
 }
 
 function _danh_muc_bai_has_phu_phi($phan_loai) {
-  return in_array($phan_loai, array('Bãi lấy', 'Bãi hạ'));
+  return in_array(_danh_muc_normalize_dia_diem_phan_loai($phan_loai), _danh_muc_bai_phan_loai_options());
 }
 
 function _danh_muc_decode_thong_tin($json) {
@@ -216,26 +253,14 @@ function _danh_muc_enrich_row($row) {
 }
 
 function _danh_muc_bai_load_phu_phi($danh_muc_id) {
-  $query = db_select('danh_muc_phu_phi', 'pp');
-  $query->fields('pp');
-  $query->condition('pp.danh_muc_id', (int) $danh_muc_id);
-  $query->condition('pp.hoat_dong', 1);
-  $query->orderBy('pp.weight', 'ASC');
-  $query->orderBy('pp.nid', 'ASC');
-  $rows = $query->execute()->fetchAll();
-
-  $items = array();
-  if ($rows) {
-    foreach ($rows as $row) {
-      $items[] = array(
-        'nid' => (int) $row->nid,
-        'ten_phu_phi' => $row->ten_phu_phi,
-        'so_tien' => (int) $row->so_tien,
-        'weight' => (int) $row->weight,
-      );
-    }
+  $row = db_query("SELECT thong_tin_json FROM {danh_muc} WHERE nid = :id", array(':id' => (int) $danh_muc_id))->fetch();
+  if (!$row) {
+    return array();
   }
-  return $items;
+
+  $thong_tin = _danh_muc_decode_thong_tin($row->thong_tin_json);
+  $items = isset($thong_tin['phu_phi']) && is_array($thong_tin['phu_phi']) ? $thong_tin['phu_phi'] : array();
+  return _danh_muc_bai_normalize_phu_phi($items, 'Bãi');
 }
 
 function _danh_muc_bai_normalize_phu_phi($items, $phan_loai) {
@@ -264,39 +289,22 @@ function _danh_muc_bai_normalize_phu_phi($items, $phan_loai) {
 
 function _danh_muc_bai_save_phu_phi($danh_muc_id, $items, $phan_loai) {
   $normalized = _danh_muc_bai_normalize_phu_phi($items, $phan_loai);
+  $existing = db_query("SELECT thong_tin_json FROM {danh_muc} WHERE nid = :id", array(':id' => (int) $danh_muc_id))->fetchField();
+  $thong_tin = _danh_muc_decode_thong_tin($existing);
+  $thong_tin['phu_phi'] = $normalized;
 
-  db_delete('danh_muc_phu_phi')
-    ->condition('danh_muc_id', (int) $danh_muc_id)
+  db_update('danh_muc')
+    ->fields(array(
+      'thong_tin_json' => _danh_muc_encode_thong_tin($thong_tin),
+      'changed' => _danh_muc_now(),
+    ))
+    ->condition('nid', (int) $danh_muc_id)
     ->execute();
-
-  if (empty($normalized)) {
-    return;
-  }
-
-  foreach ($normalized as $item) {
-    db_insert('danh_muc_phu_phi')
-      ->fields(array(
-        'danh_muc_id' => (int) $danh_muc_id,
-        'ten_phu_phi' => $item['ten_phu_phi'],
-        'so_tien' => (int) $item['so_tien'],
-        'weight' => (int) $item['weight'],
-        'hoat_dong' => 1,
-        'created' => _danh_muc_now(),
-        'changed' => _danh_muc_now(),
-      ))
-      ->execute();
-  }
 }
 
 function _danh_muc_bai_enrich_row($row) {
-  $result = _danh_muc_enrich_row($row);
-  $result['phu_phi'] = _danh_muc_bai_load_phu_phi($result['nid']);
-  $result['so_luong_phu_phi'] = count($result['phu_phi']);
-  $tong = 0;
-  foreach ($result['phu_phi'] as $phi) {
-    $tong += (int) $phi['so_tien'];
-  }
-  $result['tong_phu_phi'] = $tong;
+  $result = is_array($row) ? $row : (array) $row;
+  $result['phan_loai'] = _danh_muc_normalize_dia_diem_phan_loai($result['phan_loai']);
   return $result;
 }
 
@@ -324,7 +332,7 @@ function _danh_muc_rest_list() {
   $query->fields('dm');
 
   $query->condition('dm.hoat_dong', 1);
-  $query->condition('dm.phan_loai', _danh_muc_bai_phan_loai_options(), 'NOT IN');
+  $query->condition('dm.phan_loai', _danh_muc_bai_query_phan_loai_options(), 'NOT IN');
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
     $or = db_or()
@@ -525,7 +533,7 @@ function _danh_muc_rest_delete($id) {
 }
 
 /*******************************************************************************
- * REST: BAI — GET /api/danh-muc-bai, POST /api/danh-muc-bai
+ * REST: DIA DIEM — GET /api/danh-muc-dia-diem, POST /api/danh-muc-dia-diem
  ******************************************************************************/
 
 function danh_muc_bai_rest_collection() {
@@ -547,7 +555,7 @@ function _danh_muc_bai_rest_list() {
   $query = db_select('danh_muc', 'dm');
   $query->fields('dm');
   $query->condition('dm.hoat_dong', 1);
-  $query->condition('dm.phan_loai', _danh_muc_bai_phan_loai_options(), 'IN');
+  $query->condition('dm.phan_loai', _danh_muc_bai_query_phan_loai_options(), 'IN');
 
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
@@ -557,7 +565,7 @@ function _danh_muc_bai_rest_list() {
     $query->condition($or);
   }
   if (!empty($_GET['phan_loai']) && _danh_muc_validate_bai_phan_loai($_GET['phan_loai'])) {
-    $query->condition('dm.phan_loai', $_GET['phan_loai']);
+    $query->condition('dm.phan_loai', _danh_muc_normalize_dia_diem_phan_loai($_GET['phan_loai']));
   }
 
   $count = clone $query;
@@ -585,24 +593,25 @@ function _danh_muc_bai_rest_list() {
 
 function _danh_muc_bai_rest_create() {
   if (!user_access('danh_muc_create')) {
-    return _danh_muc_unauthorized('Bạn không có quyền tạo danh mục bãi');
+    return _danh_muc_unauthorized('Bạn không có quyền tạo danh mục địa điểm');
   }
 
   $input = _danh_muc_input();
 
   if (empty($input['ten'])) {
-    return _danh_muc_fail('Tên bãi bắt buộc');
+    return _danh_muc_fail('Tên địa điểm bắt buộc');
   }
   if (empty($input['phan_loai'])) {
-    return _danh_muc_fail('Loại bãi bắt buộc');
+    return _danh_muc_fail('Loại địa điểm bắt buộc');
   }
   if (!_danh_muc_validate_bai_phan_loai($input['phan_loai'])) {
-    return _danh_muc_fail('Loại bãi không hợp lệ. Chọn: ' . implode(', ', _danh_muc_bai_phan_loai_options()));
+    return _danh_muc_fail('Loại địa điểm không hợp lệ. Chọn: ' . implode(', ', _danh_muc_bai_phan_loai_options()));
   }
 
   $dup = _danh_muc_check_unique($input);
   if ($dup) return $dup;
 
+  $normalized_phan_loai = _danh_muc_normalize_dia_diem_phan_loai($input['phan_loai']);
   $thong_tin = array(
     'ghi_chu' => isset($input['ghi_chu']) ? trim($input['ghi_chu']) : '',
   );
@@ -612,7 +621,7 @@ function _danh_muc_bai_rest_create() {
     $nid = db_insert('danh_muc')
       ->fields(array(
         'ten' => trim($input['ten']),
-        'phan_loai' => $input['phan_loai'],
+        'phan_loai' => $normalized_phan_loai,
         'thong_tin_json' => _danh_muc_encode_thong_tin($thong_tin),
         'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
         'created' => _danh_muc_now(),
@@ -620,11 +629,11 @@ function _danh_muc_bai_rest_create() {
       ))
       ->execute();
 
-    _danh_muc_bai_save_phu_phi($nid, isset($input['phu_phi']) ? $input['phu_phi'] : array(), $input['phan_loai']);
+    _danh_muc_bai_save_phu_phi($nid, isset($input['phu_phi']) ? $input['phu_phi'] : array(), $normalized_phan_loai);
 
     $row = db_query("SELECT * FROM {danh_muc} WHERE nid = :id", array(':id' => $nid))->fetch();
 
-    watchdog('danh_muc', 'Tạo danh mục bãi #%id: %ten (%phan_loai)', array(
+    watchdog('danh_muc', 'Tạo danh mục địa điểm #%id: %ten (%phan_loai)', array(
       '%id' => $nid,
       '%ten' => $input['ten'],
       '%phan_loai' => $input['phan_loai'],
@@ -634,13 +643,13 @@ function _danh_muc_bai_rest_create() {
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog('danh_muc', 'Lỗi tạo danh mục bãi: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _danh_muc_error('Lỗi hệ thống khi tạo danh mục bãi');
+    watchdog('danh_muc', 'Lỗi tạo danh mục địa điểm: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _danh_muc_error('Lỗi hệ thống khi tạo danh mục địa điểm');
   }
 }
 
 /*******************************************************************************
- * REST: BAI ITEM — GET /api/danh-muc-bai/{id}, PUT, DELETE
+ * REST: DIA DIEM ITEM — GET /api/danh-muc-dia-diem/{id}, PUT, DELETE
  ******************************************************************************/
 
 function danh_muc_bai_rest_item($id) {
@@ -664,36 +673,37 @@ function danh_muc_bai_rest_item($id) {
 function _danh_muc_bai_rest_get($id) {
   $row = db_query("SELECT * FROM {danh_muc} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$row || !_danh_muc_validate_bai_phan_loai($row->phan_loai)) {
-    return _danh_muc_not_found('Danh mục bãi không tồn tại');
+    return _danh_muc_not_found('Danh mục địa điểm không tồn tại');
   }
   return _danh_muc_success(_danh_muc_bai_enrich_row($row));
 }
 
 function _danh_muc_bai_rest_update($id) {
   if (!user_access('danh_muc_create')) {
-    return _danh_muc_unauthorized('Bạn không có quyền sửa danh mục bãi');
+    return _danh_muc_unauthorized('Bạn không có quyền sửa danh mục địa điểm');
   }
 
   $existing = db_query("SELECT nid, phan_loai FROM {danh_muc} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing || !_danh_muc_validate_bai_phan_loai($existing->phan_loai)) {
-    return _danh_muc_not_found('Danh mục bãi không tồn tại');
+    return _danh_muc_not_found('Danh mục địa điểm không tồn tại');
   }
 
   $input = _danh_muc_input();
 
   if (empty($input['ten'])) {
-    return _danh_muc_fail('Tên bãi bắt buộc');
+    return _danh_muc_fail('Tên địa điểm bắt buộc');
   }
   if (empty($input['phan_loai'])) {
-    return _danh_muc_fail('Loại bãi bắt buộc');
+    return _danh_muc_fail('Loại địa điểm bắt buộc');
   }
   if (!_danh_muc_validate_bai_phan_loai($input['phan_loai'])) {
-    return _danh_muc_fail('Loại bãi không hợp lệ. Chọn: ' . implode(', ', _danh_muc_bai_phan_loai_options()));
+    return _danh_muc_fail('Loại địa điểm không hợp lệ. Chọn: ' . implode(', ', _danh_muc_bai_phan_loai_options()));
   }
 
   $dup = _danh_muc_check_unique($input, $id);
   if ($dup) return $dup;
 
+  $normalized_phan_loai = _danh_muc_normalize_dia_diem_phan_loai($input['phan_loai']);
   $thong_tin = array(
     'ghi_chu' => isset($input['ghi_chu']) ? trim($input['ghi_chu']) : '',
   );
@@ -703,36 +713,36 @@ function _danh_muc_bai_rest_update($id) {
     db_update('danh_muc')
       ->fields(array(
         'ten' => trim($input['ten']),
-        'phan_loai' => $input['phan_loai'],
+        'phan_loai' => $normalized_phan_loai,
         'thong_tin_json' => _danh_muc_encode_thong_tin($thong_tin),
         'changed' => _danh_muc_now(),
       ))
       ->condition('nid', $id)
       ->execute();
 
-    _danh_muc_bai_save_phu_phi($id, isset($input['phu_phi']) ? $input['phu_phi'] : array(), $input['phan_loai']);
+    _danh_muc_bai_save_phu_phi($id, isset($input['phu_phi']) ? $input['phu_phi'] : array(), $normalized_phan_loai);
 
     $row = db_query("SELECT * FROM {danh_muc} WHERE nid = :id", array(':id' => $id))->fetch();
 
-    watchdog('danh_muc', 'Cập nhật danh mục bãi #%id', array('%id' => $id));
+    watchdog('danh_muc', 'Cập nhật danh mục địa điểm #%id', array('%id' => $id));
 
     return _danh_muc_success(_danh_muc_bai_enrich_row($row));
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog('danh_muc', 'Lỗi cập nhật danh mục bãi #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _danh_muc_error('Lỗi hệ thống khi cập nhật danh mục bãi');
+    watchdog('danh_muc', 'Lỗi cập nhật danh mục địa điểm #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _danh_muc_error('Lỗi hệ thống khi cập nhật danh mục địa điểm');
   }
 }
 
 function _danh_muc_bai_rest_delete($id) {
   if (!user_access('danh_muc_delete')) {
-    return _danh_muc_unauthorized('Bạn không có quyền xoá danh mục bãi');
+    return _danh_muc_unauthorized('Bạn không có quyền xoá danh mục địa điểm');
   }
 
   $existing = db_query("SELECT nid, ten, phan_loai FROM {danh_muc} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing || !_danh_muc_validate_bai_phan_loai($existing->phan_loai)) {
-    return _danh_muc_not_found('Danh mục bãi không tồn tại');
+    return _danh_muc_not_found('Danh mục địa điểm không tồn tại');
   }
 
   $transaction = db_transaction();
@@ -742,12 +752,7 @@ function _danh_muc_bai_rest_delete($id) {
       ->condition('nid', $id)
       ->execute();
 
-    db_update('danh_muc_phu_phi')
-      ->fields(array('hoat_dong' => 0, 'changed' => _danh_muc_now()))
-      ->condition('danh_muc_id', $id)
-      ->execute();
-
-    watchdog('danh_muc', 'Xoá (soft) danh mục bãi #%id: %ten', array(
+    watchdog('danh_muc', 'Xoá (soft) danh mục địa điểm #%id: %ten', array(
       '%id' => $id,
       '%ten' => $existing->ten,
     ));
@@ -756,8 +761,8 @@ function _danh_muc_bai_rest_delete($id) {
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog('danh_muc', 'Lỗi xoá danh mục bãi #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _danh_muc_error('Lỗi hệ thống khi xoá danh mục bãi');
+    watchdog('danh_muc', 'Lỗi xoá danh mục địa điểm #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _danh_muc_error('Lỗi hệ thống khi xoá danh mục địa điểm');
   }
 }
 
@@ -791,7 +796,7 @@ function danh_muc_page_bai_list() {
       'danh_muc_delete' => user_access('danh_muc_delete'),
     ),
     'phan_loai_options' => _danh_muc_bai_phan_loai_options(),
-    'phan_loai_co_phu_phi' => array('Bãi lấy', 'Bãi hạ'),
+    'phan_loai_co_phu_phi' => array('Bãi', 'Cảng'),
   )), 'setting');
 
   return theme('danh_muc_bai_list_page');

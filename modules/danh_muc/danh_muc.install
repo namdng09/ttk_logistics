@@ -48,61 +48,6 @@ function danh_muc_schema() {
     ),
   );
 
-  $schema['danh_muc_phu_phi'] = array(
-    'description' => 'Phụ phí gắn với danh mục bãi.',
-    'fields' => array(
-      'nid' => array(
-        'type' => 'serial',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-      ),
-      'danh_muc_id' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-      'ten_phu_phi' => array(
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-      ),
-      'so_tien' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-      'weight' => array(
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-      'hoat_dong' => array(
-        'type' => 'int',
-        'size' => 'tiny',
-        'not null' => TRUE,
-        'default' => 1,
-      ),
-      'created' => array(
-        'type' => 'varchar',
-        'length' => 19,
-        'not null' => FALSE,
-      ),
-      'changed' => array(
-        'type' => 'varchar',
-        'length' => 19,
-        'not null' => FALSE,
-      ),
-    ),
-    'primary key' => array('nid'),
-    'indexes' => array(
-      'danh_muc_id' => array('danh_muc_id'),
-      'hoat_dong' => array('hoat_dong'),
-      'weight' => array('weight'),
-    ),
-  );
-
   return $schema;
 }
 
@@ -121,8 +66,75 @@ function danh_muc_update_7002() {
 }
 
 function danh_muc_update_7003() {
+  // Deprecated: phu phi is now stored in thong_tin_json.
+}
+
+function danh_muc_update_7004() {
+  $map = array(
+    'Bãi lấy' => 'Bãi',
+    'Bãi hạ' => 'Bãi',
+    'Bãi hạ ngoài' => 'Bãi',
+    'Cảng xuất' => 'Cảng',
+    'Cảng hạ' => 'Cảng',
+  );
+  foreach ($map as $old => $new) {
+    db_update('danh_muc')
+      ->fields(array(
+        'phan_loai' => $new,
+        'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+      ))
+      ->condition('phan_loai', $old)
+      ->execute();
+  }
+}
+
+function danh_muc_update_7005() {
   if (!db_table_exists('danh_muc_phu_phi')) {
-    $schema = danh_muc_schema();
-    db_create_table('danh_muc_phu_phi', $schema['danh_muc_phu_phi']);
+    return;
+  }
+
+  $query = db_select('danh_muc', 'dm');
+  $query->fields('dm', array('nid', 'thong_tin_json', 'changed'));
+  $query->condition('dm.hoat_dong', 1);
+  $rows = $query->execute()->fetchAll();
+
+  foreach ($rows as $row) {
+    $thong_tin = array();
+    if (!empty($row->thong_tin_json)) {
+      $decoded = drupal_json_decode($row->thong_tin_json);
+      if (is_array($decoded)) {
+        $thong_tin = $decoded;
+      }
+    }
+
+    $phi_query = db_select('danh_muc_phu_phi', 'pp');
+    $phi_query->fields('pp', array('ten_phu_phi', 'so_tien', 'weight'));
+    $phi_query->condition('pp.danh_muc_id', (int) $row->nid);
+    $phi_query->condition('pp.hoat_dong', 1);
+    $phi_query->orderBy('pp.weight', 'ASC');
+    $phi_query->orderBy('pp.nid', 'ASC');
+    $phi_rows = $phi_query->execute()->fetchAll();
+
+    $phu_phi = array();
+    foreach ($phi_rows as $phi_row) {
+      if (trim($phi_row->ten_phu_phi) === '') {
+        continue;
+      }
+      $phu_phi[] = array(
+        'ten_phu_phi' => $phi_row->ten_phu_phi,
+        'so_tien' => (int) $phi_row->so_tien,
+        'weight' => (int) $phi_row->weight,
+      );
+    }
+
+    $thong_tin['phu_phi'] = $phu_phi;
+
+    db_update('danh_muc')
+      ->fields(array(
+        'thong_tin_json' => drupal_json_encode($thong_tin),
+        'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+      ))
+      ->condition('nid', (int) $row->nid)
+      ->execute();
   }
 }

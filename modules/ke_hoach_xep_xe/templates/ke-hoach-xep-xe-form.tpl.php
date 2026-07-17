@@ -82,17 +82,23 @@
 
       <div class="col-md-4">
         <label class="form-label">Bãi lấy cont</label>
-        <input type="text" id="bai_lay_cont-input" class="form-control" placeholder="Nhập bãi lấy container">
+        <select id="bai_lay_cont-input" class="form-select select2-searchable" style="width:100%">
+          <option value="">— Chọn —</option>
+        </select>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Bãi hạ cont</label>
-        <input type="text" id="bai_ha_cont-input" class="form-control" placeholder="Nhập bãi hạ container">
+        <select id="bai_ha_cont-input" class="form-select select2-searchable" style="width:100%">
+          <option value="">— Chọn —</option>
+        </select>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Cảng xuất</label>
-        <input type="text" id="cang_xuat-input" class="form-control" placeholder="Nhập cảng xuất">
+        <select id="cang_xuat-input" class="form-select select2-searchable" style="width:100%">
+          <option value="">— Chọn —</option>
+        </select>
       </div>
 
       <div class="col-md-4">

@@ -8,7 +8,7 @@
   var currentMode = 'create';
   var eventsBound = false;
   var settings = Drupal.settings.danh_muc_bai || {};
-  var PHAN_LOAI_CO_PHU_PHI = settings.phan_loai_co_phu_phi || ['Bãi lấy', 'Bãi hạ'];
+  var PHAN_LOAI_CO_PHU_PHI = settings.phan_loai_co_phu_phi || ['Bãi', 'Cảng'];
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -25,6 +25,45 @@
 
   function hasPhuPhi(phanLoai) {
     return PHAN_LOAI_CO_PHU_PHI.indexOf(phanLoai) !== -1;
+  }
+
+  function parseThongTinJson(raw) {
+    var data = {};
+    if (!raw) {
+      return data;
+    }
+
+    if (typeof raw === 'object') {
+      data = raw;
+    } else {
+      try {
+        data = JSON.parse(raw);
+      } catch (e) {
+        data = {};
+      }
+    }
+
+    if (!data || typeof data !== 'object') {
+      return {};
+    }
+
+    if (!Array.isArray(data.phu_phi)) {
+      data.phu_phi = [];
+    }
+
+    return data;
+  }
+
+  function getPhuPhiItems(item) {
+    return parseThongTinJson(item && item.thong_tin_json).phu_phi || [];
+  }
+
+  function getTongPhuPhi(items) {
+    var tong = 0;
+    for (var i = 0; i < items.length; i++) {
+      tong += parseInt(items[i].so_tien, 10) || 0;
+    }
+    return tong;
   }
 
   function formatMoney(n) {
@@ -326,7 +365,7 @@
     data.phu_phi = hasPhuPhi(data.phan_loai) ? phuPhi : [];
 
     var nid = data.nid;
-    var url = nid ? '/api/danh-muc-bai/' + nid : '/api/danh-muc-bai';
+    var url = nid ? '/api/danh-muc-dia-diem/' + nid : '/api/danh-muc-dia-diem';
     var method = nid ? 'PUT' : 'POST';
 
     var btn = document.querySelector('.btn-luu-danh-muc-bai');
@@ -371,7 +410,7 @@
     if (currentPhanLoai) params.phan_loai = currentPhanLoai;
 
     $.ajax({
-      url: '/api/danh-muc-bai',
+      url: '/api/danh-muc-dia-diem',
       type: 'GET',
       dataType: 'json',
       data: params,
@@ -444,8 +483,9 @@
 
   function buildTenBaiCell(item) {
     var html = escapeHtml(item.ten || '');
-    if (item.thong_tin && item.thong_tin.ghi_chu) {
-      html += '<div class="text-muted mt-1">' + escapeHtml(item.thong_tin.ghi_chu) + '</div>';
+    var thongTin = parseThongTinJson(item.thong_tin_json);
+    if (thongTin.ghi_chu) {
+      html += '<div class="text-muted mt-1">' + escapeHtml(thongTin.ghi_chu) + '</div>';
     }
     return html;
   }
@@ -454,15 +494,16 @@
     if (!hasPhuPhi(item.phan_loai)) {
       return '<span class="text-muted fst-italic">Không áp dụng phụ phí</span>';
     }
-    if (!item.phu_phi || !item.phu_phi.length) {
+    var phuPhi = getPhuPhiItems(item);
+    if (!phuPhi.length) {
       return '<span class="text-muted fst-italic">Chưa cấu hình phụ phí</span>';
     }
 
     var html = '<div>';
-    for (var i = 0; i < item.phu_phi.length; i++) {
-      html += '<div>' + escapeHtml(item.phu_phi[i].ten_phu_phi || '') + ': ' + escapeHtml(formatMoney(item.phu_phi[i].so_tien || 0)) + 'đ</div>';
+    for (var i = 0; i < phuPhi.length; i++) {
+      html += '<div>' + escapeHtml(phuPhi[i].ten_phu_phi || '') + ': ' + escapeHtml(formatMoney(phuPhi[i].so_tien || 0)) + 'đ</div>';
     }
-    html += '<div class="text-primary mt-1"><strong>Tổng:</strong> ' + escapeHtml(formatMoney(item.tong_phu_phi || 0)) + 'đ</div>';
+    html += '<div class="text-primary mt-1"><strong>Tổng:</strong> ' + escapeHtml(formatMoney(getTongPhuPhi(phuPhi))) + 'đ</div>';
     html += '</div>';
     return html;
   }
@@ -513,13 +554,13 @@
 
   function openViewModal(id) {
     currentMode = 'view';
-    document.getElementById('danh-muc-bai-modal-title').textContent = 'Chi tiết bãi';
+    document.getElementById('danh-muc-bai-modal-title').textContent = 'Chi tiết địa điểm';
     document.querySelector('.btn-luu-danh-muc-bai').style.display = 'none';
     showLoading(true);
     modalShow('danh-muc-bai-modal');
 
     $.ajax({
-      url: '/api/danh-muc-bai/' + id,
+      url: '/api/danh-muc-dia-diem/' + id,
       type: 'GET',
       dataType: 'json',
       success: function (res) {
@@ -541,7 +582,7 @@
 
   function openEditModal(id) {
     currentMode = 'edit';
-    document.getElementById('danh-muc-bai-modal-title').textContent = 'Cập nhật bãi';
+    document.getElementById('danh-muc-bai-modal-title').textContent = 'Cập nhật địa điểm';
     document.querySelector('#form-danh-muc-bai input[name="nid"]').value = id;
     var btn = document.querySelector('.btn-luu-danh-muc-bai');
     btn.removeAttribute('disabled');
@@ -551,7 +592,7 @@
     modalShow('danh-muc-bai-modal');
 
     $.ajax({
-      url: '/api/danh-muc-bai/' + id,
+      url: '/api/danh-muc-dia-diem/' + id,
       type: 'GET',
       dataType: 'json',
       success: function (res) {
@@ -602,7 +643,7 @@
     showLoading(false);
     document.getElementById('form-danh-muc-bai').reset();
     document.querySelector('#form-danh-muc-bai input[name="nid"]').value = '';
-    document.getElementById('danh-muc-bai-modal-title').textContent = 'Thêm bãi';
+    document.getElementById('danh-muc-bai-modal-title').textContent = 'Thêm địa điểm';
     document.getElementById('form-danh-muc-bai').classList.remove('was-validated');
     initPhuPhiRepeater();
     togglePhuPhiSection('');
@@ -610,17 +651,20 @@
   }
 
   function populateForm(d) {
+    var thongTin = parseThongTinJson(d.thong_tin_json);
+    var phuPhi = thongTin.phu_phi || [];
+
     document.querySelector('#form-danh-muc-bai input[name="nid"]').value = d.nid || '';
     document.querySelector('#form-danh-muc-bai input[name="ten"]').value = d.ten || '';
     document.querySelector('#form-danh-muc-bai select[name="phan_loai"]').value = d.phan_loai || '';
-    document.querySelector('#form-danh-muc-bai textarea[name="ghi_chu"]').value = d.thong_tin && d.thong_tin.ghi_chu ? d.thong_tin.ghi_chu : '';
+    document.querySelector('#form-danh-muc-bai textarea[name="ghi_chu"]').value = thongTin.ghi_chu || '';
 
     initPhuPhiRepeater();
     togglePhuPhiSection(d.phan_loai || '');
-    if (d.phu_phi && d.phu_phi.length && hasPhuPhi(d.phan_loai)) {
+    if (phuPhi.length && hasPhuPhi(d.phan_loai)) {
       initPhuPhiRepeater();
-      for (var i = 0; i < d.phu_phi.length; i++) {
-        addPhuPhiRow(d.phu_phi[i]);
+      for (var i = 0; i < phuPhi.length; i++) {
+        addPhuPhiRow(phuPhi[i]);
       }
     }
     setFormMode(currentMode);
@@ -630,7 +674,7 @@
     if (typeof Swal !== 'undefined') {
       Swal.fire({
         title: 'Xác nhận xoá',
-        text: 'Bạn có chắc chắn muốn xoá bãi này?',
+        text: 'Bạn có chắc chắn muốn xoá địa điểm này?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Xoá',
@@ -643,14 +687,14 @@
           deleteItem(id);
         }
       });
-    } else if (confirm('Xác nhận xoá bãi này?')) {
+    } else if (confirm('Xác nhận xoá địa điểm này?')) {
       deleteItem(id);
     }
   }
 
   function deleteItem(id) {
     $.ajax({
-      url: '/api/danh-muc-bai/' + id,
+      url: '/api/danh-muc-dia-diem/' + id,
       type: 'DELETE',
       dataType: 'json',
       success: function (res) {

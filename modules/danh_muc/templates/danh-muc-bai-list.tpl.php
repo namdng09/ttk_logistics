@@ -1,13 +1,13 @@
 <div class="card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <h4 class="card-title">Danh mục bãi</h4>
+    <h4 class="card-title">Danh mục địa điểm</h4>
   </div>
 
   <div class="card-body">
     <div class="row mb-3 align-items-center">
       <div class="col-12 col-md-4 mb-2 mb-md-0">
         <div class="input-group">
-          <input type="text" class="form-control" id="search-danh-muc-bai" placeholder="Tìm kiếm tên bãi, loại bãi...">
+          <input type="text" class="form-control" id="search-danh-muc-bai" placeholder="Tìm kiếm tên địa điểm, loại địa điểm...">
           <button class="btn btn-primary" type="button" id="btn-search-danh-muc-bai">
             <i class="ti tabler-search"></i> Tìm
           </button>
@@ -15,18 +15,15 @@
       </div>
       <div class="col-6 col-md-4 mb-2 mb-md-0">
         <select class="form-select" id="filter-phan-loai-bai">
-          <option value="">Tất cả loại bãi</option>
-          <option value="Bãi lấy">Bãi lấy</option>
-          <option value="Bãi hạ">Bãi hạ</option>
-          <option value="Cảng xuất">Cảng xuất</option>
-          <option value="Cảng hạ">Cảng hạ</option>
-          <option value="Bãi hạ ngoài">Bãi hạ ngoài</option>
+          <option value="">Tất cả loại địa điểm</option>
+          <option value="Bãi">Bãi</option>
+          <option value="Cảng">Cảng</option>
         </select>
       </div>
       <div class="col-6 col-md-4">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-primary btn-them-danh-muc-bai" data-bs-toggle="modal" data-bs-target="#danh-muc-bai-modal">
-            <i class="ti tabler-plus me-1"></i>Thêm bãi
+            <i class="ti tabler-plus me-1"></i>Thêm địa điểm
           </button>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-danh-muc-bai">
             <i class="ti tabler-refresh"></i>
@@ -41,8 +38,8 @@
           <tr>
             <th style="width:60px;text-align:center !important">CN</th>
             <th style="width:50px">#</th>
-            <th>Tên bãi</th>
-            <th style="width:160px;">Loại bãi</th>
+            <th>Tên địa điểm</th>
+            <th style="width:160px;">Loại địa điểm</th>
             <th style="width:320px;">Phụ phí</th>
           </tr>
         </thead>
@@ -79,7 +76,7 @@
     <div class="modal-content">
       <form id="form-danh-muc-bai" class="needs-validation" novalidate>
         <div class="modal-header">
-          <h5 class="modal-title" id="danh-muc-bai-modal-title">Thêm bãi</h5>
+          <h5 class="modal-title" id="danh-muc-bai-modal-title">Thêm địa điểm</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body" style="position:relative;">
@@ -92,25 +89,18 @@
 
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label">Tên bãi <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" name="ten" required placeholder="Nhập tên bãi">
-              <div class="invalid-feedback">Vui lòng nhập tên bãi</div>
+              <label class="form-label">Tên địa điểm <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="ten" required placeholder="Nhập tên địa điểm">
+              <div class="invalid-feedback">Vui lòng nhập tên địa điểm</div>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Loại bãi <span class="text-danger">*</span></label>
+              <label class="form-label">Loại địa điểm <span class="text-danger">*</span></label>
               <select class="form-select" name="phan_loai" required>
-                <option value="">Chọn loại bãi</option>
-                <option value="Bãi lấy">Bãi lấy</option>
-                <option value="Bãi hạ">Bãi hạ</option>
-                <option value="Cảng xuất">Cảng xuất</option>
-                <option value="Cảng hạ">Cảng hạ</option>
-                <option value="Bãi hạ ngoài">Bãi hạ ngoài</option>
+                <option value="">Chọn loại địa điểm</option>
+                <option value="Bãi">Bãi</option>
+                <option value="Cảng">Cảng</option>
               </select>
-              <div class="invalid-feedback">Vui lòng chọn loại bãi</div>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Ghi chú</label>
-              <textarea class="form-control" name="ghi_chu" rows="2" placeholder="Nhập ghi chú nếu có"></textarea>
+              <div class="invalid-feedback">Vui lòng chọn loại địa điểm</div>
             </div>
 
             <div class="col-12" id="phu-phi-section" style="display:none;">
@@ -122,7 +112,12 @@
                 </button>
               </div>
               <div id="phu-phi-bai-repeater"></div>
-              <div class="form-text">Chỉ áp dụng cho Bãi lấy và Bãi hạ.</div>
+              <div class="form-text">Áp dụng cho cả Bãi và Cảng.</div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Ghi chú</label>
+              <textarea class="form-control" name="ghi_chu" rows="2" placeholder="Nhập ghi chú nếu có"></textarea>
             </div>
           </div>
         </div>

@@ -119,10 +119,10 @@ function getMainMenuSoft()
                             <div data-i18n="Danh mục">Danh mục</div>
                         </a>
                     </li>
-                    <li class="menu-item' . ((current_path() === 'danh-muc-bai') ? ' active' : '') . '">
-                        <a href="/danh-muc-bai" class="menu-link">
+                    <li class="menu-item' . ((current_path() === 'danh-muc-dia-diem' || current_path() === 'danh-muc-bai') ? ' active' : '') . '">
+                        <a href="/danh-muc-dia-diem" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-building-warehouse"></i>
-                            <div data-i18n="Danh mục bãi">Danh mục bãi</div>
+                            <div data-i18n="Danh mục địa điểm">Danh mục địa điểm</div>
                         </a>
                     </li>
                     ' . ((strpos(current_path(), 'phuong-tien') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '

@@ -503,7 +503,13 @@
       });
     }
 
-    var pendingFormValues = { dia_chi_kho: '', loai_cont: '' };
+    var pendingFormValues = {
+      dia_chi_kho: '',
+      loai_cont: '',
+      bai_lay_cont: '',
+      bai_ha_cont: '',
+      cang_xuat: ''
+    };
 
     function loadCauHinhGiaBan(khId) {
       if (!khId) {
@@ -547,13 +553,72 @@
       });
     }
 
+    function initDanhMucBaiSelect(selId, opts, placeholder) {
+      var sel = document.getElementById(selId);
+      if (!sel) return;
+      sel.innerHTML = '<option value="">— Chọn —</option>';
+      if (opts && opts.length) {
+        for (var i = 0; i < opts.length; i++) {
+          sel.appendChild(new Option(opts[i], opts[i]));
+        }
+      }
+      initSelect2(sel, placeholder || '— Chọn —');
+    }
+
+    function applyPendingDiaDiemValue(selId, pendingKey) {
+      if (pendingFormValues[pendingKey]) {
+        $('#' + selId).val(pendingFormValues[pendingKey]).trigger('change');
+        pendingFormValues[pendingKey] = '';
+      }
+    }
+
+    function loadDiaDiemOptions(done) {
+      $.ajax({
+        url: '/api/danh-muc-dia-diem',
+        type: 'GET',
+        dataType: 'json',
+        data: { limit: 500 },
+        success: function (res) {
+          var baiList = [];
+          var cangList = [];
+          if (res.status === 'success' && res.data && res.data.items) {
+            for (var i = 0; i < res.data.items.length; i++) {
+              var item = res.data.items[i];
+              if (!item.ten) continue;
+              if (item.phan_loai === 'Bãi') {
+                baiList.push(item.ten);
+              } else if (item.phan_loai === 'Cảng') {
+                cangList.push(item.ten);
+              }
+            }
+          }
+
+          initDanhMucBaiSelect('bai_lay_cont-input', baiList, '— Chọn bãi lấy cont —');
+          initDanhMucBaiSelect('bai_ha_cont-input', baiList, '— Chọn bãi hạ cont —');
+          initDanhMucBaiSelect('cang_xuat-input', cangList, '— Chọn cảng xuất —');
+
+          applyPendingDiaDiemValue('bai_lay_cont-input', 'bai_lay_cont');
+          applyPendingDiaDiemValue('bai_ha_cont-input', 'bai_ha_cont');
+          applyPendingDiaDiemValue('cang_xuat-input', 'cang_xuat');
+        },
+        error: function () {
+          initDanhMucBaiSelect('bai_lay_cont-input', [], '— Chọn bãi lấy cont —');
+          initDanhMucBaiSelect('bai_ha_cont-input', [], '— Chọn bãi hạ cont —');
+          initDanhMucBaiSelect('cang_xuat-input', [], '— Chọn cảng xuất —');
+        },
+        complete: function () {
+          done('dia_diem');
+        }
+      });
+    }
+
     // --- Load dropdowns with Select2 ---
-    var dropdownReady = { kh: false, lx: false, pt: false };
+    var dropdownReady = { kh: false, lx: false, pt: false, dia_diem: false };
     var rowData = null;
     var dataReady = false;
 
     function checkReady() {
-      if (dropdownReady.kh && dropdownReady.lx && dropdownReady.pt) {
+      if (dropdownReady.kh && dropdownReady.lx && dropdownReady.pt && dropdownReady.dia_diem) {
         initSelect2(document.getElementById('nid_khach_hang-input'), '— Chọn khách hàng —');
         initSelect2(document.getElementById('nid_lai_xe-input'), '— Chọn lái xe —');
         initSelect2(document.getElementById('nid_phuong_tien-input'), '— Chọn phương tiện —');
@@ -604,7 +669,6 @@
     }
 
     function loadDropdownData() {
-      var pending = 3;
       function done(readyKey) {
         dropdownReady[readyKey] = true;
         checkReady();
@@ -631,6 +695,7 @@
       loadOne('/api/khach-hang', 'nid_khach_hang-input', 'ten', 'kh');
       loadOne('/api/lai-xe', 'nid_lai_xe-input', 'ten', 'lx');
       loadOne('/api/phuong-tien', 'nid_phuong_tien-input', 'bks', 'pt');
+      loadDiaDiemOptions(done);
     }
 
     // --- Date/time helpers ---
@@ -675,13 +740,16 @@
       $('#so_bkg-input').val(row.so_bkg || '');
       pendingFormValues.dia_chi_kho = row.dia_chi_kho || '';
       pendingFormValues.loai_cont = row.loai_cont || '';
+      pendingFormValues.bai_lay_cont = row.bai_lay_cont || '';
+      pendingFormValues.bai_ha_cont = row.bai_ha_cont || '';
+      pendingFormValues.cang_xuat = row.cang_xuat || '';
       $('#so_cont-input').val(row.so_cont || '');
       $('#nid_phuong_tien-input').val((row.phuong_tien && row.phuong_tien.nid) || 0).trigger('change');
       $('#so_seal_chinh-input').val(row.so_seal_chinh || '');
       $('#so_seal_tam-input').val(row.so_seal_tam || '');
-      $('#bai_lay_cont-input').val(row.bai_lay_cont || '');
-      $('#bai_ha_cont-input').val(row.bai_ha_cont || '');
-      $('#cang_xuat-input').val(row.cang_xuat || '');
+      $('#bai_lay_cont-input').val(pendingFormValues.bai_lay_cont).trigger('change');
+      $('#bai_ha_cont-input').val(pendingFormValues.bai_ha_cont).trigger('change');
+      $('#cang_xuat-input').val(pendingFormValues.cang_xuat).trigger('change');
       $('#cut_off-input').val(apiToDatetime(row.cut_off));
       $('#hinh_thuc_van_tai-input').val(row.hinh_thuc_van_tai || '');
     }
@@ -697,9 +765,9 @@
         nid_phuong_tien: parseInt($('#nid_phuong_tien-input').val()) || 0,
         so_seal_chinh: $('#so_seal_chinh-input').val().trim(),
         so_seal_tam: $('#so_seal_tam-input').val().trim(),
-        bai_lay_cont: $('#bai_lay_cont-input').val().trim(),
-        bai_ha_cont: $('#bai_ha_cont-input').val().trim(),
-        cang_xuat: $('#cang_xuat-input').val().trim(),
+        bai_lay_cont: ($('#bai_lay_cont-input').val() || '').trim(),
+        bai_ha_cont: ($('#bai_ha_cont-input').val() || '').trim(),
+        cang_xuat: ($('#cang_xuat-input').val() || '').trim(),
         cut_off: datetimeToApi($('#cut_off-input').val()),
         hinh_thuc_van_tai: $('#hinh_thuc_van_tai-input').val(),
       };
