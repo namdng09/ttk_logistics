@@ -216,7 +216,7 @@
       return;
     }
 
-    var inputs = form.querySelectorAll('input');
+    var inputs = form.querySelectorAll('input, select');
     var data = {};
     for (var i = 0; i < inputs.length; i++) {
       var inp = inputs[i];
@@ -261,7 +261,7 @@
   function loadList() {
     var tbody = $('#table-lai-xe-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="13" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="8" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -275,7 +275,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="13" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="8" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -284,7 +284,7 @@
         var pageSize = data.limit || 20;
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="13" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="8" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -302,13 +302,8 @@
             '<td>' + escapeHtml(item.ma_nhan_vien || '') + '</td>' +
             '<td>' + escapeHtml(item.sdt || '') + '</td>' +
             '<td>' + escapeHtml(item.cccd || '') + '</td>' +
-            '<td>' + (item.ngay_cap || '') + '</td>' +
-            '<td>' + escapeHtml(item.noi_cap || '') + '</td>' +
-            '<td>' + (item.han_cccd || '') + '</td>' +
             '<td>' + escapeHtml(item.so_bang_lai || '') + '</td>' +
             '<td>' + escapeHtml(item.loai_bang_lai || '') + '</td>' +
-            '<td>' + (item.han_bang_lai || '') + '</td>' +
-            '<td>' + (item.ngay_nhan_viec || '') + '</td>' +
             '</tr>';
         }
         tbody.append(html);
@@ -316,7 +311,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="13" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="8" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -621,11 +616,57 @@
     }
   }
 
+  var LOAI_BANG_LAI_OPTIONS = ['A1', 'A', 'B1', 'B', 'C1', 'C', 'D1', 'D2', 'D', 'BE', 'C1E', 'CE', 'D1E', 'D2E', 'DE'];
+
+  function initLoaiBangLaiSelect(selEl, value) {
+    var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
+    if ($jq && $jq.fn.select2) {
+      var $sel = $jq(selEl);
+      if ($sel.data('select2')) $sel.select2('destroy');
+      $sel.select2({
+        dropdownParent: $jq('#lai-xe-modal'),
+        placeholder: 'Chọn hoặc nhập loại bằng',
+        allowClear: true,
+        width: '100%',
+        tags: true
+      });
+    }
+    selEl.innerHTML = '<option value="">Chọn loại bằng</option>';
+    for (var i = 0; i < LOAI_BANG_LAI_OPTIONS.length; i++) {
+      var opt = document.createElement('option');
+      opt.value = LOAI_BANG_LAI_OPTIONS[i];
+      opt.textContent = LOAI_BANG_LAI_OPTIONS[i];
+      selEl.appendChild(opt);
+    }
+    if (value) {
+      var found = false;
+      for (var j = 0; j < selEl.options.length; j++) {
+        if (selEl.options[j].value === value) {
+          selEl.value = value;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        var newOpt = document.createElement('option');
+        newOpt.value = value;
+        newOpt.textContent = value;
+        selEl.appendChild(newOpt);
+        selEl.value = value;
+      }
+    }
+    if ($jq && $jq.fn.select2 && $jq(selEl).data('select2')) {
+      $jq(selEl).trigger('change.select2');
+    }
+  }
+
   function resetForm() {
     showLoading(false);
     document.getElementById('form-lai-xe').reset();
     document.querySelector('#form-lai-xe input[name="nid"]').value = '';
     document.getElementById('lai-xe-modal-title').textContent = 'Thêm lái xe';
+    var selBang = document.querySelector('#form-lai-xe select[name="loai_bang_lai"]');
+    if (selBang) initLoaiBangLaiSelect(selBang, '');
     initRepeater();
     setFormMode('create');
   }
@@ -639,7 +680,10 @@
     document.querySelector('#form-lai-xe input[name="noi_cap"]').value = d.noi_cap || '';
     document.querySelector('#form-lai-xe input[name="han_cccd"]').value = d.han_cccd || '';
     document.querySelector('#form-lai-xe input[name="so_bang_lai"]').value = d.so_bang_lai || '';
-    document.querySelector('#form-lai-xe input[name="loai_bang_lai"]').value = d.loai_bang_lai || '';
+    var selBang = document.querySelector('#form-lai-xe select[name="loai_bang_lai"]');
+    if (selBang) {
+      initLoaiBangLaiSelect(selBang, d.loai_bang_lai || '');
+    }
     document.querySelector('#form-lai-xe input[name="han_bang_lai"]').value = d.han_bang_lai || '';
     document.querySelector('#form-lai-xe input[name="ngay_nhan_viec"]').value = d.ngay_nhan_viec || '';
 

@@ -6,6 +6,8 @@
   var currentKeyword = '';
   var currentRoleRid = '';
   var currentTrangThai = '';
+  var BANK_LIST = [];
+  var BANK_LIST_LOADED = false;
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -26,12 +28,81 @@
       }
 
       if ($('#table-nhan-vien', context).length) {
+        loadBankList();
         loadFilters();
         loadList();
         bindNativeEvents();
       }
     }
   };
+
+  function loadBankList() {
+    if (BANK_LIST_LOADED) return;
+    var cached = localStorage.getItem('bankList');
+    if (cached) {
+      try { BANK_LIST = JSON.parse(cached); BANK_LIST_LOADED = true; } catch (e) {}
+    }
+    $.ajax({
+      url: 'https://api.vietqr.io/v2/banks',
+      type: 'GET',
+      dataType: 'json',
+      success: function (res) {
+        if (res && res.data && res.data.length) {
+          BANK_LIST = res.data;
+          BANK_LIST_LOADED = true;
+          try { localStorage.setItem('bankList', JSON.stringify(res.data)); } catch (e) {}
+          var sel = document.querySelector('#form-nhan-vien select[name="ngan_hang"]');
+          if (sel) {
+            var curVal = sel.value;
+            initNganHangSelect(sel, curVal || null);
+          }
+        }
+      },
+      error: function () {}
+    });
+  }
+
+  function initNganHangSelect(selEl, value) {
+    var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
+    if ($jq && $jq.fn.select2) {
+      var $sel = $jq(selEl);
+      if ($sel.data('select2')) $sel.select2('destroy');
+      $sel.select2({
+        dropdownParent: $jq('#nhan-vien-modal'),
+        placeholder: 'Chọn ngân hàng',
+        allowClear: true,
+        width: '100%'
+      });
+    }
+    selEl.innerHTML = '<option value="">Chọn ngân hàng</option>';
+    for (var i = 0; i < BANK_LIST.length; i++) {
+      var b = BANK_LIST[i];
+      var opt = document.createElement('option');
+      opt.value = b.shortName;
+      opt.textContent = b.shortName + ' - ' + b.name;
+      selEl.appendChild(opt);
+    }
+    if (value) {
+      var found = false;
+      for (var j = 0; j < selEl.options.length; j++) {
+        if (selEl.options[j].value === value || selEl.options[j].textContent.indexOf(value) !== -1) {
+          selEl.value = selEl.options[j].value;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        var newOpt = document.createElement('option');
+        newOpt.value = value;
+        newOpt.textContent = value;
+        selEl.appendChild(newOpt);
+        selEl.value = value;
+      }
+    }
+    if ($jq && $jq.fn.select2 && $jq(selEl).data('select2')) {
+      $jq(selEl).trigger('change.select2');
+    }
+  }
 
   function bindNativeEvents() {
     var doc = document;
@@ -578,6 +649,8 @@
     if (hiddenVal) hiddenVal.value = '1';
     var lbl = document.getElementById('switch-trang-thai-label');
     if (lbl) lbl.textContent = 'Hoạt động';
+    var selNH = document.querySelector('#form-nhan-vien select[name="ngan_hang"]');
+    if (selNH) initNganHangSelect(selNH, '');
     setFormMode('create');
   }
 
@@ -592,7 +665,10 @@
     document.querySelector('#form-nhan-vien input[name="cccd"]').value = d.cccd || '';
     document.querySelector('#form-nhan-vien input[name="dia_chi"]').value = d.dia_chi || '';
     document.querySelector('#form-nhan-vien input[name="so_tk_ngan_hang"]').value = d.so_tk_ngan_hang || '';
-    document.querySelector('#form-nhan-vien input[name="ngan_hang"]').value = d.ngan_hang || '';
+    var selNganHang = document.querySelector('#form-nhan-vien select[name="ngan_hang"]');
+    if (selNganHang) {
+      initNganHangSelect(selNganHang, d.ngan_hang || '');
+    }
 
     var selectPB = document.querySelector('#form-nhan-vien select[name="phong_ban"]');
     if (selectPB && d.phong_ban) selectPB.value = d.phong_ban.nid;

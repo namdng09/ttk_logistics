@@ -37,13 +37,8 @@
             <th>Mã NV</th>
             <th>SĐT</th>
             <th>CCCD</th>
-            <th>Ngày cấp</th>
-            <th>Nơi cấp</th>
-            <th>Hạn CCCD</th>
             <th>Số bằng lái</th>
             <th>Loại bằng</th>
-            <th>Hạn bằng</th>
-            <th>Ngày nhận việc</th>
           </tr>
         </thead>
         <tbody id="table-lai-xe-tbody">
@@ -104,7 +99,7 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">SĐT</label>
-              <input type="tel" class="form-control phone-mask" name="sdt" placeholder="0987654321" inputmode="numeric">
+              <input type="tel" class="form-control phone-mask" name="sdt" placeholder="0987654321" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
             </div>
             <div class="col-md-4">
               <label class="form-label">CCCD</label>
@@ -124,11 +119,13 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">Số bằng lái</label>
-              <input type="text" class="form-control" name="so_bang_lai" placeholder="Nhập số bằng lái">
+              <input type="text" class="form-control" name="so_bang_lai" placeholder="Nhập số bằng lái" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
             </div>
             <div class="col-md-4">
               <label class="form-label">Loại bằng lái</label>
-              <input type="text" class="form-control" name="loai_bang_lai" placeholder="B2, C, D...">
+              <select class="form-select select2-tags-loai-bang" name="loai_bang_lai" data-placeholder="Chọn hoặc nhập loại bằng">
+                <option value="">Chọn loại bằng</option>
+              </select>
             </div>
             <div class="col-md-4">
               <label class="form-label">Hạn bằng lái</label>

@@ -145,7 +145,9 @@
             </div>
             <div class="col-md-8">
               <label class="form-label">Ngân hàng</label>
-              <input type="text" class="form-control" name="ngan_hang" placeholder="Tên ngân hàng">
+              <select class="form-select select2-ngan-hang" name="ngan_hang" data-placeholder="Chọn ngân hàng">
+                <option value="">Chọn ngân hàng</option>
+              </select>
             </div>
             <div class="col-md-4">
               <label class="form-label">Phòng ban</label>
