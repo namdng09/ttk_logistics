@@ -238,6 +238,17 @@
     var url = nid ? '/api/phuong-tien/' + nid : '/api/phuong-tien';
     var method = nid ? 'PUT' : 'POST';
 
+    if (data.ngay_phu_hieu && data.han_phu_hieu) {
+      var parts1 = data.ngay_phu_hieu.split('/');
+      var parts2 = data.han_phu_hieu.split('/');
+      var d1 = new Date(parts1[2], parts1[1] - 1, parts1[0]);
+      var d2 = new Date(parts2[2], parts2[1] - 1, parts2[0]);
+      if (d2 < d1) {
+        if (notyf) notyf.error('Hạn phù hiệu không được trước ngày phù hiệu');
+        return;
+      }
+    }
+
     var btn = document.querySelector('.btn-luu-phuong-tien');
     btn.setAttribute('disabled', 'disabled');
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang lưu...';

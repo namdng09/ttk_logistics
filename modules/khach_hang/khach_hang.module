@@ -147,6 +147,60 @@ function _khach_hang_check_unique_ma($value, $exclude_nid = NULL) {
 }
 
 /**
+ * Normalize SĐT: strip spaces, dashes, dots → digits only.
+ */
+function _khach_hang_normalize_sdt($sdt) {
+  return preg_replace('/[^0-9]/', '', $sdt);
+}
+
+/**
+ * Check unique sdt using normalized comparison.
+ */
+function _khach_hang_check_unique_sdt($input, $exclude_nid = NULL) {
+  if (!isset($input['sdt'])) return NULL;
+  $raw = trim($input['sdt']);
+  if ($raw === '') return NULL;
+  $norm = _khach_hang_normalize_sdt($raw);
+
+  $sql = "SELECT nid FROM {khach_hang}
+    WHERE REPLACE(REPLACE(REPLACE(REPLACE(sdt, ' ', ''), '.', ''), '-', ''), '/', '') = :norm
+    AND hoat_dong = 1";
+  $args = array(':norm' => $norm);
+  if ($exclude_nid !== NULL) {
+    $sql .= " AND nid <> :ex";
+    $args[':ex'] = $exclude_nid;
+  }
+  $sql .= " LIMIT 1";
+  $exists = db_query($sql, $args)->fetchField();
+  if ($exists) {
+    return _khach_hang_fail('Số điện thoại "' . $raw . '" đã tồn tại');
+  }
+  return NULL;
+}
+
+/**
+ * Check unique cccd_mst (active only).
+ */
+function _khach_hang_check_unique_cccd($input, $exclude_nid = NULL) {
+  if (!isset($input['cccd_mst'])) return NULL;
+  $value = trim($input['cccd_mst']);
+  if ($value === '') return NULL;
+
+  $query = db_select('khach_hang', 'kh');
+  $query->fields('kh', array('nid', 'hoat_dong'));
+  $query->condition('kh.cccd_mst', $value);
+  if ($exclude_nid !== NULL) {
+    $query->condition('kh.nid', $exclude_nid, '<>');
+  }
+  $query->range(0, 1);
+  $exists = $query->execute()->fetchObject();
+  if ($exists && $exists->hoat_dong) {
+    return _khach_hang_fail('CCCD/MST "' . $value . '" đã tồn tại');
+  }
+  return NULL;
+}
+
+/**
  * Normalize phan_loai: accept array or string, store as comma-separated string.
  */
 function _khach_hang_normalize_phan_loai($input) {
@@ -340,6 +394,12 @@ function _khach_hang_rest_create() {
   $dupMa = _khach_hang_check_unique_ma(isset($input['ma_kh']) ? $input['ma_kh'] : '');
   if ($dupMa) return $dupMa;
 
+  $dupSdt = _khach_hang_check_unique_sdt($input);
+  if ($dupSdt) return $dupSdt;
+
+  $dupCccd = _khach_hang_check_unique_cccd($input);
+  if ($dupCccd) return $dupCccd;
+
   $phan_loai = _khach_hang_normalize_phan_loai($input['phan_loai']);
   $ngan_hang_json = '';
   if (!empty($input['thong_tin_ngan_hang']) && is_array($input['thong_tin_ngan_hang'])) {
@@ -442,6 +502,12 @@ function _khach_hang_rest_update($id) {
 
   $dupMa = _khach_hang_check_unique_ma(isset($input['ma_kh']) ? $input['ma_kh'] : '', $id);
   if ($dupMa) return $dupMa;
+
+  $dupSdt = _khach_hang_check_unique_sdt($input, $id);
+  if ($dupSdt) return $dupSdt;
+
+  $dupCccd = _khach_hang_check_unique_cccd($input, $id);
+  if ($dupCccd) return $dupCccd;
 
   $phan_loai = _khach_hang_normalize_phan_loai($input['phan_loai']);
   $ngan_hang_json = '';

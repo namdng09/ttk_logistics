@@ -171,23 +171,97 @@ function _phuong_tien_method_not_allowed($allowed) {
 }
 
 /**
- * Check unique BKS, skip empty values and soft-deleted records.
+ * Normalize BKS: strip spaces, dots, dashes, special chars → uppercase alphanumeric only.
+ * "15-h 555.55" → "15H55555"
+ */
+function _phuong_tien_normalize_bks($bks) {
+  return strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $bks));
+}
+
+/**
+ * Check unique BKS using normalized value.
  */
 function _phuong_tien_check_unique($input, $exclude_nid = NULL) {
   if (!isset($input['bks'])) return NULL;
-  $value = trim($input['bks']);
+  $raw = trim($input['bks']);
+  if ($raw === '') return NULL;
+  $norm = _phuong_tien_normalize_bks($raw);
+
+  $sql = "SELECT nid FROM {phuong_tien}
+    WHERE UPPER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(bks, ' ', ''), '.', ''), '-', ''), '/', ''), ',', '')) = :norm
+    AND hoat_dong = 1";
+  $args = array(':norm' => $norm);
+  if ($exclude_nid !== NULL) {
+    $sql .= " AND nid <> :ex";
+    $args[':ex'] = $exclude_nid;
+  }
+  $sql .= " LIMIT 1";
+  $exists = db_query($sql, $args)->fetchField();
+  if ($exists) {
+    return _phuong_tien_fail('Biển kiểm soát "' . $raw . '" đã tồn tại');
+  }
+  return NULL;
+}
+
+/**
+ * Check unique ma_tai_san, skip empty values and soft-deleted records.
+ */
+function _phuong_tien_check_unique_ma_tai_san($input, $exclude_nid = NULL) {
+  if (!isset($input['ma_tai_san'])) return NULL;
+  $value = trim($input['ma_tai_san']);
   if ($value === '') return NULL;
 
   $query = db_select('phuong_tien', 'pt');
   $query->fields('pt', array('nid', 'hoat_dong'));
-  $query->condition('pt.bks', $value);
+  $query->condition('pt.ma_tai_san', $value);
   if ($exclude_nid !== NULL) {
     $query->condition('pt.nid', $exclude_nid, '<>');
   }
   $query->range(0, 1);
   $exists = $query->execute()->fetchObject();
   if ($exists && $exists->hoat_dong) {
-    return _phuong_tien_fail('Biển kiểm soát "' . $value . '" đã tồn tại');
+    return _phuong_tien_fail('Mã tài sản "' . $value . '" đã tồn tại');
+  }
+  return NULL;
+}
+
+/**
+ * Validate han_phu_hieu >= ngay_phu_hieu (dd/mm/yyyy).
+ */
+function _phuong_tien_validate_phu_hieu_dates($input) {
+  $ngay = isset($input['ngay_phu_hieu']) ? trim($input['ngay_phu_hieu']) : '';
+  $han  = isset($input['han_phu_hieu'])  ? trim($input['han_phu_hieu'])  : '';
+  if ($ngay === '' || $han === '') return NULL;
+
+  $d1 = DateTime::createFromFormat('d/m/Y', $ngay);
+  $d2 = DateTime::createFromFormat('d/m/Y', $han);
+  if (!$d1 || !$d2) {
+    return _phuong_tien_fail('Ngày phù hiệu không hợp lệ');
+  }
+  if ($d2 < $d1) {
+    return _phuong_tien_fail('Hạn phù hiệu không được trước ngày phù hiệu');
+  }
+  return NULL;
+}
+
+/**
+ * Generic unique check for a nullable field.
+ */
+function _phuong_tien_check_unique_field($field, $label, $input, $exclude_nid = NULL) {
+  if (!isset($input[$field])) return NULL;
+  $value = trim($input[$field]);
+  if ($value === '') return NULL;
+
+  $query = db_select('phuong_tien', 'pt');
+  $query->fields('pt', array('nid', 'hoat_dong'));
+  $query->condition('pt.' . $field, $value);
+  if ($exclude_nid !== NULL) {
+    $query->condition('pt.nid', $exclude_nid, '<>');
+  }
+  $query->range(0, 1);
+  $exists = $query->execute()->fetchObject();
+  if ($exists && $exists->hoat_dong) {
+    return _phuong_tien_fail($label . ' "' . $value . '" đã tồn tại');
   }
   return NULL;
 }
@@ -291,6 +365,22 @@ function _phuong_tien_rest_create() {
 
   $dup = _phuong_tien_check_unique($input);
   if ($dup) return $dup;
+
+  $dup_ms = _phuong_tien_check_unique_ma_tai_san($input);
+  if ($dup_ms) return $dup_ms;
+
+  $date_err = _phuong_tien_validate_phu_hieu_dates($input);
+  if ($date_err) return $date_err;
+
+  $unique_fields = array(
+    'so_dang_kiem' => 'Số đăng kiểm',
+    'so_bao_hiem_than_vo' => 'Số bảo hiểm thân vỏ',
+    'so_bao_hiem_tnds' => 'Số bảo hiểm TNDS',
+  );
+  foreach ($unique_fields as $field => $label) {
+    $err = _phuong_tien_check_unique_field($field, $label, $input);
+    if ($err) return $err;
+  }
 
   $transaction = db_transaction();
   try {
@@ -409,6 +499,22 @@ function _phuong_tien_rest_update($id) {
 
   $dup = _phuong_tien_check_unique($input, $id);
   if ($dup) return $dup;
+
+  $dup_ms = _phuong_tien_check_unique_ma_tai_san($input, $id);
+  if ($dup_ms) return $dup_ms;
+
+  $date_err = _phuong_tien_validate_phu_hieu_dates($input);
+  if ($date_err) return $date_err;
+
+  $unique_fields = array(
+    'so_dang_kiem' => 'Số đăng kiểm',
+    'so_bao_hiem_than_vo' => 'Số bảo hiểm thân vỏ',
+    'so_bao_hiem_tnds' => 'Số bảo hiểm TNDS',
+  );
+  foreach ($unique_fields as $field => $label) {
+    $err = _phuong_tien_check_unique_field($field, $label, $input, $id);
+    if ($err) return $err;
+  }
 
   $fields = array(
     'bks', 'ma_tai_san', 'loai_phuong_tien', 'hang_xe', 'nam_san_xuat',

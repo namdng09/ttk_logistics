@@ -9,6 +9,7 @@
   var CURRENT_FILES = [];
   var PENDING_FILES = [];
   var CURRENT_HOP_DONG_ID = null;
+  var CURRENT_FORM_MODE = 'create';
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -497,6 +498,7 @@
   }
 
   function setFormMode(mode) {
+    CURRENT_FORM_MODE = mode;
     var inputs = document.querySelectorAll('#form-hop-dong input, #form-hop-dong select');
     var btn = document.querySelector('.btn-luu-hop-dong');
     for (var i = 0; i < inputs.length; i++) {
@@ -628,7 +630,8 @@
             '<button type="button" class="btn btn-sm btn-icon btn-outline-danger btn-remove-pending-file" data-pending-index="' + f._pendingIndex + '" title="Bỏ file"><i class="ti tabler-x"></i></button>' :
             '<div class="d-inline-flex gap-1">' +
               '<a href="' + escapeHtml(f.file_url || '#') + '" target="_blank" class="btn btn-sm btn-icon btn-outline-primary" title="Tải xuống"><i class="ti tabler-download"></i></a>' +
-              '<button type="button" class="btn btn-sm btn-icon btn-outline-danger btn-delete-file" data-file-id="' + f.id + '" title="Xoá file"><i class="ti tabler-x"></i></button>' +
+              (CURRENT_FORM_MODE !== 'view' ?
+                '<button type="button" class="btn btn-sm btn-icon btn-outline-danger btn-delete-file" data-file-id="' + f.id + '" title="Xoá file"><i class="ti tabler-x"></i></button>' : '') +
             '</div>') +
         '</td>' +
         '</tr>';
