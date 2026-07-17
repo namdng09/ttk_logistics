@@ -2,11 +2,10 @@
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <div class="d-flex align-items-center gap-2">
       <a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary btn-sm waves-effect"><i class="icon-base ti tabler-arrow-left me-1"></i> Quay lại</a>
-      <h4 class="card-title mb-0" id="form-title"><?php print $mode === 'edit' ? 'Sửa' : 'Tạo'; ?> kế hoạch xếp xe</h4>
+      <h4 class="card-title mb-0" id="form-title">Sửa kế hoạch xếp xe</h4>
     </div>
     <div class="d-flex gap-2">
-      <button type="button" class="btn btn-label-primary waves-effect" id="add-line-btn"><i class="icon-base ti tabler-plus me-1"></i> Thêm dòng</button>
-      <button type="button" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu kế hoạch</button>
+      <button type="button" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu cập nhật</button>
     </div>
   </div>
 
@@ -42,15 +41,11 @@
       <div class="ke-hoach-lines-wrap">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
           <div>
-            <h5 class="mb-0">Danh sách xe thực hiện</h5>
+            <h5 class="mb-0">Phương tiện thực hiện</h5>
           </div>
         </div>
 
         <div id="ke-hoach-lines"></div>
-
-        <div id="ke-hoach-lines-empty" class="border rounded p-4 text-center text-muted" style="display:none;">
-          Chưa có dòng xe nào. Bấm <strong>Thêm dòng</strong> để bắt đầu.
-        </div>
       </div>
     </form>
   </div>
@@ -62,7 +57,7 @@
       <div class="modal-header">
         <div>
           <h5 class="modal-title mb-0">Chọn phương tiện</h5>
-          <div class="text-muted small">Chọn xe phù hợp cho dòng đang thao tác.</div>
+          <div class="text-muted small">Chọn xe phù hợp cho kế hoạch đang chỉnh sửa.</div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -72,7 +67,7 @@
             <input type="text" class="form-control" id="vehicle-picker-search" placeholder="Tìm theo biển số, loại xe, tài xế...">
           </div>
           <div class="col-md-6 text-md-end">
-            <div class="text-muted small" id="vehicle-picker-target">Đang chọn cho dòng #1</div>
+            <div class="text-muted small" id="vehicle-picker-target">Đang chỉnh sửa phương tiện của kế hoạch</div>
           </div>
         </div>
 

@@ -115,6 +115,7 @@ function ke_hoach_xep_xe_schema() {
       'hoat_dong' => array('hoat_dong'),
       'so_bkg' => array('so_bkg'),
       'ngay' => array('ngay'),
+      'trang_thai_van_chuyen' => array('trang_thai_van_chuyen'),
     ),
   );
 
@@ -131,5 +132,22 @@ function ke_hoach_xep_xe_update_7002() {
     'length' => 50,
     'not null' => FALSE,
   );
-  db_add_field('ke_hoach_xep_xe', 'hinh_thuc_van_tai', $field);
+  if (!db_field_exists('ke_hoach_xep_xe', 'hinh_thuc_van_tai')) {
+    db_add_field('ke_hoach_xep_xe', 'hinh_thuc_van_tai', $field);
+  }
+}
+
+function ke_hoach_xep_xe_update_7003() {
+  // Deprecated. Group fields are no longer used.
+}
+
+function ke_hoach_xep_xe_update_7004() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'trang_thai_van_chuyen')) {
+    db_add_field('ke_hoach_xep_xe', 'trang_thai_van_chuyen', array(
+      'type' => 'varchar',
+      'length' => 50,
+      'not null' => FALSE,
+      'default' => 'Chưa xếp xe',
+    ));
+  }
 }

@@ -61,7 +61,6 @@
       </table>
     </div>
 
-    <!-- Pagination -->
     <div id="pagination-wrap" class="mt-3" style="display:none;">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div class="text-muted small" id="pagination-info"></div>
