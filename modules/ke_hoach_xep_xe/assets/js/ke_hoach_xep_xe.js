@@ -510,6 +510,8 @@
       bai_ha_cont: '',
       cang_xuat: ''
     };
+    var phuongTienMap = {};
+    var suppressPhuongTienAutoFill = false;
 
     function loadCauHinhGiaBan(khId) {
       if (!khId) {
@@ -630,6 +632,12 @@
           pendingFormValues.loai_cont = '';
           loadCauHinhGiaBan(khId);
         });
+        $('#nid_phuong_tien-input').on('change', function () {
+          if (suppressPhuongTienAutoFill) {
+            return;
+          }
+          syncLaiXeByPhuongTien($(this).val());
+        });
         if (dataReady) {
           populateForm(rowData);
           initDatepickers();
@@ -642,11 +650,22 @@
       var sel = document.getElementById(selId);
       if (!sel) return;
       for (var i = 0; i < items.length; i++) {
+        if (selId === 'nid_phuong_tien-input' && items[i] && items[i].nid) {
+          phuongTienMap[String(items[i].nid)] = items[i];
+        }
         var label = textKey === 'bks'
           ? (items[i].bks || '#' + items[i].nid)
           : (items[i][textKey] || '#' + items[i].nid);
         sel.appendChild(new Option(label, items[i].nid));
       }
+    }
+
+    function syncLaiXeByPhuongTien(phuongTienId) {
+      var item = phuongTienMap[String(parseInt(phuongTienId, 10) || 0)];
+      if (!item || !item.lai_xe || !item.lai_xe.nid) {
+        return;
+      }
+      $('#nid_lai_xe-input').val(item.lai_xe.nid).trigger('change');
     }
 
     function loadRowData(nid) {
@@ -734,6 +753,7 @@
 
     // --- Form populate / gather ---
     function populateForm(row) {
+      suppressPhuongTienAutoFill = true;
       $('#nid-input').val(row.nid || '');
       $('#nid_khach_hang-input').val((row.khach_hang && row.khach_hang.nid) || 0).trigger('change');
       $('#nid_lai_xe-input').val((row.lai_xe && row.lai_xe.nid) || 0).trigger('change');
@@ -752,6 +772,7 @@
       $('#cang_xuat-input').val(pendingFormValues.cang_xuat).trigger('change');
       $('#cut_off-input').val(apiToDatetime(row.cut_off));
       $('#hinh_thuc_van_tai-input').val(row.hinh_thuc_van_tai || '');
+      suppressPhuongTienAutoFill = false;
     }
 
     function gatherForm() {
