@@ -77,7 +77,6 @@ body .flatpickr-calendar {
 
 #ke-hoach-lines .ke-hoach-line-card {
   display: block;
-  border: 2px solid #7367f0;
   outline: 1px solid rgba(115, 103, 240, 0.15);
   border-radius: 14px;
   padding: 16px 16px 18px;

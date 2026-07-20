@@ -5,7 +5,7 @@
       <h4 class="card-title mb-0">Chi tiết kế hoạch xếp xe</h4>
     </div>
     <div>
-      <a href="#" class="btn btn-primary waves-effect" id="edit-btn"><i class="ti tabler-pencil me-1"></i> Sửa</a>
+      <a href="<?php print !empty($data['nid']) ? '/ke-hoach-xep-xe/' . (int) $data['nid'] . '/sua' : '#'; ?>" class="btn btn-primary waves-effect" id="edit-btn"><i class="ti tabler-pencil me-1"></i> Sửa</a>
     </div>
   </div>
 

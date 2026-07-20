@@ -547,6 +547,18 @@
       return html;
     }
 
+    function buildHinhThucRadios(line) {
+      var html = '';
+      $.each(HINH_THUC_MAP, function (key, label) {
+        var checked = key === (line.hinh_thuc_van_tai || '') ? ' checked' : '';
+        html += '<label class="form-check form-check-inline line-hinh-thuc-option">' +
+          '<input class="form-check-input line-hinh-thuc-radio" type="radio" name="line-hinh-thuc-' + escHtml(line.key) + '" value="' + key + '"' + checked + '>' +
+          '<span class="form-check-label">' + escHtml(label) + '</span>' +
+        '</label>';
+      });
+      return html;
+    }
+
     function vehicleSummaryHtml(line) {
       var text = vehicleSummaryText(line);
       if (!text) {
@@ -622,6 +634,7 @@
               '<div class="col-md-3"><label class="form-label">Bãi hạ cont</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
               '<div class="col-md-3"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
               '<div class="col-md-3"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
+              '<div class="col-md-9"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -692,6 +705,7 @@
         line.bai_ha_cont = ($row.find('.line-bai-ha-select').val() || '').trim();
         line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
         line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
+        line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-radio:checked').val() || '').trim();
         return line;
       }
       line.nid_phuong_tien = parseInt($row.find('.line-vehicle-id').val(), 10) || 0;
@@ -948,7 +962,8 @@
           bai_lay_cont: line.bai_lay_cont || '',
           bai_ha_cont: line.bai_ha_cont || '',
           cang_xuat: line.cang_xuat || '',
-          cut_off: line.cut_off || ''
+          cut_off: line.cut_off || '',
+          hinh_thuc_van_tai: useTableLayout ? '' : (line.hinh_thuc_van_tai || '')
         }
       };
     }
@@ -971,7 +986,8 @@
         bai_lay_cont: row.bai_lay_cont || '',
         bai_ha_cont: row.bai_ha_cont || '',
         cang_xuat: row.cang_xuat || '',
-        cut_off: row.cut_off || ''
+        cut_off: row.cut_off || '',
+        hinh_thuc_van_tai: row.hinh_thuc_van_tai || ''
       });
     }
 
@@ -1117,7 +1133,9 @@
           }
           if (notyf) notyf.success(nid ? 'Đã cập nhật kế hoạch' : 'Đã tạo kế hoạch');
           if (nid) {
-            window.location.href = '/ke-hoach-xep-xe/' + nid;
+            if (res.data) {
+              populateEdit(res.data);
+            }
           } else {
             if (formModal) formModal.hide();
             $('#ke-hoach-form')[0].reset();
