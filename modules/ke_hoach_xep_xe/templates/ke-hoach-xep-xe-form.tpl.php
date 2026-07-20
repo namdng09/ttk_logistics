@@ -84,7 +84,12 @@
               <input type="text" class="form-control" id="vehicle-picker-search" placeholder="Tìm theo BKS, mooc, lái xe...">
             </div>
             <div class="col-md-6 text-md-end">
-              <div class="text-muted small" id="vehicle-picker-target">Đang chọn cho dòng #1</div>
+              <div class="d-inline-flex align-items-center gap-2 justify-content-md-end flex-wrap">
+                <div class="text-muted small" id="vehicle-picker-target">Đang chọn cho dòng #1</div>
+                <button type="button" class="btn btn-sm btn-label-secondary" id="vehicle-picker-clear-btn">
+                  <i class="ti tabler-x me-1"></i>Bỏ chọn
+                </button>
+              </div>
             </div>
           </div>
 

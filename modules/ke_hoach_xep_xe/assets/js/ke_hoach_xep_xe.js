@@ -568,7 +568,8 @@
           dateFormat: 'd/m/Y H:i',
           time_24hr: true,
           allowInput: true,
-          static: true
+          static: false,
+          appendTo: document.body
         });
       }
       $row.find('.line-vehicle-display').toggleClass('is-selected', !!line.nid_phuong_tien).html(vehicleSummaryHtml(line));
@@ -587,7 +588,8 @@
           dateFormat: 'd/m/Y H:i',
           time_24hr: true,
           allowInput: true,
-          static: true
+          static: false,
+          appendTo: document.body
         });
       }
       $card.find('.vehicle-summary').toggleClass('is-selected', !!line.nid_phuong_tien).html(vehicleSummaryCardHtml(line));
@@ -788,6 +790,27 @@
         $card.find('.line-vehicle-feedback').hide();
         $card.removeClass('line-card-invalid');
       }
+      if (vehicleModal) vehicleModal.hide();
+    }
+
+    function clearVehicleForActiveLine() {
+      var line = findLine(state.activeLineKey);
+      if (!line) return;
+      line.nid_phuong_tien = 0;
+      line.nid_lai_xe = 0;
+
+      if (useTableLayout) {
+        var $row = $('#ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + line.key + '"]');
+        $row.find('.line-vehicle-id').val(0);
+        $row.find('.line-vehicle-display').removeClass('is-selected').html(vehicleSummaryHtml(line));
+      }
+      else {
+        var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + line.key + '"]');
+        $card.find('.line-vehicle-id').val(0);
+        $card.find('.line-driver-select').val(0).trigger('change');
+        $card.find('.vehicle-summary').removeClass('is-selected').html(vehicleSummaryCardHtml(line));
+      }
+
       if (vehicleModal) vehicleModal.hide();
     }
 
@@ -1050,7 +1073,23 @@
       addLine({});
     });
     $('#reset-lines-btn').on('click', function () {
-      resetAllLines();
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: 'Xác nhận reset',
+          text: 'Bạn có chắc chắn muốn xoá toàn bộ dữ liệu đang nhập và quay về 1 dòng trống?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Reset',
+          cancelButtonText: 'Huỷ',
+          confirmButtonColor: '#7367f0',
+          customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-label-secondary ms-1' },
+          buttonsStyling: false
+        }).then(function (result) {
+          if (result.isConfirmed) resetAllLines();
+        });
+      } else if (confirm('Bạn có chắc chắn muốn reset toàn bộ dữ liệu đang nhập?')) {
+        resetAllLines();
+      }
     });
     $('#vehicle-picker-search').on('input', function () {
       renderVehicleTable($(this).val());
@@ -1130,6 +1169,9 @@
     });
     $(document).on('change', 'input[name="vehicle-picker-radio"]', function () {
       selectVehicleForLine($(this).val());
+    });
+    $(document).on('click', '#vehicle-picker-clear-btn', function () {
+      clearVehicleForActiveLine();
     });
 
     loadDropdowns(function () {

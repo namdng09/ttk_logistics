@@ -11,6 +11,10 @@
   z-index: 99999 !important;
 }
 
+body .flatpickr-calendar {
+  z-index: 999999 !important;
+}
+
 .loading-overlay {
   position: absolute;
   inset: 0;
@@ -267,6 +271,8 @@
 
 #ke-hoach-fullscreen-modal .modal-body {
   background: #f8f8fb;
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
 #ke-hoach-fullscreen-modal .modal-header,
@@ -275,15 +281,35 @@
 }
 
 .ke-hoach-table-wrap {
+  display: block;
+  width: 100%;
+  max-width: 100%;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.5rem;
 }
 
 .ke-hoach-entry-table {
+  width: max-content;
   min-width: 1550px;
   margin-bottom: 0;
+}
+
+.ke-hoach-table-wrap::-webkit-scrollbar {
+  height: 10px;
+}
+
+.ke-hoach-table-wrap::-webkit-scrollbar-thumb {
+  background: rgba(115, 103, 240, 0.35);
+  border-radius: 999px;
+}
+
+.ke-hoach-table-wrap::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.06);
 }
 
 .ke-hoach-entry-table th,
@@ -297,6 +323,23 @@
   font-size: 0.82rem;
 }
 
+.ke-hoach-entry-table thead th.text-center {
+  vertical-align: middle;
+}
+
+.ke-hoach-entry-table thead th .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+}
+
+.ke-hoach-entry-table thead th .btn-icon i {
+  margin: 0 !important;
+}
+
 .ke-hoach-entry-table .form-control,
 .ke-hoach-entry-table .form-select,
 .ke-hoach-entry-table .select2-container .select2-selection--single {
@@ -306,6 +349,7 @@
 
 .line-vehicle-display {
   min-height: 38px;
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -327,7 +371,11 @@
 .line-vehicle-display .vehicle-inline-text {
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .ke-hoach-table-row.table-danger td {
