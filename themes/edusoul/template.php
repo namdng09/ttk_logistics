@@ -82,6 +82,20 @@ function getMainMenuSoft()
                             <div data-i18n="Kế hoạch xếp xe">Kế hoạch xếp xe</div>
                         </a>
                     </li>
+
+                    ' . ((strpos(current_path(), 'cat-mooc') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
+                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                            <i class="menu-icon icon-base ti tabler-container"></i>
+                            <div data-i18n="Quản lý Cont">Quản lý Cont</div>
+                        </a>
+                        <ul class="menu-sub">
+                            <li class="menu-item' . ((current_path() === 'cat-mooc') ? ' active' : '') . '">
+                                <a href="/cat-mooc" class="menu-link">
+                                    <div data-i18n="Cắt Mooc">Cắt Mooc</div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
                     
                     <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>

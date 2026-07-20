@@ -71,52 +71,79 @@
   padding-top: 1rem;
 }
 
-.ke-hoach-line-card {
-  border: 1px solid #eceef1;
-  border-radius: 0.75rem;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  background: linear-gradient(180deg, #fff, #fcfcfd);
-  box-shadow: 0 2px 10px rgba(34, 41, 47, 0.04);
+#ke-hoach-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.ke-hoach-line-card:last-child {
+#ke-hoach-lines .ke-hoach-line-card {
+  border: 1px solid #d8dee8;
+  border-radius: 0.875rem;
+  padding: 1rem 1rem 1.125rem;
   margin-bottom: 0;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
 }
 
 .ke-hoach-line-head {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.875rem;
+}
+
+.ke-hoach-line-heading {
+  min-width: 0;
 }
 
 .ke-hoach-line-title {
   margin: 0;
   font-size: 1rem;
+  line-height: 1.35;
+  color: #101828;
+}
+
+.ke-hoach-line-meta {
+  margin-top: 0.25rem;
+  color: #667085;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  min-height: 1.2rem;
 }
 
 .ke-hoach-line-actions {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
   margin-left: auto;
 }
 
+.ke-hoach-line-section {
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 1px solid #f0f2f5;
+}
+
+.ke-hoach-line-section-primary {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: 0;
+}
+
 .vehicle-summary {
-  min-height: 78px;
-  border: 1px dashed #d8dce3;
+  min-height: 82px;
+  border: 1px solid #d8dee8;
   border-radius: 0.75rem;
   padding: 0.75rem;
-  background: #f8f9fb;
+  background: #fff;
 }
 
 .vehicle-summary.is-selected {
-  border-style: solid;
-  border-color: #7367f0;
-  background: rgba(115, 103, 240, 0.06);
+  border-color: #b8c2d1;
+  background: #fff;
 }
 
 .vehicle-summary-empty {
@@ -137,6 +164,19 @@
 .vehicle-summary-empty {
   color: #98a2b3;
   font-style: italic;
+}
+
+.vehicle-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.vehicle-actions .btn-clear-vehicle {
+  padding-left: 0;
+  padding-right: 0;
+  text-decoration: none;
 }
 
 .detail-section-title {
@@ -181,4 +221,9 @@
 .line-card-invalid {
   border-color: rgba(234, 84, 85, 0.45);
   box-shadow: 0 0 0 1px rgba(234, 84, 85, 0.1);
+}
+
+.line-card-invalid .ke-hoach-line-title,
+.line-card-invalid .ke-hoach-line-meta {
+  color: #b42318;
 }
