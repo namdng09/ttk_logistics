@@ -524,16 +524,28 @@
       return html;
     }
 
+    function buildHinhThucRadios(line) {
+      var html = '';
+      $.each(HINH_THUC_MAP, function (key, label) {
+        var checked = key === (line.hinh_thuc_van_tai || '') ? ' checked' : '';
+        html += '<label class="form-check form-check-inline line-hinh-thuc-option">' +
+          '<input class="form-check-input line-hinh-thuc-radio" type="radio" name="line-hinh-thuc-' + escHtml(line.key) + '" value="' + key + '"' + checked + '>' +
+          '<span class="form-check-label">' + escHtml(label) + '</span>' +
+        '</label>';
+      });
+      return html;
+    }
+
     function vehicleSummary(line) {
       var vehicle = state.vehicleMap[String(line.nid_phuong_tien || 0)] || null;
-      var driver = line.nid_lai_xe ? findDriver(line.nid_lai_xe) : (vehicle && vehicle.lai_xe ? vehicle.lai_xe : null);
       if (!vehicle) {
         return '<div class="vehicle-summary-empty"></div>';
       }
-      var meta = [];
-      if (vehicle.loai_phuong_tien) meta.push(vehicle.loai_phuong_tien);
-      if (driver && driver.ten) meta.push('Lái xe: ' + driver.ten + (driver.sdt ? ' - ' + driver.sdt : ''));
-      return '<div class="vehicle-summary-title">' + escHtml(vehicle.bks || ('#' + vehicle.nid)) + '</div><div class="vehicle-summary-meta">' + escHtml(meta.join(' | ')) + '</div>';
+      var text = vehicle.bks || ('#' + vehicle.nid);
+      if (vehicle.loai_phuong_tien) {
+        text += ' - ' + vehicle.loai_phuong_tien;
+      }
+      return '<div class="vehicle-summary-text">' + escHtml(text) + '</div>';
     }
 
     function lineHeaderMeta(line) {
@@ -587,17 +599,17 @@
       var removeBtn = mode === 'edit' ? '' : '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-line" title="Xoá dòng" aria-label="Xoá dòng"><i class="ti tabler-trash"></i></button>';
       var copyBtn = mode === 'edit' ? '' : '<button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-copy-line" title="Sao chép dòng" aria-label="Sao chép dòng"><i class="ti tabler-copy"></i></button>';
       var html = '' +
-        '<div class="ke-hoach-line-card" data-line-key="' + line.key + '" style="display:block;border:2px solid #7367f0;outline:1px solid rgba(115,103,240,0.15);border-radius:14px;padding:16px 16px 18px;margin:0 0 24px 0;background:#fff;box-shadow:0 4px 12px rgba(115,103,240,0.08);">' +
-          '<div class="ke-hoach-line-head" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;">' +
+        '<div class="ke-hoach-line-card" data-line-key="' + line.key + '">' +
+          '<div class="ke-hoach-line-head">' +
             '<div class="ke-hoach-line-heading"><h5 class="ke-hoach-line-title">Dòng xe <span class="line-order"></span></h5><div class="ke-hoach-line-meta"></div></div>' +
             '<div class="ke-hoach-line-actions">' + copyBtn + removeBtn + '</div>' +
           '</div>' +
-          '<div class="ke-hoach-line-section ke-hoach-line-section-primary" style="padding-top:0;margin-top:0;border-top:0;">' +
+          '<div class="ke-hoach-line-section ke-hoach-line-section-primary">' +
             '<div class="row g-3">' +
             '<div class="col-md-6">' +
               '<label class="form-label">Phương tiện <span class="text-danger">*</span></label>' +
               '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
-              '<div class="vehicle-summary" style="display:block;min-height:82px;border:1px solid #c7cfe0;border-radius:12px;padding:12px;background:#fff;"></div>' +
+              '<div class="vehicle-summary"></div>' +
               '<div class="vehicle-actions mt-2">' +
                 '<button type="button" class="btn btn-outline-primary btn-open-vehicle-modal"><i class="ti tabler-truck me-1"></i> Chọn phương tiện</button>' +
                 '<button type="button" class="btn btn-link text-secondary btn-clear-vehicle"><i class="ti tabler-x me-1"></i> Bỏ chọn</button>' +
@@ -608,20 +620,20 @@
               '<label class="form-label">Lái xe <span class="text-danger">*</span></label>' +
               '<select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select>' +
             '</div>' +
-            '<div class="col-md-4"><label class="form-label">Hình thức vận tải</label><select class="form-select line-hinh-thuc-select">' + buildHinhThucOptions(line.hinh_thuc_van_tai) + '</select></div>' +
             '</div>' +
           '</div>' +
-          '<div class="ke-hoach-line-section" style="padding-top:16px;margin-top:16px;border-top:1px solid #f0f2f5;">' +
+          '<div class="ke-hoach-line-section">' +
             '<div class="row g-3">' +
-            '<div class="col-md-4"><label class="form-label">Địa chỉ kho</label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
-            '<div class="col-md-4"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
-            '<div class="col-md-4"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Nhập số cont"></div>' +
-            '<div class="col-md-4"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Nhập số seal chính"></div>' +
-            '<div class="col-md-4"><label class="form-label">Số seal tạm</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Nhập số seal tạm"></div>' +
+            '<div class="col-md-3"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Nhập số cont"></div>' +
+            '<div class="col-md-3"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
+            '<div class="col-md-3"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Nhập số seal chính"></div>' +
+            '<div class="col-md-3"><label class="form-label">Số seal tạm</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Nhập số seal tạm"></div>' +
+            '<div class="col-md-3"><label class="form-label">Địa chỉ kho</label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
+            '<div class="col-md-3"><label class="form-label">Bãi lấy cont</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
+            '<div class="col-md-3"><label class="form-label">Bãi hạ cont</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
+            '<div class="col-md-3"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
             '<div class="col-md-4"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
-            '<div class="col-md-4"><label class="form-label">Bãi lấy cont</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
-            '<div class="col-md-4"><label class="form-label">Bãi hạ cont</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
-            '<div class="col-md-4"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
+            '<div class="col-md-8"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
             '</div>' +
           '</div>' +
         '</div>';
@@ -646,7 +658,7 @@
       line.bai_ha_cont = ($card.find('.line-bai-ha-select').val() || '').trim();
       line.cang_xuat = ($card.find('.line-cang-select').val() || '').trim();
       line.cut_off = datetimeToApi($card.find('.line-cut-off-input').val().trim());
-      line.hinh_thuc_van_tai = ($card.find('.line-hinh-thuc-select').val() || '').trim();
+      line.hinh_thuc_van_tai = ($card.find('.line-hinh-thuc-radio:checked').val() || '').trim();
       return line;
     }
 
@@ -1048,7 +1060,9 @@
     });
     $(document).on('click', '.btn-copy-line', function () {
       var line = syncLine($(this).closest('.ke-hoach-line-card'));
-      addLine($.extend({}, line, { key: undefined }));
+      var copy = $.extend({}, line);
+      delete copy.key;
+      addLine(copy);
     });
     $(document).on('click', '.btn-pick-vehicle', function () {
       selectVehicleForLine($(this).data('id'));

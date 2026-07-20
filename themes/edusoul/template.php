@@ -234,8 +234,12 @@ function edusoul_preprocess_html(&$variables)
     /*if (strpos($current_path, 'quan-ly') === 0)*/ {
     // --- XÓA TẤT CẢ CSS MẶC ĐỊNH ---
     $css = drupal_add_css();
+    $preserved_module_css = array();
     foreach ($css as $media => $stylesheets) {
         foreach ($stylesheets as $path => $info) {
+            if (preg_match('#(^|.*/)modules/[^/]+/assets/css/.*\.css$#', $path)) {
+                $preserved_module_css[$path] = $info;
+            }
             // Xóa tất cả các CSS
             unset($css[$media][$path]);
         }
@@ -284,6 +288,14 @@ function edusoul_preprocess_html(&$variables)
     if ($current_path == 'luong-lai-xe') {
       drupal_add_css(drupal_get_path('module', 'bao_cao_luong_lai_xe') . '/css/bao_cao_luong_lai_xe.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
 //      drupal_add_js(drupal_get_path('module', 'bao_cao_luong_lai_xe') . '/quan-ly/assets/vendor/libs/jquery/jquery.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    }
+
+    if ($current_path == 'tao-ke-hoach-xep-xe' || strpos($current_path, 'ke-hoach-xep-xe/') === 0 || $current_path == 'ke-hoach-xep-xe') {
+        drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 10));
+    }
+
+    foreach ($preserved_module_css as $path => $info) {
+        drupal_add_css($path, $info);
     }
 
     drupal_add_js(path_to_theme() . '/quan-ly/assets/vendor/libs/jquery/jquery.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
