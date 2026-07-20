@@ -300,6 +300,17 @@ function _phuong_tien_rest_list() {
   $query->addField('lx', 'sdt', 'lai_xe_sdt');
   $query->addField('lx', 'so_bang_lai', 'lai_xe_bang_lai');
 
+  $has_ptm = module_exists('phuong_tien_mooc') && db_table_exists('phuong_tien_mooc');
+  if ($has_ptm) {
+    // Join active mooc assignment.
+    $query->leftJoin('phuong_tien_mooc', 'ptm', 'pt.nid = ptm.nid_dau_keo AND ptm.hoat_dong = 1');
+    $query->addField('ptm', 'id', 'ptm_id');
+    $query->addField('ptm', 'nid_mooc', 'nid_mooc');
+    $query->leftJoin('phuong_tien', 'mooc_pt', 'ptm.nid_mooc = mooc_pt.nid');
+    $query->addField('mooc_pt', 'bks', 'mooc_bks');
+    $query->addField('mooc_pt', 'ma_tai_san', 'mooc_ma_tai_san');
+  }
+
   $query->condition('pt.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
@@ -333,11 +344,31 @@ function _phuong_tien_rest_list() {
     } else {
       $row->lai_xe = NULL;
     }
+    if ($has_ptm && !empty($row->nid_mooc)) {
+      $label = $row->mooc_bks;
+      if (!empty($row->mooc_ma_tai_san)) {
+        $label .= ' - ' . $row->mooc_ma_tai_san;
+      }
+      $row->mooc = (object) array(
+        'nid' => (int) $row->nid_mooc,
+        'bks' => $row->mooc_bks,
+        'ma_tai_san' => $row->mooc_ma_tai_san,
+        'label' => $label,
+      );
+    } else {
+      $row->mooc = NULL;
+    }
     unset($row->ptlx_id);
     unset($row->nid_lai_xe);
     unset($row->lai_xe_ten);
     unset($row->lai_xe_sdt);
     unset($row->lai_xe_bang_lai);
+    if ($has_ptm) {
+      unset($row->ptm_id);
+      unset($row->nid_mooc);
+      unset($row->mooc_bks);
+      unset($row->mooc_ma_tai_san);
+    }
   }
   unset($row);
 
@@ -455,6 +486,15 @@ function _phuong_tien_rest_get($id) {
   $query->addField('lx', 'ten', 'lai_xe_ten');
   $query->addField('lx', 'sdt', 'lai_xe_sdt');
   $query->addField('lx', 'so_bang_lai', 'lai_xe_bang_lai');
+  $has_ptm = module_exists('phuong_tien_mooc') && db_table_exists('phuong_tien_mooc');
+  if ($has_ptm) {
+    $query->leftJoin('phuong_tien_mooc', 'ptm', 'pt.nid = ptm.nid_dau_keo AND ptm.hoat_dong = 1');
+    $query->addField('ptm', 'id', 'ptm_id');
+    $query->addField('ptm', 'nid_mooc', 'nid_mooc');
+    $query->leftJoin('phuong_tien', 'mooc_pt', 'ptm.nid_mooc = mooc_pt.nid');
+    $query->addField('mooc_pt', 'bks', 'mooc_bks');
+    $query->addField('mooc_pt', 'ma_tai_san', 'mooc_ma_tai_san');
+  }
   $query->condition('pt.nid', $id);
   $row = $query->execute()->fetch();
 
@@ -472,11 +512,32 @@ function _phuong_tien_rest_get($id) {
   } else {
     $row->lai_xe = NULL;
   }
+  if ($has_ptm && !empty($row->nid_mooc)) {
+    $label = $row->mooc_bks;
+    if (!empty($row->mooc_ma_tai_san)) {
+      $label .= ' - ' . $row->mooc_ma_tai_san;
+    }
+    $row->mooc = (object) array(
+      'nid' => (int) $row->nid_mooc,
+      'bks' => $row->mooc_bks,
+      'ma_tai_san' => $row->mooc_ma_tai_san,
+      'label' => $label,
+    );
+  }
+  else {
+    $row->mooc = NULL;
+  }
   unset($row->ptlx_id);
   unset($row->nid_lai_xe);
   unset($row->lai_xe_ten);
   unset($row->lai_xe_sdt);
   unset($row->lai_xe_bang_lai);
+  if ($has_ptm) {
+    unset($row->ptm_id);
+    unset($row->nid_mooc);
+    unset($row->mooc_bks);
+    unset($row->mooc_ma_tai_san);
+  }
 
   return _phuong_tien_success($row);
 }
@@ -601,11 +662,18 @@ function phuong_tien_page_list() {
     drupal_add_js($ptlx_path . '/assets/js/phuong_tien_lai_xe.js');
   }
 
+  $ptm_path = drupal_get_path('module', 'phuong_tien_mooc');
+  if ($ptm_path) {
+    drupal_add_css($ptm_path . '/assets/css/phuong_tien_mooc.css');
+    drupal_add_js($ptm_path . '/assets/js/phuong_tien_mooc.js');
+  }
+
   drupal_add_js(array('phuong_tien' => array(
     'permissions' => array(
       'phuong_tien_view' => user_access('phuong_tien_view'),
       'phuong_tien_create' => user_access('phuong_tien_create'),
       'phuong_tien_delete' => user_access('phuong_tien_delete'),
+      'ptm_create' => user_access('ptm_create'),
     ),
   )), 'setting');
 

@@ -44,12 +44,13 @@
             <th>Mã Tài sản</th>
             <th>Loại</th>
             <th>Hãng xe</th>
+            <th>Mooc</th>
             <th>Lái xe</th>
           </tr>
         </thead>
         <tbody id="table-phuong-tien-tbody">
           <tr id="loading-row">
-            <td colspan="7" class="text-center py-4">
+            <td colspan="8" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -207,6 +208,51 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
           <button type="button" class="btn btn-primary btn-luu-ptlx">
+            <i class="ti tabler-device-floppy me-1"></i> Lưu
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Chon Mooc Modal -->
+<div class="modal fade" id="phuong-tien-mooc-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <form id="form-ptm-assign">
+        <div class="modal-header">
+          <h5 class="modal-title">Chọn Mooc</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" style="position:relative;">
+          <div id="ptm-modal-loading" class="text-center py-4" style="position:absolute;inset:0;display:none;background:rgba(255,255,255,0.85);z-index:10;border-radius:0.375rem;">
+            <div class="spinner-border text-primary" style="position:sticky;top:50%;margin-top:4rem;" role="status">
+              <span class="visually-hidden">Đang tải...</span>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-medium text-muted">Đầu kéo</label>
+            <div class="form-control-plaintext fw-semibold" id="ptm-display-dau-keo">---</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-medium text-muted">Mooc hiện tại</label>
+            <div class="form-control-plaintext" id="ptm-current-mooc">Chưa chọn</div>
+          </div>
+
+          <div class="mb-0">
+            <label class="form-label">Chọn Mooc</label>
+            <select class="form-select" id="ptm-select-mooc">
+              <option value="">Đang tải...</option>
+            </select>
+            <div class="form-text">Bo trong roi luu de go mooc hien tai. Chi hien thi mooc trong, chua duoc gan cho dau keo khac.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+          <button type="button" class="btn btn-primary btn-luu-ptm">
             <i class="ti tabler-device-floppy me-1"></i> Lưu
           </button>
         </div>

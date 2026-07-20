@@ -1,0 +1,5 @@
+name = Phuong tien - Mooc
+description = Quan ly quan he phuong tien va mooc (gan mooc cho dau keo)
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = phuong_tien

@@ -1,0 +1,455 @@
+<?php
+
+/**
+ * @file
+ * Phuong tien - Mooc. Gan mooc cho dau keo.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function phuong_tien_mooc_permission() {
+  return array(
+    'ptm_view' => array('title' => t('Xem quan he PT-Mooc')),
+    'ptm_create' => array('title' => t('Gan/sua mooc cho dau keo')),
+    'ptm_delete' => array('title' => t('Xoa quan he PT-Mooc')),
+  );
+}
+
+/**
+ * Implements hook_init().
+ */
+function phuong_tien_mooc_init() {
+  $path = current_path();
+  if (strpos($path, 'api/phuong-tien-mooc') === 0) {
+    drupal_add_http_header('Access-Control-Allow-Origin', '*');
+    drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    drupal_add_http_header('Access-Control-Max-Age', '86400');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      drupal_add_http_header('Status', '204 No Content');
+      drupal_exit();
+    }
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function phuong_tien_mooc_menu() {
+  $items = array();
+
+  $items['api/phuong-tien-mooc'] = array(
+    'page callback' => 'ptm_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/phuong-tien-mooc/%'] = array(
+    'page callback' => 'ptm_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  return $items;
+}
+
+/*******************************************************************************
+ * HELPERS
+ ******************************************************************************/
+
+function _ptm_input() {
+  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+}
+
+function _ptm_success($data = NULL) {
+  $response = array('status' => 'success');
+  if ($data !== NULL) {
+    $response['data'] = $data;
+  }
+  return $response;
+}
+
+function _ptm_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _ptm_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _ptm_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _ptm_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function _ptm_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+function _ptm_get_pt_info($nid) {
+  if (!$nid) {
+    return NULL;
+  }
+  $row = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien FROM {phuong_tien} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid))->fetch();
+  return $row ? $row : NULL;
+}
+
+function _ptm_build_pt_label($row) {
+  if (!$row) {
+    return '';
+  }
+  $label = $row->bks;
+  if (!empty($row->ma_tai_san)) {
+    $label .= ' - ' . $row->ma_tai_san;
+  }
+  return $label;
+}
+
+function _ptm_deactivate_by_dau_keo($nid_dau_keo, $exclude_id = 0) {
+  $query = db_update('phuong_tien_mooc');
+  $query->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)));
+  $query->condition('nid_dau_keo', (int) $nid_dau_keo);
+  $query->condition('hoat_dong', 1);
+  if ($exclude_id > 0) {
+    $query->condition('id', (int) $exclude_id, '!=');
+  }
+  $query->execute();
+}
+
+function _ptm_deactivate_by_mooc($nid_mooc, $exclude_id = 0) {
+  $query = db_update('phuong_tien_mooc');
+  $query->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)));
+  $query->condition('nid_mooc', (int) $nid_mooc);
+  $query->condition('hoat_dong', 1);
+  if ($exclude_id > 0) {
+    $query->condition('id', (int) $exclude_id, '!=');
+  }
+  $query->execute();
+}
+
+function _ptm_load_relation($id) {
+  $row = db_query("SELECT * FROM {phuong_tien_mooc} WHERE id = :id", array(':id' => $id))->fetch();
+  if (!$row) {
+    return NULL;
+  }
+
+  $dau_keo = _ptm_get_pt_info($row->nid_dau_keo);
+  $mooc = _ptm_get_pt_info($row->nid_mooc);
+  $row->dau_keo = $dau_keo ? (object) array(
+    'nid' => (int) $dau_keo->nid,
+    'bks' => $dau_keo->bks,
+    'ma_tai_san' => $dau_keo->ma_tai_san,
+    'label' => _ptm_build_pt_label($dau_keo),
+  ) : NULL;
+  $row->mooc = $mooc ? (object) array(
+    'nid' => (int) $mooc->nid,
+    'bks' => $mooc->bks,
+    'ma_tai_san' => $mooc->ma_tai_san,
+    'label' => _ptm_build_pt_label($mooc),
+  ) : NULL;
+
+  return $row;
+}
+
+function _ptm_rest_available_mooc() {
+  $nid_dau_keo = isset($_GET['nid_dau_keo']) ? (int) $_GET['nid_dau_keo'] : 0;
+  $current_mooc_id = 0;
+
+  if ($nid_dau_keo > 0) {
+    $current_mooc_id = (int) db_query("SELECT nid_mooc FROM {phuong_tien_mooc} WHERE nid_dau_keo = :nid_dau_keo AND hoat_dong = 1 ORDER BY id DESC", array(':nid_dau_keo' => $nid_dau_keo))->fetchField();
+  }
+
+  $query = db_select('phuong_tien', 'pt');
+  $query->fields('pt', array('nid', 'bks', 'ma_tai_san', 'loai_phuong_tien'));
+  $query->condition('pt.hoat_dong', 1);
+  $query->condition('pt.loai_phuong_tien', 'mooc');
+
+  $or = db_or();
+  $or->isNull('ptm.id');
+  if ($current_mooc_id > 0) {
+    $or->condition('pt.nid', $current_mooc_id);
+  }
+
+  $query->leftJoin('phuong_tien_mooc', 'ptm', 'pt.nid = ptm.nid_mooc AND ptm.hoat_dong = 1');
+  $query->condition($or);
+  $query->orderBy('pt.bks', 'ASC');
+
+  $rows = $query->execute()->fetchAll();
+  foreach ($rows as &$row) {
+    $row->label = _ptm_build_pt_label($row);
+  }
+  unset($row);
+
+  return _ptm_success(array(
+    'items' => $rows ?: array(),
+    'total' => count($rows),
+    'current_page' => 1,
+    'total_pages' => 1,
+    'limit' => count($rows),
+  ));
+}
+
+/*******************************************************************************
+ * REST: COLLECTION
+ ******************************************************************************/
+
+function ptm_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return !empty($_GET['available']) ? _ptm_rest_available_mooc() : _ptm_rest_list();
+    case 'POST':
+      return _ptm_rest_create();
+    default:
+      return _ptm_method_not_allowed('GET, POST');
+  }
+}
+
+function _ptm_rest_list() {
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $offset = ($page - 1) * $limit;
+
+  $query = db_select('phuong_tien_mooc', 'ptm');
+  $query->fields('ptm');
+  if (!empty($_GET['nid_dau_keo'])) {
+    $query->condition('ptm.nid_dau_keo', (int) $_GET['nid_dau_keo']);
+  }
+  if (!empty($_GET['nid_mooc'])) {
+    $query->condition('ptm.nid_mooc', (int) $_GET['nid_mooc']);
+  }
+  if (empty($_GET['include_inactive'])) {
+    $query->condition('ptm.hoat_dong', 1);
+  }
+
+  $count = clone $query;
+  $total = $count->countQuery()->execute()->fetchField();
+
+  $query->orderBy('ptm.id', 'DESC');
+  $query->range($offset, $limit);
+  $rows = $query->execute()->fetchAll();
+  foreach ($rows as &$row) {
+    $row = _ptm_load_relation($row->id);
+  }
+  unset($row);
+
+  $total_pages = (int) ceil($total / $limit);
+  return _ptm_success(array(
+    'items' => $rows ?: array(),
+    'total' => (int) $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+  ));
+}
+
+function _ptm_rest_create() {
+  if (!user_access('ptm_create')) {
+    return _ptm_unauthorized('Bạn không có quyền chọn mooc');
+  }
+
+  $input = _ptm_input();
+  $nid_dau_keo = isset($input['nid_dau_keo']) ? (int) $input['nid_dau_keo'] : 0;
+  $nid_mooc = isset($input['nid_mooc']) ? (int) $input['nid_mooc'] : 0;
+
+  if ($nid_dau_keo <= 0) {
+    return _ptm_fail('Đầu kéo là bắt buộc');
+  }
+
+  $dau_keo = _ptm_get_pt_info($nid_dau_keo);
+  if (!$dau_keo) {
+    return _ptm_fail('Đầu kéo không tồn tại hoặc đã bị xoá');
+  }
+  if ($dau_keo->loai_phuong_tien !== 'dau_keo') {
+    return _ptm_fail('Phương tiện được chọn không phải đầu kéo');
+  }
+
+  $current = db_query("SELECT id, nid_mooc FROM {phuong_tien_mooc} WHERE nid_dau_keo = :nid_dau_keo AND hoat_dong = 1 ORDER BY id DESC", array(':nid_dau_keo' => $nid_dau_keo))->fetch();
+
+  if ($nid_mooc <= 0) {
+    if ($current) {
+      $transaction = db_transaction();
+      try {
+        db_update('phuong_tien_mooc')
+          ->fields(array(
+            'hoat_dong' => 0,
+            'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+          ))
+          ->condition('id', $current->id)
+          ->execute();
+
+        watchdog('phuong_tien_mooc', 'Go mooc khoi dau keo #%dk', array('%dk' => $nid_dau_keo));
+        return _ptm_success(array('removed' => TRUE, 'nid_dau_keo' => $nid_dau_keo));
+      }
+      catch (Exception $e) {
+        $transaction->rollback();
+        watchdog('phuong_tien_mooc', 'Loi go mooc: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+        return _ptm_error('Lỗi hệ thống khi gỡ mooc');
+      }
+    }
+
+    return _ptm_success(array('removed' => FALSE, 'nid_dau_keo' => $nid_dau_keo));
+  }
+
+  if ($nid_dau_keo === $nid_mooc) {
+    return _ptm_fail('Đầu kéo và mooc không được trùng nhau');
+  }
+
+  $mooc = _ptm_get_pt_info($nid_mooc);
+  if (!$mooc) {
+    return _ptm_fail('Mooc không tồn tại hoặc đã bị xoá');
+  }
+  if ($mooc->loai_phuong_tien !== 'mooc') {
+    return _ptm_fail('Phương tiện được chọn không phải mooc');
+  }
+
+  $used = db_query("SELECT id, nid_dau_keo FROM {phuong_tien_mooc} WHERE nid_mooc = :nid_mooc AND hoat_dong = 1 ORDER BY id DESC", array(':nid_mooc' => $nid_mooc))->fetch();
+  if ($used && (int) $used->nid_dau_keo !== $nid_dau_keo) {
+    return _ptm_fail('Mooc này đang được gán cho đầu kéo khác');
+  }
+
+  if ($current && (int) $current->nid_mooc === $nid_mooc) {
+    return _ptm_success(_ptm_load_relation($current->id));
+  }
+
+  $transaction = db_transaction();
+  try {
+    _ptm_deactivate_by_dau_keo($nid_dau_keo);
+    _ptm_deactivate_by_mooc($nid_mooc);
+
+    $now = date('Y-m-d H:i:s', REQUEST_TIME);
+    $id = db_insert('phuong_tien_mooc')
+      ->fields(array(
+        'nid_dau_keo' => $nid_dau_keo,
+        'nid_mooc' => $nid_mooc,
+        'hoat_dong' => 1,
+        'created' => $now,
+        'changed' => $now,
+      ))
+      ->execute();
+
+    watchdog('phuong_tien_mooc', 'Gan mooc #%mooc cho dau keo #%dk', array(
+      '%mooc' => $nid_mooc,
+      '%dk' => $nid_dau_keo,
+    ));
+
+    return _ptm_success(_ptm_load_relation($id));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('phuong_tien_mooc', 'Loi gan mooc: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ptm_error('Lỗi hệ thống khi gán mooc');
+  }
+}
+
+/*******************************************************************************
+ * REST: ITEM
+ ******************************************************************************/
+
+function ptm_rest_item($id) {
+  $id = (int) $id;
+  if (!$id) {
+    return _ptm_fail('ID không hợp lệ');
+  }
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ptm_rest_get($id);
+    case 'PUT':
+      return _ptm_rest_update($id);
+    case 'DELETE':
+      return _ptm_rest_delete($id);
+    default:
+      return _ptm_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+function _ptm_rest_get($id) {
+  $row = _ptm_load_relation($id);
+  if (!$row) {
+    return _ptm_not_found('Không tìm thấy bản ghi');
+  }
+  return _ptm_success($row);
+}
+
+function _ptm_rest_update($id) {
+  if (!user_access('ptm_create')) {
+    return _ptm_unauthorized('Bạn không có quyền cập nhật');
+  }
+
+  $existing = db_query("SELECT id FROM {phuong_tien_mooc} WHERE id = :id", array(':id' => $id))->fetchField();
+  if (!$existing) {
+    return _ptm_not_found('Không tìm thấy bản ghi');
+  }
+
+  $input = _ptm_input();
+  $nid_dau_keo = isset($input['nid_dau_keo']) ? (int) $input['nid_dau_keo'] : 0;
+  $nid_mooc = isset($input['nid_mooc']) ? (int) $input['nid_mooc'] : 0;
+  if ($nid_dau_keo <= 0 || $nid_mooc <= 0) {
+    return _ptm_fail('Đầu kéo và mooc là bắt buộc');
+  }
+
+  $transaction = db_transaction();
+  try {
+    _ptm_deactivate_by_dau_keo($nid_dau_keo, $id);
+    _ptm_deactivate_by_mooc($nid_mooc, $id);
+
+    db_update('phuong_tien_mooc')
+      ->fields(array(
+        'nid_dau_keo' => $nid_dau_keo,
+        'nid_mooc' => $nid_mooc,
+        'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
+        'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+      ))
+      ->condition('id', $id)
+      ->execute();
+
+    return _ptm_success(_ptm_load_relation($id));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('phuong_tien_mooc', 'Loi cap nhat PT-Mooc #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ptm_error('Lỗi hệ thống khi cập nhật');
+  }
+}
+
+function _ptm_rest_delete($id) {
+  if (!user_access('ptm_delete')) {
+    return _ptm_unauthorized('Bạn không có quyền xoá');
+  }
+
+  $existing = db_query("SELECT id FROM {phuong_tien_mooc} WHERE id = :id", array(':id' => $id))->fetchField();
+  if (!$existing) {
+    return _ptm_not_found('Không tìm thấy bản ghi');
+  }
+
+  $transaction = db_transaction();
+  try {
+    db_update('phuong_tien_mooc')
+      ->fields(array(
+        'hoat_dong' => 0,
+        'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+      ))
+      ->condition('id', $id)
+      ->execute();
+
+    watchdog('phuong_tien_mooc', 'Xoa (soft) PT-Mooc #%id', array('%id' => $id));
+    return _ptm_success(array('id' => $id, 'deleted' => TRUE));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('phuong_tien_mooc', 'Loi xoa PT-Mooc #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ptm_error('Lỗi hệ thống khi xoá');
+  }
+}
