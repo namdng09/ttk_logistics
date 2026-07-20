@@ -598,22 +598,19 @@
     function renderLine(line) {
       var removeBtn = mode === 'edit' ? '' : '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-line" title="Xoá dòng" aria-label="Xoá dòng"><i class="ti tabler-trash"></i></button>';
       var copyBtn = mode === 'edit' ? '' : '<button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-copy-line" title="Sao chép dòng" aria-label="Sao chép dòng"><i class="ti tabler-copy"></i></button>';
+      var pickBtn = '<button type="button" class="btn btn-sm btn-outline-primary btn-open-vehicle-modal" title="Chọn phương tiện" aria-label="Chọn phương tiện"><i class="ti tabler-truck me-1"></i> Chọn phương tiện</button>';
       var html = '' +
         '<div class="ke-hoach-line-card" data-line-key="' + line.key + '">' +
           '<div class="ke-hoach-line-head">' +
             '<div class="ke-hoach-line-heading"><h5 class="ke-hoach-line-title">Dòng xe <span class="line-order"></span></h5><div class="ke-hoach-line-meta"></div></div>' +
-            '<div class="ke-hoach-line-actions">' + copyBtn + removeBtn + '</div>' +
+            '<div class="ke-hoach-line-actions">' + pickBtn + copyBtn + removeBtn + '</div>' +
           '</div>' +
           '<div class="ke-hoach-line-section ke-hoach-line-section-primary">' +
             '<div class="row g-3">' +
             '<div class="col-md-6">' +
               '<label class="form-label">Phương tiện <span class="text-danger">*</span></label>' +
               '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
-              '<div class="vehicle-summary"></div>' +
-              '<div class="vehicle-actions mt-2">' +
-                '<button type="button" class="btn btn-outline-primary btn-open-vehicle-modal"><i class="ti tabler-truck me-1"></i> Chọn phương tiện</button>' +
-                '<button type="button" class="btn btn-link text-secondary btn-clear-vehicle"><i class="ti tabler-x me-1"></i> Bỏ chọn</button>' +
-              '</div>' +
+              '<div class="vehicle-summary-wrap"><div class="vehicle-summary"></div><button type="button" class="btn-clear-vehicle" title="Bỏ chọn phương tiện" aria-label="Bỏ chọn phương tiện"><i class="ti tabler-x"></i></button></div>' +
               '<div class="invalid-feedback d-block line-vehicle-feedback" style="display:none !important;">Vui lòng chọn phương tiện</div>' +
             '</div>' +
             '<div class="col-md-6">' +
@@ -632,8 +629,8 @@
             '<div class="col-md-3"><label class="form-label">Bãi lấy cont</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
             '<div class="col-md-3"><label class="form-label">Bãi hạ cont</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
             '<div class="col-md-3"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
-            '<div class="col-md-4"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
-            '<div class="col-md-8"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
+            '<div class="col-md-3"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
+            '<div class="col-md-9"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
             '</div>' +
           '</div>' +
         '</div>';

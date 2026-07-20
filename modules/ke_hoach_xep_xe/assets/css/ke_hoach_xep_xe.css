@@ -118,6 +118,7 @@
   align-items: center;
   gap: 0.875rem;
   margin-left: auto;
+  flex-wrap: wrap;
 }
 
 .ke-hoach-line-section {
@@ -132,13 +133,19 @@
   border-top: 0;
 }
 
+.vehicle-summary-wrap {
+  position: relative;
+}
+
 .vehicle-summary {
+  height: calc(1.5em + 0.75rem + 2px);
   min-height: calc(1.5em + 0.75rem + 2px);
   display: flex;
   align-items: center;
+  box-sizing: border-box;
   border: 1px solid #c7cfe0;
   border-radius: 12px;
-  padding: 0.375rem 0.75rem;
+  padding: 0.375rem 2rem 0.375rem 0.75rem;
   background: #fff;
 }
 
@@ -148,7 +155,7 @@
 }
 
 .vehicle-summary-empty {
-  min-height: calc(1.5em + 0.75rem + 2px);
+  width: 100%;
 }
 
 .vehicle-summary-text {
@@ -165,17 +172,24 @@
   font-style: italic;
 }
 
-.vehicle-actions {
-  display: flex;
+.btn-clear-vehicle {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  padding: 0;
+  width: 1rem;
+  height: 1rem;
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  justify-content: center;
+  color: #98a2b3;
 }
 
-.vehicle-actions .btn-clear-vehicle {
-  padding-left: 0;
-  padding-right: 0;
-  text-decoration: none;
+.btn-clear-vehicle:hover {
+  color: #667085;
 }
 
 .line-hinh-thuc-group {
