@@ -75,6 +75,17 @@
 
                 <?php print render($page['content']); ?>
             <?php endif; ?>
+
+            <?php
+              $current_path = current_path();
+              $show_global_ke_hoach_modal = user_is_logged_in()
+                && $current_path !== 'ke-hoach-xep-xe'
+                && $current_path !== 'tao-ke-hoach-xep-xe'
+                && strpos($current_path, 'ke-hoach-xep-xe/') !== 0;
+            ?>
+            <?php if ($show_global_ke_hoach_modal): ?>
+              <?php print theme('ke_hoach_xep_xe_form_page', array('mode' => 'create', 'data' => NULL)); ?>
+            <?php endif; ?>
         </div>
         <!-- / Content -->
 

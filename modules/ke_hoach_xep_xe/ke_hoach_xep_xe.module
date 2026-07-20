@@ -170,7 +170,7 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record = _ke_hoach_xep_xe_default_record();
   $record['ngay'] = !empty($common['ngay']) ? trim($common['ngay']) : '';
   $record['nid_khach_hang'] = !empty($common['nid_khach_hang']) ? (int) $common['nid_khach_hang'] : 0;
-  $record['so_bkg'] = !empty($common['so_bkg']) ? trim($common['so_bkg']) : '';
+  $record['so_bkg'] = !empty($line['so_bkg']) ? trim($line['so_bkg']) : '';
   $record['nid_lai_xe'] = !empty($line['nid_lai_xe']) ? (int) $line['nid_lai_xe'] : 0;
   $record['nid_phuong_tien'] = !empty($line['nid_phuong_tien']) ? (int) $line['nid_phuong_tien'] : 0;
   $record['dia_chi_kho'] = !empty($line['dia_chi_kho']) ? trim($line['dia_chi_kho']) : '';
@@ -191,9 +191,6 @@ function _ke_hoach_xep_xe_validate_common($input) {
   if (empty($input['nid_khach_hang'])) {
     return _ke_hoach_xep_xe_fail('Khách hàng bắt buộc');
   }
-  if (empty($input['so_bkg'])) {
-    return _ke_hoach_xep_xe_fail('Số BKG bắt buộc');
-  }
   return NULL;
 }
 
@@ -208,6 +205,9 @@ function _ke_hoach_xep_xe_validate_lines($items) {
 
   foreach ($items as $index => $item) {
     $line_no = $index + 1;
+    if (empty($item['so_bkg'])) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': số BKG bắt buộc');
+    }
     if (empty($item['nid_phuong_tien'])) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': phương tiện bắt buộc');
     }
@@ -529,23 +529,25 @@ function ke_hoach_xep_xe_page_list() {
 }
 
 function ke_hoach_xep_xe_page_form($id = NULL) {
+  if (!$id) {
+    drupal_goto('ke-hoach-xep-xe');
+  }
+
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
 
   $data = NULL;
   $mode = 'create';
-  if ($id) {
-    $id = (int) $id;
-    if (!$id) {
-      return MENU_NOT_FOUND;
-    }
-    $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
-    if (!$row) {
-      return MENU_NOT_FOUND;
-    }
-    $data = _ke_hoach_xep_xe_enrich_row($row);
-    $mode = 'edit';
+  $id = (int) $id;
+  if (!$id) {
+    return MENU_NOT_FOUND;
   }
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  if (!$row) {
+    return MENU_NOT_FOUND;
+  }
+  $data = _ke_hoach_xep_xe_enrich_row($row);
+  $mode = 'edit';
 
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'mode' => $mode,

@@ -264,3 +264,77 @@
 .line-card-invalid .ke-hoach-line-meta {
   color: #b42318;
 }
+
+#ke-hoach-fullscreen-modal .modal-body {
+  background: #f8f8fb;
+}
+
+#ke-hoach-fullscreen-modal .modal-header,
+#ke-hoach-fullscreen-modal .modal-footer {
+  background: #fff;
+}
+
+.ke-hoach-table-wrap {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.ke-hoach-entry-table {
+  min-width: 1550px;
+  margin-bottom: 0;
+}
+
+.ke-hoach-entry-table th,
+.ke-hoach-entry-table td {
+  vertical-align: middle;
+  background: #fff;
+}
+
+.ke-hoach-entry-table thead th {
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.ke-hoach-entry-table .form-control,
+.ke-hoach-entry-table .form-select,
+.ke-hoach-entry-table .select2-container .select2-selection--single {
+  min-height: 38px;
+  font-size: 0.83rem;
+}
+
+.line-vehicle-display {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  border-color: #d0d5dd;
+  color: #101828;
+  overflow: hidden;
+}
+
+.line-vehicle-display.is-selected {
+  border-color: #7367f0;
+  background: #fff;
+}
+
+.line-vehicle-display .vehicle-inline-placeholder {
+  color: #98a2b3;
+  font-style: italic;
+}
+
+.line-vehicle-display .vehicle-inline-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ke-hoach-table-row.table-danger td {
+  background: rgba(234, 84, 85, 0.08);
+}
+
+#vehicle-picker-modal .table td,
+#vehicle-picker-modal .table th {
+  font-size: 0.85rem;
+}

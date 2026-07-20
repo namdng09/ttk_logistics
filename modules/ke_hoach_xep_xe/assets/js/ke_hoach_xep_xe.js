@@ -157,11 +157,25 @@
       if (typeof Notyf !== 'undefined' && !notyf) {
         notyf = new Notyf();
       }
+      bindGlobalCreateModal();
       if ($('#ke-hoach-list-app', context).length) initList();
       if ($('#ke-hoach-form-app', context).length) initForm();
       if ($('#detail-body', context).length) initDetail();
     }
   };
+
+  function bindGlobalCreateModal() {
+    if (bindGlobalCreateModal._bound) return;
+    bindGlobalCreateModal._bound = true;
+
+    $(document).on('click', '.btn-open-create-ke-hoach', function (e) {
+      e.preventDefault();
+      var modalEl = document.getElementById('ke-hoach-fullscreen-modal');
+      if (!modalEl) return;
+      var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
+      modal.show();
+    });
+  }
 
   function buildActions(nid) {
     return '<div class="dropdown">' +
@@ -443,28 +457,17 @@
     };
     var lineSeq = 0;
     var vehicleModal = null;
+    var formModal = null;
+    var useTableLayout = $('#ke-hoach-lines-body').length > 0;
 
     function showLoading(show) {
       $('#form-loading').toggle(show);
-      $('#save-btn, #add-line-btn').prop('disabled', show);
+      $('#save-btn, #add-line-btn, #reset-lines-btn').prop('disabled', show);
     }
 
     function nextLineKey() {
       lineSeq += 1;
       return 'line-' + lineSeq;
-    }
-
-    function todayDdMmYyyy() {
-      var now = new Date();
-      return String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
-    }
-
-    function findDriver(id) {
-      id = parseInt(id, 10) || 0;
-      for (var i = 0; i < state.drivers.length; i++) {
-        if ((parseInt(state.drivers[i].nid, 10) || 0) === id) return state.drivers[i];
-      }
-      return null;
     }
 
     function findLine(key) {
@@ -479,6 +482,7 @@
         key: nextLineKey(),
         nid_phuong_tien: 0,
         nid_lai_xe: 0,
+        so_bkg: '',
         dia_chi_kho: '',
         loai_cont: '',
         so_cont: '',
@@ -487,9 +491,16 @@
         bai_lay_cont: '',
         bai_ha_cont: '',
         cang_xuat: '',
-        cut_off: '',
-        hinh_thuc_van_tai: ''
+        cut_off: ''
       }, source || {});
+    }
+
+    function findDriver(id) {
+      id = parseInt(id, 10) || 0;
+      for (var i = 0; i < state.drivers.length; i++) {
+        if ((parseInt(state.drivers[i].nid, 10) || 0) === id) return state.drivers[i];
+      }
+      return null;
     }
 
     function buildTagOptions(list, value) {
@@ -507,6 +518,26 @@
       return html;
     }
 
+    function vehicleSummaryText(line) {
+      var vehicle = state.vehicleMap[String(line.nid_phuong_tien || 0)] || null;
+      if (!vehicle) {
+        return '';
+      }
+      var parts = [];
+      if (vehicle.bks) parts.push(vehicle.bks);
+      if (vehicle.mooc && vehicle.mooc.bks) parts.push(vehicle.mooc.bks);
+      if (vehicle.lai_xe && vehicle.lai_xe.ten) parts.push(vehicle.lai_xe.ten);
+      return parts.join(' - ');
+    }
+
+    function vehicleSummaryCardHtml(line) {
+      var text = vehicleSummaryText(line);
+      if (!text) {
+        return '<div class="vehicle-summary-empty"></div>';
+      }
+      return '<div class="vehicle-summary-text">' + escHtml(text) + '</div>';
+    }
+
     function buildDriverOptions(selectedId) {
       var html = '<option value="0">— Chọn lái xe —</option>';
       for (var i = 0; i < state.drivers.length; i++) {
@@ -516,60 +547,34 @@
       return html;
     }
 
-    function buildHinhThucOptions(value) {
-      var html = '<option value="">— Chọn —</option>';
-      $.each(HINH_THUC_MAP, function (key, label) {
-        html += '<option value="' + key + '"' + (key === value ? ' selected' : '') + '>' + escHtml(label) + '</option>';
-      });
-      return html;
-    }
-
-    function buildHinhThucRadios(line) {
-      var html = '';
-      $.each(HINH_THUC_MAP, function (key, label) {
-        var checked = key === (line.hinh_thuc_van_tai || '') ? ' checked' : '';
-        html += '<label class="form-check form-check-inline line-hinh-thuc-option">' +
-          '<input class="form-check-input line-hinh-thuc-radio" type="radio" name="line-hinh-thuc-' + escHtml(line.key) + '" value="' + key + '"' + checked + '>' +
-          '<span class="form-check-label">' + escHtml(label) + '</span>' +
-        '</label>';
-      });
-      return html;
-    }
-
-    function vehicleSummary(line) {
-      var vehicle = state.vehicleMap[String(line.nid_phuong_tien || 0)] || null;
-      if (!vehicle) {
-        return '<div class="vehicle-summary-empty"></div>';
+    function vehicleSummaryHtml(line) {
+      var text = vehicleSummaryText(line);
+      if (!text) {
+        return '<span class="vehicle-inline-placeholder">Chọn phương tiện</span>';
       }
-      var text = vehicle.bks || ('#' + vehicle.nid);
-      if (vehicle.loai_phuong_tien) {
-        text += ' - ' + vehicle.loai_phuong_tien;
+      return '<span class="vehicle-inline-text">' + escHtml(text) + '</span>';
+    }
+
+    function initRowUi($row, line) {
+      var dropdownParent = $('#ke-hoach-fullscreen-modal');
+      initSelect2($row.find('.line-loai-cont-select')[0], 'Chọn/Nhập loại cont', { tags: true, dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true, dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-bai-lay-select')[0], '— Chọn bãi lấy cont —', { dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-bai-ha-select')[0], '— Chọn bãi hạ cont —', { dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-cang-select')[0], '— Chọn cảng xuất —', { dropdownParent: dropdownParent });
+      if (typeof flatpickr !== 'undefined' && $row.find('.line-cut-off-input')[0]) {
+        flatpickr($row.find('.line-cut-off-input')[0], {
+          enableTime: true,
+          dateFormat: 'd/m/Y H:i',
+          time_24hr: true,
+          allowInput: true,
+          static: true
+        });
       }
-      return '<div class="vehicle-summary-text">' + escHtml(text) + '</div>';
+      $row.find('.line-vehicle-display').toggleClass('is-selected', !!line.nid_phuong_tien).html(vehicleSummaryHtml(line));
     }
 
-    function lineHeaderMeta(line) {
-      var vehicle = state.vehicleMap[String(line.nid_phuong_tien || 0)] || null;
-      var driver = line.nid_lai_xe ? findDriver(line.nid_lai_xe) : (vehicle && vehicle.lai_xe ? vehicle.lai_xe : null);
-      var parts = [];
-      if (vehicle && vehicle.bks) parts.push(vehicle.bks);
-      if (vehicle && vehicle.loai_phuong_tien) parts.push(vehicle.loai_phuong_tien);
-      if (driver && driver.ten) parts.push(driver.ten);
-      if (!parts.length) return '';
-      return parts.join(' | ');
-    }
-
-    function getNgayValue() {
-      var $ngay = $('#ngay-input');
-      if (!$ngay.length) return '';
-      return dateToApi(($ngay.val() || '').trim());
-    }
-
-    function renderEmpty() {
-      $('#ke-hoach-lines-empty').toggle(!state.lines.length);
-    }
-
-    function initLineUi($card, line) {
+    function initCardUi($card, line) {
       initSelect2($card.find('.line-driver-select')[0], '— Chọn lái xe —');
       initSelect2($card.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true });
       initSelect2($card.find('.line-loai-cont-select')[0], 'Chọn/Nhập loại cont', { tags: true });
@@ -585,108 +590,151 @@
           static: true
         });
       }
-      $card.find('.vehicle-summary').toggleClass('is-selected', !!line.nid_phuong_tien).html(vehicleSummary(line));
-      $card.find('.ke-hoach-line-meta').text(lineHeaderMeta(line));
+      $card.find('.vehicle-summary').toggleClass('is-selected', !!line.nid_phuong_tien).html(vehicleSummaryCardHtml(line));
     }
 
-    function refreshOrder() {
-      $('#ke-hoach-lines .ke-hoach-line-card').each(function (index) {
-        $(this).find('.line-order').text('#' + (index + 1));
+    function renderCards() {
+      var html = '';
+      for (var i = 0; i < state.lines.length; i++) {
+        var line = state.lines[i];
+        html += '' +
+          '<div class="ke-hoach-line-card" data-line-key="' + line.key + '">' +
+            '<div class="ke-hoach-line-section ke-hoach-line-section-primary">' +
+              '<div class="row g-3">' +
+              '<div class="col-md-6">' +
+                '<label class="form-label">Phương tiện <span class="text-danger">*</span></label>' +
+                '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
+                '<div class="vehicle-summary-wrap"><div class="vehicle-summary btn-open-vehicle-modal"></div></div>' +
+                '<div class="invalid-feedback d-block line-vehicle-feedback" style="display:none !important;">Vui lòng chọn phương tiện</div>' +
+              '</div>' +
+              '<div class="col-md-6">' +
+                '<label class="form-label">Lái xe <span class="text-danger">*</span></label>' +
+                '<select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select>' +
+              '</div>' +
+              '<div class="col-md-3"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '"></div>' +
+              '<div class="col-md-3"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
+              '<div class="col-md-3"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '"></div>' +
+              '<div class="col-md-3"><label class="form-label">Số seal tạm</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '"></div>' +
+              '<div class="col-md-3"><label class="form-label">Địa chỉ kho</label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
+              '<div class="col-md-3"><label class="form-label">Bãi lấy cont</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
+              '<div class="col-md-3"><label class="form-label">Bãi hạ cont</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
+              '<div class="col-md-3"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
+              '<div class="col-md-3"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+      }
+      $('#ke-hoach-lines').html(html);
+      $('#ke-hoach-lines .ke-hoach-line-card').each(function () {
+        var $card = $(this);
+        var line = findLine($card.data('line-key'));
+        if (line) initCardUi($card, line);
       });
     }
 
-    function renderLine(line) {
-      var removeBtn = mode === 'edit' ? '' : '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-line" title="Xoá dòng" aria-label="Xoá dòng"><i class="ti tabler-trash"></i></button>';
-      var copyBtn = mode === 'edit' ? '' : '<button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-copy-line" title="Sao chép dòng" aria-label="Sao chép dòng"><i class="ti tabler-copy"></i></button>';
-      var pickBtn = '<button type="button" class="btn btn-sm btn-outline-primary btn-open-vehicle-modal" title="Chọn phương tiện" aria-label="Chọn phương tiện"><i class="ti tabler-truck me-1"></i> Chọn phương tiện</button>';
-      var html = '' +
-        '<div class="ke-hoach-line-card" data-line-key="' + line.key + '">' +
-          '<div class="ke-hoach-line-head">' +
-            '<div class="ke-hoach-line-heading"><h5 class="ke-hoach-line-title">Dòng xe <span class="line-order"></span></h5><div class="ke-hoach-line-meta"></div></div>' +
-            '<div class="ke-hoach-line-actions">' + pickBtn + copyBtn + removeBtn + '</div>' +
-          '</div>' +
-          '<div class="ke-hoach-line-section ke-hoach-line-section-primary">' +
-            '<div class="row g-3">' +
-            '<div class="col-md-6">' +
-              '<label class="form-label">Phương tiện <span class="text-danger">*</span></label>' +
-              '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
-              '<div class="vehicle-summary-wrap"><div class="vehicle-summary"></div><button type="button" class="btn-clear-vehicle" title="Bỏ chọn phương tiện" aria-label="Bỏ chọn phương tiện"><i class="ti tabler-x"></i></button></div>' +
-              '<div class="invalid-feedback d-block line-vehicle-feedback" style="display:none !important;">Vui lòng chọn phương tiện</div>' +
-            '</div>' +
-            '<div class="col-md-6">' +
-              '<label class="form-label">Lái xe <span class="text-danger">*</span></label>' +
-              '<select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select>' +
-            '</div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="ke-hoach-line-section">' +
-            '<div class="row g-3">' +
-            '<div class="col-md-3"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Nhập số cont"></div>' +
-            '<div class="col-md-3"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
-            '<div class="col-md-3"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Nhập số seal chính"></div>' +
-            '<div class="col-md-3"><label class="form-label">Số seal tạm</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Nhập số seal tạm"></div>' +
-            '<div class="col-md-3"><label class="form-label">Địa chỉ kho</label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
-            '<div class="col-md-3"><label class="form-label">Bãi lấy cont</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
-            '<div class="col-md-3"><label class="form-label">Bãi hạ cont</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
-            '<div class="col-md-3"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
-            '<div class="col-md-3"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
-            '<div class="col-md-9"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-      var $card = $(html);
-      $('#ke-hoach-lines').append($card);
-      initLineUi($card, line);
-      refreshOrder();
-      renderEmpty();
+    function buildTableRow(line, index) {
+      var actionCopy = mode === 'edit' ? '<span class="text-muted">-</span>' : '<button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-copy-row-ke-hoach" title="Sao chép dòng"><i class="ti tabler-copy"></i></button>';
+      var actionRemove = mode === 'edit' ? '<span class="text-muted">-</span>' : '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-row-ke-hoach" title="Xoá dòng"><i class="ti tabler-trash"></i></button>';
+      return '' +
+        '<tr class="ke-hoach-table-row" data-line-key="' + line.key + '">' +
+          '<td>' +
+            '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
+            '<button type="button" class="btn btn-outline-secondary w-100 text-start line-vehicle-display btn-open-vehicle-modal' + (line.nid_phuong_tien ? ' is-selected' : '') + '">' + vehicleSummaryHtml(line) + '</button>' +
+            '<div class="line-inline-feedback text-danger small mt-1" style="display:none;">Vui lòng chọn phương tiện có lái xe</div>' +
+          '</td>' +
+          '<td><input type="text" class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '"></td>' +
+          '<td><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '"></td>' +
+          '<td><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></td>' +
+          '<td><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '"></td>' +
+          '<td><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '"></td>' +
+          '<td><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></td>' +
+          '<td><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></td>' +
+          '<td><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></td>' +
+          '<td><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></td>' +
+          '<td><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></td>' +
+          '<td class="text-center">' + actionCopy + '</td>' +
+          '<td class="text-center">' + actionRemove + '</td>' +
+        '</tr>';
     }
 
-    function syncLine($card) {
-      var line = findLine($card.data('line-key'));
+    function renderRows() {
+      if (!useTableLayout) {
+        renderCards();
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < state.lines.length; i++) {
+        html += buildTableRow(state.lines[i], i);
+      }
+      $('#ke-hoach-lines-body').html(html);
+      $('#ke-hoach-lines-body .ke-hoach-table-row').each(function () {
+        var $row = $(this);
+        var line = findLine($row.data('line-key'));
+        if (line) initRowUi($row, line);
+      });
+    }
+
+    function syncLine($row) {
+      var line = findLine($row.data('line-key'));
       if (!line) return null;
-      line.nid_phuong_tien = parseInt($card.find('.line-vehicle-id').val(), 10) || 0;
-      line.nid_lai_xe = parseInt($card.find('.line-driver-select').val(), 10) || 0;
-      line.dia_chi_kho = ($card.find('.line-kho-select').val() || '').trim();
-      line.loai_cont = ($card.find('.line-loai-cont-select').val() || '').trim();
-      line.so_cont = $card.find('.line-so-cont-input').val().trim();
-      line.so_seal_chinh = $card.find('.line-seal-chinh-input').val().trim();
-      line.so_seal_tam = $card.find('.line-seal-tam-input').val().trim();
-      line.bai_lay_cont = ($card.find('.line-bai-lay-select').val() || '').trim();
-      line.bai_ha_cont = ($card.find('.line-bai-ha-select').val() || '').trim();
-      line.cang_xuat = ($card.find('.line-cang-select').val() || '').trim();
-      line.cut_off = datetimeToApi($card.find('.line-cut-off-input').val().trim());
-      line.hinh_thuc_van_tai = ($card.find('.line-hinh-thuc-radio:checked').val() || '').trim();
+      if (!useTableLayout) {
+        line.nid_phuong_tien = parseInt($row.find('.line-vehicle-id').val(), 10) || 0;
+        line.nid_lai_xe = parseInt($row.find('.line-driver-select').val(), 10) || 0;
+        line.so_bkg = $('#so_bkg-input').val().trim();
+        line.so_cont = $row.find('.line-so-cont-input').val().trim();
+        line.loai_cont = ($row.find('.line-loai-cont-select').val() || '').trim();
+        line.so_seal_chinh = $row.find('.line-seal-chinh-input').val().trim();
+        line.so_seal_tam = $row.find('.line-seal-tam-input').val().trim();
+        line.dia_chi_kho = ($row.find('.line-kho-select').val() || '').trim();
+        line.bai_lay_cont = ($row.find('.line-bai-lay-select').val() || '').trim();
+        line.bai_ha_cont = ($row.find('.line-bai-ha-select').val() || '').trim();
+        line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
+        line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
+        return line;
+      }
+      line.nid_phuong_tien = parseInt($row.find('.line-vehicle-id').val(), 10) || 0;
+      line.so_bkg = $row.find('.line-so-bkg-input').val().trim();
+      line.so_cont = $row.find('.line-so-cont-input').val().trim();
+      line.loai_cont = ($row.find('.line-loai-cont-select').val() || '').trim();
+      line.so_seal_chinh = $row.find('.line-seal-chinh-input').val().trim();
+      line.so_seal_tam = $row.find('.line-seal-tam-input').val().trim();
+      line.dia_chi_kho = ($row.find('.line-kho-select').val() || '').trim();
+      line.bai_lay_cont = ($row.find('.line-bai-lay-select').val() || '').trim();
+      line.bai_ha_cont = ($row.find('.line-bai-ha-select').val() || '').trim();
+      line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
+      line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
       return line;
     }
 
     function syncAllLines() {
-      $('#ke-hoach-lines .ke-hoach-line-card').each(function () {
+      var selector = useTableLayout ? '#ke-hoach-lines-body .ke-hoach-table-row' : '#ke-hoach-lines .ke-hoach-line-card';
+      $(selector).each(function () {
         syncLine($(this));
       });
     }
 
     function refreshLineSources() {
-      $('#ke-hoach-lines .ke-hoach-line-card').each(function () {
-        var $card = $(this);
-        var line = syncLine($card);
-        $card.find('.line-kho-select').html(buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho));
-        $card.find('.line-loai-cont-select').html(buildTagOptions(state.cauHinh.loaiCont, line.loai_cont));
-        $card.find('.line-bai-lay-select').html(buildTagOptions(state.diaDiem.bai, line.bai_lay_cont));
-        $card.find('.line-bai-ha-select').html(buildTagOptions(state.diaDiem.bai, line.bai_ha_cont));
-        $card.find('.line-cang-select').html(buildTagOptions(state.diaDiem.cang, line.cang_xuat));
-        initLineUi($card, line);
-      });
+      syncAllLines();
+      renderRows();
     }
 
     function addLine(source) {
       var line = createLine(source);
       state.lines.push(line);
-      renderLine(line);
+      renderRows();
+    }
+
+    function resetAllLines() {
+      state.lines = [];
+      addLine({});
     }
 
     function openVehicleModal(key) {
       state.activeLineKey = key;
-      var lineIndex = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]').index() + 1;
+      var lineIndex = $('#ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + key + '"]').index() + 1;
+      if (!useTableLayout) {
+        lineIndex = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]').index() + 1;
+      }
       $('#vehicle-picker-target').text('Đang chọn cho dòng #' + lineIndex);
       $('#vehicle-picker-search').val('');
       renderVehicleTable('');
@@ -700,19 +748,22 @@
       var html = '';
       for (var i = 0; i < state.vehicles.length; i++) {
         var item = state.vehicles[i];
+        if (useTableLayout && item.loai_phuong_tien !== 'dau_keo') continue;
+        var moocText = item.mooc && item.mooc.bks ? item.mooc.bks + (item.mooc.ma_tai_san ? ' - ' + item.mooc.ma_tai_san : '') : 'Chưa gán mooc';
         var driverText = item.lai_xe && item.lai_xe.ten ? item.lai_xe.ten + (item.lai_xe.sdt ? ' - ' + item.lai_xe.sdt : '') : 'Chưa gán lái xe';
-        var haystack = [item.bks, item.loai_phuong_tien, item.hang_xe, driverText].join(' ').toLowerCase();
+        var haystack = [item.bks, moocText, item.loai_phuong_tien, item.hang_xe, driverText].join(' ').toLowerCase();
         if (keyword && haystack.indexOf(keyword) === -1) continue;
         var checked = activeLine && parseInt(activeLine.nid_phuong_tien, 10) === parseInt(item.nid, 10);
         html += '<tr>' +
           '<td class="text-center"><input type="radio" name="vehicle-picker-radio" value="' + item.nid + '"' + (checked ? ' checked' : '') + '></td>' +
           '<td><strong>' + escHtml(item.bks || ('#' + item.nid)) + '</strong><div class="text-muted small">' + escHtml(item.ma_tai_san || '') + '</div></td>' +
+          (useTableLayout ? '<td>' + escHtml(moocText) + '</td>' : '') +
           '<td><span class="badge bg-label-warning">' + escHtml(item.loai_phuong_tien || 'Chưa phân loại') + '</span></td>' +
           '<td><div>' + escHtml(item.lai_xe && item.lai_xe.ten ? item.lai_xe.ten : 'Chưa gán lái xe') + '</div><div class="vehicle-picker-driver">' + escHtml(item.lai_xe && item.lai_xe.sdt ? item.lai_xe.sdt : '') + '</div></td>' +
           '<td class="text-center"><button type="button" class="btn btn-sm btn-primary btn-pick-vehicle" data-id="' + item.nid + '">Chọn</button></td>' +
           '</tr>';
       }
-      if (!html) html = '<tr><td colspan="5" class="text-center text-muted py-4">Không tìm thấy phương tiện phù hợp</td></tr>';
+      if (!html) html = '<tr><td colspan="' + (useTableLayout ? '6' : '5') + '" class="text-center text-muted py-4">Không tìm thấy phương tiện phù hợp</td></tr>';
       $('#vehicle-picker-body').html(html);
     }
 
@@ -721,15 +772,22 @@
       if (!line) return;
       var vehicle = state.vehicleMap[String(vehicleId)] || null;
       line.nid_phuong_tien = vehicle ? parseInt(vehicle.nid, 10) || 0 : 0;
-      if (vehicle && vehicle.lai_xe && vehicle.lai_xe.nid) {
-        line.nid_lai_xe = parseInt(vehicle.lai_xe.nid, 10) || 0;
+      line.nid_lai_xe = vehicle && vehicle.lai_xe && vehicle.lai_xe.nid ? parseInt(vehicle.lai_xe.nid, 10) || 0 : 0;
+      if (useTableLayout) {
+        var $row = $('#ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + line.key + '"]');
+        $row.find('.line-vehicle-id').val(line.nid_phuong_tien || 0);
+        $row.find('.line-vehicle-display').addClass('is-selected').html(vehicleSummaryHtml(line));
+        $row.removeClass('table-danger');
+        $row.find('.line-inline-feedback').hide();
       }
-      var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + line.key + '"]');
-      $card.find('.line-vehicle-id').val(line.nid_phuong_tien || 0);
-      $card.find('.line-driver-select').val(line.nid_lai_xe || 0).trigger('change');
-      $card.find('.vehicle-summary').addClass('is-selected').html(vehicleSummary(line));
-      $card.find('.line-vehicle-feedback').hide();
-      $card.removeClass('line-card-invalid');
+      else {
+        var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + line.key + '"]');
+        $card.find('.line-vehicle-id').val(line.nid_phuong_tien || 0);
+        $card.find('.line-driver-select').val(line.nid_lai_xe || 0).trigger('change');
+        $card.find('.vehicle-summary').addClass('is-selected').html(vehicleSummaryCardHtml(line));
+        $card.find('.line-vehicle-feedback').hide();
+        $card.removeClass('line-card-invalid');
+      }
       if (vehicleModal) vehicleModal.hide();
     }
 
@@ -766,17 +824,11 @@
 
     function validateForm() {
       var ok = true;
-      var khId = parseInt($('#nid_khach_hang-input').val(), 10) || 0;
-      var bkg = $('#so_bkg-input').val().trim();
       $('#nid_khach_hang-input').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
-      $('#so_bkg-input').removeClass('is-invalid');
+      var khId = parseInt($('#nid_khach_hang-input').val(), 10) || 0;
       if (!khId) {
         ok = false;
         $('#nid_khach_hang-input').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
-      }
-      if (!bkg) {
-        ok = false;
-        $('#so_bkg-input').addClass('is-invalid');
       }
       syncAllLines();
       if (!state.lines.length) {
@@ -785,21 +837,33 @@
       }
       var seenVehicle = {};
       var seenDriver = {};
-      $('#ke-hoach-lines .ke-hoach-line-card').each(function () {
-        var $card = $(this);
-        var line = syncLine($card);
-        $card.removeClass('line-card-invalid');
-        $card.find('.line-driver-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
-        $card.find('.line-vehicle-feedback').hide();
-        if (!line.nid_phuong_tien) {
-          ok = false;
-          $card.addClass('line-card-invalid');
-          $card.find('.line-vehicle-feedback').show();
+      var selector = useTableLayout ? '#ke-hoach-lines-body .ke-hoach-table-row' : '#ke-hoach-lines .ke-hoach-line-card';
+      $(selector).each(function () {
+        var $row = $(this);
+        var line = syncLine($row);
+        if (useTableLayout) {
+          $row.removeClass('table-danger');
+          $row.find('.line-inline-feedback').hide();
+        } else {
+          $row.removeClass('line-card-invalid');
+          $row.find('.line-driver-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
+          $row.find('.line-vehicle-feedback').hide();
         }
-        if (!line.nid_lai_xe) {
+        if ((useTableLayout && !line.so_bkg) || (!useTableLayout && !$('#so_bkg-input').val().trim())) {
           ok = false;
-          $card.addClass('line-card-invalid');
-          $card.find('.line-driver-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+          if (useTableLayout) $row.addClass('table-danger');
+          else $('#so_bkg-input').addClass('is-invalid');
+        }
+        if (!line.nid_phuong_tien || !line.nid_lai_xe) {
+          ok = false;
+          if (useTableLayout) {
+            $row.addClass('table-danger');
+            $row.find('.line-inline-feedback').show();
+          } else {
+            $row.addClass('line-card-invalid');
+            if (!line.nid_lai_xe) $row.find('.line-driver-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+            if (!line.nid_phuong_tien) $row.find('.line-vehicle-feedback').show();
+          }
         }
         if (line.nid_phuong_tien) {
           if (seenVehicle[line.nid_phuong_tien]) {
@@ -824,11 +888,10 @@
     function gatherCreatePayload() {
       syncAllLines();
       return {
-        ngay: getNgayValue(),
         nid_khach_hang: parseInt($('#nid_khach_hang-input').val(), 10) || 0,
-        so_bkg: $('#so_bkg-input').val().trim(),
         items: $.map(state.lines, function (line) {
           return {
+            so_bkg: line.so_bkg || '',
             nid_phuong_tien: line.nid_phuong_tien || 0,
             nid_lai_xe: line.nid_lai_xe || 0,
             dia_chi_kho: line.dia_chi_kho || '',
@@ -839,8 +902,7 @@
             bai_lay_cont: line.bai_lay_cont || '',
             bai_ha_cont: line.bai_ha_cont || '',
             cang_xuat: line.cang_xuat || '',
-            cut_off: line.cut_off || '',
-            hinh_thuc_van_tai: line.hinh_thuc_van_tai || ''
+            cut_off: line.cut_off || ''
           };
         })
       };
@@ -850,10 +912,9 @@
       syncAllLines();
       var line = state.lines[0] || {};
       return {
-        ngay: getNgayValue(),
         nid_khach_hang: parseInt($('#nid_khach_hang-input').val(), 10) || 0,
-        so_bkg: $('#so_bkg-input').val().trim(),
         item: {
+          so_bkg: useTableLayout ? (line.so_bkg || '') : $('#so_bkg-input').val().trim(),
           nid_phuong_tien: line.nid_phuong_tien || 0,
           nid_lai_xe: line.nid_lai_xe || 0,
           dia_chi_kho: line.dia_chi_kho || '',
@@ -864,8 +925,7 @@
           bai_lay_cont: line.bai_lay_cont || '',
           bai_ha_cont: line.bai_ha_cont || '',
           cang_xuat: line.cang_xuat || '',
-          cut_off: line.cut_off || '',
-          hinh_thuc_van_tai: line.hinh_thuc_van_tai || ''
+          cut_off: line.cut_off || ''
         }
       };
     }
@@ -873,12 +933,11 @@
     function populateEdit(row) {
       var khachHangId = (row.khach_hang && row.khach_hang.nid) || 0;
       $('#nid-input').val(row.nid || '');
-      if ($('#ngay-input').length) $('#ngay-input').val(apiToDate(row.ngay || ''));
       $('#nid_khach_hang-input').val(khachHangId).trigger('change');
-      $('#so_bkg-input').val(row.so_bkg || '');
+      if ($('#so_bkg-input').length) $('#so_bkg-input').val(row.so_bkg || '');
       state.lines = [];
-      $('#ke-hoach-lines').empty();
       addLine({
+        so_bkg: row.so_bkg || '',
         nid_phuong_tien: row.phuong_tien ? row.phuong_tien.nid : 0,
         nid_lai_xe: row.lai_xe ? row.lai_xe.nid : 0,
         dia_chi_kho: row.dia_chi_kho || '',
@@ -889,10 +948,8 @@
         bai_lay_cont: row.bai_lay_cont || '',
         bai_ha_cont: row.bai_ha_cont || '',
         cang_xuat: row.cang_xuat || '',
-        cut_off: row.cut_off || '',
-        hinh_thuc_van_tai: row.hinh_thuc_van_tai || ''
+        cut_off: row.cut_off || ''
       });
-      $('#add-line-btn').hide();
     }
 
     function loadEditDetail(done) {
@@ -989,18 +1046,14 @@
       loadCauHinh(parseInt($(this).val(), 10) || 0);
     });
     $('#add-line-btn').on('click', function () {
+      syncAllLines();
       addLine({});
+    });
+    $('#reset-lines-btn').on('click', function () {
+      resetAllLines();
     });
     $('#vehicle-picker-search').on('input', function () {
       renderVehicleTable($(this).val());
-    });
-    $('#paste-bkg-btn').on('click', function () {
-      var input = document.getElementById('so_bkg-input');
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        navigator.clipboard.readText().then(function (text) {
-          if (text) input.value = text;
-        }).catch(function () {});
-      }
     });
     $('#ke-hoach-form').on('keydown', function (e) {
       if (e.which === 13 && !$(e.target).is('textarea')) {
@@ -1027,7 +1080,12 @@
           if (nid) {
             window.location.href = '/ke-hoach-xep-xe/' + nid;
           } else {
-            window.location.href = '/ke-hoach-xep-xe';
+            if (formModal) formModal.hide();
+            $('#ke-hoach-form')[0].reset();
+            $('#nid_khach_hang-input').val('0').trigger('change');
+            state.lines = [];
+            addLine({});
+            if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
           }
         },
         error: function (jqXHR) {
@@ -1039,24 +1097,30 @@
 
     $(document).on('click', '.btn-open-vehicle-modal', function () {
       syncAllLines();
-      openVehicleModal($(this).closest('.ke-hoach-line-card').data('line-key'));
+      openVehicleModal($(this).closest(useTableLayout ? '.ke-hoach-table-row' : '.ke-hoach-line-card').data('line-key'));
     });
-    $(document).on('click', '.btn-clear-vehicle', function () {
-      var $card = $(this).closest('.ke-hoach-line-card');
-      var line = syncLine($card);
-      line.nid_phuong_tien = 0;
-      $card.find('.line-vehicle-id').val(0);
-      $card.find('.vehicle-summary').removeClass('is-selected').html(vehicleSummary(line));
+    $(document).on('click', '#paste-bkg-btn', function () {
+      var input = document.getElementById('so_bkg-input');
+      if (!input) return;
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText().then(function (text) {
+          if (text) input.value = text;
+        }).catch(function () {});
+      }
     });
-    $(document).on('click', '.btn-remove-line', function () {
-      var key = $(this).closest('.ke-hoach-line-card').data('line-key');
+    $(document).on('click', '.btn-remove-row-ke-hoach', function () {
+      if (!useTableLayout) return;
+      var key = $(this).closest('.ke-hoach-table-row').data('line-key');
+      if (state.lines.length <= 1) {
+        resetAllLines();
+        return;
+      }
       state.lines = $.grep(state.lines, function (line) { return line.key !== key; });
-      $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]').remove();
-      refreshOrder();
-      renderEmpty();
+      renderRows();
     });
-    $(document).on('click', '.btn-copy-line', function () {
-      var line = syncLine($(this).closest('.ke-hoach-line-card'));
+    $(document).on('click', '.btn-copy-row-ke-hoach', function () {
+      if (!useTableLayout) return;
+      var line = syncLine($(this).closest('.ke-hoach-table-row'));
       var copy = $.extend({}, line);
       delete copy.key;
       addLine(copy);
@@ -1067,18 +1131,20 @@
     $(document).on('change', 'input[name="vehicle-picker-radio"]', function () {
       selectVehicleForLine($(this).val());
     });
-    $(document).on('change', '.line-driver-select', function () {
-      var $card = $(this).closest('.ke-hoach-line-card');
-      var line = syncLine($card);
-      $card.find('.vehicle-summary').html(vehicleSummary(line));
-    });
-
-    if (typeof flatpickr !== 'undefined' && document.getElementById('ngay-input')) {
-      flatpickr(document.getElementById('ngay-input'), { dateFormat: 'd/m/Y', allowInput: true, static: true });
-    }
 
     loadDropdowns(function () {
-      initSelect2(document.getElementById('nid_khach_hang-input'), '— Chọn khách hàng —');
+      initSelect2(document.getElementById('nid_khach_hang-input'), '— Chọn khách hàng —', useTableLayout ? { dropdownParent: $('#ke-hoach-fullscreen-modal') } : {});
+      var modalEl = document.getElementById('ke-hoach-fullscreen-modal');
+      if (useTableLayout && modalEl) {
+        formModal = new bootstrap.Modal(modalEl);
+        modalEl.addEventListener('show.bs.modal', function () {
+          if ($('#nid-input').val()) return;
+          $('#ke-hoach-form')[0].reset();
+          $('#nid_khach_hang-input').val('0').trigger('change');
+          state.lines = [];
+          addLine({});
+        });
+      }
       if (mode === 'edit') {
         showLoading(true);
         loadEditDetail(function (row) {
@@ -1087,8 +1153,8 @@
             populateEdit(row);
           }
         });
-      } else {
-        if ($('#ngay-input').length) $('#ngay-input').val(todayDdMmYyyy());
+      }
+      else {
         addLine({});
       }
     });

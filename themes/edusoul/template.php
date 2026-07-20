@@ -71,7 +71,7 @@ function getMainMenuSoft()
                         <span class="menu-header-text" data-i18n="Vận tải">Vận tải</span>
                     </li>
                     <li class="menu-item">
-                        <a href="/tao-ke-hoach-xep-xe" class="menu-link">
+                        <a href="javascript:void(0);" class="menu-link btn-open-create-ke-hoach">
                             <i class="menu-icon icon-base ti tabler-calendar-plus"></i>
                             <div data-i18n="Tạo kế hoạch">Tạo kế hoạch</div>
                         </a>
@@ -294,6 +294,20 @@ function edusoul_preprocess_html(&$variables)
 
     if ($current_path == 'tao-ke-hoach-xep-xe' || strpos($current_path, 'ke-hoach-xep-xe/') === 0 || $current_path == 'ke-hoach-xep-xe') {
         drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 10));
+    }
+    elseif (user_is_logged_in()) {
+        drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 10));
+        drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 12));
+        drupal_add_js(array('ke_hoach_xep_xe' => array(
+            'mode' => 'create',
+            'data' => NULL,
+            'statuses' => function_exists('_ke_hoach_xep_xe_statuses') ? _ke_hoach_xep_xe_statuses() : array(),
+            'permissions' => array(
+                'view' => user_access('ke_hoach_xep_xe_view'),
+                'create' => user_access('ke_hoach_xep_xe_create'),
+                'delete' => user_access('ke_hoach_xep_xe_delete'),
+            ),
+        )), 'setting');
     }
 
     foreach ($preserved_module_css as $path => $info) {
