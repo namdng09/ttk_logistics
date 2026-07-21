@@ -110,15 +110,12 @@
               <table class="table table-bordered align-middle ke-hoach-entry-table" id="ke-hoach-entry-table">
                 <thead>
                   <tr>
-                    <th style="width: 14%">Phương tiện</th>
                     <th style="width: 8%">Số BKG</th>
-                    <th style="width: 8%">Số cont</th>
-                    <th style="width: 8%">Loại cont</th>
-                    <th style="width: 8%">Số seal chính</th>
-                    <th style="width: 8%">Số seal tạm</th>
+                    <th style="width: 14%">Phương tiện</th>
+                    <th style="width: 8%"><span class="th-split-label">Số cont<br>Loại cont</span></th>
+                    <th style="width: 8%"><span class="th-split-label">Số seal chính<br>Số seal tạm</span></th>
                     <th style="width: 12%">Địa chỉ kho</th>
-                    <th style="width: 9%">Bãi lấy cont</th>
-                    <th style="width: 9%">Bãi hạ cont</th>
+                    <th style="width: 14%"><span class="th-split-label">Bãi lấy cont<br>Bãi hạ cont</span></th>
                     <th style="width: 8%">Cảng xuất</th>
                     <th style="width: 8%">Cut-off</th>
                     <th width="1%" class="text-center">

@@ -661,19 +661,25 @@
       var actionRemove = mode === 'edit' ? '<span class="text-muted">-</span>' : '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-row-ke-hoach" title="Xoá dòng"><i class="ti tabler-trash"></i></button>';
       return '' +
         '<tr class="ke-hoach-table-row" data-line-key="' + line.key + '">' +
+          '<td><input type="text" class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG"></td>' +
           '<td>' +
             '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
             '<button type="button" class="btn btn-outline-secondary w-100 text-start line-vehicle-display btn-open-vehicle-modal' + (line.nid_phuong_tien ? ' is-selected' : '') + '">' + vehicleSummaryHtml(line) + '</button>' +
             '<div class="line-inline-feedback text-danger small mt-1" style="display:none;">Vui lòng chọn phương tiện có lái xe</div>' +
           '</td>' +
-          '<td><input type="text" class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '"></td>' +
-          '<td><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '"></td>' +
-          '<td><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></td>' +
-          '<td><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '"></td>' +
-          '<td><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '"></td>' +
+          '<td class="line-combo-cell">' +
+            '<input type="text" class="form-control line-so-cont-input mb-2" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont">' +
+            '<select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select>' +
+          '</td>' +
+          '<td class="line-combo-cell">' +
+            '<input type="text" class="form-control line-seal-chinh-input mb-2" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính">' +
+            '<input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Số seal tạm">' +
+          '</td>' +
           '<td><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></td>' +
-          '<td><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></td>' +
-          '<td><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></td>' +
+          '<td class="line-combo-cell">' +
+            '<select class="form-select line-bai-lay-select mb-2">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select>' +
+            '<select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select>' +
+          '</td>' +
           '<td><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></td>' +
           '<td><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></td>' +
           '<td class="text-center">' + actionCopy + '</td>' +

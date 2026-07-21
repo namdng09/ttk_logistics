@@ -274,6 +274,10 @@ body .flatpickr-calendar {
   overflow-y: auto;
 }
 
+#ke-hoach-fullscreen-modal #ke-hoach-lines .ke-hoach-line-card {
+  border: 2px solid #7367f0;
+}
+
 #ke-hoach-fullscreen-modal .modal-header,
 #ke-hoach-fullscreen-modal .modal-footer {
   background: #fff;
@@ -320,6 +324,14 @@ body .flatpickr-calendar {
 .ke-hoach-entry-table thead th {
   white-space: nowrap;
   font-size: 0.82rem;
+  vertical-align: middle;
+}
+
+.th-split-label {
+  display: inline-block;
+  line-height: 1.35;
+  white-space: normal;
+  min-width: 100%;
 }
 
 .ke-hoach-entry-table thead th.text-center {
@@ -344,6 +356,46 @@ body .flatpickr-calendar {
 .ke-hoach-entry-table .select2-container .select2-selection--single {
   min-height: 38px;
   font-size: 0.83rem;
+}
+
+.line-combo-cell {
+  min-width: 150px;
+  vertical-align: top !important;
+}
+
+.line-combo-cell .mb-2 {
+  margin-bottom: 0.5rem !important;
+}
+
+.line-combo-cell .form-control,
+.line-combo-cell .form-select,
+.line-combo-cell .select2-container {
+  width: 100% !important;
+}
+
+
+.line-combo-cell .form-select + .form-select,
+.line-combo-cell .form-control + .form-control,
+.line-combo-cell .form-control + .form-select,
+.line-combo-cell .form-select + .form-control {
+  margin-top: 0.5rem;
+}
+
+.line-combo-cell .select2-container {
+  display: block;
+  width: 100% !important;
+}
+
+.line-combo-cell .select2-container + .select2-container {
+  margin-top: 0.5rem;
+}
+
+.line-combo-cell .select2-container + .form-control,
+.line-combo-cell .form-control + .select2-container,
+.line-combo-cell .form-select + .select2-container,
+.line-combo-cell .select2-container + .form-select,
+.line-combo-cell .line-seal-chinh-input {
+  margin-top: 0.5rem;
 }
 
 .line-vehicle-display {
