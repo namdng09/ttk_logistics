@@ -157,22 +157,7 @@ function quan_ly_tai_chinh_theme() {
     'quan_ly_tai_chinh_quy_page' => array(
       'template' => 'quan-ly-tai-chinh-quy',
       'path' => $path,
-      'variables' => array('filter_html' => '', 'table_html' => ''),
-    ),
-    'quan_ly_tai_chinh_quy_detail_modal' => array(
-      'template' => 'quan-ly-tai-chinh-quy-detail-modal',
-      'path' => $path,
-      'variables' => array('quy' => NULL, 'history_html' => '', 'so_cai_html' => ''),
-    ),
-    'quan_ly_tai_chinh_quy_form_modal' => array(
-      'template' => 'quan-ly-tai-chinh-quy-form-modal',
-      'path' => $path,
-      'variables' => array('quy' => NULL, 'loai_options' => array()),
-    ),
-    'quan_ly_tai_chinh_quy_adjust_modal' => array(
-      'template' => 'quan-ly-tai-chinh-quy-adjust-modal',
-      'path' => $path,
-      'variables' => array('quy' => NULL, 'old_balance' => 0),
+      'variables' => array('render_mode' => 'page', 'filter_html' => '', 'table_html' => '', 'quy' => NULL, 'history_html' => '', 'so_cai_html' => '', 'loai_options' => array(), 'old_balance' => 0),
     ),
   );
 }
@@ -615,99 +600,43 @@ function quan_ly_tai_chinh_quy_page() {
   $filters = quan_ly_tai_chinh_get_date_filters();
 
   return theme('quan_ly_tai_chinh_quy_page', array(
-    'filter_html' => quan_ly_tai_chinh_render_date_filter('quan-ly-quy', $filters),
-    'table_html' => quan_ly_tai_chinh_quy_table_html($filters),
+    'render_mode' => 'page',
+    'action' => 'quan-ly-quy',
+    'filters' => $filters,
+    'table_items' => quan_ly_tai_chinh_quy_table_data($filters),
   ));
 }
 
 /**
  * Render riêng bảng danh sách quỹ để refresh bằng AJAX.
  */
-function quan_ly_tai_chinh_quy_table_html($filters = NULL) {
+function quan_ly_tai_chinh_quy_table_data($filters = NULL) {
   if (!$filters) {
     $filters = quan_ly_tai_chinh_get_date_filters();
   }
 
   $quys = quan_ly_tai_chinh_quy_get_all(TRUE);
 
-  $header = array(
-    array('data' => 'STT', 'class' => array('text-center')),
-    'Mã quỹ',
-    'Tên quỹ',
-    'Loại quỹ',
-    array('data' => 'Đầu kỳ', 'class' => array('text-end')),
-    array('data' => 'Thu', 'class' => array('text-end')),
-    array('data' => 'Chi', 'class' => array('text-end')),
-    array('data' => 'Chuyển đến', 'class' => array('text-end')),
-    array('data' => 'Chuyển đi', 'class' => array('text-end')),
-    array('data' => 'Cuối kỳ', 'class' => array('text-end')),
-    array('data' => 'Thao tác', 'class' => array('text-center qltc-action-th')),
-  );
-
-  $rows = array();
+  $items = array();
   $stt = 1;
   foreach ($quys as $quy) {
     $period = quan_ly_tai_chinh_quy_period_summary($quy->quy_id, $filters['from_time'], $filters['to_time']);
 
-    $actions = '<div class="qltc-table-actions">';
-    $actions .= l('<i class="icon-base ti tabler-eye"></i>', 'quan-ly-quy/ajax-detail/' . $quy->quy_id, array(
-      'html' => TRUE,
-      'attributes' => array(
-        'class' => array('qltc-action-icon', 'qltc-action-view', 'qltc-quy-detail-modal'),
-        'title' => 'Xem chi tiết quỹ',
-        'data-url' => url('quan-ly-quy/ajax-detail/' . $quy->quy_id),
-        'data-title' => 'Chi tiết quỹ',
-      ),
-    ));
-    $actions .= l('<i class="icon-base ti tabler-edit"></i>', 'quan-ly-quy/sua/' . $quy->quy_id, array(
-      'html' => TRUE,
-      'attributes' => array(
-        'class' => array('qltc-action-icon', 'qltc-action-edit', 'qltc-quy-open-modal'),
-        'title' => 'Sửa quỹ',
-        'data-url' => url('quan-ly-quy/ajax-form/' . $quy->quy_id),
-        'data-title' => 'Sửa quỹ',
-      ),
-    ));
-    $actions .= l('<i class="icon-base ti tabler-adjustments-dollar"></i>', 'quan-ly-quy/ajax-adjust-form/' . $quy->quy_id, array(
-      'html' => TRUE,
-      'attributes' => array(
-        'class' => array('qltc-action-icon', 'qltc-action-adjust', 'qltc-quy-adjust-modal'),
-        'title' => 'Điều chỉnh số dư đầu kỳ',
-        'data-url' => url('quan-ly-quy/ajax-adjust-form/' . $quy->quy_id),
-        'data-title' => 'Điều chỉnh số dư đầu kỳ',
-      ),
-    ));
-    $actions .= '<a href="#" class="qltc-action-icon qltc-action-delete qltc-quy-delete" data-url="' . check_plain(url('quan-ly-quy/ajax-delete/' . $quy->quy_id)) . '" data-title="' . check_plain($quy->ten_quy) . '" title="Xóa quỹ"><i class="icon-base ti tabler-trash"></i></a>';
-    $actions .= '</div>';
-
-    $rows[] = array(
-      array('data' => $stt++, 'class' => array('text-center')),
-      '<span class="fw-semibold">' . check_plain($quy->ma_quy) . '</span>',
-      '<strong>' . check_plain($quy->ten_quy) . '</strong>' . (!empty($quy->ghi_chu) ? '<div class="qltc-muted">' . check_plain($quy->ghi_chu) . '</div>' : ''),
-      check_plain(quan_ly_tai_chinh_loai_quy_label($quy->loai_quy)),
-      array('data' => quan_ly_tai_chinh_format_money($period['dau_ky']), 'class' => array('text-end')),
-      array('data' => quan_ly_tai_chinh_format_money($period['thu']), 'class' => array('text-end', 'text-success')),
-      array('data' => quan_ly_tai_chinh_format_money($period['chi']), 'class' => array('text-end', 'text-danger')),
-      array('data' => quan_ly_tai_chinh_format_money($period['chuyen_den']), 'class' => array('text-end', 'text-success')),
-      array('data' => quan_ly_tai_chinh_format_money($period['chuyen_di']), 'class' => array('text-end', 'text-danger')),
-      array('data' => '<strong>' . quan_ly_tai_chinh_format_money($period['cuoi_ky']) . '</strong>', 'class' => array('text-end')),
-      array('data' => $actions, 'class' => array('text-center')),
+    $items[] = array(
+      'stt' => $stt++,
+      'quy' => $quy,
+      'period' => $period,
     );
   }
 
-  if (empty($rows)) {
-    $rows[] = array(array('data' => 'Chưa có quỹ nào.', 'colspan' => count($header), 'class' => array('text-center')));
-  }
+  return $items;
+}
 
-  $html = '<div class="table-responsive text-nowrap qltc-table-wrap">';
-  $html .= theme('table', array(
-    'header' => $header,
-    'rows' => $rows,
-    'attributes' => array('class' => array('table', 'table-bordered', 'table-hover', 'align-middle', 'qltc-table', 'qltc-quy-table')),
+function quan_ly_tai_chinh_quy_table_html($filters = NULL) {
+  return theme('quan_ly_tai_chinh_quy_page', array(
+    'render_mode' => 'table',
+    'table_items' => quan_ly_tai_chinh_quy_table_data($filters),
   ));
-  $html .= '</div>';
-
-  return $html;
 }
 
 /**
@@ -800,7 +729,8 @@ function quan_ly_tai_chinh_quy_detail_modal_html($quy) {
     $history_html .= '</div>';
   }
 
-  return theme('quan_ly_tai_chinh_quy_detail_modal', array(
+  return theme('quan_ly_tai_chinh_quy_page', array(
+    'render_mode' => 'detail',
     'quy' => $quy,
     'history_html' => $history_html,
     'so_cai_html' => quan_ly_tai_chinh_quy_thu_chi_history_html(intval($quy->quy_id), $json),
@@ -960,7 +890,8 @@ function quan_ly_tai_chinh_quy_ajax_form($quy_id = 0) {
  * HTML form thêm/sửa quỹ trong modal Bootstrap 5.
  */
 function quan_ly_tai_chinh_quy_modal_form_html($quy = NULL) {
-  return theme('quan_ly_tai_chinh_quy_form_modal', array(
+  return theme('quan_ly_tai_chinh_quy_page', array(
+    'render_mode' => 'form',
     'quy' => $quy,
     'loai_options' => quan_ly_tai_chinh_loai_quy_options(),
   ));
@@ -1087,7 +1018,8 @@ function quan_ly_tai_chinh_quy_ajax_adjust_form($quy_id) {
  * HTML form điều chỉnh số dư đầu kỳ trong modal.
  */
 function quan_ly_tai_chinh_quy_adjust_modal_form_html($quy) {
-  return theme('quan_ly_tai_chinh_quy_adjust_modal', array(
+  return theme('quan_ly_tai_chinh_quy_page', array(
+    'render_mode' => 'adjust',
     'quy' => $quy,
     'old_balance' => quan_ly_tai_chinh_money_to_number($quy->so_du_dau_ky),
   ));
@@ -2344,24 +2276,7 @@ function quan_ly_tai_chinh_get_date_filters() {
 }
 
 function quan_ly_tai_chinh_render_date_filter($action, array $filters, $include_type = FALSE) {
-  $html = '<div class="card qltc-filter"><div class="card-body"><form method="get" action="' . check_plain(url($action)) . '"><div class="qltc-filter-row">';
-  $html .= '<div><label>Từ ngày</label><input type="text" name="from_date" class="form-control form-control-sm" value="' . check_plain($filters['from_date']) . '"></div>';
-  $html .= '<div><label>Đến ngày</label><input type="text" name="to_date" class="form-control form-control-sm" value="' . check_plain($filters['to_date']) . '"></div>';
-  if ($include_type) {
-    $html .= '<div><label>Loại</label><select name="loai_giao_dich" class="form-select form-select-sm"><option value="">Tất cả</option>';
-    foreach (quan_ly_tai_chinh_loai_giao_dich_options() as $k => $v) {
-      $html .= '<option value="' . check_plain($k) . '"' . (isset($_GET['loai_giao_dich']) && $_GET['loai_giao_dich'] === $k ? ' selected' : '') . '>' . check_plain($v) . '</option>';
-    }
-    $html .= '</select></div>';
-    $html .= '<div><label>Nhóm</label><select name="nhom_giao_dich" class="form-select form-select-sm"><option value="">Tất cả</option>';
-    foreach (quan_ly_tai_chinh_nhom_giao_dich_options() as $k => $v) {
-      $html .= '<option value="' . check_plain($k) . '"' . (isset($_GET['nhom_giao_dich']) && $_GET['nhom_giao_dich'] === $k ? ' selected' : '') . '>' . check_plain($v) . '</option>';
-    }
-    $html .= '</select></div>';
-  }
-  $html .= '<div><button class="btn btn-primary btn-sm" type="submit">Lọc</button></div>';
-  $html .= '</div></form></div></div>';
-  return $html;
+  return array('action' => $action, 'filters' => $filters, 'include_type' => $include_type);
 }
 
 /**
