@@ -1,0 +1,226 @@
+<?php
+
+/**
+ * @file
+ * Cài đặt dữ liệu cho module Quản lý tài chính.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function quan_ly_tai_chinh_install() {
+  module_load_include('module', 'quan_ly_tai_chinh');
+  if (function_exists('quan_ly_tai_chinh_ensure_quy_table')) {
+    quan_ly_tai_chinh_ensure_quy_table();
+  }
+}
+
+/**
+ * Implements hook_schema().
+ *
+ * Quỹ được lưu hoàn toàn bằng bảng qltc_quy.
+ * Bảng qltc_giao_dich và qltc_so_cai_quy tiếp tục là nguồn giao dịch/sổ cái.
+ */
+function quan_ly_tai_chinh_schema() {
+  $schema = array();
+
+  $schema['qltc_quy'] = array(
+    'description' => 'Quy tai chinh luu bang schema thuong, khong dung content type.',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'not null' => TRUE),
+      'ma_quy' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'ten_quy' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'loai_quy' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => 'tien_mat'),
+      'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+      'thong_tin_json' => array('type' => 'text', 'not null' => FALSE),
+      'so_du_dau_ky' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'so_du_hien_tai' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'uid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'status' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+      'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'changed' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+    ),
+    'primary key' => array('nid'),
+    'unique keys' => array(
+      'ma_quy' => array('ma_quy'),
+    ),
+    'indexes' => array(
+      'ten_quy' => array('ten_quy'),
+      'loai_quy' => array('loai_quy'),
+      'hoat_dong' => array('hoat_dong'),
+    ),
+  );
+
+  $schema['qltc_giao_dich'] = array(
+    'description' => 'Giao dịch thu chi, chuyển quỹ và tạm ứng lái xe.',
+    'fields' => array(
+      'gd_id' => array('type' => 'serial', 'not null' => TRUE),
+      'ma_giao_dich' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'loai_giao_dich' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => 'chi'),
+      'nhom_giao_dich' => array('type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => 'khac'),
+      'quy_id' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'quy_nhan_id' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'so_tien' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'ngay_giao_dich' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'thang_luong' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
+      'lai_xe_nid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'luong_lai_xe_nid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'khach_hang_nid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nha_cung_cap_nid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'chuyen_xe_nid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'ref_type' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'ref_id' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'dien_giai' => array('type' => 'text', 'not null' => FALSE),
+      'uid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'status' => array('type' => 'int', 'not null' => TRUE, 'default' => 1),
+      'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'changed' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+    ),
+    'primary key' => array('gd_id'),
+    'indexes' => array(
+      'loai_giao_dich' => array('loai_giao_dich'),
+      'nhom_giao_dich' => array('nhom_giao_dich'),
+      'quy_id' => array('quy_id'),
+      'quy_nhan_id' => array('quy_nhan_id'),
+      'ngay_giao_dich' => array('ngay_giao_dich'),
+      'lai_xe_nid' => array('lai_xe_nid'),
+      'luong_lai_xe_nid' => array('luong_lai_xe_nid'),
+      'thang_luong' => array('thang_luong'),
+      'status' => array('status'),
+    ),
+  );
+
+
+  $schema['qltc_so_cai_quy'] = array(
+    'description' => 'Sổ cái biến động quỹ. Đây là nguồn dữ liệu chính để tính số dư quỹ theo thời gian.',
+    'fields' => array(
+      'id' => array('type' => 'serial', 'not null' => TRUE),
+      'quy_nid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'source_type' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'source_id' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'source_line' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'phieu_nid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'ma_chung_tu' => array('type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''),
+      'loai_bien_dong' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'ngay_giao_dich' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'thoi_gian_phat_sinh' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'so_tien' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'bien_dong' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'so_du_truoc' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'so_du_sau' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'doi_tuong_type' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'doi_tuong_id' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'uid_thuc_hien' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+      'data_json' => array('type' => 'text', 'not null' => FALSE),
+      'status' => array('type' => 'int', 'not null' => TRUE, 'default' => 1),
+      'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'changed' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'quy_nid' => array('quy_nid'),
+      'source' => array('source_type', 'source_id'),
+      'source_line' => array('source_type', 'source_id', 'source_line'),
+      'phieu_nid' => array('phieu_nid'),
+      'ngay_giao_dich' => array('ngay_giao_dich'),
+      'status' => array('status'),
+      'quy_ngay_status' => array('quy_nid', 'ngay_giao_dich', 'status'),
+    ),
+  );
+
+  return $schema;
+}
+
+/**
+ * Bổ sung cột field_hoat_dong cho bảng qltc_quy cũ nếu bảng này còn tồn tại.
+ */
+function quan_ly_tai_chinh_update_7101() {
+  if (!db_table_exists('qltc_quy')) {
+    return;
+  }
+
+  if (!db_field_exists('qltc_quy', 'field_hoat_dong')) {
+    db_add_field('qltc_quy', 'field_hoat_dong', array(
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 1,
+      'description' => '1 = quỹ đang tồn tại, 0 = quỹ đã bị xóa mềm.',
+    ));
+  }
+
+  if (!db_index_exists('qltc_quy', 'field_hoat_dong')) {
+    db_add_index('qltc_quy', 'field_hoat_dong', array('field_hoat_dong'));
+  }
+
+  db_update('qltc_quy')
+    ->expression('field_hoat_dong', 'CASE WHEN status = 0 THEN 0 ELSE 1 END')
+    ->execute();
+
+  db_update('qltc_quy')
+    ->fields(array('status' => 0))
+    ->execute();
+}
+
+/**
+ * Legacy update cũ, nay chỉ đảm bảo bảng quỹ tồn tại.
+ */
+function quan_ly_tai_chinh_update_7102() {
+  module_load_include('module', 'quan_ly_tai_chinh');
+  if (function_exists('quan_ly_tai_chinh_ensure_quy_table')) {
+    quan_ly_tai_chinh_ensure_quy_table();
+  }
+}
+
+/**
+ * Rebuild lại số dư quỹ từ schema phiếu thu chi.
+ */
+function quan_ly_tai_chinh_update_7103() {
+  module_load_include('module', 'quan_ly_tai_chinh');
+  if (function_exists('quan_ly_tai_chinh_ensure_quy_table')) {
+    quan_ly_tai_chinh_ensure_quy_table();
+  }
+
+  $count = 0;
+  if (function_exists('quan_ly_tai_chinh_quy_get_all') && function_exists('quan_ly_tai_chinh_rebuild_quy_balance')) {
+    foreach (quan_ly_tai_chinh_quy_get_all(FALSE) as $quy) {
+      quan_ly_tai_chinh_rebuild_quy_balance($quy->quy_id);
+      $count++;
+    }
+  }
+
+  return 'Đã rebuild số dư hiện tại cho ' . intval($count) . ' quỹ tài chính từ schema qltc_quy/qltc_phieu_thu_chi.';
+}
+
+
+/**
+ * Tạo bảng sổ cái quỹ, đồng bộ dữ liệu hiện có và rebuild số dư quỹ.
+ */
+function quan_ly_tai_chinh_update_7104() {
+  module_load_include('module', 'quan_ly_tai_chinh');
+
+  if (function_exists('quan_ly_tai_chinh_ensure_so_cai_quy_table')) {
+    quan_ly_tai_chinh_ensure_so_cai_quy_table();
+  }
+
+  $synced_phieu = 0;
+  if (function_exists('quan_ly_tai_chinh_sync_all_phieu_thu_chi_to_so_cai')) {
+    $synced_phieu = quan_ly_tai_chinh_sync_all_phieu_thu_chi_to_so_cai();
+  }
+
+  $synced_gd = 0;
+  if (function_exists('quan_ly_tai_chinh_sync_all_giao_dich_to_so_cai')) {
+    $synced_gd = quan_ly_tai_chinh_sync_all_giao_dich_to_so_cai();
+  }
+
+  $rebuilt = 0;
+  if (function_exists('quan_ly_tai_chinh_quy_get_all') && function_exists('quan_ly_tai_chinh_rebuild_quy_balance')) {
+    foreach (quan_ly_tai_chinh_quy_get_all(FALSE) as $quy) {
+      quan_ly_tai_chinh_rebuild_quy_balance($quy->quy_id, FALSE);
+      $rebuilt++;
+    }
+  }
+
+  return 'Đã tạo sổ cái quỹ, đồng bộ ' . intval($synced_phieu) . ' phiếu thu chi, ' . intval($synced_gd) . ' giao dịch cũ và rebuild ' . intval($rebuilt) . ' quỹ.';
+}

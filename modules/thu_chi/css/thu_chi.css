@@ -1,0 +1,280 @@
+/**
+ * Thu chi module.
+ */
+.tc-page {
+  font-size: 14px;
+}
+
+.tc-card,
+.tc-filter {
+  margin-bottom: 1rem;
+}
+
+.tc-title-row,
+.tc-toolbar,
+.tc-actions,
+.tc-table-actions {
+  display: flex;
+  align-items: center;
+}
+
+.tc-title-row {
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.15rem;
+}
+
+.tc-toolbar,
+.tc-actions {
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.tc-filter-row {
+  display: flex;
+  align-items: end;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.tc-filter-row > div {
+  min-width: 150px;
+}
+
+.tc-filter-row label {
+  display: block;
+  font-size: .78rem;
+  font-weight: 600;
+  margin-bottom: .25rem;
+  color: #475569;
+}
+
+.tc-table-wrap {
+  margin-top: .25rem;
+}
+
+.tc-table thead th {
+  background: #f1f5f9 !important;
+  color: #334155;
+  padding: .45rem .55rem !important;
+  vertical-align: middle;
+  border-bottom-color: #d9e2ef !important;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tc-table td {
+  vertical-align: middle;
+}
+
+.tc-table-actions {
+  justify-content: center;
+  gap: .35rem;
+}
+
+.tc-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  border-radius: 50%;
+}
+
+.tc-action-icon:hover {
+  background: rgba(15, 23, 42, .06) !important;
+}
+
+.tc-action-edit {
+  color: #2563eb !important;
+}
+
+.tc-action-delete {
+  color: #dc2626 !important;
+}
+
+.tc-runtime-modal {
+  z-index: 1096;
+}
+
+.tc-runtime-modal .modal-header {
+  background: transparent;
+}
+
+.tc-runtime-modal-body {
+  background: #fff;
+}
+
+.tc-form-disabled {
+  opacity: .78;
+}
+
+.tc-btn-save-thu-chi.is-loading {
+  pointer-events: none;
+  min-width: 120px;
+}
+
+.tc-region-loading,
+.tc-block-fallback {
+  position: relative;
+  pointer-events: none;
+  opacity: .78;
+}
+
+.tc-block-fallback:after,
+.tc-region-loading:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(255, 255, 255, .55);
+  border-radius: inherit;
+}
+
+.tc-modal-actions {
+  border-top: 1px solid #eef2f7;
+  padding-top: 1rem;
+}
+
+.flatpickr-calendar {
+  z-index: 99999 !important;
+}
+
+.tc-detail-card .card-header {
+  background: transparent;
+}
+
+.tc-detail-table thead th {
+  background: #f8fafc !important;
+  color: #334155;
+  padding: .45rem .55rem !important;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tc-detail-table tbody td {
+  padding: .45rem .55rem !important;
+  vertical-align: middle;
+}
+
+.tc-detail-table .select2-container,
+.tc-detail-table .form-control,
+.tc-detail-table .form-select {
+  width: 100% !important;
+}
+
+.tc-runtime-modal .modal-fullscreen .tc-runtime-modal-body {
+  overflow-y: auto;
+}
+
+.tc-runtime-modal .modal-fullscreen .tc-runtime-modal-content {
+  min-height: 100vh;
+}
+
+.tc-form-section .form-label {
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: .25rem;
+}
+
+.tc-grand-total {
+  max-width: 180px;
+}
+
+.tc-detail-content-col {
+  min-width: 260px;
+}
+
+.tc-detail-money-col {
+  min-width: 125px;
+}
+
+.tc-detail-qty-col,
+.tc-detail-unit-col,
+.tc-detail-vat-col {
+  min-width: 95px;
+}
+
+.tc-detail-remove-col {
+  width: 52px;
+}
+
+.tc-runtime-modal .select2-container {
+  width: 100% !important;
+}
+
+.tc-function-dropdown .dropdown-menu {
+  min-width: 190px;
+}
+.tc-function-dropdown .dropdown-item {
+  font-size: .82rem;
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+}
+.tc-detail-view .table th,
+.tc-detail-view .table td {
+  vertical-align: middle;
+}
+.tc-thu-chi-table .badge {
+  white-space: nowrap;
+}
+
+.tc-summary-row {
+  margin-bottom: 1rem;
+}
+
+.tc-summary-card {
+  border: 1px solid #e5edf6;
+  box-shadow: 0 .125rem .375rem rgba(15, 23, 42, .035);
+}
+
+.tc-summary-number {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.tc-thu-chi-table td.text-success strong,
+.tc-thu-chi-table td.text-danger strong {
+  white-space: nowrap;
+}
+
+/* Bảng Thu chi: cột chức năng gọn, phân loại rút gọn có tooltip. */
+.tc-action-th,
+.tc-thu-chi-table td:first-child {
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+}
+.tc-function-dropdown {
+  line-height: 1;
+}
+.tc-function-dropdown .tc-function-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+}
+.tc-function-dropdown .tc-function-btn:hover {
+  color: #0d6efd;
+}
+.tc-function-dropdown .tc-function-btn::after {
+  display: none;
+}
+.tc-truncated-cell {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}

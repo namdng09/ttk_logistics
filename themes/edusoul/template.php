@@ -60,7 +60,7 @@ function getMainMenuSoft()
                 <div class="menu-inner-shadow"></div>
 
                 <ul class="menu-inner py-1">
-                    <li class="menu-item">
+                    <li class="menu-item' . (drupal_is_front_page() ? ' active' : '') . '">
                         <a href="/" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-smart-home"></i>
                             <div data-i18n="Tổng quan">Tổng quan</div>
@@ -76,7 +76,7 @@ function getMainMenuSoft()
                             <div data-i18n="Tạo kế hoạch">Tạo kế hoạch</div>
                         </a>
                     </li>
-                    <li class="menu-item">
+                    <li class="menu-item' . ((strpos(current_path(), 'ke-hoach-xep-xe') === 0 || current_path() === 'tao-ke-hoach-xep-xe') ? ' active' : '') . '">
                         <a href="/ke-hoach-xep-xe" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-calendar-stats"></i>
                             <div data-i18n="Kế hoạch xếp xe">Kế hoạch xếp xe</div>
@@ -97,10 +97,26 @@ function getMainMenuSoft()
                         </ul>
                     </li>
                     
+                     <li class="menu-header small">
+                        <span class="menu-header-text" data-i18n="Tài chính">Tài chính</span>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'quan-ly-quy') === 0 || strpos(current_path(), 'quan-ly-tai-chinh') === 0) ? ' active' : '') . '">
+                        <a href="/quan-ly-quy" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-cash"></i>
+                            <div data-i18n="Quản lý quỹ">Quản lý quỹ</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'thu-chi') === 0) ? ' active' : '') . '">
+                        <a href="/thu-chi" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-receipt-2"></i>
+                            <div data-i18n="Thu chi">Thu chi</div>
+                        </a>
+                    </li>
+
                     <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
                     </li>
-                    <li class="menu-item">
+                    <li class="menu-item' . ((strpos(current_path(), 'hop-dong') === 0) ? ' active' : '') . '">
                         <a href="/hop-dong" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-file-text"></i>
                             <div data-i18n="Hợp đồng">Hợp đồng</div>
@@ -110,13 +126,13 @@ function getMainMenuSoft()
                      <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="Hệ Thống">Hệ Thống</span>
                     </li>
-                    <li class="menu-item">
+                    <li class="menu-item' . ((strpos(current_path(), 'nhan-vien') === 0) ? ' active' : '') . '">
                         <a href="/nhan-vien" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-user-cog"></i>
                             <div data-i18n="Nhân viên">Nhân viên</div>
                         </a>
                     </li>
-                    <li class="menu-item">
+                    <li class="menu-item' . ((strpos(current_path(), 'khach-hang') === 0) ? ' active' : '') . '">
                         <a href="/khach-hang" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-users"></i>
                             <div data-i18n="Khách hàng">Khách hàng</div>
@@ -127,7 +143,7 @@ function getMainMenuSoft()
                         <span class="menu-header-text" data-i18n="DANH MỤC">DANH MỤC</span>
                     </li>
 
-                    <li class="menu-item">
+                    <li class="menu-item' . ((strpos(current_path(), 'danh-muc') === 0 && current_path() !== 'danh-muc-dia-diem') ? ' active' : '') . '">
                         <a href="/danh-muc" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-category"></i>
                             <div data-i18n="Danh mục">Danh mục</div>
@@ -172,7 +188,7 @@ function getMainMenuSoft()
                             </li>
                         </ul>
                     </li>
-                    <li class="menu-item">
+                    <li class="menu-item' . ((strpos(current_path(), 'lai-xe') === 0) ? ' active' : '') . '">
                         <a href="/lai-xe" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-users"></i>
                             <div data-i18n="Lái xe">Lái xe</div>

@@ -1,0 +1,10 @@
+name = Thu chi
+core = 7.x
+package = ANDIN JSC API
+version = 7.x-2.0
+project = thu_chi
+description = Module quản lý phiếu thu, phiếu chi độc lập, dùng quỹ từ module Quản lý tài chính.
+dependencies[] = quan_ly_tai_chinh
+dependencies[] = number
+dependencies[] = entityreference
+stylesheets[all][] = css/thu_chi.css
