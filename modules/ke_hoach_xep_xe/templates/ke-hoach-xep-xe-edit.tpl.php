@@ -2,10 +2,10 @@
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <div class="d-flex align-items-center gap-2">
       <a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary btn-sm waves-effect"><i class="icon-base ti tabler-arrow-left me-1"></i> Quay lại</a>
-      <h4 class="card-title mb-0" id="form-title">Sửa kế hoạch xếp xe</h4>
+      <h4 class="card-title mb-0" id="form-title">Xếp xe</h4>
     </div>
     <div class="d-flex gap-2">
-      <button type="button" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu cập nhật</button>
+      <button type="button" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu xếp xe</button>
     </div>
   </div>
 

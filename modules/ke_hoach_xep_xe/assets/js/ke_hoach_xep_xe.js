@@ -160,6 +160,7 @@
       bindGlobalCreateModal();
       if ($('#ke-hoach-list-app', context).length) initList();
       if ($('#ke-hoach-form-app', context).length) initForm();
+      if ($('#ke-hoach-cont-app', context).length) initContList();
       if ($('#detail-body', context).length) initDetail();
     }
   };
@@ -363,11 +364,12 @@
           var khName = (row.khach_hang && row.khach_hang.ten) || '';
           var lxName = (row.lai_xe && row.lai_xe.ten) || '';
           var ptBks = (row.phuong_tien && row.phuong_tien.bks) || '';
+          var hinhThucText = row.hinh_thuc_status_text ? row.hinh_thuc_status_text : escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '');
           html += '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
             '<td>' + formatDateBadge(row.created) + '</td>' +
-            '<td><span class="badge ' + (HINH_THUC_COLOR[row.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</span></td>' +
+            '<td>' + (hinhThucText ? '<span class="badge ' + (HINH_THUC_COLOR[row.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</span><div class="small text-muted mt-1">' + escHtml(hinhThucText.replace((HINH_THUC_MAP[row.hinh_thuc_van_tai] || ''), '').replace(/^\s*\|\s*/, '')) + '</div>' : '') + '</td>' +
             '<td>' + escHtml(khName) + '</td>' +
             '<td>' + escHtml(row.so_bkg || '') + '</td>' +
             '<td>' + escHtml(row.dia_chi_kho || '') + '</td>' +
@@ -491,7 +493,13 @@
         bai_lay_cont: '',
         bai_ha_cont: '',
         cang_xuat: '',
-        cut_off: ''
+        cut_off: '',
+        hinh_thuc_van_tai: '',
+        ke_hoach_cont_ref_nid: 0,
+        da_cat_mooc: 0,
+        da_du_hang: 0,
+        ha_bai_ngoai: 0,
+        ha_cang: 0
       }, source || {});
     }
 
@@ -552,7 +560,7 @@
       $.each(HINH_THUC_MAP, function (key, label) {
         var checked = key === (line.hinh_thuc_van_tai || '') ? ' checked' : '';
         html += '<label class="form-check form-check-inline line-hinh-thuc-option">' +
-          '<input class="form-check-input line-hinh-thuc-radio" type="radio" name="line-hinh-thuc-' + escHtml(line.key) + '" value="' + key + '"' + checked + '>' +
+          '<input class="form-check-input line-hinh-thuc-radio" type="radio" name="line-hinh-thuc-' + escHtml(line.key) + '" value="' + key + '" data-current="' + (checked ? '1' : '0') + '"' + checked + '>' +
           '<span class="form-check-label">' + escHtml(label) + '</span>' +
         '</label>';
       });
@@ -635,6 +643,7 @@
               '<div class="col-md-3"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
               '<div class="col-md-3"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
               '<div class="col-md-9"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
+              '<div class="col-12 line-cont-picker-wrap" style="display:none;"><label class="form-label d-block">Chọn cont phù hợp</label><div class="table-responsive"><table class="table table-bordered table-sm mb-0"><thead><tr><th>Chọn</th><th>Số cont</th><th>Số BKG</th><th>Kho</th><th>Đủ hàng</th></tr></thead><tbody class="line-cont-picker-body"><tr><td colspan="5" class="text-center text-muted">Chưa có dữ liệu</td></tr></tbody></table></div></div>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -706,6 +715,10 @@
         line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
         line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
         line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-radio:checked').val() || '').trim();
+        line.da_cat_mooc = (line.hinh_thuc_van_tai === 'cat_keo' || line.hinh_thuc_van_tai === 'cat_keo_cheo' || line.hinh_thuc_van_tai === 'tha_mooc') ? 1 : 0;
+        if (line.hinh_thuc_van_tai === 'dong_hang_trong_ngay') {
+          line.da_du_hang = 1;
+        }
         return line;
       }
       line.nid_phuong_tien = parseInt($row.find('.line-vehicle-id').val(), 10) || 0;
@@ -828,6 +841,48 @@
       if (vehicleModal) vehicleModal.hide();
     }
 
+    function shouldShowContPicker(hinhThuc) {
+      return hinhThuc === 'cat_keo' || hinhThuc === 'cat_keo_cheo' || hinhThuc === 'rut_mooc';
+    }
+
+    function loadContCandidates(line, $card) {
+      var hinhThuc = line.hinh_thuc_van_tai || '';
+      var $wrap = $card.find('.line-cont-picker-wrap');
+      var $body = $card.find('.line-cont-picker-body');
+      if (!shouldShowContPicker(hinhThuc)) {
+        $wrap.hide();
+        $body.html('<tr><td colspan="5" class="text-center text-muted">Không áp dụng cho hình thức này</td></tr>');
+        return;
+      }
+      $wrap.show();
+      $body.html('<tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr>');
+      $.ajax({
+        url: '/api/quan-ly-cont',
+        type: 'GET',
+        dataType: 'json',
+        data: { dia_chi_kho: line.dia_chi_kho || '' },
+        success: function (res) {
+          if (res.status !== 'success' || !res.data || !res.data.items) {
+            $body.html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+            return;
+          }
+          var rows = [];
+          for (var i = 0; i < res.data.items.length; i++) {
+            var item = res.data.items[i];
+            if (!item.da_cat_mooc) continue;
+            if (!item.so_cont || item.nid === parseInt($('#nid-input').val(), 10)) continue;
+            if (hinhThuc === 'cat_keo' && item.dia_chi_kho !== line.dia_chi_kho) continue;
+            if ((hinhThuc === 'cat_keo_cheo' || hinhThuc === 'rut_mooc') && item.dia_chi_kho === line.dia_chi_kho) continue;
+            rows.push('<tr><td class="text-center"><button type="button" class="btn btn-sm btn-primary btn-pick-cont-ref" data-id="' + item.nid + '" data-so-cont="' + escHtml(item.so_cont || '') + '">Chọn</button></td><td>' + escHtml(item.so_cont || '') + '</td><td>' + escHtml(item.so_bkg || '') + '</td><td>' + escHtml(item.dia_chi_kho || '') + '</td><td class="text-center">' + (item.da_du_hang ? '<i class="ti tabler-check text-success"></i>' : '<i class="ti tabler-minus text-muted"></i>') + '</td></tr>');
+          }
+          $body.html(rows.length ? rows.join('') : '<tr><td colspan="5" class="text-center text-muted">Không có cont phù hợp</td></tr>');
+        },
+        error: function () {
+          $body.html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+        }
+      });
+    }
+
     function loadCauHinh(khId, callback) {
       state.cauHinh = { diaChiKho: [], loaiCont: [] };
       if (!khId) {
@@ -939,7 +994,13 @@
             bai_lay_cont: line.bai_lay_cont || '',
             bai_ha_cont: line.bai_ha_cont || '',
             cang_xuat: line.cang_xuat || '',
-            cut_off: line.cut_off || ''
+            cut_off: line.cut_off || '',
+            hinh_thuc_van_tai: line.hinh_thuc_van_tai || '',
+            ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
+            da_cat_mooc: line.da_cat_mooc || 0,
+            da_du_hang: line.da_du_hang || 0,
+            ha_bai_ngoai: line.ha_bai_ngoai || 0,
+            ha_cang: line.ha_cang || 0
           };
         })
       };
@@ -963,7 +1024,12 @@
           bai_ha_cont: line.bai_ha_cont || '',
           cang_xuat: line.cang_xuat || '',
           cut_off: line.cut_off || '',
-          hinh_thuc_van_tai: useTableLayout ? '' : (line.hinh_thuc_van_tai || '')
+          hinh_thuc_van_tai: useTableLayout ? '' : (line.hinh_thuc_van_tai || ''),
+          ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
+          da_cat_mooc: line.da_cat_mooc || 0,
+          da_du_hang: line.da_du_hang || 0,
+          ha_bai_ngoai: line.ha_bai_ngoai || 0,
+          ha_cang: line.ha_cang || 0
         }
       };
     }
@@ -987,7 +1053,12 @@
         bai_ha_cont: row.bai_ha_cont || '',
         cang_xuat: row.cang_xuat || '',
         cut_off: row.cut_off || '',
-        hinh_thuc_van_tai: row.hinh_thuc_van_tai || ''
+        hinh_thuc_van_tai: row.hinh_thuc_van_tai || '',
+        ke_hoach_cont_ref_nid: row.ke_hoach_cont_ref_nid || 0,
+        da_cat_mooc: row.da_cat_mooc || 0,
+        da_du_hang: row.da_du_hang || 0,
+        ha_bai_ngoai: row.ha_bai_ngoai || 0,
+        ha_cang: row.ha_cang || 0
       });
     }
 
@@ -1188,6 +1259,28 @@
     $(document).on('change', 'input[name="vehicle-picker-radio"]', function () {
       selectVehicleForLine($(this).val());
     });
+    $(document).on('click', '.line-hinh-thuc-radio', function () {
+      var $radio = $(this);
+      var $card = $radio.closest('.ke-hoach-line-card');
+      if ($radio.data('current') === 1) {
+        $radio.prop('checked', false);
+        $radio.data('current', 0);
+      } else {
+        $card.find('.line-hinh-thuc-radio').data('current', 0);
+        $radio.data('current', 1);
+      }
+      var line = syncLine($card);
+      loadContCandidates(line, $card);
+    });
+    $(document).on('click', '.btn-pick-cont-ref', function () {
+      var $btn = $(this);
+      var $card = $btn.closest('.ke-hoach-line-card');
+      var line = syncLine($card);
+      line.ke_hoach_cont_ref_nid = parseInt($btn.attr('data-id'), 10) || 0;
+      $card.find('.btn-pick-cont-ref').removeClass('btn-success').addClass('btn-primary').text('Chọn');
+      $btn.removeClass('btn-primary').addClass('btn-success').text('Đã chọn');
+      if (notyf) notyf.success('Đã chọn cont kéo về: ' + ($btn.attr('data-so-cont') || ''));
+    });
     $(document).on('click', '#vehicle-picker-clear-btn', function () {
       clearVehicleForActiveLine();
     });
@@ -1211,6 +1304,13 @@
           showLoading(false);
           if (row) {
             populateEdit(row);
+            setTimeout(function () {
+              $('#ke-hoach-lines .ke-hoach-line-card').each(function () {
+                var $card = $(this);
+                var line = syncLine($card);
+                loadContCandidates(line, $card);
+              });
+            }, 50);
           }
         });
       }
@@ -1218,6 +1318,78 @@
         addLine({});
       }
     });
+  }
+
+  function initContList() {
+    if (initContList._bound) return;
+    initContList._bound = true;
+
+    function loadCustomers() {
+      $.getJSON('/api/khach-hang', { limit: 500 }, function (res) {
+        if (res.status === 'success' && res.data && res.data.items) {
+          var html = '<option value="">Khách hàng</option>';
+          for (var i = 0; i < res.data.items.length; i++) {
+            html += '<option value="' + res.data.items[i].nid + '">' + escHtml(res.data.items[i].ten || '') + '</option>';
+          }
+          $('#cont-filter-khach-hang').html(html);
+        }
+      });
+    }
+
+    function loadConts() {
+      var params = {
+        keyword: $('#cont-keyword').val().trim(),
+        nid_khach_hang: $('#cont-filter-khach-hang').val() || '',
+        dia_chi_kho: $('#cont-filter-kho').val().trim(),
+        bai_lay_cont: $('#cont-filter-bai-lay').val().trim(),
+        bai_ha_cont: $('#cont-filter-bai-ha').val().trim()
+      };
+      $('#cont-list-body').html('<tr><td colspan="10" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải dữ liệu...</td></tr>');
+      $.getJSON('/api/quan-ly-cont', params, function (res) {
+        if (res.status !== 'success' || !res.data) {
+          $('#cont-list-body').html('<tr><td colspan="10" class="text-center text-danger">Không tải được dữ liệu</td></tr>');
+          return;
+        }
+        var items = res.data.items || [];
+        var html = '';
+        for (var i = 0; i < items.length; i++) {
+          var item = items[i];
+          html += '<tr data-id="' + item.nid + '">' +
+            '<td>' + (i + 1) + '</td>' +
+            '<td>' + escHtml(item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : '') + '</td>' +
+            '<td>' + escHtml(item.so_bkg || '') + '</td>' +
+            '<td>' + escHtml(item.so_cont || '') + '</td>' +
+            '<td>' + escHtml(item.dia_chi_kho || '') + '</td>' +
+            '<td>' + escHtml(item.hinh_thuc_status_text || '') + '</td>' +
+            '<td>' + escHtml(item.trang_thai_cont || '') + '</td>' +
+            '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="ha_bai_ngoai"' + (item.ha_bai_ngoai ? ' checked' : '') + '></td>' +
+            '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="ha_cang"' + (item.ha_cang ? ' checked' : '') + '></td>' +
+            '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="da_du_hang"' + (item.da_du_hang ? ' checked' : '') + '></td>' +
+            '</tr>';
+        }
+        $('#cont-list-body').html(html || '<tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>');
+      }).fail(function () {
+        $('#cont-list-body').html('<tr><td colspan="10" class="text-center text-danger">Không tải được dữ liệu</td></tr>');
+      });
+    }
+
+    $(document).on('click', '#cont-search-btn', function () { loadConts(); });
+    $(document).on('click', '#cont-reload-btn', function () {
+      $('#cont-keyword,#cont-filter-kho,#cont-filter-bai-lay,#cont-filter-bai-ha').val('');
+      $('#cont-filter-khach-hang').val('');
+      loadConts();
+    });
+    $(document).on('change', '.cont-toggle', function () {
+      var $cb = $(this);
+      var $tr = $cb.closest('tr');
+      var id = $tr.data('id');
+      var payload = {};
+      payload[$cb.data('field')] = $cb.is(':checked') ? 1 : 0;
+      $.ajax({ url: '/api/quan-ly-cont/' + id, type: 'PUT', contentType: 'application/json', data: JSON.stringify(payload), dataType: 'json' });
+    });
+
+    loadCustomers();
+    loadConts();
   }
 
   function initDetail() {

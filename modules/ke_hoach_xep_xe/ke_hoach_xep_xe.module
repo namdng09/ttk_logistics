@@ -43,6 +43,19 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/quan-ly-cont'] = array(
+    'page callback' => 'ke_hoach_cont_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/quan-ly-cont/%'] = array(
+    'page callback' => 'ke_hoach_cont_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
 
   $items['ke-hoach-xep-xe'] = array(
     'title' => 'Kế hoạch xếp xe',
@@ -64,11 +77,17 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
   );
   $items['ke-hoach-xep-xe/%/sua'] = array(
-    'title' => 'Sửa kế hoạch',
+    'title' => 'Xếp xe',
     'page callback' => 'ke_hoach_xep_xe_page_form',
     'page arguments' => array(1),
     'access callback' => 'user_is_logged_in',
     'type' => MENU_CALLBACK,
+  );
+  $items['quan-ly-cont'] = array(
+    'title' => 'Quản lý cont',
+    'page callback' => 'ke_hoach_cont_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
   );
 
   return $items;
@@ -95,6 +114,10 @@ function ke_hoach_xep_xe_theme() {
       'template' => 'ke-hoach-xep-xe-detail',
       'path' => $path,
       'variables' => array('mode' => 'detail', 'data' => NULL),
+    ),
+    'ke_hoach_cont_list_page' => array(
+      'template' => 'ke-hoach-cont-list',
+      'path' => $path,
     ),
   );
 }
@@ -163,6 +186,11 @@ function _ke_hoach_xep_xe_default_record() {
     'cang_xuat' => '',
     'cut_off' => '',
     'hinh_thuc_van_tai' => '',
+    'ke_hoach_cont_ref_nid' => 0,
+    'da_cat_mooc' => 0,
+    'da_du_hang' => 0,
+    'ha_bai_ngoai' => 0,
+    'ha_cang' => 0,
   );
 }
 
@@ -184,6 +212,11 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['cang_xuat'] = !empty($line['cang_xuat']) ? trim($line['cang_xuat']) : '';
   $record['cut_off'] = !empty($line['cut_off']) ? trim($line['cut_off']) : '';
   $record['hinh_thuc_van_tai'] = !empty($line['hinh_thuc_van_tai']) ? trim($line['hinh_thuc_van_tai']) : '';
+  $record['ke_hoach_cont_ref_nid'] = !empty($line['ke_hoach_cont_ref_nid']) ? (int) $line['ke_hoach_cont_ref_nid'] : 0;
+  $record['da_cat_mooc'] = !empty($line['da_cat_mooc']) ? 1 : 0;
+  $record['da_du_hang'] = !empty($line['da_du_hang']) ? 1 : 0;
+  $record['ha_bai_ngoai'] = !empty($line['ha_bai_ngoai']) ? 1 : 0;
+  $record['ha_cang'] = !empty($line['ha_cang']) ? 1 : 0;
   return $record;
 }
 
@@ -210,6 +243,9 @@ function _ke_hoach_xep_xe_validate_lines($items) {
     }
     if (empty($item['nid_phuong_tien'])) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': phương tiện bắt buộc');
+    }
+    if (empty($item['so_cont'])) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': số cont bắt buộc');
     }
     if (empty($item['nid_lai_xe'])) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': lái xe bắt buộc');
@@ -261,7 +297,52 @@ function _ke_hoach_xep_xe_enrich_row($row) {
     $result['phuong_tien'] = NULL;
   }
 
+  if (!empty($result['ke_hoach_cont_ref_nid'])) {
+    $ref = db_query("SELECT nid, so_cont, so_bkg, dia_chi_kho, da_cat_mooc, da_du_hang, ha_bai_ngoai, ha_cang FROM {ke_hoach_xep_xe} WHERE nid = :nid", array(':nid' => $result['ke_hoach_cont_ref_nid']))->fetch();
+    $result['cont_ref'] = $ref ? (array) $ref : NULL;
+  }
+  else {
+    $result['cont_ref'] = NULL;
+  }
+
+  $result['is_cont_keo_ve'] = (bool) db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1", array(':nid' => $result['nid']))->fetchField();
+  $result['hinh_thuc_status_text'] = _ke_hoach_xep_xe_hinh_thuc_status_text($result);
+
   return $result;
+}
+
+function _ke_hoach_xep_xe_apply_cont_logic(&$record) {
+  $record['da_cat_mooc'] = in_array($record['hinh_thuc_van_tai'], array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), TRUE) ? 1 : 0;
+  if ($record['hinh_thuc_van_tai'] === 'dong_hang_trong_ngay') {
+    $record['da_du_hang'] = 1;
+  }
+}
+
+function _ke_hoach_xep_xe_hinh_thuc_status_text($row) {
+  $parts = array();
+  if (!empty($row['hinh_thuc_van_tai'])) {
+    $map = array(
+      'cat_keo' => 'Cắt kéo',
+      'cat_keo_cheo' => 'Cắt kéo chéo',
+      'tha_mooc' => 'Thả mooc',
+      'rut_mooc' => 'Rút mooc',
+      'dong_hang_trong_ngay' => 'Đóng hàng trong ngày',
+    );
+    $parts[] = isset($map[$row['hinh_thuc_van_tai']]) ? $map[$row['hinh_thuc_van_tai']] : $row['hinh_thuc_van_tai'];
+  }
+  if (in_array($row['hinh_thuc_van_tai'], array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), TRUE)) {
+    $parts[] = 'Kéo lên';
+  }
+  if (!empty($row['ke_hoach_cont_ref_nid']) && !empty($row['cont_ref']['so_cont'])) {
+    $parts[] = 'Kéo về: ' . $row['cont_ref']['so_cont'];
+  }
+  elseif (!empty($row['is_cont_keo_ve'])) {
+    $parts[] = 'Kéo về';
+  }
+  elseif (!empty($row['hinh_thuc_van_tai']) && $row['hinh_thuc_van_tai'] === 'dong_hang_trong_ngay') {
+    $parts[] = 'Kéo về';
+  }
+  return implode(' | ', $parts);
 }
 
 function _ke_hoach_xep_xe_statuses() {
@@ -355,6 +436,7 @@ function _ke_hoach_xep_xe_rest_create() {
   try {
     foreach ($input['items'] as $index => $line) {
       $record = _ke_hoach_xep_xe_build_record($input, $line);
+      _ke_hoach_xep_xe_apply_cont_logic($record);
       $nid = db_insert('ke_hoach_xep_xe')
         ->fields(array(
           'ngay' => $record['ngay'],
@@ -373,6 +455,11 @@ function _ke_hoach_xep_xe_rest_create() {
           'cang_xuat' => $record['cang_xuat'],
           'cut_off' => $record['cut_off'],
           'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
+          'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
+          'da_cat_mooc' => $record['da_cat_mooc'],
+          'da_du_hang' => $record['da_du_hang'],
+          'ha_bai_ngoai' => $record['ha_bai_ngoai'],
+          'ha_cang' => $record['ha_cang'],
           'created' => _ke_hoach_xep_xe_now(),
           'changed' => _ke_hoach_xep_xe_now(),
           'hoat_dong' => 1,
@@ -446,6 +533,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
   }
 
   $record = _ke_hoach_xep_xe_build_record($input, $line);
+  _ke_hoach_xep_xe_apply_cont_logic($record);
 
   $transaction = db_transaction();
   try {
@@ -467,10 +555,22 @@ function _ke_hoach_xep_xe_rest_update($id) {
         'cang_xuat' => $record['cang_xuat'],
         'cut_off' => $record['cut_off'],
         'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
+        'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
+        'da_cat_mooc' => $record['da_cat_mooc'],
+        'da_du_hang' => $record['da_du_hang'],
+        'ha_bai_ngoai' => $record['ha_bai_ngoai'],
+        'ha_cang' => $record['ha_cang'],
         'changed' => _ke_hoach_xep_xe_now(),
       ))
       ->condition('nid', $id)
       ->execute();
+
+    if (!empty($record['ke_hoach_cont_ref_nid'])) {
+      db_update('ke_hoach_xep_xe')
+        ->fields(array('changed' => _ke_hoach_xep_xe_now()))
+        ->condition('nid', $record['ke_hoach_cont_ref_nid'])
+        ->execute();
+    }
 
     $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetch();
     watchdog('ke_hoach_xep_xe', 'Cập nhật kế hoạch #%id', array('%id' => $id));
@@ -512,6 +612,80 @@ function _ke_hoach_xep_xe_rest_delete($id) {
   }
 }
 
+function ke_hoach_cont_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ke_hoach_cont_rest_list();
+    default:
+      return _ke_hoach_xep_xe_method_not_allowed('GET');
+  }
+}
+
+function ke_hoach_cont_rest_item($id) {
+  $id = (int) $id;
+  if (!$id) {
+    return _ke_hoach_xep_xe_fail('ID không hợp lệ');
+  }
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'PUT':
+      return _ke_hoach_cont_rest_update($id);
+    case 'GET':
+      return _ke_hoach_xep_xe_rest_get($id);
+    default:
+      return _ke_hoach_xep_xe_method_not_allowed('GET, PUT');
+  }
+}
+
+function _ke_hoach_cont_rest_list() {
+  $query = db_select('ke_hoach_xep_xe', 'kh')->fields('kh')->condition('kh.hoat_dong', 1)->orderBy('kh.nid', 'DESC');
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like($_GET['keyword']) . '%';
+    $query->condition(db_or()->condition('kh.so_bkg', $like, 'LIKE')->condition('kh.so_cont', $like, 'LIKE')->condition('kh.dia_chi_kho', $like, 'LIKE'));
+  }
+  if (!empty($_GET['nid_khach_hang'])) {
+    $query->condition('kh.nid_khach_hang', (int) $_GET['nid_khach_hang']);
+  }
+  if (!empty($_GET['dia_chi_kho'])) {
+    $query->condition('kh.dia_chi_kho', $_GET['dia_chi_kho']);
+  }
+  if (!empty($_GET['bai_lay_cont'])) {
+    $query->condition('kh.bai_lay_cont', $_GET['bai_lay_cont']);
+  }
+  if (!empty($_GET['bai_ha_cont'])) {
+    $query->condition('kh.bai_ha_cont', $_GET['bai_ha_cont']);
+  }
+  if (!empty($_GET['hinh_thuc_van_tai'])) {
+    $query->condition('kh.hinh_thuc_van_tai', $_GET['hinh_thuc_van_tai']);
+  }
+  $items = array();
+  foreach ($query->execute()->fetchAll() as $row) {
+    $enriched = _ke_hoach_xep_xe_enrich_row($row);
+    $enriched['trang_thai_cont'] = !empty($enriched['ha_cang']) ? 'Hạ cảng' : (!empty($enriched['ha_bai_ngoai']) ? 'Hạ bãi ngoài' : (!empty($enriched['da_du_hang']) ? 'Đủ hàng' : (!empty($enriched['ke_hoach_cont_ref_nid']) ? 'Kéo về' : (!empty($enriched['da_cat_mooc']) ? 'Đã cắt mooc' : 'Chưa cắt mooc'))));
+    $items[] = $enriched;
+  }
+  return _ke_hoach_xep_xe_success(array('items' => $items, 'total' => count($items), 'current_page' => 1, 'total_pages' => 1));
+}
+
+function _ke_hoach_cont_rest_update($id) {
+  if (!user_access('ke_hoach_xep_xe_create')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật quản lý cont');
+  }
+  $input = _ke_hoach_xep_xe_input();
+  $fields = array('da_du_hang', 'ha_bai_ngoai', 'ha_cang');
+  $update = array('changed' => _ke_hoach_xep_xe_now());
+  foreach ($fields as $field) {
+    if (array_key_exists($field, $input)) {
+      $update[$field] = !empty($input[$field]) ? 1 : 0;
+    }
+  }
+  if (count($update) === 1) {
+    return _ke_hoach_xep_xe_fail('Không có dữ liệu cập nhật');
+  }
+  db_update('ke_hoach_xep_xe')->fields($update)->condition('nid', $id)->execute();
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+  return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_enrich_row($row));
+}
+
 function ke_hoach_xep_xe_page_list() {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
@@ -526,6 +700,12 @@ function ke_hoach_xep_xe_page_list() {
   )), 'setting');
 
   return theme('ke_hoach_xep_xe_list_page');
+}
+
+function ke_hoach_cont_page_list() {
+  drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
+  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
+  return theme('ke_hoach_cont_list_page');
 }
 
 function ke_hoach_xep_xe_page_form($id = NULL) {
