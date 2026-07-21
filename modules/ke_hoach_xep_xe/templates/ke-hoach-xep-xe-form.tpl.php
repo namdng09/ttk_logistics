@@ -39,6 +39,7 @@
                     <th style="width: 14%"><span class="th-split-label">Bãi lấy cont<br>Bãi hạ cont</span></th>
                     <th style="width: 8%">Cảng xuất</th>
                     <th style="width: 8%">Cut-off</th>
+                    <th style="width: 8%">H.Thức VT</th>
                     <th width="1%" class="text-center">
                       <button type="button" class="btn btn-sm btn-icon btn-label-success" id="add-line-btn" title="Thêm dòng">
                         <i class="ti tabler-circle-plus"></i>

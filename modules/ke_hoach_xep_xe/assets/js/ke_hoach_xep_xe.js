@@ -659,6 +659,10 @@
     function buildTableRow(line, index) {
       var actionCopy = mode === 'edit' ? '<span class="text-muted">-</span>' : '<button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-copy-row-ke-hoach" title="Sao chép dòng"><i class="ti tabler-copy"></i></button>';
       var actionRemove = mode === 'edit' ? '<span class="text-muted">-</span>' : '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-row-ke-hoach" title="Xoá dòng"><i class="ti tabler-trash"></i></button>';
+      var hinhThucOptions = '<option value="">H.Thức VT</option>';
+      $.each(HINH_THUC_MAP, function (key, label) {
+        hinhThucOptions += '<option value="' + key + '"' + (line.hinh_thuc_van_tai === key ? ' selected' : '') + '>' + escHtml(label) + '</option>';
+      });
       return '' +
         '<tr class="ke-hoach-table-row" data-line-key="' + line.key + '">' +
           '<td><input type="text" class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG"></td>' +
@@ -682,6 +686,7 @@
           '</td>' +
           '<td><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></td>' +
           '<td><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></td>' +
+          '<td><select class="form-select line-hinh-thuc-select">' + hinhThucOptions + '</select></td>' +
           '<td class="text-center">' + actionCopy + '</td>' +
           '<td class="text-center">' + actionRemove + '</td>' +
         '</tr>';
@@ -736,6 +741,7 @@
       line.dia_chi_kho = ($row.find('.line-kho-select').val() || '').trim();
       line.bai_lay_cont = ($row.find('.line-bai-lay-select').val() || '').trim();
       line.bai_ha_cont = ($row.find('.line-bai-ha-select').val() || '').trim();
+      line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-select').val() || '').trim();
       line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
       line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
       return line;

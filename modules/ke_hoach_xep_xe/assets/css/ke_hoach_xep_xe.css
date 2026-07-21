@@ -413,6 +413,8 @@ body .flatpickr-calendar {
   border-color: #d0d5dd;
   color: #101828;
   overflow: hidden;
+  font-size: 0.8rem !important;
+  font-weight: 400 !important;
 }
 
 .line-vehicle-display.is-selected {
@@ -433,6 +435,8 @@ body .flatpickr-calendar {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  font-size: inherit !important;
+  font-weight: inherit !important;
 }
 
 .ke-hoach-table-row.table-danger td {
