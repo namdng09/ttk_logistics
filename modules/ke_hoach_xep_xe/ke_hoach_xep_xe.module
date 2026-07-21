@@ -89,6 +89,13 @@ function ke_hoach_xep_xe_menu() {
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
   );
+  $items['cat-mooc'] = array(
+    'title' => 'Cắt mooc',
+    'page callback' => 'ke_hoach_cont_page_list',
+    'page arguments' => array('cat_mooc'),
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
 
   return $items;
 }
@@ -118,6 +125,12 @@ function ke_hoach_xep_xe_theme() {
     'ke_hoach_cont_list_page' => array(
       'template' => 'ke-hoach-cont-list',
       'path' => $path,
+      'variables' => array('mode' => 'overall'),
+    ),
+    'ke_hoach_cont_overall_page' => array(
+      'template' => 'ke-hoach-cont-overall-list',
+      'path' => $path,
+      'variables' => array('mode' => 'overall'),
     ),
   );
 }
@@ -337,30 +350,13 @@ function _ke_hoach_xep_xe_apply_cont_logic(&$record) {
 }
 
 function _ke_hoach_xep_xe_hinh_thuc_status_text($row) {
-  $parts = array();
-  if (!empty($row['hinh_thuc_van_tai'])) {
-    $map = array(
-      'cat_keo' => 'Cắt kéo',
-      'cat_keo_cheo' => 'Cắt kéo chéo',
-      'tha_mooc' => 'Thả mooc',
-      'rut_mooc' => 'Rút mooc',
-      'dong_hang_trong_ngay' => 'Đóng hàng trong ngày',
-    );
-    $parts[] = isset($map[$row['hinh_thuc_van_tai']]) ? $map[$row['hinh_thuc_van_tai']] : $row['hinh_thuc_van_tai'];
+  if (!empty($row['is_cont_keo_ve']) || (!empty($row['hinh_thuc_van_tai']) && $row['hinh_thuc_van_tai'] === 'dong_hang_trong_ngay')) {
+    return 'Kéo về';
   }
-  if (in_array($row['hinh_thuc_van_tai'], array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), TRUE)) {
-    $parts[] = 'Kéo lên';
+  if (!empty($row['hinh_thuc_van_tai']) && in_array($row['hinh_thuc_van_tai'], array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), TRUE)) {
+    return 'Kéo lên';
   }
-  if (!empty($row['ke_hoach_cont_ref_nid']) && !empty($row['cont_ref']['so_cont'])) {
-    $parts[] = 'Kéo về: ' . $row['cont_ref']['so_cont'];
-  }
-  elseif (!empty($row['is_cont_keo_ve'])) {
-    $parts[] = 'Kéo về';
-  }
-  elseif (!empty($row['hinh_thuc_van_tai']) && $row['hinh_thuc_van_tai'] === 'dong_hang_trong_ngay') {
-    $parts[] = 'Kéo về';
-  }
-  return implode(' | ', $parts);
+  return '';
 }
 
 function _ke_hoach_xep_xe_statuses() {
@@ -677,6 +673,12 @@ function _ke_hoach_cont_rest_list() {
   if (!empty($_GET['hinh_thuc_van_tai'])) {
     $query->condition('kh.hinh_thuc_van_tai', $_GET['hinh_thuc_van_tai']);
   }
+  if (isset($_GET['da_cat_mooc']) && $_GET['da_cat_mooc'] !== '') {
+    $query->condition('kh.da_cat_mooc', (int) $_GET['da_cat_mooc']);
+  }
+  if (isset($_GET['da_du_hang']) && $_GET['da_du_hang'] !== '') {
+    $query->condition('kh.da_du_hang', (int) $_GET['da_du_hang']);
+  }
   $items = array();
   foreach ($query->execute()->fetchAll() as $row) {
     $enriched = _ke_hoach_xep_xe_enrich_row($row);
@@ -728,10 +730,14 @@ function ke_hoach_xep_xe_page_list() {
   return theme('ke_hoach_xep_xe_list_page');
 }
 
-function ke_hoach_cont_page_list() {
+function ke_hoach_cont_page_list($mode = 'overall') {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
-  return theme('ke_hoach_cont_list_page');
+  drupal_add_js(array('ke_hoach_cont' => array('mode' => $mode)), 'setting');
+  if ($mode === 'cat_mooc') {
+    return theme('ke_hoach_cont_list_page', array('mode' => $mode));
+  }
+  return theme('ke_hoach_cont_overall_page', array('mode' => $mode));
 }
 
 function ke_hoach_xep_xe_page_form($id = NULL) {

@@ -367,12 +367,10 @@
           var ptBks = (row.phuong_tien && row.phuong_tien.bks) || '';
           var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + (HINH_THUC_COLOR[row.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</span>' : '';
           var hinhThucStatus = '';
-          if (row.ke_hoach_cont_ref_nid) {
-            hinhThucStatus = 'Kéo lên';
-          } else if (row.is_cont_keo_ve || row.hinh_thuc_van_tai === 'dong_hang_trong_ngay') {
+          if (row.is_cont_keo_ve || row.hinh_thuc_van_tai === 'dong_hang_trong_ngay') {
             hinhThucStatus = 'Kéo về';
-          } else if (row.da_cat_mooc) {
-            hinhThucStatus = 'Đã cắt mooc';
+          } else if (row.hinh_thuc_van_tai === 'cat_keo' || row.hinh_thuc_van_tai === 'cat_keo_cheo' || row.hinh_thuc_van_tai === 'tha_mooc') {
+            hinhThucStatus = 'Kéo lên';
           }
           html += '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
@@ -1422,6 +1420,7 @@
   function initContList() {
     if (initContList._bound) return;
     initContList._bound = true;
+    var contMode = (Drupal.settings.ke_hoach_cont && Drupal.settings.ke_hoach_cont.mode) || ($('#ke-hoach-cont-app').data('mode')) || 'overall';
 
     function loadCustomers() {
       $.getJSON('/api/khach-hang', { limit: 500 }, function (res) {
@@ -1439,43 +1438,74 @@
       var params = {
         keyword: $('#cont-keyword').val().trim(),
         nid_khach_hang: $('#cont-filter-khach-hang').val() || '',
-        dia_chi_kho: $('#cont-filter-kho').val().trim(),
-        bai_lay_cont: $('#cont-filter-bai-lay').val().trim(),
-        bai_ha_cont: $('#cont-filter-bai-ha').val().trim()
+        da_du_hang: $('#cont-filter-du-hang').val() || ''
       };
-      $('#cont-list-body').html('<tr><td colspan="10" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải dữ liệu...</td></tr>');
+      if (contMode === 'cat_mooc') {
+        params.da_cat_mooc = 1;
+      }
+      $('#cont-list-body').html('<tr><td colspan="11" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải dữ liệu...</td></tr>');
       $.getJSON('/api/quan-ly-cont', params, function (res) {
         if (res.status !== 'success' || !res.data) {
-          $('#cont-list-body').html('<tr><td colspan="10" class="text-center text-danger">Không tải được dữ liệu</td></tr>');
+          $('#cont-list-body').html('<tr><td colspan="11" class="text-center text-danger">Không tải được dữ liệu</td></tr>');
           return;
         }
         var items = res.data.items || [];
         var html = '';
         for (var i = 0; i < items.length; i++) {
           var item = items[i];
-          html += '<tr data-id="' + item.nid + '">' +
-            '<td>' + (i + 1) + '</td>' +
-            '<td>' + escHtml(item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : '') + '</td>' +
-            '<td>' + escHtml(item.so_bkg || '') + '</td>' +
-            '<td>' + escHtml(item.so_cont || '') + '</td>' +
-            '<td>' + escHtml(item.dia_chi_kho || '') + '</td>' +
-            '<td>' + escHtml(item.hinh_thuc_status_text || '') + '</td>' +
-            '<td>' + escHtml(item.trang_thai_cont || '') + '</td>' +
-            '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="ha_bai_ngoai"' + (parseInt(item.ha_bai_ngoai, 10) === 1 ? ' checked' : '') + '></td>' +
-            '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="ha_cang"' + (parseInt(item.ha_cang, 10) === 1 ? ' checked' : '') + '></td>' +
-            '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="da_du_hang"' + (parseInt(item.da_du_hang, 10) === 1 ? ' checked' : '') + '></td>' +
-            '</tr>';
+          var daDuHang = parseInt(item.da_du_hang, 10) === 1;
+          var ptBks = item.phuong_tien && item.phuong_tien.bks ? item.phuong_tien.bks : '';
+          var lxName = item.lai_xe && item.lai_xe.ten ? item.lai_xe.ten : '';
+          if (contMode === 'cat_mooc') {
+            var hinhThucBadge = item.hinh_thuc_van_tai ? '<span class="badge ' + (HINH_THUC_COLOR[item.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[item.hinh_thuc_van_tai] || '') + '</span>' : '';
+            html += '<tr data-id="' + item.nid + '">' +
+              '<td>' + (i + 1) + '</td>' +
+              '<td>' + formatDateBadge(item.created) + '</td>' +
+              '<td><div class="khxh-htvt-cell">' + (item.hinh_thuc_status_text ? '<div class="khxh-htvt-status">' + escHtml(item.hinh_thuc_status_text) + '</div>' : '') + (hinhThucBadge ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + '</div>' : '') + '</div></td>' +
+              '<td>' + escHtml(item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : '') + '</td>' +
+              '<td>' + escHtml(item.so_bkg || '') + '</td>' +
+              '<td>' + escHtml(item.dia_chi_kho || '') + '</td>' +
+              '<td style="line-height:1.6">' +
+                (item.loai_cont ? escHtml(item.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '<br>' +
+                (item.so_cont ? '<span class="khxh-so-cont-value">' + escHtml(item.so_cont) + '</span>' : '<span class="text-muted fst-italic small">số cont</span>') + '<br>' +
+                (item.so_seal_chinh ? escHtml(item.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '<br>' +
+                (item.so_seal_tam ? escHtml(item.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') +
+              '</td>' +
+              '<td style="line-height:1.6">' +
+                (ptBks ? escHtml(ptBks) : '<span class="text-muted fst-italic small">BKS</span>') + '<br>' +
+                (lxName ? escHtml(lxName) : '<span class="text-muted fst-italic small">lái xe</span>') +
+              '</td>' +
+              '<td><div class="khxh-hanh-trinh-cell"><div class="khxh-hanh-trinh-box">' + (item.bai_lay_cont ? escHtml(item.bai_lay_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + (item.bai_ha_cont ? escHtml(item.bai_ha_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div></div></td>' +
+              '<td>' + cutOffBadge(item.cut_off) + '</td>' +
+              '<td>' + escHtml(item.cang_xuat || '') + '</td>' +
+              '<td class="text-center"><button type="button" class="btn btn-sm ' + (daDuHang ? 'btn-success' : 'btn-label-secondary') + ' cont-toggle-btn" data-field="da_du_hang">' + (daDuHang ? 'Đã đủ hàng' : 'updating..') + '</button></td>' +
+              '</tr>';
+          } else {
+            html += '<tr data-id="' + item.nid + '">' +
+              '<td>' + (i + 1) + '</td>' +
+              '<td>' + escHtml(item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : '') + '</td>' +
+              '<td>' + escHtml(item.so_bkg || '') + '</td>' +
+              '<td>' + escHtml(item.so_cont || '') + '</td>' +
+              '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="da_du_hang"' + (daDuHang ? ' checked' : '') + '></td>' +
+              '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="ha_bai_ngoai"' + (parseInt(item.ha_bai_ngoai, 10) === 1 ? ' checked' : '') + '></td>' +
+              '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="ha_cang"' + (parseInt(item.ha_cang, 10) === 1 ? ' checked' : '') + '></td>' +
+              '<td>' + escHtml(item.dia_chi_kho || '') + '</td>' +
+              '<td>' + escHtml(item.hinh_thuc_status_text || '') + '</td>' +
+              '<td>' + escHtml(item.trang_thai_cont || '') + '</td>' +
+              '</tr>';
+          }
         }
-        $('#cont-list-body').html(html || '<tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>');
+        $('#cont-list-body').html(html || '<tr><td colspan="' + (contMode === 'cat_mooc' ? '11' : '10') + '" class="text-center">Không có dữ liệu</td></tr>');
       }).fail(function () {
-        $('#cont-list-body').html('<tr><td colspan="10" class="text-center text-danger">Không tải được dữ liệu</td></tr>');
+        $('#cont-list-body').html('<tr><td colspan="' + (contMode === 'cat_mooc' ? '11' : '10') + '" class="text-center text-danger">Không tải được dữ liệu</td></tr>');
       });
     }
 
     $(document).on('click', '#cont-search-btn', function () { loadConts(); });
     $(document).on('click', '#cont-reload-btn', function () {
-      $('#cont-keyword,#cont-filter-kho,#cont-filter-bai-lay,#cont-filter-bai-ha').val('');
+      $('#cont-keyword').val('');
       $('#cont-filter-khach-hang').val('');
+      $('#cont-filter-du-hang').val('');
       loadConts();
     });
     $(document).on('change', '.cont-toggle', function () {
@@ -1485,6 +1515,40 @@
       var payload = {};
       payload[$cb.data('field')] = $cb.is(':checked') ? 1 : 0;
       $.ajax({ url: '/api/quan-ly-cont/' + id, type: 'PUT', contentType: 'application/json', data: JSON.stringify(payload), dataType: 'json' });
+    });
+    $(document).on('click', '.cont-toggle-btn', function () {
+      var $btn = $(this);
+      var $tr = $btn.closest('tr');
+      var id = $tr.data('id');
+      var nextVal = $btn.hasClass('btn-success') ? 0 : 1;
+      var doUpdate = function () {
+        $.ajax({
+          url: '/api/quan-ly-cont/' + id,
+          type: 'PUT',
+          contentType: 'application/json',
+          data: JSON.stringify({ da_du_hang: nextVal }),
+          dataType: 'json',
+          success: function () { loadConts(); }
+        });
+      };
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: 'Xác nhận cập nhật',
+          text: nextVal ? 'Chuyển cont này sang trạng thái đã đủ hàng?' : 'Chuyển cont này về trạng thái updating..? ',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Xác nhận',
+          cancelButtonText: 'Huỷ',
+          customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-label-secondary ms-1' },
+          buttonsStyling: false
+        }).then(function (result) {
+          if (result.isConfirmed) {
+            doUpdate();
+          }
+        });
+      } else if (confirm(nextVal ? 'Chuyển cont này sang trạng thái đã đủ hàng?' : 'Chuyển cont này về trạng thái updating.. ?')) {
+        doUpdate();
+      }
     });
 
     loadCustomers();
