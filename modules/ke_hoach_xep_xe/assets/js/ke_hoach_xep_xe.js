@@ -471,6 +471,7 @@
       vehicleMap: {},
       diaDiem: { bai: [], cang: [] },
       cauHinh: { diaChiKho: [], loaiCont: [] },
+      contCandidateCache: {},
       lines: [],
       activeLineKey: null
     };
@@ -904,21 +905,29 @@
       }
       $wrap.show();
       var cacheKey = [hinhThuc, line.dia_chi_kho || ''].join('||');
-      if ($card.data('contCandidatesCacheKey') === cacheKey && $card.data('contCandidatesLoaded')) {
+      if (state.contCandidateCache[cacheKey]) {
+        $card.data('contCandidates', state.contCandidateCache[cacheKey]);
+        $card.data('contCandidatesCacheKey', cacheKey);
+        $card.data('contCandidatesLoaded', true);
         renderContCandidateRows(line, $card);
         return;
+      }
+      var requestData = {};
+      if (hinhThuc === 'cat_keo') {
+        requestData.dia_chi_kho = line.dia_chi_kho || '';
       }
       $body.html('<tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr>');
       $.ajax({
         url: '/api/quan-ly-cont',
         type: 'GET',
         dataType: 'json',
-        data: { dia_chi_kho: line.dia_chi_kho || '' },
+        data: requestData,
         success: function (res) {
           if (res.status !== 'success' || !res.data || !res.data.items) {
             $body.html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
             return;
           }
+          state.contCandidateCache[cacheKey] = res.data.items || [];
           $card.data('contCandidates', res.data.items || []);
           $card.data('contCandidatesCacheKey', cacheKey);
           $card.data('contCandidatesLoaded', true);
@@ -1401,13 +1410,6 @@
           showLoading(false);
           if (row) {
             populateEdit(row);
-            setTimeout(function () {
-              $('#ke-hoach-lines .ke-hoach-line-card').each(function () {
-                var $card = $(this);
-                var line = syncLine($card);
-                loadContCandidates(line, $card);
-              });
-            }, 50);
           }
         });
       }
