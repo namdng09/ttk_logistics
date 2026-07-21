@@ -577,7 +577,7 @@
 
     function initRowUi($row, line) {
       var dropdownParent = $('#ke-hoach-fullscreen-modal');
-      initSelect2($row.find('.line-loai-cont-select')[0], 'Chọn/Nhập loại cont', { tags: true, dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-bai-lay-select')[0], '— Chọn bãi lấy cont —', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-bai-ha-select')[0], '— Chọn bãi hạ cont —', { dropdownParent: dropdownParent });
@@ -598,7 +598,7 @@
     function initCardUi($card, line) {
       initSelect2($card.find('.line-driver-select')[0], '— Chọn lái xe —');
       initSelect2($card.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true });
-      initSelect2($card.find('.line-loai-cont-select')[0], 'Chọn/Nhập loại cont', { tags: true });
+      initSelect2($card.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true });
       initSelect2($card.find('.line-bai-lay-select')[0], '— Chọn bãi lấy cont —');
       initSelect2($card.find('.line-bai-ha-select')[0], '— Chọn bãi hạ cont —');
       initSelect2($card.find('.line-cang-select')[0], '— Chọn cảng xuất —');

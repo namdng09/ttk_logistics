@@ -367,6 +367,18 @@ body .flatpickr-calendar {
   margin-bottom: 0.5rem !important;
 }
 
+.line-combo-cell .line-bai-lay-select {
+  margin-bottom: 0.5rem !important;
+}
+
+.line-combo-cell .line-bai-lay-select + .select2-container {
+  margin-bottom: 0.5rem !important;
+}
+
+.line-combo-cell .line-bai-ha-select + .select2-container {
+  margin-top: 0.5rem !important;
+}
+
 .line-combo-cell .form-control,
 .line-combo-cell .form-select,
 .line-combo-cell .select2-container {
@@ -384,19 +396,13 @@ body .flatpickr-calendar {
 .line-combo-cell .select2-container {
   display: block;
   width: 100% !important;
+  margin-top: 0 !important;
 }
 
 .line-combo-cell .select2-container + .select2-container {
   margin-top: 0.5rem;
 }
 
-.line-combo-cell .select2-container + .form-control,
-.line-combo-cell .form-control + .select2-container,
-.line-combo-cell .form-select + .select2-container,
-.line-combo-cell .select2-container + .form-select,
-.line-combo-cell .line-seal-chinh-input {
-  margin-top: 0.5rem;
-}
 
 .line-vehicle-display {
   min-height: 38px;
