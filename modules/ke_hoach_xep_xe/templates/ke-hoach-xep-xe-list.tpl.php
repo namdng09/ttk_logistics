@@ -46,7 +46,7 @@
             <th>Hành trình</th>
             <th>Cut off</th>
             <th>Cảng xuất</th>
-            <th>T.Thái VC</th>
+            <th>T.Thái</th>
           </tr>
         </thead>
         <tbody id="list-body">
