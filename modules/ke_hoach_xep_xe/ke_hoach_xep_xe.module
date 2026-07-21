@@ -191,7 +191,18 @@ function _ke_hoach_xep_xe_default_record() {
     'da_du_hang' => 0,
     'ha_bai_ngoai' => 0,
     'ha_cang' => 0,
+    'thong_tin_json' => '',
   );
+}
+
+function _ke_hoach_xep_xe_json_decode($value) {
+  $data = json_decode((string) $value, TRUE);
+  return is_array($data) ? $data : array();
+}
+
+function _ke_hoach_xep_xe_json_encode(array $data) {
+  $options = defined('JSON_UNESCAPED_UNICODE') ? JSON_UNESCAPED_UNICODE : 0;
+  return json_encode($data, $options);
 }
 
 function _ke_hoach_xep_xe_build_record($common, $line) {
@@ -217,6 +228,11 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['da_du_hang'] = !empty($line['da_du_hang']) ? 1 : 0;
   $record['ha_bai_ngoai'] = !empty($line['ha_bai_ngoai']) ? 1 : 0;
   $record['ha_cang'] = !empty($line['ha_cang']) ? 1 : 0;
+  $json = !empty($line['thong_tin_json']) && is_array($line['thong_tin_json']) ? $line['thong_tin_json'] : array();
+  if (isset($line['ghi_chu'])) {
+    $json['ghi_chu'] = trim((string) $line['ghi_chu']);
+  }
+  $record['thong_tin_json'] = !empty($json) ? _ke_hoach_xep_xe_json_encode($json) : '';
   return $record;
 }
 
@@ -306,6 +322,8 @@ function _ke_hoach_xep_xe_enrich_row($row) {
   }
 
   $result['is_cont_keo_ve'] = (bool) db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1", array(':nid' => $result['nid']))->fetchField();
+  $json = _ke_hoach_xep_xe_json_decode(isset($result['thong_tin_json']) ? $result['thong_tin_json'] : '');
+  $result['ghi_chu'] = !empty($json['ghi_chu']) ? $json['ghi_chu'] : '';
   $result['hinh_thuc_status_text'] = _ke_hoach_xep_xe_hinh_thuc_status_text($result);
 
   return $result;
@@ -460,6 +478,7 @@ function _ke_hoach_xep_xe_rest_create() {
           'da_du_hang' => $record['da_du_hang'],
           'ha_bai_ngoai' => $record['ha_bai_ngoai'],
           'ha_cang' => $record['ha_cang'],
+          'thong_tin_json' => $record['thong_tin_json'],
           'created' => _ke_hoach_xep_xe_now(),
           'changed' => _ke_hoach_xep_xe_now(),
           'hoat_dong' => 1,
@@ -560,6 +579,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
         'da_du_hang' => $record['da_du_hang'],
         'ha_bai_ngoai' => $record['ha_bai_ngoai'],
         'ha_cang' => $record['ha_cang'],
+        'thong_tin_json' => $record['thong_tin_json'],
         'changed' => _ke_hoach_xep_xe_now(),
       ))
       ->condition('nid', $id)
@@ -677,6 +697,12 @@ function _ke_hoach_cont_rest_update($id) {
     if (array_key_exists($field, $input)) {
       $update[$field] = !empty($input[$field]) ? 1 : 0;
     }
+  }
+  if (array_key_exists('ghi_chu', $input)) {
+    $existing = db_query("SELECT thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetchField();
+    $json = _ke_hoach_xep_xe_json_decode($existing);
+    $json['ghi_chu'] = trim((string) $input['ghi_chu']);
+    $update['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($json);
   }
   if (count($update) === 1) {
     return _ke_hoach_xep_xe_fail('Không có dữ liệu cập nhật');

@@ -123,6 +123,10 @@ function ke_hoach_xep_xe_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      'thong_tin_json' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
       'created' => array(
         'type' => 'varchar',
         'length' => 19,
@@ -196,4 +200,23 @@ function ke_hoach_xep_xe_update_7005() {
       db_add_field('ke_hoach_xep_xe', $name, $definition);
     }
   }
+}
+
+function ke_hoach_xep_xe_update_7006() {
+  $fields = array(
+    'ke_hoach_cont_ref_nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE, 'default' => 0),
+    'da_cat_mooc' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'da_du_hang' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'ha_bai_ngoai' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'ha_cang' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'thong_tin_json' => array('type' => 'text', 'not null' => FALSE),
+  );
+
+  foreach ($fields as $name => $definition) {
+    if (!db_field_exists('ke_hoach_xep_xe', $name)) {
+      db_add_field('ke_hoach_xep_xe', $name, $definition);
+    }
+  }
+
+  return 'Đã bổ sung các field quản lý cont và thong_tin_json cho ke_hoach_xep_xe nếu còn thiếu.';
 }

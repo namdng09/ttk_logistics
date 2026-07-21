@@ -511,6 +511,7 @@
         bai_ha_cont: '',
         cang_xuat: '',
         cut_off: '',
+        ghi_chu: '',
         hinh_thuc_van_tai: '',
         ke_hoach_cont_ref_nid: 0,
         da_cat_mooc: 0,
@@ -661,6 +662,7 @@
               '<div class="col-md-3"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
               '<div class="col-md-3"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
               '<div class="col-md-9"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
+              '<div class="col-12"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Nhập ghi chú"></div>' +
               '<div class="col-12 line-cont-picker-wrap" style="display:none;">' +
                 '<label class="form-label d-block">Chọn cont phù hợp</label>' +
                 '<div class="row g-2 mb-2">' +
@@ -757,6 +759,7 @@
         line.bai_ha_cont = ($row.find('.line-bai-ha-select').val() || '').trim();
         line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
         line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
+        line.ghi_chu = ($row.find('.line-ghi-chu-input').val() || '').trim();
         line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-radio:checked').val() || '').trim();
         line.da_cat_mooc = (line.hinh_thuc_van_tai === 'cat_keo' || line.hinh_thuc_van_tai === 'cat_keo_cheo' || line.hinh_thuc_van_tai === 'tha_mooc') ? 1 : 0;
         if (line.hinh_thuc_van_tai === 'dong_hang_trong_ngay') {
@@ -776,6 +779,7 @@
       line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-select').val() || '').trim();
       line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
       line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
+      line.ghi_chu = ($row.find('.line-ghi-chu-input').val() || '').trim();
       return line;
     }
 
@@ -899,6 +903,11 @@
         return;
       }
       $wrap.show();
+      var cacheKey = [hinhThuc, line.dia_chi_kho || ''].join('||');
+      if ($card.data('contCandidatesCacheKey') === cacheKey && $card.data('contCandidatesLoaded')) {
+        renderContCandidateRows(line, $card);
+        return;
+      }
       $body.html('<tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr>');
       $.ajax({
         url: '/api/quan-ly-cont',
@@ -911,6 +920,8 @@
             return;
           }
           $card.data('contCandidates', res.data.items || []);
+          $card.data('contCandidatesCacheKey', cacheKey);
+          $card.data('contCandidatesLoaded', true);
           renderContCandidateRows(line, $card);
         },
         error: function () {
@@ -944,7 +955,7 @@
           '<td><div>' + escHtml(item.so_bkg || '') + '</div><div class="small fw-semibold">' + escHtml(item.so_cont || '') + '</div></td>' +
           '<td>' + escHtml(item.dia_chi_kho || '') + '</td>' +
           '<td class="text-center">' + (parseInt(item.da_du_hang, 10) === 1 ? '<i class="ti tabler-check text-success"></i>' : '<i class="ti tabler-minus text-muted"></i>') + '</td>' +
-          '<td>' + (selected ? 'Cont đang được chọn để kéo về' : '') + '</td>' +
+          '<td><input type="text" class="form-control form-control-sm cont-inline-note" data-id="' + item.nid + '" value="' + escHtml(item.ghi_chu || '') + '" placeholder="Ghi chú">' + (selected ? '<div class="small text-success mt-1">Đang được chọn để kéo về</div>' : '') + '</td>' +
           '</tr>');
       }
       $body.html(rows.length ? rows.join('') : '<tr><td colspan="5" class="text-center text-muted">Không có cont phù hợp</td></tr>');
@@ -1062,6 +1073,7 @@
             bai_ha_cont: line.bai_ha_cont || '',
             cang_xuat: line.cang_xuat || '',
             cut_off: line.cut_off || '',
+            ghi_chu: line.ghi_chu || '',
             hinh_thuc_van_tai: line.hinh_thuc_van_tai || '',
             ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
             da_cat_mooc: line.da_cat_mooc || 0,
@@ -1091,6 +1103,7 @@
           bai_ha_cont: line.bai_ha_cont || '',
           cang_xuat: line.cang_xuat || '',
           cut_off: line.cut_off || '',
+          ghi_chu: line.ghi_chu || '',
           hinh_thuc_van_tai: useTableLayout ? '' : (line.hinh_thuc_van_tai || ''),
           ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
           da_cat_mooc: line.da_cat_mooc || 0,
@@ -1120,6 +1133,7 @@
         bai_ha_cont: row.bai_ha_cont || '',
         cang_xuat: row.cang_xuat || '',
         cut_off: row.cut_off || '',
+        ghi_chu: row.ghi_chu || '',
         hinh_thuc_van_tai: row.hinh_thuc_van_tai || '',
         ke_hoach_cont_ref_nid: row.ke_hoach_cont_ref_nid || 0,
         da_cat_mooc: row.da_cat_mooc || 0,
@@ -1351,6 +1365,18 @@
       line.ke_hoach_cont_ref_nid = parseInt($btn.attr('data-id'), 10) || 0;
       renderContCandidateRows(line, $card);
       if (notyf) notyf.success('Đã chọn cont kéo về: ' + ($btn.attr('data-so-cont') || ''));
+    });
+    $(document).on('change blur', '.cont-inline-note', function () {
+      var $input = $(this);
+      var id = parseInt($input.data('id'), 10) || 0;
+      if (!id) return;
+      $.ajax({
+        url: '/api/quan-ly-cont/' + id,
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ ghi_chu: $input.val().trim() }),
+        dataType: 'json'
+      });
     });
     $(document).on('click', '#vehicle-picker-clear-btn', function () {
       clearVehicleForActiveLine();
