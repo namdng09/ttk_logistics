@@ -23,6 +23,7 @@
   var NS = '.quanLyTaiChinh';
   var MODAL_ID = 'qltc-finance-runtime-modal';
   var MODAL_SELECTOR = '#' + MODAL_ID;
+  var QUY_API_BASE = '/api/quan-ly-quy';
 
   Drupal.behaviors = Drupal.behaviors || {};
 
@@ -37,6 +38,9 @@
 
       $(document).data('quanLyTaiChinhInited', true);
       bindEvents();
+      if ($('.qltc-page-quy').length) {
+        refreshQuyList();
+      }
     }
   };
 
@@ -52,10 +56,10 @@
         e.stopPropagation();
 
         var $btn = $(this);
-        var url = $btn.attr('data-url') || $btn.attr('href');
         var title = $btn.attr('data-title') || $.trim($btn.text()) || 'Thông tin quỹ';
+        var id = parseIdFromUrl($btn.attr('data-url') || $btn.attr('href'));
 
-        openQuyModal(url, title);
+        openQuyModal(id ? 'form-edit' : 'form-create', title, id);
         return false;
       });
 
@@ -66,10 +70,10 @@
         e.stopPropagation();
 
         var $btn = $(this);
-        var url = $btn.attr('data-url') || $btn.attr('href');
         var title = $btn.attr('data-title') || $.trim($btn.text()) || 'Chi tiết quỹ';
+        var id = parseIdFromUrl($btn.attr('data-url') || $btn.attr('href'));
 
-        openQuyModal(url, title);
+        openQuyModal('detail', title, id);
         return false;
       });
 
@@ -80,10 +84,10 @@
         e.stopPropagation();
 
         var $btn = $(this);
-        var url = $btn.attr('data-url') || $btn.attr('href');
         var title = $btn.attr('data-title') || $.trim($btn.text()) || 'Điều chỉnh số dư đầu kỳ';
+        var id = parseIdFromUrl($btn.attr('data-url') || $btn.attr('href'));
 
-        openQuyModal(url, title);
+        openQuyModal('adjust', title, id);
         return false;
       });
 
@@ -208,7 +212,7 @@
       .addClass(size || 'modal-lg');
   }
 
-  function openQuyModal(url, title) {
+  function openQuyModal(mode, title, id) {
     var $modal = ensureModal();
 
     setModalSize($modal, 'modal-lg');
@@ -216,26 +220,45 @@
     $modal.find('.qltc-runtime-modal-body').html(renderLoadingHtml('Đang tải form quỹ...'));
     showModal($modal);
 
+    if (mode === 'form-create') {
+      $modal.find('.qltc-runtime-modal-body').html(renderQuyForm(null));
+      initMoneyInputs($modal);
+      initFlatpickrInputs($modal);
+      return;
+    }
+
+    if (!id) {
+      $modal.find('.qltc-runtime-modal-body').html(renderAlert('Thiếu ID quỹ.', 'danger'));
+      return;
+    }
+
     $.ajax({
-      url: url,
+      url: QUY_API_BASE + '/' + id,
       type: 'GET',
       dataType: 'json',
       beforeSend: function () {
         block('body');
       },
       success: function (response) {
-        if (!isSuccessResponse(response)) {
-          $modal.find('.qltc-runtime-modal-body').html(renderAlert(response.message || response.content || 'Không tải được form quỹ.', 'danger'));
+        if (!isSuccessResponse(response) || !response.data) {
+          $modal.find('.qltc-runtime-modal-body').html(renderAlert(response.message || 'Không tải được dữ liệu quỹ.', 'danger'));
           notify(response, 5000);
           return;
         }
 
-        if (response.title) {
-          $modal.find('.qltc-runtime-modal-title').text(response.title);
+        if (mode === 'detail') {
+          setModalSize($modal, 'modal-xl');
+          $modal.find('.qltc-runtime-modal-body').html(renderQuyDetail(response.data));
+        }
+        else if (mode === 'adjust') {
+          setModalSize($modal, 'modal-lg');
+          $modal.find('.qltc-runtime-modal-body').html(renderQuyAdjust(response.data));
+        }
+        else {
+          setModalSize($modal, 'modal-lg');
+          $modal.find('.qltc-runtime-modal-body').html(renderQuyForm(response.data));
         }
 
-        setModalSize($modal, response.size || 'modal-lg');
-        $modal.find('.qltc-runtime-modal-body').html(response.html || '');
         initMoneyInputs($modal);
         initFlatpickrInputs($modal);
         updateAdjustDiff($modal.find('#qltc-quy-adjust-form'));
@@ -266,8 +289,16 @@
     var $modal = $form.closest(MODAL_SELECTOR);
     var $content = $modal.find('.qltc-runtime-modal-content');
     var $btn = $form.find('.qltc-btn-save-quy').first();
-    var url = $form.attr('data-action') || $form.attr('action');
-    var formData = $form.serialize();
+    var id = parseInt($form.find('[name="quy_id"]').val(), 10) || 0;
+    var url = id ? (QUY_API_BASE + '/' + id) : QUY_API_BASE;
+    var method = id ? 'PUT' : 'POST';
+    var payload = {
+      ma_quy: $form.find('[name="ma_quy"]').val(),
+      ten_quy: $form.find('[name="ten_quy"]').val(),
+      loai_quy: $form.find('[name="loai_quy"]').val(),
+      so_du_dau_ky: $form.find('[name="so_du_dau_ky"]').val(),
+      ghi_chu: $form.find('[name="ghi_chu"]').val()
+    };
 
     clearFormAlert($form);
     setButtonLoading($btn, true);
@@ -275,9 +306,10 @@
 
     $.ajax({
       url: url,
-      type: 'POST',
+      type: method,
       dataType: 'json',
-      data: formData,
+      contentType: 'application/json',
+      data: JSON.stringify(payload),
       beforeSend: function () {
         block($content[0]);
       },
@@ -310,8 +342,13 @@
     var $modal = $form.closest(MODAL_SELECTOR);
     var $content = $modal.find('.qltc-runtime-modal-content');
     var $btn = $form.find('.qltc-btn-save-adjust').first();
-    var url = $form.attr('data-action') || $form.attr('action');
-    var formData = $form.serialize();
+    var id = parseInt($form.find('[name="quy_id"]').val(), 10) || 0;
+    var url = QUY_API_BASE + '/' + id + '?action=adjust';
+    var payload = {
+      so_du_moi: $form.find('[name="so_du_moi"]').val(),
+      ly_do: $form.find('[name="ly_do"]').val(),
+      ngay_dieu_chinh: $form.find('[name="ngay_dieu_chinh"]').val()
+    };
 
     clearFormAlert($form);
     setButtonLoading($btn, true);
@@ -321,7 +358,8 @@
       url: url,
       type: 'POST',
       dataType: 'json',
-      data: formData,
+      contentType: 'application/json',
+      data: JSON.stringify(payload),
       beforeSend: function () {
         block($content[0]);
       },
@@ -364,13 +402,14 @@
   }
 
   function deleteQuy($btn) {
-    var url = $btn.attr('data-url');
+    var id = parseIdFromUrl($btn.attr('data-url') || '');
+    var url = QUY_API_BASE + '/' + id;
     var title = $btn.attr('data-title') || 'quỹ này';
 
     confirmDialog('Xóa quỹ?', 'Bạn có chắc chắn muốn xóa ' + title + '?', function () {
       $.ajax({
         url: url,
-        type: 'POST',
+        type: 'DELETE',
         dataType: 'json',
         beforeSend: function () {
           block('#qltc-quy-list-wrapper');
@@ -398,7 +437,7 @@
       return;
     }
 
-    var url = $wrapper.attr('data-list-url') || window.location.href;
+    var url = $wrapper.attr('data-api-url') || QUY_API_BASE;
     $.ajax({
       url: url,
       type: 'GET',
@@ -407,19 +446,18 @@
         block('#qltc-quy-list-wrapper');
       },
       success: function (response) {
-        if (isSuccessResponse(response) && response.html) {
-          $wrapper.html(response.html);
-          Drupal.attachBehaviors($wrapper.get(0));
+        if (isSuccessResponse(response) && response.data && response.data.items) {
+          renderQuyList(response.data.items);
           return;
         }
 
         if (response && response.message) {
           notify(response, 4000);
         }
-        refreshFinanceRegion(window.location.href, $('.qltc-ajax-region').first());
+        notify(response, 4000);
       },
-      error: function () {
-        refreshFinanceRegion(window.location.href, $('.qltc-ajax-region').first());
+      error: function (xhr) {
+        notify({ success: false, message: getAjaxErrorMessage(xhr, 'Không tải được danh sách quỹ.') }, 5000);
       },
       complete: function () {
         unblock('#qltc-quy-list-wrapper');
@@ -549,6 +587,99 @@
         unblock($region[0]);
       }
     });
+  }
+
+  function renderQuyList(items) {
+    var html = '';
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var period = item.period || {};
+      html += '<tr>' +
+        '<td class="text-center">' + buildQuyActions(item) + '</td>' +
+        '<td class="text-center">' + (i + 1) + '</td>' +
+        '<td><span class="fw-semibold">' + escapeHtml(item.ma_quy || '') + '</span></td>' +
+        '<td><strong>' + escapeHtml(item.ten_quy || '') + '</strong>' + (item.ghi_chu ? '<div class="qltc-muted">' + escapeHtml(item.ghi_chu) + '</div>' : '') + '</td>' +
+        '<td>' + escapeHtml(item.loai_quy || '') + '</td>' +
+        '<td class="text-end">' + formatMoney(period.dau_ky || 0) + '</td>' +
+        '<td class="text-end text-success">' + formatMoney(period.thu || 0) + '</td>' +
+        '<td class="text-end text-danger">' + formatMoney(period.chi || 0) + '</td>' +
+        '<td class="text-end text-success">' + formatMoney(period.chuyen_den || 0) + '</td>' +
+        '<td class="text-end text-danger">' + formatMoney(period.chuyen_di || 0) + '</td>' +
+        '<td class="text-end"><strong>' + formatMoney(period.cuoi_ky || 0) + '</strong></td>' +
+        '</tr>';
+    }
+    if (!html) {
+      html = '<tr><td colspan="11" class="text-center">Chưa có quỹ nào.</td></tr>';
+    }
+    $('#qltc-quy-table-body').html(html);
+  }
+
+  function buildQuyActions(item) {
+    return '<div class="dropdown qltc-function-dropdown">' +
+      '<button type="button" class="btn btn-sm btn-icon btn-label-secondary rounded-pill qltc-function-btn" data-bs-toggle="dropdown" aria-expanded="false"><i class="ti tabler-dots-vertical"></i></button>' +
+      '<ul class="dropdown-menu">' +
+      '<li><a href="#" class="dropdown-item qltc-quy-detail-modal" data-url="' + QUY_API_BASE + '/' + item.nid + '" data-title="Chi tiết quỹ"><i class="ti tabler-eye me-2"></i>Xem</a></li>' +
+      '<li><a href="#" class="dropdown-item qltc-quy-open-modal" data-url="' + QUY_API_BASE + '/' + item.nid + '" data-title="Sửa quỹ"><i class="ti tabler-edit me-2"></i>Sửa</a></li>' +
+      '<li><a href="#" class="dropdown-item qltc-quy-adjust-modal" data-url="' + QUY_API_BASE + '/' + item.nid + '?action=adjust" data-title="Điều chỉnh số dư đầu kỳ"><i class="ti tabler-adjustments-dollar me-2"></i>Điều chỉnh</a></li>' +
+      '<li><hr class="dropdown-divider"></li>' +
+      '<li><a href="#" class="dropdown-item text-danger qltc-quy-delete" data-url="' + QUY_API_BASE + '/' + item.nid + '" data-title="' + escapeHtml(item.ten_quy || '') + '"><i class="ti tabler-trash me-2"></i>Xóa</a></li>' +
+      '</ul></div>';
+  }
+
+  function parseIdFromUrl(url) {
+    var match = String(url || '').match(/(\d+)(?:\?.*)?$/);
+    return match ? parseInt(match[1], 10) : 0;
+  }
+
+  function renderQuyForm(item) {
+    item = item || {};
+    var isEdit = !!item.nid;
+    return '<div class="qltc-modal-content" data-qltc-form-key="quy">' +
+      '<form id="qltc-quy-form" class="qltc-quy-form qltc-module-form qltc-bootstrap-form" method="post">' +
+      '<input type="hidden" name="quy_id" value="' + (item.nid || 0) + '">' +
+      '<div class="row g-3 qltc-quy-field-row">' +
+      '<div class="col-12 col-md-2"><div class="row g-1"><div class="col-12"><label class="form-label fw-semibold">Mã quỹ <span class="text-danger">*</span></label><input type="text" class="form-control form-control-sm" name="ma_quy" value="' + escapeHtml(item.ma_quy || '') + '" placeholder="VD: TM01" required></div></div></div>' +
+      '<div class="col-12 col-md-4"><div class="row g-1"><div class="col-12"><label class="form-label fw-semibold">Tên quỹ <span class="text-danger">*</span></label><input type="text" class="form-control form-control-sm" name="ten_quy" value="' + escapeHtml(item.ten_quy || '') + '" placeholder="VD: Tiền mặt công ty" required></div></div></div>' +
+      '<div class="col-12 col-md-3"><div class="row g-1"><div class="col-12"><label class="form-label fw-semibold">Loại quỹ</label><select class="form-select form-select-sm" name="loai_quy"><option value="tien_mat"' + ((item.loai_quy || 'tien_mat') === 'tien_mat' ? ' selected' : '') + '>Tiền mặt</option><option value="ngan_hang"' + (item.loai_quy === 'ngan_hang' ? ' selected' : '') + '>Ngân hàng</option><option value="vi_noi_bo"' + (item.loai_quy === 'vi_noi_bo' ? ' selected' : '') + '>Ví nội bộ</option></select></div></div></div>' +
+      '<div class="col-12 col-md-3"><div class="row g-1"><div class="col-12"><label class="form-label fw-semibold">Số dư đầu kỳ</label><input type="text" inputmode="numeric" class="form-control form-control-sm text-end qltc-money-input' + (isEdit ? ' bg-light' : '') + '" name="so_du_dau_ky" value="' + formatMoney(item.so_du_dau_ky || 0) + '" placeholder="0"' + (isEdit ? ' readonly disabled data-qltc-locked="1"' : '') + '>' + (isEdit ? '<div class="form-text small text-muted">Không cho sửa số dư đầu kỳ sau khi tạo quỹ.</div>' : '') + '</div></div></div>' +
+      '</div>' +
+      '<div class="row g-3 mt-2 qltc-quy-note-row"><div class="col-12"><div class="row g-1"><div class="col-12"><label class="form-label fw-semibold">Ghi chú</label><textarea class="form-control form-control-sm" name="ghi_chu" rows="3" placeholder="Nhập ghi chú nếu có">' + escapeHtml(item.ghi_chu || '') + '</textarea></div></div></div></div>' +
+      '<div class="qltc-form-alert mt-3 d-none"></div>' +
+      '<div class="qltc-modal-actions d-flex justify-content-end gap-2 mt-4 pt-2"><button type="button" class="btn btn-label-secondary btn-sm" data-bs-dismiss="modal">Đóng</button><button type="submit" class="btn btn-primary btn-sm qltc-btn-save-quy"><span class="spinner-border spinner-border-sm me-1 d-none qltc-btn-spinner" role="status" aria-hidden="true"></span><span class="qltc-btn-text"><i class="icon-base ti tabler-device-floppy me-1"></i>' + (isEdit ? 'Cập nhật quỹ' : 'Lưu quỹ') + '</span></button></div>' +
+      '</form></div>';
+  }
+
+  function renderQuyAdjust(item) {
+    var oldBalance = item.so_du_dau_ky || 0;
+    return '<div class="qltc-modal-content" data-qltc-form-key="quy-adjust"><form id="qltc-quy-adjust-form" class="qltc-quy-adjust-form qltc-module-form qltc-bootstrap-form" method="post">' +
+      '<input type="hidden" name="quy_id" value="' + (item.nid || 0) + '"><input type="hidden" name="so_du_cu" value="' + formatMoney(oldBalance) + '">' +
+      '<div class="alert alert-info py-2 mb-3"><strong>Lưu ý:</strong> Điều chỉnh số dư đầu kỳ không tạo phiếu thu/chi. Hệ thống sẽ lưu lịch sử điều chỉnh.</div>' +
+      '<div class="row g-3 align-items-end"><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Mã quỹ</label><input type="text" class="form-control form-control-sm bg-light" value="' + escapeHtml(item.ma_quy || '') + '" readonly></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Tên quỹ</label><input type="text" class="form-control form-control-sm bg-light" value="' + escapeHtml(item.ten_quy || '') + '" readonly></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Số dư đầu kỳ hiện tại</label><input type="text" class="form-control form-control-sm text-end bg-light" value="' + formatMoney(oldBalance) + '" readonly></div></div>' +
+      '<div class="row g-3 align-items-end mt-1"><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Số dư đầu kỳ mới <span class="text-danger">*</span></label><input type="text" inputmode="numeric" class="form-control form-control-sm text-end qltc-money-input qltc-adjust-new-balance" name="so_du_moi" value="' + formatMoney(oldBalance) + '" required></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Chênh lệch</label><input type="text" class="form-control form-control-sm text-end bg-light qltc-adjust-diff" value="0" readonly></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Ngày điều chỉnh</label><input type="text" class="form-control form-control-sm qltc-flatpickr-date" name="ngay_dieu_chinh" value="' + escapeHtml(currentDate()) + '" autocomplete="off"></div></div>' +
+      '<div class="row g-3 mt-2"><div class="col-12"><label class="form-label fw-semibold mb-1">Lý do điều chỉnh <span class="text-danger">*</span></label><textarea class="form-control form-control-sm" name="ly_do" rows="3" placeholder="VD: Cập nhật số dư theo sao kê ngân hàng" required></textarea></div></div>' +
+      '<div class="qltc-form-alert mt-3 d-none"></div>' +
+      '<div class="d-flex justify-content-end gap-2 mt-4 pt-2"><button type="button" class="btn btn-label-secondary btn-sm" data-bs-dismiss="modal">Đóng</button><button type="submit" class="btn btn-warning btn-sm qltc-btn-save-adjust"><span class="spinner-border spinner-border-sm me-1 d-none qltc-btn-spinner" role="status" aria-hidden="true"></span><span class="qltc-btn-text"><i class="icon-base ti tabler-adjustments-dollar me-1"></i>Lưu điều chỉnh</span></button></div>' +
+      '</form></div>';
+  }
+
+  function renderQuyDetail(item) {
+    return '<div class="qltc-modal-content qltc-quy-detail" data-qltc-form-key="quy-detail">' +
+      '<div class="row g-3 mb-3"><div class="col-12 col-md-3"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Mã quỹ</div><div class="fw-semibold">' + escapeHtml(item.ma_quy || '') + '</div></div></div></div><div class="col-12 col-md-3"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Tên quỹ</div><div class="fw-semibold">' + escapeHtml(item.ten_quy || '') + '</div></div></div></div><div class="col-12 col-md-3"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Loại quỹ</div><div class="fw-semibold">' + escapeHtml(item.loai_quy || '') + '</div></div></div></div><div class="col-12 col-md-3"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Trạng thái</div><span class="badge bg-label-success">Đang hoạt động</span></div></div></div></div>' +
+      '<div class="row g-3 mb-3"><div class="col-12 col-md-4"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Số dư đầu kỳ</div><div class="h5 mb-0 text-primary">' + formatMoney(item.so_du_dau_ky || 0) + '</div></div></div></div><div class="col-12 col-md-4"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Số dư hiện tại</div><div class="h5 mb-0 text-success">' + formatMoney(item.so_du_hien_tai || 0) + '</div></div></div></div><div class="col-12 col-md-4"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Cập nhật gần nhất</div><div class="fw-semibold">' + escapeHtml(item.changed ? formatDateTime(item.changed) : '-') + '</div></div></div></div></div>' +
+      (item.ghi_chu ? '<div class="alert alert-secondary py-2 mb-3"><strong>Ghi chú:</strong> ' + escapeHtml(item.ghi_chu) + '</div>' : '') +
+      '<div class="d-flex justify-content-end mt-3"><button type="button" class="btn btn-label-secondary btn-sm" data-bs-dismiss="modal">Đóng</button></div>' +
+      '</div>';
+  }
+
+  function currentDate() {
+    var d = new Date();
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+  }
+
+  function formatDateTime(timestamp) {
+    var d = new Date(parseInt(timestamp, 10) * 1000);
+    if (isNaN(d.getTime())) return '';
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   }
 
   function initMoneyInputs(context) {

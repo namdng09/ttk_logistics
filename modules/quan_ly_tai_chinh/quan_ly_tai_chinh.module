@@ -11,6 +11,20 @@
 function quan_ly_tai_chinh_menu() {
   $items = array();
 
+  $items['api/quan-ly-quy'] = array(
+    'page callback' => 'quan_ly_tai_chinh_quy_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/quan-ly-quy/%'] = array(
+    'page callback' => 'quan_ly_tai_chinh_quy_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
   $items['quan-ly-tai-chinh'] = array(
     'title' => 'Quản lý tài chính',
     'page callback' => 'quan_ly_tai_chinh_dashboard',
@@ -144,6 +158,44 @@ function quan_ly_tai_chinh_permission() {
       'description' => t('Quản lý quỹ, thu chi và tạm ứng lái xe.'),
     ),
   );
+}
+
+function _quan_ly_tai_chinh_input() {
+  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+}
+
+function _quan_ly_tai_chinh_success($data = NULL) {
+  $response = array('status' => 'success');
+  if ($data !== NULL) {
+    $response['data'] = $data;
+  }
+  return $response;
+}
+
+function _quan_ly_tai_chinh_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _quan_ly_tai_chinh_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _quan_ly_tai_chinh_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _quan_ly_tai_chinh_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+function _quan_ly_tai_chinh_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
 }
 
 function quan_ly_tai_chinh_theme() {
@@ -1676,6 +1728,139 @@ function quan_ly_tai_chinh_quy_options($active_only = TRUE) {
     $options[$quy->quy_id] = $quy->ten_quy . ($quy->ma_quy ? ' (' . $quy->ma_quy . ')' : '');
   }
   return $options;
+}
+
+function quan_ly_tai_chinh_quy_to_api_item($quy, array $filters = array()) {
+  $from_time = !empty($filters['from_time']) ? intval($filters['from_time']) : strtotime(date('Y-m-01 00:00:00'));
+  $to_time = !empty($filters['to_time']) ? intval($filters['to_time']) : strtotime(date('Y-m-t 23:59:59'));
+  $period = quan_ly_tai_chinh_quy_period_summary($quy->quy_id, $from_time, $to_time);
+
+  return array(
+    'nid' => intval($quy->quy_id),
+    'ma_quy' => $quy->ma_quy,
+    'ten_quy' => $quy->ten_quy,
+    'loai_quy' => $quy->loai_quy,
+    'ghi_chu' => $quy->ghi_chu,
+    'so_du_dau_ky' => $quy->so_du_dau_ky,
+    'so_du_hien_tai' => $quy->so_du_hien_tai,
+    'hoat_dong' => intval($quy->hoat_dong),
+    'created' => intval($quy->created),
+    'changed' => intval($quy->changed),
+    'period' => $period,
+  );
+}
+
+function quan_ly_tai_chinh_quy_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _quan_ly_tai_chinh_quy_rest_list();
+    case 'POST':
+      return _quan_ly_tai_chinh_quy_rest_create();
+    default:
+      return _quan_ly_tai_chinh_method_not_allowed('GET, POST');
+  }
+}
+
+function quan_ly_tai_chinh_quy_rest_item($id) {
+  $id = intval($id);
+  if (!$id) {
+    return _quan_ly_tai_chinh_fail('ID không hợp lệ');
+  }
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _quan_ly_tai_chinh_quy_rest_get($id);
+    case 'PUT':
+      return _quan_ly_tai_chinh_quy_rest_update($id);
+    case 'DELETE':
+      return _quan_ly_tai_chinh_quy_rest_delete($id);
+    case 'POST':
+      if (!empty($_GET['action']) && $_GET['action'] === 'adjust') {
+        return _quan_ly_tai_chinh_quy_rest_adjust($id);
+      }
+      return _quan_ly_tai_chinh_method_not_allowed('GET, PUT, DELETE');
+    default:
+      return _quan_ly_tai_chinh_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+function _quan_ly_tai_chinh_quy_rest_list() {
+  $filters = quan_ly_tai_chinh_get_date_filters();
+  $items = array();
+  foreach (quan_ly_tai_chinh_quy_get_all(TRUE) as $quy) {
+    $items[] = quan_ly_tai_chinh_quy_to_api_item($quy, $filters);
+  }
+
+  return _quan_ly_tai_chinh_success(array(
+    'items' => $items,
+    'total' => count($items),
+    'current_page' => 1,
+    'total_pages' => 1,
+  ));
+}
+
+function _quan_ly_tai_chinh_quy_rest_get($id) {
+  $quy = quan_ly_tai_chinh_quy_load($id);
+  if (!$quy || intval($quy->hoat_dong) !== 1) {
+    return _quan_ly_tai_chinh_not_found('Không tìm thấy quỹ');
+  }
+
+  return _quan_ly_tai_chinh_success(quan_ly_tai_chinh_quy_to_api_item($quy));
+}
+
+function _quan_ly_tai_chinh_quy_rest_create() {
+  if (!user_access('quan ly tai chinh')) {
+    return _quan_ly_tai_chinh_unauthorized('Bạn không có quyền tạo quỹ');
+  }
+
+  $_POST = _quan_ly_tai_chinh_input();
+  $result = quan_ly_tai_chinh_quy_ajax_save();
+  if (!empty($result['success']) && !empty($result['quy_id'])) {
+    return _quan_ly_tai_chinh_success(quan_ly_tai_chinh_quy_to_api_item(quan_ly_tai_chinh_quy_load($result['quy_id'])));
+  }
+  return !empty($result['message']) ? _quan_ly_tai_chinh_fail($result['message']) : _quan_ly_tai_chinh_error('Lưu quỹ thất bại');
+}
+
+function _quan_ly_tai_chinh_quy_rest_update($id) {
+  if (!user_access('quan ly tai chinh')) {
+    return _quan_ly_tai_chinh_unauthorized('Bạn không có quyền cập nhật quỹ');
+  }
+
+  $input = _quan_ly_tai_chinh_input();
+  $input['quy_id'] = $id;
+  $_POST = $input;
+  $result = quan_ly_tai_chinh_quy_ajax_save();
+  if (!empty($result['success'])) {
+    return _quan_ly_tai_chinh_success(quan_ly_tai_chinh_quy_to_api_item(quan_ly_tai_chinh_quy_load($id)));
+  }
+  return !empty($result['message']) ? _quan_ly_tai_chinh_fail($result['message']) : _quan_ly_tai_chinh_error('Cập nhật quỹ thất bại');
+}
+
+function _quan_ly_tai_chinh_quy_rest_delete($id) {
+  if (!user_access('quan ly tai chinh')) {
+    return _quan_ly_tai_chinh_unauthorized('Bạn không có quyền xóa quỹ');
+  }
+
+  $result = quan_ly_tai_chinh_quy_ajax_delete($id);
+  if (!empty($result['success'])) {
+    return _quan_ly_tai_chinh_success(array('nid' => $id, 'deleted' => TRUE));
+  }
+  return !empty($result['message']) ? _quan_ly_tai_chinh_fail($result['message']) : _quan_ly_tai_chinh_error('Xóa quỹ thất bại');
+}
+
+function _quan_ly_tai_chinh_quy_rest_adjust($id) {
+  if (!user_access('quan ly tai chinh')) {
+    return _quan_ly_tai_chinh_unauthorized('Bạn không có quyền điều chỉnh quỹ');
+  }
+
+  $input = _quan_ly_tai_chinh_input();
+  $input['quy_id'] = $id;
+  $_POST = $input;
+  $result = quan_ly_tai_chinh_quy_ajax_adjust_save();
+  if (!empty($result['success'])) {
+    return _quan_ly_tai_chinh_success(quan_ly_tai_chinh_quy_to_api_item(quan_ly_tai_chinh_quy_load($id)));
+  }
+  return !empty($result['message']) ? _quan_ly_tai_chinh_fail($result['message']) : _quan_ly_tai_chinh_error('Điều chỉnh quỹ thất bại');
 }
 
 

@@ -64,7 +64,7 @@
             <a href="<?php print url('quan-ly-quy/chuyen-tien'); ?>" class="btn btn-label-primary btn-sm waves-effect qltc-ajax-modal" data-title="Chuyển tiền nội bộ"><i class="icon-base ti tabler-arrows-exchange me-1"></i> Chuyển tiền nội bộ</a>
           </div>
         </div>
-        <div id="qltc-quy-list-wrapper" data-list-url="<?php print url('quan-ly-quy/ajax-list'); ?>">
+        <div id="qltc-quy-list-wrapper" data-api-url="<?php print url('api/quan-ly-quy'); ?>">
           <div class="table-responsive text-nowrap qltc-table-wrap">
             <table class="table table-bordered table-hover align-middle qltc-table qltc-quy-table mb-0">
               <thead>
@@ -82,7 +82,7 @@
                   <th class="text-end">Cuối kỳ</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="qltc-quy-table-body">
                 <?php if (!empty($table_items)): ?>
                   <?php foreach ($table_items as $item): ?>
                     <?php $quy = $item['quy']; $period = $item['period']; ?>
