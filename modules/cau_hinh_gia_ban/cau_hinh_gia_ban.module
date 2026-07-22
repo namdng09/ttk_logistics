@@ -196,6 +196,58 @@ function _cau_hinh_gia_ban_rest_list() {
   $limit = CAU_HINH_GIA_BAN_PER_PAGE;
   $offset = ($page - 1) * $limit;
 
+  if ($khach_hang_id > 0) {
+    $kh = db_query("SELECT nid, bang_gia_cuoc FROM {khach_hang} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $khach_hang_id))->fetch();
+    if ($kh && !empty($kh->bang_gia_cuoc)) {
+      $decoded = json_decode($kh->bang_gia_cuoc, TRUE);
+      if (is_array($decoded)) {
+        $items = array();
+        $nidCounter = 1;
+        foreach ($decoded as $warehouse) {
+          $diaChiKho = !empty($warehouse['dia_chi']) ? $warehouse['dia_chi'] : '';
+          $khoangCach = !empty($warehouse['khoang_cach']) ? $warehouse['khoang_cach'] : '';
+          $bangGia = !empty($warehouse['bang_gia']) && is_array($warehouse['bang_gia']) ? $warehouse['bang_gia'] : array();
+
+          foreach ($bangGia as $priceRow) {
+            $item = array(
+              'nid' => $nidCounter++,
+              'uid' => 0,
+              'nid_khach_hang' => (int) $kh->nid,
+              'khach_hang' => array('nid' => (int) $kh->nid, 'ten' => ''),
+              'nguoi_tao' => NULL,
+              'dia_chi_kho' => $diaChiKho,
+              'khoang_cach' => $khoangCach,
+              'loai_cont' => !empty($priceRow['loai_cont']) ? $priceRow['loai_cont'] : '',
+              'chi_phi' => array($priceRow),
+              'loai_cong_no' => !empty($priceRow['loai_cong_no']) ? $priceRow['loai_cong_no'] : '',
+              'trang_thai' => !empty($priceRow['hoat_dong']) ? 1 : 0,
+              'hoat_dong' => !empty($priceRow['hoat_dong']) ? 1 : 0,
+              'created' => '',
+              'changed' => '',
+            );
+
+            if ($keyword) {
+              $haystack = mb_strtolower($item['dia_chi_kho'] . ' ' . $item['loai_cont']);
+              if (mb_strpos($haystack, mb_strtolower($keyword)) === FALSE) {
+                continue;
+              }
+            }
+
+            $items[] = $item;
+          }
+        }
+
+        return _cau_hinh_gia_ban_success(array(
+          'items' => array_values($items),
+          'total' => count($items),
+          'current_page' => 1,
+          'total_pages' => 1,
+          'limit' => max($limit, count($items)),
+        ));
+      }
+    }
+  }
+
   $query = db_select('cau_hinh_gia_ban', 'c');
   $query->condition('c.hoat_dong', 1);
 

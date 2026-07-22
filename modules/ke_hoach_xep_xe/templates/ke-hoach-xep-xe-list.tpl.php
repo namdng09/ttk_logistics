@@ -14,12 +14,7 @@
           </button>
         </div>
       </div>
-      <div class="col-6 col-md-5 mb-2 mb-md-0">
-        <select class="form-select" id="status-filter">
-          <option value="">Tất cả trạng thái</option>
-        </select>
-      </div>
-      <div class="col-6 col-md-3">
+      <div class="col-12 col-md-8">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-primary waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i>Tạo kế hoạch</button>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload waves-effect">
