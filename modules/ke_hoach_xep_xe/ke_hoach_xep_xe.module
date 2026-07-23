@@ -301,25 +301,28 @@ function _ke_hoach_xep_xe_validate_lines($items) {
 
 function _ke_hoach_xep_xe_enrich_row($row) {
   $result = (array) $row;
+  $nid_khach_hang = !empty($result['nid_khach_hang']) ? (int) $result['nid_khach_hang'] : 0;
+  $nid_lai_xe = !empty($result['nid_lai_xe']) ? (int) $result['nid_lai_xe'] : 0;
+  $nid_phuong_tien = !empty($result['nid_phuong_tien']) ? (int) $result['nid_phuong_tien'] : 0;
 
-  if (!empty($result['nid_khach_hang'])) {
-    $kh = db_query("SELECT nid, ten, ma_kh, phan_loai, cccd_mst, sdt, dia_chi, dob, ghi_chu FROM {khach_hang} WHERE nid = :nid", array(':nid' => $result['nid_khach_hang']))->fetch();
+  if ($nid_khach_hang) {
+    $kh = db_query("SELECT nid, ten, ma_kh, phan_loai, cccd_mst, sdt, dia_chi, dob, ghi_chu FROM {khach_hang} WHERE nid = :nid", array(':nid' => $nid_khach_hang))->fetch();
     $result['khach_hang'] = $kh ? (array) $kh : NULL;
   }
   else {
     $result['khach_hang'] = NULL;
   }
 
-  if (!empty($result['nid_lai_xe'])) {
-    $lx = db_query("SELECT nid, ten, ma_nhan_vien, sdt, cccd, so_bang_lai, loai_bang_lai, han_bang_lai FROM {lai_xe} WHERE nid = :nid", array(':nid' => $result['nid_lai_xe']))->fetch();
+  if ($nid_lai_xe) {
+    $lx = db_query("SELECT nid, ten, ma_nhan_vien, sdt, cccd, so_bang_lai, loai_bang_lai, han_bang_lai FROM {lai_xe} WHERE nid = :nid", array(':nid' => $nid_lai_xe))->fetch();
     $result['lai_xe'] = $lx ? (array) $lx : NULL;
   }
   else {
     $result['lai_xe'] = NULL;
   }
 
-  if (!empty($result['nid_phuong_tien'])) {
-    $pt = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $result['nid_phuong_tien']))->fetch();
+  if ($nid_phuong_tien) {
+    $pt = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $nid_phuong_tien))->fetch();
     $result['phuong_tien'] = $pt ? (array) $pt : NULL;
   }
   else {
@@ -338,6 +341,7 @@ function _ke_hoach_xep_xe_enrich_row($row) {
   $json = _ke_hoach_xep_xe_json_decode(isset($result['thong_tin_json']) ? $result['thong_tin_json'] : '');
   $result['ghi_chu'] = !empty($json['ghi_chu']) ? $json['ghi_chu'] : '';
   $result['hinh_thuc_status_text'] = _ke_hoach_xep_xe_hinh_thuc_status_text($result);
+  unset($result['nid_khach_hang'], $result['nid_lai_xe'], $result['nid_phuong_tien']);
 
   return $result;
 }
