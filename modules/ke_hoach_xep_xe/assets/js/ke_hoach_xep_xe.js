@@ -830,6 +830,18 @@
       return '<span class="vehicle-inline-text">' + escHtml(text) + '</span>';
     }
 
+    function vehicleSummaryTableHtml(line) {
+      var vehicle = state.vehicleMap[String(line.nid_phuong_tien || 0)] || null;
+      if (!vehicle) {
+        return '<span class="vehicle-inline-placeholder">Chọn phương tiện</span>';
+      }
+      var text = vehicle.bks || '';
+      if (vehicle.lai_xe && vehicle.lai_xe.ten) {
+        text += ' - ' + vehicle.lai_xe.ten;
+      }
+      return '<span class="vehicle-inline-text">' + escHtml(text) + '</span>';
+    }
+
     function initRowUi($row, line) {
       var dropdownParent = $('#ke-hoach-fullscreen-modal');
       initSelect2($row.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true, dropdownParent: dropdownParent });
@@ -847,7 +859,8 @@
           appendTo: document.body
         });
       }
-      $row.find('.line-vehicle-display').toggleClass('is-selected', !!line.nid_phuong_tien).html(vehicleSummaryHtml(line));
+      $row.find('.line-vehicle-display').toggleClass('is-selected', !!line.nid_phuong_tien).html(vehicleSummaryTableHtml(line));
+      $row.find('.line-mooc-display').toggleClass('is-selected', !!line.nid_mooc).html(moocSummaryHtml(line));
     }
 
     function initCardUi($card, line) {
@@ -945,7 +958,9 @@
           '<td><input type="text" class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG"></td>' +
           '<td>' +
             '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
-            '<button type="button" class="btn btn-outline-secondary w-100 text-start line-vehicle-display btn-open-vehicle-modal' + (line.nid_phuong_tien ? ' is-selected' : '') + '">' + vehicleSummaryHtml(line) + '</button>' +
+            '<button type="button" class="btn btn-outline-secondary w-100 text-start line-vehicle-display btn-open-vehicle-modal' + (line.nid_phuong_tien ? ' is-selected' : '') + '">' + vehicleSummaryTableHtml(line) + '</button>' +
+            '<input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '">' +
+            '<button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal mt-2' + (line.nid_mooc ? ' is-selected' : '') + '">' + moocSummaryHtml(line) + '</button>' +
             '<div class="line-inline-feedback text-danger small mt-1" style="display:none;">Vui lòng chọn phương tiện có lái xe</div>' +
           '</td>' +
           '<td class="line-combo-cell">' +
@@ -1018,7 +1033,13 @@
         return line;
       }
       line.nid_phuong_tien = parseInt($row.find('.line-vehicle-id').val(), 10) || 0;
-      line.nid_mooc = 0;
+      line.nid_mooc = parseInt($row.find('.line-mooc-id').val(), 10) || 0;
+      if (line.nid_mooc && (!line.mooc || parseInt(line.mooc.nid, 10) !== line.nid_mooc)) {
+        line.mooc = findMoocById(line.nid_mooc);
+      }
+      if (!line.nid_mooc) {
+        line.mooc = null;
+      }
       line.so_bkg = $row.find('.line-so-bkg-input').val().trim();
       line.so_cont = $row.find('.line-so-cont-input').val().trim();
       line.loai_cont = ($row.find('.line-loai-cont-select').val() || '').trim();
@@ -1142,8 +1163,15 @@
         var $row = $('#ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + line.key + '"]');
         if (activePickerType === 'vehicle') {
           $row.find('.line-vehicle-id').val(line.nid_phuong_tien || 0);
+          $row.find('.line-vehicle-display').addClass('is-selected').html(vehicleSummaryTableHtml(line));
+        } else {
+          $row.find('.line-mooc-id').val(line.nid_mooc || 0);
+          if (line.nid_mooc) {
+            $row.find('.line-mooc-display').addClass('is-selected').html('<span class="vehicle-inline-text">' + escHtml(moocSummaryText(line)) + '</span>');
+          } else {
+            $row.find('.line-mooc-display').removeClass('is-selected').html(moocSummaryHtml(line));
+          }
         }
-        $row.find('.line-vehicle-display').addClass('is-selected').html(vehicleSummaryHtml(line));
         $row.removeClass('table-danger');
         $row.find('.line-inline-feedback').hide();
       }
@@ -1183,8 +1211,11 @@
         var $row = $('#ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + line.key + '"]');
         if (activePickerType === 'vehicle') {
           $row.find('.line-vehicle-id').val(0);
+          $row.find('.line-vehicle-display').removeClass('is-selected').html(vehicleSummaryTableHtml(line));
+        } else {
+          $row.find('.line-mooc-id').val(0);
+          $row.find('.line-mooc-display').removeClass('is-selected').html(moocSummaryHtml(line));
         }
-        $row.find('.line-vehicle-display').removeClass('is-selected').html(vehicleSummaryHtml(line));
       }
       else {
         var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + line.key + '"]');
@@ -1687,9 +1718,8 @@
       openVehicleModal($(this).closest(useTableLayout ? '.ke-hoach-table-row' : '.ke-hoach-line-card').data('line-key'));
     });
     $(document).on('click', '.btn-open-mooc-modal', function () {
-      if (useTableLayout) return;
       syncAllLines();
-      openMoocModal($(this).closest('.ke-hoach-line-card').data('line-key'));
+      openMoocModal($(this).closest(useTableLayout ? '.ke-hoach-table-row' : '.ke-hoach-line-card').data('line-key'));
     });
     $(document).on('click', '#paste-bkg-btn', function () {
       var input = document.getElementById('so_bkg-input');

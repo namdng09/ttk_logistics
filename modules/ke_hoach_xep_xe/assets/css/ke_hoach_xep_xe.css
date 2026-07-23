@@ -141,20 +141,13 @@ body .flatpickr-calendar {
 }
 
 .vehicle-summary {
-  height: calc(1.5em + 0.75rem + 2px);
   min-height: calc(1.5em + 0.75rem + 2px);
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  border: 1px solid #c7cfe0;
-  border-radius: 12px;
-  padding: 0.375rem 2rem 0.375rem 0.75rem;
-  background: #fff;
 }
 
 .vehicle-summary.is-selected {
-  border-color: #b8c2d1;
-  background: #fff;
+  color: inherit;
+  background-color: inherit;
+  border-color: inherit;
 }
 
 .vehicle-summary-empty {
@@ -469,12 +462,16 @@ body .flatpickr-calendar {
   background: #fff;
 }
 
-.line-vehicle-display .vehicle-inline-placeholder {
+.line-vehicle-display .vehicle-inline-placeholder,
+.line-mooc-display .vehicle-inline-placeholder {
   color: #98a2b3;
   font-style: italic;
+  font-size: 0.85rem;
 }
 
-.line-vehicle-display .vehicle-inline-text {
+.line-vehicle-display .vehicle-inline-text,
+.line-mooc-display .vehicle-inline-text {
+  color: #344054;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
@@ -482,7 +479,8 @@ body .flatpickr-calendar {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  font-size: inherit !important;
+  font-size: 0.85rem !important;
+  line-height: 1.5;
   font-weight: inherit !important;
 }
 

@@ -106,7 +106,7 @@
                 <thead>
                   <tr>
                     <th style="width: 8%">Số BKG</th>
-                    <th style="width: 14%">Phương tiện</th>
+                    <th style="width: 16%">Phương tiện</th>
                     <th style="width: 8%"><span class="th-split-label">Số cont<br>Loại cont</span></th>
                     <th style="width: 8%"><span class="th-split-label">Số seal chính<br>Số seal tạm</span></th>
                     <th style="width: 12%">Địa chỉ kho</th>
@@ -170,16 +170,15 @@
               <thead class="table-light">
                 <tr>
                   <th style="width:60px" class="text-center">Chọn</th>
-                  <th>Biển số</th>
-                  <th>Mooc</th>
-                  <th>Loại xe</th>
-                  <th>Lái xe hiện tại</th>
+                  <th id="vehicle-picker-col-bks">Biển số</th>
+                  <th id="vehicle-picker-col-type">Loại xe</th>
+                  <th id="vehicle-picker-col-extra">Lái xe hiện tại</th>
                   <th style="width:130px" class="text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody id="vehicle-picker-body">
                 <tr>
-                  <td colspan="6" class="text-center py-4">
+                  <td colspan="5" class="text-center py-4">
                     <div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải phương tiện...
                   </td>
                 </tr>
