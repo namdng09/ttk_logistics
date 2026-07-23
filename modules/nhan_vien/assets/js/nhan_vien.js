@@ -8,6 +8,9 @@
   var currentTrangThai = '';
   var BANK_LIST = [];
   var BANK_LIST_LOADED = false;
+  var FORM_SUPPORT_DATA_LOADED = false;
+  var FORM_SUPPORT_DATA_LOADING = false;
+  var FORM_SUPPORT_DATA_CALLBACKS = [];
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -28,7 +31,6 @@
       }
 
       if ($('#table-nhan-vien', context).length) {
-        loadBankList();
         loadFilters();
         loadList();
         bindNativeEvents();
@@ -36,11 +38,18 @@
     }
   };
 
-  function loadBankList() {
-    if (BANK_LIST_LOADED) return;
+  function loadBankList(done) {
+    if (BANK_LIST_LOADED) {
+      if (done) done();
+      return;
+    }
     var cached = localStorage.getItem('bankList');
     if (cached) {
       try { BANK_LIST = JSON.parse(cached); BANK_LIST_LOADED = true; } catch (e) {}
+    }
+    if (BANK_LIST_LOADED) {
+      if (done) done();
+      return;
     }
     $.ajax({
       url: 'https://api.vietqr.io/v2/banks',
@@ -58,7 +67,10 @@
           }
         }
       },
-      error: function () {}
+      error: function () {},
+      complete: function () {
+        if (done) done();
+      }
     });
   }
 
@@ -177,6 +189,7 @@
       themBtn.addEventListener('click', function () {
         resetForm();
         setFormMode('create');
+        ensureFormSupportData();
       });
     }
 
@@ -304,12 +317,9 @@
       }
     });
 
-    // Load phong ban + chuc vu from danh_muc
-    loadDanhMucOptions('Phòng ban', 'phong_ban');
-    loadDanhMucOptions('Chức vụ', 'chuc_vu');
   }
 
-  function loadDanhMucOptions(phanLoai, fieldName) {
+  function loadDanhMucOptions(phanLoai, fieldName, done) {
     $.ajax({
       url: '/api/danh-muc',
       type: 'GET',
@@ -329,8 +339,53 @@
       },
       error: function (jqXHR) {
         if (notyf) notyf.error(apiMsg(jqXHR));
+      },
+      complete: function () {
+        if (done) done();
       }
     });
+  }
+
+  function ensureFormSupportData(callback) {
+    if (FORM_SUPPORT_DATA_LOADED) {
+      if (callback) callback();
+      return;
+    }
+
+    if (callback) {
+      FORM_SUPPORT_DATA_CALLBACKS.push(callback);
+    }
+
+    if (FORM_SUPPORT_DATA_LOADING) {
+      return;
+    }
+
+    FORM_SUPPORT_DATA_LOADING = true;
+
+    var remaining = 3;
+    function finishOne() {
+      remaining--;
+      if (remaining > 0) return;
+
+      FORM_SUPPORT_DATA_LOADING = false;
+      FORM_SUPPORT_DATA_LOADED = true;
+
+      var sel = document.querySelector('#form-nhan-vien select[name="ngan_hang"]');
+      if (sel) {
+        var curVal = sel.value;
+        initNganHangSelect(sel, curVal || null);
+      }
+
+      var callbacks = FORM_SUPPORT_DATA_CALLBACKS.slice();
+      FORM_SUPPORT_DATA_CALLBACKS = [];
+      for (var i = 0; i < callbacks.length; i++) {
+        callbacks[i]();
+      }
+    }
+
+    loadBankList(finishOne);
+    loadDanhMucOptions('Phòng ban', 'phong_ban', finishOne);
+    loadDanhMucOptions('Chức vụ', 'chuc_vu', finishOne);
   }
 
   function submitForm() {
@@ -595,20 +650,40 @@
     showLoading(true);
     modalShow('nhan-vien-modal');
 
+    var detailData = null;
+    var detailLoaded = false;
+    var supportLoaded = false;
+    var detailFailed = false;
+
+    function finalizeEditModal() {
+      if (detailFailed || !detailLoaded || !supportLoaded) return;
+      showLoading(false);
+      populateForm(detailData);
+    }
+
+    ensureFormSupportData(function () {
+      supportLoaded = true;
+      finalizeEditModal();
+    });
+
     $.ajax({
       url: '/api/nhan-vien/' + id,
       type: 'GET',
       dataType: 'json',
       success: function (res) {
-        showLoading(false);
         if (res.status !== 'success' || !res.data) {
+          detailFailed = true;
+          showLoading(false);
           if (notyf) notyf.error(res.message || 'Không tìm thấy dữ liệu');
           modalHide('nhan-vien-modal');
           return;
         }
-        populateForm(res.data);
+        detailData = res.data;
+        detailLoaded = true;
+        finalizeEditModal();
       },
       error: function (jqXHR) {
+        detailFailed = true;
         showLoading(false);
         modalHide('nhan-vien-modal');
         if (notyf) notyf.error(apiMsg(jqXHR));
