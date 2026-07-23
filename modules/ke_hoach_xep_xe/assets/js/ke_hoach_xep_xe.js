@@ -747,7 +747,10 @@
 
     function vehicleOnlyText(line) {
       var vehicle = state.vehicleMap[String(line.nid_phuong_tien || 0)] || null;
-      return vehicle && vehicle.bks ? vehicle.bks : '';
+      if (!vehicle) return '';
+      var text = vehicle.bks || '';
+      if (vehicle.ma_tai_san) text += ' - ' + vehicle.ma_tai_san;
+      return text;
     }
 
     function vehicleSummaryCardHtml(line) {
@@ -880,7 +883,7 @@
               '<div class="col-md-6">' +
                 '<label class="form-label">Phương tiện <span class="text-danger">*</span></label>' +
                 '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
-                '<div class="vehicle-summary-wrap"><div class="vehicle-summary btn-open-vehicle-modal"></div></div>' +
+                '<button type="button" class="btn btn-outline-secondary w-100 text-start vehicle-summary btn-open-vehicle-modal' + (line.nid_phuong_tien ? ' is-selected' : '') + '"></button>' +
                 '<div class="invalid-feedback d-block line-vehicle-feedback" style="display:none !important;">Vui lòng chọn phương tiện</div>' +
               '</div>' +
               '<div class="col-md-3">' +
