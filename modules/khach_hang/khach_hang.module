@@ -251,7 +251,7 @@ function _khach_hang_sync_nv_kinh_doanh($nid, $uids) {
 
 /**
  * Build row with joins (nv_kinh_doanh array + formatted fields).
- * @param bool $include_bang_gia  When FALSE (list mode), strip bang_gia from each warehouse to keep response small.
+ * @param bool $include_bang_gia  When FALSE (list mode), omit heavy detail fields from response.
  */
 function _khach_hang_load_row($nid, $include_bang_gia = FALSE) {
   $kh = db_query("SELECT * FROM {khach_hang} WHERE nid = :nid", array(':nid' => $nid))->fetch();
@@ -269,28 +269,19 @@ function _khach_hang_load_row($nid, $include_bang_gia = FALSE) {
     );
   }
 
-  // Decode thong_tin_ngan_hang JSON
   $ngan_hang = array();
-  if (!empty($kh->thong_tin_ngan_hang)) {
+  if ($include_bang_gia && !empty($kh->thong_tin_ngan_hang)) {
     $decoded = json_decode($kh->thong_tin_ngan_hang, TRUE);
     if (is_array($decoded)) {
       $ngan_hang = $decoded;
     }
   }
 
-  // Decode bang_gia_cuoc JSON
   $bang_gia_cuoc = array();
-  if (!empty($kh->bang_gia_cuoc)) {
+  if ($include_bang_gia && !empty($kh->bang_gia_cuoc)) {
     $decoded = json_decode($kh->bang_gia_cuoc, TRUE);
     if (is_array($decoded)) {
       $bang_gia_cuoc = $decoded;
-      // List mode: strip bang_gia from each warehouse to keep response small
-      if (!$include_bang_gia) {
-        foreach ($bang_gia_cuoc as &$wh) {
-          unset($wh['bang_gia']);
-        }
-        unset($wh);
-      }
     }
   }
 
