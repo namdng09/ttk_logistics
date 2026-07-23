@@ -76,9 +76,9 @@
             <thead class="table-light">
               <tr>
                 <th style="width:60px" class="text-center">Chọn</th>
-                <th>Biển số</th>
-                <th>Loại xe</th>
-                <th>Lái xe hiện tại</th>
+                <th id="vehicle-picker-col-bks">Biển số</th>
+                <th id="vehicle-picker-col-type">Loại xe</th>
+                <th id="vehicle-picker-col-extra">Lái xe hiện tại</th>
                 <th style="width:130px" class="text-center">Thao tác</th>
               </tr>
             </thead>

@@ -191,6 +191,7 @@ function _ke_hoach_xep_xe_default_record() {
     'loai_cont' => '',
     'so_cont' => '',
     'nid_phuong_tien' => 0,
+    'nid_mooc' => 0,
     'so_seal_chinh' => '',
     'so_seal_tam' => '',
     'trang_thai_van_chuyen' => 'Chưa xếp xe',
@@ -225,6 +226,7 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['so_bkg'] = !empty($line['so_bkg']) ? trim($line['so_bkg']) : '';
   $record['nid_lai_xe'] = !empty($line['nid_lai_xe']) ? (int) $line['nid_lai_xe'] : 0;
   $record['nid_phuong_tien'] = !empty($line['nid_phuong_tien']) ? (int) $line['nid_phuong_tien'] : 0;
+  $record['nid_mooc'] = !empty($line['nid_mooc']) ? (int) $line['nid_mooc'] : 0;
   $record['dia_chi_kho'] = !empty($line['dia_chi_kho']) ? trim($line['dia_chi_kho']) : '';
   $record['loai_cont'] = !empty($line['loai_cont']) ? trim($line['loai_cont']) : '';
   $record['so_cont'] = !empty($line['so_cont']) ? trim($line['so_cont']) : '';
@@ -304,6 +306,7 @@ function _ke_hoach_xep_xe_enrich_row($row) {
   $nid_khach_hang = !empty($result['nid_khach_hang']) ? (int) $result['nid_khach_hang'] : 0;
   $nid_lai_xe = !empty($result['nid_lai_xe']) ? (int) $result['nid_lai_xe'] : 0;
   $nid_phuong_tien = !empty($result['nid_phuong_tien']) ? (int) $result['nid_phuong_tien'] : 0;
+  $nid_mooc = !empty($result['nid_mooc']) ? (int) $result['nid_mooc'] : 0;
 
   if ($nid_khach_hang) {
     $kh = db_query("SELECT nid, ten, ma_kh, phan_loai, cccd_mst, sdt, dia_chi, dob, ghi_chu FROM {khach_hang} WHERE nid = :nid", array(':nid' => $nid_khach_hang))->fetch();
@@ -329,6 +332,22 @@ function _ke_hoach_xep_xe_enrich_row($row) {
     $result['phuong_tien'] = NULL;
   }
 
+  if ($nid_mooc) {
+    $mooc = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $nid_mooc))->fetch();
+    $result['mooc'] = $mooc ? (array) $mooc : NULL;
+  }
+  elseif ($nid_phuong_tien && module_exists('phuong_tien_mooc') && db_table_exists('phuong_tien_mooc')) {
+    $mooc = db_query("SELECT m.nid, m.bks, m.ma_tai_san, m.loai_phuong_tien, m.hang_xe, m.nam_san_xuat
+      FROM {phuong_tien_mooc} ptm
+      INNER JOIN {phuong_tien} m ON ptm.nid_mooc = m.nid
+      WHERE ptm.nid_dau_keo = :nid AND ptm.hoat_dong = 1
+      ORDER BY ptm.id DESC", array(':nid' => $nid_phuong_tien))->fetch();
+    $result['mooc'] = $mooc ? (array) $mooc : NULL;
+  }
+  else {
+    $result['mooc'] = NULL;
+  }
+
   if (!empty($result['ke_hoach_cont_ref_nid'])) {
     $ref = db_query("SELECT nid, so_cont, so_bkg, dia_chi_kho, da_cat_mooc, da_du_hang, ha_bai_ngoai, ha_cang FROM {ke_hoach_xep_xe} WHERE nid = :nid", array(':nid' => $result['ke_hoach_cont_ref_nid']))->fetch();
     $result['cont_ref'] = $ref ? (array) $ref : NULL;
@@ -341,7 +360,7 @@ function _ke_hoach_xep_xe_enrich_row($row) {
   $json = _ke_hoach_xep_xe_json_decode(isset($result['thong_tin_json']) ? $result['thong_tin_json'] : '');
   $result['ghi_chu'] = !empty($json['ghi_chu']) ? $json['ghi_chu'] : '';
   $result['hinh_thuc_status_text'] = _ke_hoach_xep_xe_hinh_thuc_status_text($result);
-  unset($result['nid_khach_hang'], $result['nid_lai_xe'], $result['nid_phuong_tien']);
+  unset($result['nid_khach_hang'], $result['nid_lai_xe'], $result['nid_phuong_tien'], $result['nid_mooc']);
 
   return $result;
 }
@@ -465,6 +484,7 @@ function _ke_hoach_xep_xe_rest_create() {
           'loai_cont' => $record['loai_cont'],
           'so_cont' => $record['so_cont'],
           'nid_phuong_tien' => $record['nid_phuong_tien'],
+          'nid_mooc' => $record['nid_mooc'],
           'so_seal_chinh' => $record['so_seal_chinh'],
           'so_seal_tam' => $record['so_seal_tam'],
           'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
@@ -566,6 +586,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
         'loai_cont' => $record['loai_cont'],
         'so_cont' => $record['so_cont'],
         'nid_phuong_tien' => $record['nid_phuong_tien'],
+        'nid_mooc' => $record['nid_mooc'],
         'so_seal_chinh' => $record['so_seal_chinh'],
         'so_seal_tam' => $record['so_seal_tam'],
         'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],

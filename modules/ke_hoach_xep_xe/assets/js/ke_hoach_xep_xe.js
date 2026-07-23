@@ -622,6 +622,8 @@
       drivers: [],
       vehicles: [],
       vehicleMap: {},
+      moocs: [],
+      moocMap: {},
       diaDiem: { bai: [], cang: [] },
       cauHinh: { diaChiKho: [], loaiCont: [] },
       contCandidateCache: {},
@@ -631,6 +633,7 @@
     };
     var lineSeq = 0;
     var vehicleModal = null;
+    var activePickerType = 'vehicle';
     var formModal = null;
     var dropdownsLoaded = false;
     var dropdownsLoading = false;
@@ -644,6 +647,14 @@
       state.vehicleMap = {};
       for (var i = 0; i < state.vehicles.length; i++) {
         state.vehicleMap[String(state.vehicles[i].nid)] = state.vehicles[i];
+      }
+      state.moocs = [];
+      state.moocMap = {};
+      for (var m = 0; m < state.vehicles.length; m++) {
+        if (String(state.vehicles[m].loai_phuong_tien || '').toLowerCase().indexOf('mooc') !== -1) {
+          state.moocs.push(state.vehicles[m]);
+          state.moocMap[String(state.vehicles[m].nid)] = state.vehicles[m];
+        }
       }
       state.diaDiem = cache.diaDiem || { bai: [], cang: [] };
 
@@ -675,6 +686,8 @@
       return $.extend({
         key: nextLineKey(),
         nid_phuong_tien: 0,
+        nid_mooc: 0,
+        mooc: null,
         nid_lai_xe: 0,
         so_bkg: '',
         dia_chi_kho: '',
@@ -724,19 +737,54 @@
       if (!vehicle) {
         return '';
       }
+      var mooc = state.moocMap[String(line.nid_mooc || 0)] || vehicle.mooc || null;
       var parts = [];
       if (vehicle.bks) parts.push(vehicle.bks);
-      if (vehicle.mooc && vehicle.mooc.bks) parts.push(vehicle.mooc.bks);
+      if (mooc && mooc.bks) parts.push(mooc.bks);
       if (vehicle.lai_xe && vehicle.lai_xe.ten) parts.push(vehicle.lai_xe.ten);
       return parts.join(' - ');
     }
 
+    function vehicleOnlyText(line) {
+      var vehicle = state.vehicleMap[String(line.nid_phuong_tien || 0)] || null;
+      return vehicle && vehicle.bks ? vehicle.bks : '';
+    }
+
     function vehicleSummaryCardHtml(line) {
-      var text = vehicleSummaryText(line);
+      var text = vehicleOnlyText(line);
       if (!text) {
         return '<div class="vehicle-summary-empty"></div>';
       }
       return '<div class="vehicle-summary-text">' + escHtml(text) + '</div>';
+    }
+
+    function moocSummaryText(line) {
+      var mooc = line && line.mooc ? line.mooc : (state.moocMap[String(line.nid_mooc || 0)] || null);
+      if (!mooc) return '';
+      var text = mooc.bks || '';
+      if (mooc.ma_tai_san) text += ' - ' + mooc.ma_tai_san;
+      return text;
+    }
+
+    function moocSummaryHtml(line) {
+      var text = moocSummaryText(line);
+      if (!text) {
+        return '<span class="vehicle-inline-placeholder">Chọn mooc</span>';
+      }
+      return '<span class="vehicle-inline-text">' + escHtml(text) + '</span>';
+    }
+
+    function findMoocById(id) {
+      id = parseInt(id, 10) || 0;
+      if (!id) return null;
+      if (state.moocMap[String(id)]) return state.moocMap[String(id)];
+      for (var i = 0; i < state.moocs.length; i++) {
+        if ((parseInt(state.moocs[i].nid, 10) || 0) === id) return state.moocs[i];
+      }
+      for (var j = 0; j < state.vehicles.length; j++) {
+        if ((parseInt(state.vehicles[j].nid, 10) || 0) === id) return state.vehicles[j];
+      }
+      return null;
     }
 
     function buildDriverOptions(selectedId) {
@@ -744,6 +792,17 @@
       for (var i = 0; i < state.drivers.length; i++) {
         var item = state.drivers[i];
         html += '<option value="' + item.nid + '"' + ((parseInt(selectedId, 10) === parseInt(item.nid, 10)) ? ' selected' : '') + '>' + escHtml(item.ten || ('#' + item.nid)) + '</option>';
+      }
+      return html;
+    }
+
+    function buildMoocOptions(selectedId) {
+      var html = '<option value="0">— Chọn mooc —</option>';
+      for (var i = 0; i < state.moocs.length; i++) {
+        var item = state.moocs[i];
+        var label = item.bks || ('#' + item.nid);
+        if (item.ma_tai_san) label += ' - ' + item.ma_tai_san;
+        html += '<option value="' + item.nid + '"' + ((parseInt(selectedId, 10) === parseInt(item.nid, 10)) ? ' selected' : '') + '>' + escHtml(label) + '</option>';
       }
       return html;
     }
@@ -761,7 +820,7 @@
     }
 
     function vehicleSummaryHtml(line) {
-      var text = vehicleSummaryText(line);
+      var text = vehicleOnlyText(line);
       if (!text) {
         return '<span class="vehicle-inline-placeholder">Chọn phương tiện</span>';
       }
@@ -806,6 +865,7 @@
         });
       }
       $card.find('.vehicle-summary').toggleClass('is-selected', !!line.nid_phuong_tien).html(vehicleSummaryCardHtml(line));
+      $card.find('.line-mooc-display').toggleClass('is-selected', !!line.nid_mooc).html(moocSummaryHtml(line));
       loadContCandidates(line, $card);
     }
 
@@ -823,7 +883,12 @@
                 '<div class="vehicle-summary-wrap"><div class="vehicle-summary btn-open-vehicle-modal"></div></div>' +
                 '<div class="invalid-feedback d-block line-vehicle-feedback" style="display:none !important;">Vui lòng chọn phương tiện</div>' +
               '</div>' +
-              '<div class="col-md-6">' +
+              '<div class="col-md-3">' +
+                '<label class="form-label">Mooc</label>' +
+                '<input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '">' +
+                '<button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal' + (line.nid_mooc ? ' is-selected' : '') + '">' + moocSummaryHtml(line) + '</button>' +
+              '</div>' +
+              '<div class="col-md-3">' +
                 '<label class="form-label">Lái xe <span class="text-danger">*</span></label>' +
                 '<select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select>' +
               '</div>' +
@@ -923,6 +988,13 @@
       if (!line) return null;
       if (!useTableLayout) {
         line.nid_phuong_tien = parseInt($row.find('.line-vehicle-id').val(), 10) || 0;
+        line.nid_mooc = parseInt($row.find('.line-mooc-id').val(), 10) || 0;
+        if (line.nid_mooc && (!line.mooc || parseInt(line.mooc.nid, 10) !== line.nid_mooc)) {
+          line.mooc = state.moocMap[String(line.nid_mooc)] || line.mooc || null;
+        }
+        if (!line.nid_mooc) {
+          line.mooc = null;
+        }
         line.nid_lai_xe = parseInt($row.find('.line-driver-select').val(), 10) || 0;
         line.so_bkg = $('#so_bkg-input').val().trim();
         line.so_cont = $row.find('.line-so-cont-input').val().trim();
@@ -943,6 +1015,7 @@
         return line;
       }
       line.nid_phuong_tien = parseInt($row.find('.line-vehicle-id').val(), 10) || 0;
+      line.nid_mooc = 0;
       line.so_bkg = $row.find('.line-so-bkg-input').val().trim();
       line.so_cont = $row.find('.line-so-cont-input').val().trim();
       line.loai_cont = ($row.find('.line-loai-cont-select').val() || '').trim();
@@ -982,12 +1055,36 @@
     }
 
     function openVehicleModal(key) {
+      activePickerType = 'vehicle';
+      openPickerModal(key);
+    }
+
+    function openMoocModal(key) {
+      activePickerType = 'mooc';
+      openPickerModal(key);
+    }
+
+    function openPickerModal(key) {
       state.activeLineKey = key;
       var lineIndex = $('#ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + key + '"]').index() + 1;
       if (!useTableLayout) {
         lineIndex = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]').index() + 1;
       }
-      $('#vehicle-picker-target').text('Đang chọn cho dòng #' + lineIndex);
+      if (activePickerType === 'mooc') {
+        $('#vehicle-picker-target').text('Đang chọn mooc cho dòng #' + lineIndex);
+        $('#vehicle-picker-modal .modal-title').text('Chọn mooc');
+        $('#vehicle-picker-modal .text-muted.small').first().text('Chọn mooc phù hợp cho kế hoạch đang chỉnh sửa.');
+        $('#vehicle-picker-col-bks').text('Biển số');
+        $('#vehicle-picker-col-type').text('Loại xe');
+        $('#vehicle-picker-col-extra').text('Mã tài sản');
+      } else {
+        $('#vehicle-picker-target').text('Đang chọn phương tiện cho dòng #' + lineIndex);
+        $('#vehicle-picker-modal .modal-title').text('Chọn phương tiện');
+        $('#vehicle-picker-modal .text-muted.small').first().text('Chọn đầu kéo phù hợp cho kế hoạch đang chỉnh sửa.');
+        $('#vehicle-picker-col-bks').text('Biển số');
+        $('#vehicle-picker-col-type').text('Loại xe');
+        $('#vehicle-picker-col-extra').text('Lái xe hiện tại');
+      }
       $('#vehicle-picker-search').val('');
       renderVehicleTable('');
       if (!vehicleModal) vehicleModal = new bootstrap.Modal(document.getElementById('vehicle-picker-modal'));
@@ -998,44 +1095,69 @@
       keyword = (keyword || '').toLowerCase();
       var activeLine = findLine(state.activeLineKey);
       var html = '';
-      for (var i = 0; i < state.vehicles.length; i++) {
-        var item = state.vehicles[i];
-        if (useTableLayout && item.loai_phuong_tien !== 'dau_keo') continue;
-        var moocText = item.mooc && item.mooc.bks ? item.mooc.bks + (item.mooc.ma_tai_san ? ' - ' + item.mooc.ma_tai_san : '') : 'Chưa gán mooc';
+      var sourceItems = activePickerType === 'mooc' ? state.moocs : state.vehicles;
+      if (activePickerType === 'mooc' && (!sourceItems || !sourceItems.length)) {
+        sourceItems = $.grep(state.vehicles, function (item) {
+          return String(item.loai_phuong_tien || '').toLowerCase().indexOf('mooc') !== -1;
+        });
+      }
+      for (var i = 0; i < sourceItems.length; i++) {
+        var item = sourceItems[i];
+        if (activePickerType === 'vehicle' && item.loai_phuong_tien !== 'dau_keo') continue;
         var driverText = item.lai_xe && item.lai_xe.ten ? item.lai_xe.ten + (item.lai_xe.sdt ? ' - ' + item.lai_xe.sdt : '') : 'Chưa gán lái xe';
-        var haystack = [item.bks, moocText, item.loai_phuong_tien, item.hang_xe, driverText].join(' ').toLowerCase();
+        var metaText = item.ma_tai_san || item.hang_xe || item.loai_phuong_tien || '';
+        var haystack = [item.bks, metaText, item.loai_phuong_tien, item.hang_xe, driverText].join(' ').toLowerCase();
         if (keyword && haystack.indexOf(keyword) === -1) continue;
-        var checked = activeLine && parseInt(activeLine.nid_phuong_tien, 10) === parseInt(item.nid, 10);
+        var checked = activeLine && (activePickerType === 'mooc'
+          ? parseInt(activeLine.nid_mooc, 10) === parseInt(item.nid, 10)
+          : parseInt(activeLine.nid_phuong_tien, 10) === parseInt(item.nid, 10));
         html += '<tr>' +
           '<td class="text-center"><input type="radio" name="vehicle-picker-radio" value="' + item.nid + '"' + (checked ? ' checked' : '') + '></td>' +
           '<td><strong>' + escHtml(item.bks || ('#' + item.nid)) + '</strong><div class="text-muted small">' + escHtml(item.ma_tai_san || '') + '</div></td>' +
-          (useTableLayout ? '<td>' + escHtml(moocText) + '</td>' : '') +
           '<td><span class="badge bg-label-warning">' + escHtml(item.loai_phuong_tien || 'Chưa phân loại') + '</span></td>' +
-          '<td><div>' + escHtml(item.lai_xe && item.lai_xe.ten ? item.lai_xe.ten : 'Chưa gán lái xe') + '</div><div class="vehicle-picker-driver">' + escHtml(item.lai_xe && item.lai_xe.sdt ? item.lai_xe.sdt : '') + '</div></td>' +
+          '<td><div>' + escHtml(activePickerType === 'mooc' ? (item.ma_tai_san || 'Chưa có mã tài sản') : (item.lai_xe && item.lai_xe.ten ? item.lai_xe.ten : 'Chưa gán lái xe')) + '</div><div class="vehicle-picker-driver">' + escHtml(activePickerType === 'mooc' ? '' : (item.lai_xe && item.lai_xe.sdt ? item.lai_xe.sdt : '')) + '</div></td>' +
           '<td class="text-center"><button type="button" class="btn btn-sm btn-primary btn-pick-vehicle" data-id="' + item.nid + '">Chọn</button></td>' +
           '</tr>';
       }
-      if (!html) html = '<tr><td colspan="' + (useTableLayout ? '6' : '5') + '" class="text-center text-muted py-4">Không tìm thấy phương tiện phù hợp</td></tr>';
+      if (!html) html = '<tr><td colspan="5" class="text-center text-muted py-4">Không tìm thấy ' + (activePickerType === 'mooc' ? 'mooc' : 'phương tiện') + ' phù hợp</td></tr>';
       $('#vehicle-picker-body').html(html);
     }
 
     function selectVehicleForLine(vehicleId) {
       var line = findLine(state.activeLineKey);
       if (!line) return;
-      var vehicle = state.vehicleMap[String(vehicleId)] || null;
-      line.nid_phuong_tien = vehicle ? parseInt(vehicle.nid, 10) || 0 : 0;
-      line.nid_lai_xe = vehicle && vehicle.lai_xe && vehicle.lai_xe.nid ? parseInt(vehicle.lai_xe.nid, 10) || 0 : 0;
+      if (activePickerType === 'mooc') {
+        var mooc = findMoocById(vehicleId);
+        line.nid_mooc = mooc ? parseInt(mooc.nid, 10) || 0 : 0;
+        line.mooc = mooc || null;
+      } else {
+        var vehicle = state.vehicleMap[String(vehicleId)] || null;
+        line.nid_phuong_tien = vehicle ? parseInt(vehicle.nid, 10) || 0 : 0;
+        line.nid_lai_xe = vehicle && vehicle.lai_xe && vehicle.lai_xe.nid ? parseInt(vehicle.lai_xe.nid, 10) || 0 : 0;
+      }
       if (useTableLayout) {
         var $row = $('#ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + line.key + '"]');
-        $row.find('.line-vehicle-id').val(line.nid_phuong_tien || 0);
+        if (activePickerType === 'vehicle') {
+          $row.find('.line-vehicle-id').val(line.nid_phuong_tien || 0);
+        }
         $row.find('.line-vehicle-display').addClass('is-selected').html(vehicleSummaryHtml(line));
         $row.removeClass('table-danger');
         $row.find('.line-inline-feedback').hide();
       }
       else {
         var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + line.key + '"]');
-        $card.find('.line-vehicle-id').val(line.nid_phuong_tien || 0);
-        $card.find('.line-driver-select').val(line.nid_lai_xe || 0).trigger('change');
+        if (activePickerType === 'mooc') {
+          $card.find('.line-mooc-id').val(line.nid_mooc || 0);
+          if (line.nid_mooc) {
+            var moocText = moocSummaryText(line);
+            $card.find('.line-mooc-display').addClass('is-selected').html('<span class="vehicle-inline-text">' + escHtml(moocText) + '</span>');
+          } else {
+            $card.find('.line-mooc-display').removeClass('is-selected').html(moocSummaryHtml(line));
+          }
+        } else {
+          $card.find('.line-vehicle-id').val(line.nid_phuong_tien || 0);
+          $card.find('.line-driver-select').val(line.nid_lai_xe || 0).trigger('change');
+        }
         $card.find('.vehicle-summary').addClass('is-selected').html(vehicleSummaryCardHtml(line));
         $card.find('.line-vehicle-feedback').hide();
         $card.removeClass('line-card-invalid');
@@ -1046,18 +1168,30 @@
     function clearVehicleForActiveLine() {
       var line = findLine(state.activeLineKey);
       if (!line) return;
-      line.nid_phuong_tien = 0;
-      line.nid_lai_xe = 0;
+      if (activePickerType === 'mooc') {
+        line.nid_mooc = 0;
+        line.mooc = null;
+      } else {
+        line.nid_phuong_tien = 0;
+        line.nid_lai_xe = 0;
+      }
 
       if (useTableLayout) {
         var $row = $('#ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + line.key + '"]');
-        $row.find('.line-vehicle-id').val(0);
+        if (activePickerType === 'vehicle') {
+          $row.find('.line-vehicle-id').val(0);
+        }
         $row.find('.line-vehicle-display').removeClass('is-selected').html(vehicleSummaryHtml(line));
       }
       else {
         var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + line.key + '"]');
-        $card.find('.line-vehicle-id').val(0);
-        $card.find('.line-driver-select').val(0).trigger('change');
+        if (activePickerType === 'mooc') {
+          $card.find('.line-mooc-id').val(0);
+          $card.find('.line-mooc-display').removeClass('is-selected').html(moocSummaryHtml(line));
+        } else {
+          $card.find('.line-vehicle-id').val(0);
+          $card.find('.line-driver-select').val(0).trigger('change');
+        }
         $card.find('.vehicle-summary').removeClass('is-selected').html(vehicleSummaryCardHtml(line));
       }
 
@@ -1265,6 +1399,7 @@
           return {
             so_bkg: line.so_bkg || '',
             nid_phuong_tien: line.nid_phuong_tien || 0,
+            nid_mooc: line.nid_mooc || 0,
             nid_lai_xe: line.nid_lai_xe || 0,
             dia_chi_kho: line.dia_chi_kho || '',
             loai_cont: line.loai_cont || '',
@@ -1295,6 +1430,7 @@
         item: {
           so_bkg: useTableLayout ? (line.so_bkg || '') : $('#so_bkg-input').val().trim(),
           nid_phuong_tien: line.nid_phuong_tien || 0,
+          nid_mooc: line.nid_mooc || 0,
           nid_lai_xe: line.nid_lai_xe || 0,
           dia_chi_kho: line.dia_chi_kho || '',
           loai_cont: line.loai_cont || '',
@@ -1325,6 +1461,8 @@
       addLine({
         so_bkg: row.so_bkg || '',
         nid_phuong_tien: row.phuong_tien ? row.phuong_tien.nid : 0,
+        nid_mooc: row.mooc ? row.mooc.nid : 0,
+        mooc: row.mooc || null,
         nid_lai_xe: row.lai_xe ? row.lai_xe.nid : 0,
         dia_chi_kho: row.dia_chi_kho || '',
         loai_cont: row.loai_cont || '',
@@ -1544,6 +1682,11 @@
     $(document).on('click', '.btn-open-vehicle-modal', function () {
       syncAllLines();
       openVehicleModal($(this).closest(useTableLayout ? '.ke-hoach-table-row' : '.ke-hoach-line-card').data('line-key'));
+    });
+    $(document).on('click', '.btn-open-mooc-modal', function () {
+      if (useTableLayout) return;
+      syncAllLines();
+      openMoocModal($(this).closest('.ke-hoach-line-card').data('line-key'));
     });
     $(document).on('click', '#paste-bkg-btn', function () {
       var input = document.getElementById('so_bkg-input');

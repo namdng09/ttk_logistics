@@ -52,6 +52,12 @@ function ke_hoach_xep_xe_schema() {
         'not null' => FALSE,
         'default' => 0,
       ),
+      'nid_mooc' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ),
       'so_seal_chinh' => array(
         'type' => 'varchar',
         'length' => 100,
@@ -219,4 +225,17 @@ function ke_hoach_xep_xe_update_7006() {
   }
 
   return 'Đã bổ sung các field quản lý cont và thong_tin_json cho ke_hoach_xep_xe nếu còn thiếu.';
+}
+
+function ke_hoach_xep_xe_update_7007() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'nid_mooc')) {
+    db_add_field('ke_hoach_xep_xe', 'nid_mooc', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+      'default' => 0,
+    ));
+  }
+
+  return 'Đã bổ sung field nid_mooc cho ke_hoach_xep_xe nếu còn thiếu.';
 }
