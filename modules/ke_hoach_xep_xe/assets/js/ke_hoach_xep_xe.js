@@ -476,6 +476,8 @@
     var lineSeq = 0;
     var vehicleModal = null;
     var formModal = null;
+    var dropdownsLoaded = false;
+    var dropdownsLoading = false;
     var useTableLayout = $('#ke-hoach-lines-body').length > 0;
 
     function showLoading(show) {
@@ -1177,10 +1179,28 @@
     }
 
     function loadDropdowns(done) {
+      if (dropdownsLoaded) {
+        if (done) done();
+        return;
+      }
+      if (dropdownsLoading) {
+        var timer = setInterval(function () {
+          if (dropdownsLoaded) {
+            clearInterval(timer);
+            if (done) done();
+          }
+        }, 50);
+        return;
+      }
+      dropdownsLoading = true;
       var pending = 4;
       function finish() {
         pending -= 1;
-        if (pending === 0) done();
+        if (pending === 0) {
+          dropdownsLoaded = true;
+          dropdownsLoading = false;
+          done();
+        }
       }
       $.ajax({
         url: '/api/khach-hang',
@@ -1389,20 +1409,24 @@
       clearVehicleForActiveLine();
     });
 
-    loadDropdowns(function () {
-      initSelect2(document.getElementById('nid_khach_hang-input'), '— Chọn khách hàng —', useTableLayout ? { dropdownParent: $('#ke-hoach-fullscreen-modal') } : {});
-      var modalEl = document.getElementById('ke-hoach-fullscreen-modal');
-      if (useTableLayout && modalEl) {
-        formModal = new bootstrap.Modal(modalEl);
-        modalEl.addEventListener('show.bs.modal', function () {
+    var modalEl = document.getElementById('ke-hoach-fullscreen-modal');
+    if (useTableLayout && modalEl) {
+      formModal = new bootstrap.Modal(modalEl);
+      modalEl.addEventListener('show.bs.modal', function () {
+        loadDropdowns(function () {
+          initSelect2(document.getElementById('nid_khach_hang-input'), '— Chọn khách hàng —', { dropdownParent: $('#ke-hoach-fullscreen-modal') });
           if ($('#nid-input').val()) return;
           $('#ke-hoach-form')[0].reset();
           $('#nid_khach_hang-input').val('0').trigger('change');
           state.lines = [];
           addLine({});
         });
-      }
-      if (mode === 'edit') {
+      });
+    }
+
+    if (mode === 'edit') {
+      loadDropdowns(function () {
+        initSelect2(document.getElementById('nid_khach_hang-input'), '— Chọn khách hàng —', useTableLayout ? { dropdownParent: $('#ke-hoach-fullscreen-modal') } : {});
         showLoading(true);
         loadEditDetail(function (row) {
           showLoading(false);
@@ -1410,11 +1434,8 @@
             populateEdit(row);
           }
         });
-      }
-      else {
-        addLine({});
-      }
-    });
+      });
+    }
   }
 
   function initContList() {

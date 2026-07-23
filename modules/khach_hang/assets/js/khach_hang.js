@@ -209,14 +209,14 @@
     // Delegated change on money inputs and checkboxes
     doc.addEventListener('change', function (e) {
       var t = e.target;
-      if (t.classList.contains('dg-hoat-dong')) {
+      if (t && t.classList && t.classList.contains('dg-hoat-dong')) {
         // no-op, just checkbox
       }
     });
 
     doc.addEventListener('input', function (e) {
       var t = e.target;
-      if (t.classList.contains('dg-don-gia')) {
+      if (t && t.classList && t.classList.contains('dg-don-gia')) {
         var kCard = t.closest('.kho-card');
         if (kCard) refreshKhoSummary(kCard);
       }
@@ -224,7 +224,7 @@
 
     doc.addEventListener('blur', function (e) {
       var t = e.target;
-      if (t.classList.contains('money-input')) {
+      if (t && t.classList && t.classList.contains('money-input')) {
         formatMoneyInput(t);
       }
     }, true);
