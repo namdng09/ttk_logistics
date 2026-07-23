@@ -4,12 +4,14 @@
   var notyf;
   var currentPage = 1;
   var currentKeyword = '';
+  var currentKhachHang = '';
   var KHACH_HANG_OPTIONS = [];
   var KHACH_HANG_DATA = {};
   var CURRENT_FILES = [];
   var PENDING_FILES = [];
   var CURRENT_HOP_DONG_ID = null;
   var CURRENT_FORM_MODE = 'create';
+  var PAGE_INITIALIZED = false;
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -30,6 +32,10 @@
       }
 
       if ($('#table-hop-dong', context).length) {
+        if (PAGE_INITIALIZED) {
+          return;
+        }
+        PAGE_INITIALIZED = true;
         loadKhachHangSelect();
         loadList();
         bindNativeEvents();
@@ -66,7 +72,12 @@
     if (reloadBtn) {
       reloadBtn.addEventListener('click', function () {
         currentKeyword = '';
+        currentKhachHang = '';
         doc.getElementById('search-hop-dong').value = '';
+        if (doc.getElementById('filter-khach-hang')) {
+          doc.getElementById('filter-khach-hang').value = '';
+        }
+        initFilterSelect2();
         currentPage = 1;
         loadList();
       });
@@ -242,7 +253,13 @@
         if (res.status === 'success' && res.data) {
           var items = res.data.items || [];
           var select = document.getElementById('select-khach-hang');
-          select.innerHTML = '<option value="">Chọn khách hàng</option>';
+          var filter = document.getElementById('filter-khach-hang');
+          if (select) {
+            select.innerHTML = '<option value="">Chọn khách hàng</option>';
+          }
+          if (filter) {
+            filter.innerHTML = '<option value="">Tất cả khách hàng</option>';
+          }
           var opts = [];
           for (var i = 0; i < items.length; i++) {
             var item = items[i];
@@ -253,12 +270,21 @@
           }
           KHACH_HANG_OPTIONS = opts;
           for (var j = 0; j < opts.length; j++) {
-            var opt = document.createElement('option');
-            opt.value = opts[j].id;
-            opt.textContent = opts[j].text;
-            select.appendChild(opt);
+            if (select) {
+              var opt = document.createElement('option');
+              opt.value = opts[j].id;
+              opt.textContent = opts[j].text;
+              select.appendChild(opt);
+            }
+            if (filter) {
+              var filterOpt = document.createElement('option');
+              filterOpt.value = opts[j].id;
+              filterOpt.textContent = opts[j].text;
+              filter.appendChild(filterOpt);
+            }
           }
           initSelect2();
+          initFilterSelect2();
         }
       },
       error: function (jqXHR) {
@@ -283,6 +309,28 @@
     }
   }
 
+  function initFilterSelect2() {
+    var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
+    var $sel = $jq ? $jq('#filter-khach-hang') : null;
+    if ($sel && $sel.length) {
+      if ($sel.data('select2')) {
+        $sel.select2('destroy');
+      }
+      $sel.select2({
+        placeholder: 'Tất cả khách hàng',
+        allowClear: true,
+        width: '100%'
+      });
+      $sel.off('change.hopDongFilterKh');
+      $sel.on('change.hopDongFilterKh', function () {
+        currentKhachHang = this.value || '';
+        currentPage = 1;
+        loadList();
+      });
+      $sel.val(currentKhachHang || '').trigger('change.select2');
+    }
+  }
+
   function initDatePickers() {
     if (typeof flatpickr !== 'undefined') {
       $('.flatpickr-date').each(function () {
@@ -302,11 +350,16 @@
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
 
+    var params = { page: currentPage, keyword: currentKeyword };
+    if (currentKhachHang) {
+      params.khach_hang = currentKhachHang;
+    }
+
     $.ajax({
       url: '/api/hop-dong',
       type: 'GET',
       dataType: 'json',
-      data: { page: currentPage, keyword: currentKeyword },
+      data: params,
       success: function (res) {
         $('#loading-row').remove();
 

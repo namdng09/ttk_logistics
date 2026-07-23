@@ -13,7 +13,12 @@
           </button>
         </div>
       </div>
-      <div class="col-12 col-md-8">
+      <div class="col-12 col-md-4 mb-2 mb-md-0">
+        <select class="form-select" id="filter-khach-hang" style="width:100%">
+          <option value="">Tất cả khách hàng</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-primary btn-them-hop-dong" data-bs-toggle="modal" data-bs-target="#hop-dong-modal">
             <i class="ti tabler-plus me-1"></i>Thêm

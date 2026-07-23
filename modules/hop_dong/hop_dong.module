@@ -406,6 +406,10 @@ function _hop_dong_rest_list() {
   $query->fields('hd');
   $query->condition('hd.hoat_dong', 1);
 
+  if (!empty($_GET['khach_hang'])) {
+    $query->condition('hd.khach_hang', (int) $_GET['khach_hang']);
+  }
+
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
     $or = db_or()

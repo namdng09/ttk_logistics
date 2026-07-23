@@ -11,6 +11,11 @@
   var BANK_LIST = [];
   var BANK_LIST_LOADED = false;
   var DIADIEM_LIST = [];
+  var NV_KINH_DOANH_LOADED = false;
+  var DIADIEM_LIST_LOADED = false;
+  var FORM_SUPPORT_DATA_LOADED = false;
+  var FORM_SUPPORT_DATA_LOADING = false;
+  var FORM_SUPPORT_DATA_CALLBACKS = [];
   var moneyFormatter = new Intl.NumberFormat('vi-VN');
 
   function modalShow(id) {
@@ -32,9 +37,6 @@
       }
 
       if ($('#table-khach-hang', context).length) {
-        loadNvKinhDoanh();
-        loadBankList();
-        loadDiaDiem();
         loadList();
         bindNativeEvents();
       }
@@ -94,6 +96,9 @@
       themBtn.addEventListener('click', function () {
         resetForm();
         setFormMode('create');
+        ensureFormSupportData(function () {
+          initRepeater();
+        });
       });
     }
 
@@ -296,6 +301,7 @@
      ===================================================== */
 
   function loadNvKinhDoanh() {
+    if (NV_KINH_DOANH_LOADED) return;
     $.ajax({
       url: '/api/nhan-vien',
       type: 'GET',
@@ -319,6 +325,7 @@
             sel.appendChild(opt);
           }
           NV_KINH_DOANH_MAP = map;
+          NV_KINH_DOANH_LOADED = true;
         }
       },
       error: function (jqXHR) {
@@ -472,11 +479,18 @@
     return result;
   }
 
-  function loadBankList() {
-    if (BANK_LIST_LOADED) return;
+  function loadBankList(done) {
+    if (BANK_LIST_LOADED) {
+      if (done) done();
+      return;
+    }
     var cached = localStorage.getItem('bankList');
     if (cached) {
       try { BANK_LIST = JSON.parse(cached); BANK_LIST_LOADED = true; } catch (e) {}
+    }
+    if (BANK_LIST_LOADED) {
+      if (done) done();
+      return;
     }
     $.ajax({
       url: 'https://api.vietqr.io/v2/banks',
@@ -494,7 +508,10 @@
           }
         }
       },
-      error: function () {}
+      error: function () {},
+      complete: function () {
+        if (done) done();
+      }
     });
   }
 
@@ -542,6 +559,7 @@
      ===================================================== */
 
   function loadDiaDiem() {
+    if (DIADIEM_LIST_LOADED) return;
     $.ajax({
       url: '/api/danh-muc',
       type: 'GET',
@@ -555,6 +573,7 @@
             if (ten) names.push(ten);
           }
           DIADIEM_LIST = names;
+          DIADIEM_LIST_LOADED = true;
           var selects = document.querySelectorAll('.kho-dia-chi');
           for (var j = 0; j < selects.length; j++) {
             var curVal = selects[j].value;
@@ -564,6 +583,118 @@
       },
       error: function () {}
     });
+  }
+
+  function ensureFormSupportData(callback) {
+    if (FORM_SUPPORT_DATA_LOADED) {
+      if (callback) callback();
+      return;
+    }
+
+    if (callback) {
+      FORM_SUPPORT_DATA_CALLBACKS.push(callback);
+    }
+
+    if (FORM_SUPPORT_DATA_LOADING) {
+      return;
+    }
+
+    FORM_SUPPORT_DATA_LOADING = true;
+
+    var remaining = 3;
+    function finishOne() {
+      remaining--;
+      if (remaining > 0) return;
+
+      FORM_SUPPORT_DATA_LOADING = false;
+      FORM_SUPPORT_DATA_LOADED = true;
+
+      var bankSelects = document.querySelectorAll('#form-khach-hang .ngan-hang-ten-ngan-hang');
+      for (var i = 0; i < bankSelects.length; i++) {
+        var bankVal = bankSelects[i].value;
+        initBankSelect(bankSelects[i], bankVal || null);
+      }
+
+      var diaDiemSelects = document.querySelectorAll('#form-khach-hang .kho-dia-chi');
+      for (var j = 0; j < diaDiemSelects.length; j++) {
+        var diaDiemVal = diaDiemSelects[j].value;
+        initDiaDiemSelect(diaDiemSelects[j], diaDiemVal || null);
+      }
+
+      var callbacks = FORM_SUPPORT_DATA_CALLBACKS.slice();
+      FORM_SUPPORT_DATA_CALLBACKS = [];
+      for (var k = 0; k < callbacks.length; k++) {
+        callbacks[k]();
+      }
+    }
+
+    function finishNv() {
+      if (NV_KINH_DOANH_LOADED) {
+        finishOne();
+        return;
+      }
+      $.ajax({
+        url: '/api/nhan-vien',
+        type: 'GET',
+        dataType: 'json',
+        data: { limit: 100, chuc_vu: 28 },
+        success: function (res) {
+          if (res.status === 'success' && res.data) {
+            var items = res.data.items || [];
+            var map = {};
+            var sel = document.getElementById('nv-kinh-doanh-select');
+            if (sel) {
+              sel.innerHTML = '<option value="">Chọn nhân viên</option>';
+              for (var i = 0; i < items.length; i++) {
+                var item = items[i];
+                var text = item.ten || item.name || '';
+                if (item.ma_nhan_vien) text += ' - ' + item.ma_nhan_vien;
+                map[String(item.uid)] = text;
+                var opt = document.createElement('option');
+                opt.value = item.uid;
+                opt.textContent = text;
+                sel.appendChild(opt);
+              }
+            }
+            NV_KINH_DOANH_MAP = map;
+            NV_KINH_DOANH_LOADED = true;
+          }
+        },
+        error: function (jqXHR) {
+          if (notyf) notyf.error(apiMsg(jqXHR));
+        },
+        complete: finishOne
+      });
+    }
+
+    function finishDiaDiem() {
+      if (DIADIEM_LIST_LOADED) {
+        finishOne();
+        return;
+      }
+      $.ajax({
+        url: '/api/danh-muc',
+        type: 'GET',
+        dataType: 'json',
+        data: { phan_loai: 'Địa điểm', limit: 500 },
+        success: function (res) {
+          if (res.status === 'success' && res.data && res.data.items) {
+            var names = [];
+            for (var i = 0; i < res.data.items.length; i++) {
+              var ten = res.data.items[i].ten;
+              if (ten) names.push(ten);
+            }
+            DIADIEM_LIST = names;
+            DIADIEM_LIST_LOADED = true;
+          }
+        },
+        complete: finishOne
+      });
+    }
+
+    loadBankList(finishOne);
+    finishNv();
+    finishDiaDiem();
   }
 
   function initDiaDiemSelect(selEl, value) {
@@ -1016,23 +1147,43 @@
     showLoading(true);
     modalShow('khach-hang-modal');
 
+    var detailData = null;
+    var detailLoaded = false;
+    var supportLoaded = false;
+    var detailFailed = false;
+
+    function finalizeEditModal() {
+      if (detailFailed || !detailLoaded || !supportLoaded) return;
+      showLoading(false);
+      initTagify();
+      initRepeater();
+      populateForm(detailData);
+      setFormMode('edit');
+    }
+
+    ensureFormSupportData(function () {
+      supportLoaded = true;
+      finalizeEditModal();
+    });
+
     $.ajax({
       url: '/api/khach-hang/' + id,
       type: 'GET',
       dataType: 'json',
       success: function (res) {
-        showLoading(false);
         if (res.status !== 'success' || !res.data) {
+          detailFailed = true;
+          showLoading(false);
           if (notyf) notyf.error(res.message || 'Không tìm thấy dữ liệu');
           modalHide('khach-hang-modal');
           return;
         }
-        initTagify();
-        initRepeater();
-        populateForm(res.data);
-        setFormMode('edit');
+        detailData = res.data;
+        detailLoaded = true;
+        finalizeEditModal();
       },
       error: function (jqXHR) {
+        detailFailed = true;
         showLoading(false);
         modalHide('khach-hang-modal');
         if (notyf) notyf.error(apiMsg(jqXHR));
