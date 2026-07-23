@@ -10,6 +10,8 @@
   var currentPage = 1;
   var currentKeyword = '';
   var currentStatus = '';
+  var FORM_DROPDOWN_CACHE_KEY = 'ke_hoach_xep_xe_form_dropdowns_v1';
+  var formDropdownCacheMemory = null;
 
   var HINH_THUC_MAP = {
     cat_keo: 'Cắt kéo',
@@ -130,6 +132,63 @@
     return (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ :
       (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function') ? jQuery : null;
   }
+
+  function isKeHoachRoute(path) {
+    path = path || window.location.pathname || '';
+    return path.indexOf('/ke-hoach-xep-xe') === 0 || path.indexOf('/tao-ke-hoach-xep-xe') === 0;
+  }
+
+  function clearFormDropdownCache() {
+    formDropdownCacheMemory = null;
+    try { sessionStorage.removeItem(FORM_DROPDOWN_CACHE_KEY); } catch (e) {}
+  }
+
+  function maybeResetFormDropdownCache() {
+    var navEntry = null;
+    try {
+      navEntry = window.performance && window.performance.getEntriesByType ? window.performance.getEntriesByType('navigation')[0] : null;
+    } catch (e) {}
+    if (navEntry && navEntry.type === 'reload') {
+      clearFormDropdownCache();
+      return;
+    }
+
+    var ref = document.referrer || '';
+    if (!ref) {
+      clearFormDropdownCache();
+      return;
+    }
+
+    try {
+      var refUrl = new URL(ref, window.location.origin);
+      if (refUrl.origin !== window.location.origin || !isKeHoachRoute(refUrl.pathname)) {
+        clearFormDropdownCache();
+      }
+    } catch (e) {
+      clearFormDropdownCache();
+    }
+  }
+
+  function getFormDropdownCache() {
+    if (formDropdownCacheMemory) return formDropdownCacheMemory;
+    try {
+      var raw = sessionStorage.getItem(FORM_DROPDOWN_CACHE_KEY);
+      if (!raw) return null;
+      formDropdownCacheMemory = JSON.parse(raw);
+      return formDropdownCacheMemory;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setFormDropdownCache(data) {
+    formDropdownCacheMemory = data;
+    try {
+      sessionStorage.setItem(FORM_DROPDOWN_CACHE_KEY, JSON.stringify(data));
+    } catch (e) {}
+  }
+
+  maybeResetFormDropdownCache();
 
   function syncPageSettings() {
     settings = Drupal.settings.ke_hoach_xep_xe || {};
@@ -479,6 +538,24 @@
     var dropdownsLoaded = false;
     var dropdownsLoading = false;
     var useTableLayout = $('#ke-hoach-lines-body').length > 0;
+
+    function applyDropdownData(cache) {
+      cache = cache || {};
+      state.customers = cache.customers || [];
+      state.drivers = cache.drivers || [];
+      state.vehicles = cache.vehicles || [];
+      state.vehicleMap = {};
+      for (var i = 0; i < state.vehicles.length; i++) {
+        state.vehicleMap[String(state.vehicles[i].nid)] = state.vehicles[i];
+      }
+      state.diaDiem = cache.diaDiem || { bai: [], cang: [] };
+
+      var html = '<option value="0">— Chọn —</option>';
+      for (var j = 0; j < state.customers.length; j++) {
+        html += '<option value="' + state.customers[j].nid + '">' + escHtml(state.customers[j].ten || ('#' + state.customers[j].nid)) + '</option>';
+      }
+      $('#nid_khach_hang-input').html(html);
+    }
 
     function showLoading(show) {
       $('#form-loading').toggle(show);
@@ -1179,6 +1256,14 @@
     }
 
     function loadDropdowns(done) {
+      var cached = getFormDropdownCache();
+      if (cached) {
+        applyDropdownData(cached);
+        dropdownsLoaded = true;
+        dropdownsLoading = false;
+        if (done) done();
+        return;
+      }
       if (dropdownsLoaded) {
         if (done) done();
         return;
@@ -1197,6 +1282,12 @@
       function finish() {
         pending -= 1;
         if (pending === 0) {
+          setFormDropdownCache({
+            customers: state.customers,
+            drivers: state.drivers,
+            vehicles: state.vehicles,
+            diaDiem: state.diaDiem
+          });
           dropdownsLoaded = true;
           dropdownsLoading = false;
           done();
