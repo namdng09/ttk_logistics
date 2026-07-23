@@ -11,6 +11,8 @@
   var currentKeyword = '';
   var currentStatus = '';
   var FORM_DROPDOWN_CACHE_KEY = 'ke_hoach_xep_xe_form_dropdowns_v1';
+  var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v1';
+  var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
   var formDropdownCacheMemory = null;
 
   var HINH_THUC_MAP = {
@@ -188,6 +190,41 @@
     } catch (e) {}
   }
 
+  function getListSnapshot() {
+    try {
+      var raw = sessionStorage.getItem(LIST_SNAPSHOT_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setListSnapshot(data) {
+    try {
+      sessionStorage.setItem(LIST_SNAPSHOT_CACHE_KEY, JSON.stringify(data));
+    } catch (e) {}
+  }
+
+  function clearListSnapshot() {
+    try { sessionStorage.removeItem(LIST_SNAPSHOT_CACHE_KEY); } catch (e) {}
+  }
+
+  function shouldForceReloadList() {
+    try {
+      return sessionStorage.getItem(LIST_FORCE_RELOAD_KEY) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function markForceReloadList() {
+    try { sessionStorage.setItem(LIST_FORCE_RELOAD_KEY, '1'); } catch (e) {}
+  }
+
+  function clearForceReloadList() {
+    try { sessionStorage.removeItem(LIST_FORCE_RELOAD_KEY); } catch (e) {}
+  }
+
   maybeResetFormDropdownCache();
 
   function syncPageSettings() {
@@ -262,6 +299,50 @@
       }
     }
 
+    function canRestoreListSnapshot() {
+      if (shouldForceReloadList()) return false;
+      var navEntry = null;
+      try {
+        navEntry = window.performance && window.performance.getEntriesByType ? window.performance.getEntriesByType('navigation')[0] : null;
+      } catch (e) {}
+      if (navEntry && navEntry.type === 'reload') return false;
+      if (!document.referrer) return false;
+      try {
+        var refUrl = new URL(document.referrer, window.location.origin);
+        if (refUrl.origin !== window.location.origin) return false;
+        return isKeHoachRoute(refUrl.pathname) && refUrl.pathname !== '/ke-hoach-xep-xe';
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function restoreListSnapshot() {
+      var snapshot = getListSnapshot();
+      if (!snapshot) return false;
+      currentPage = snapshot.currentPage || 1;
+      currentKeyword = snapshot.currentKeyword || '';
+      currentStatus = snapshot.currentStatus || '';
+      $('#search-input').val(currentKeyword);
+      $('#status-filter').val(currentStatus);
+      $('#list-body').html(snapshot.bodyHtml || '');
+      if (snapshot.paginationWrapHtml) {
+        $('#pagination-wrap').replaceWith(snapshot.paginationWrapHtml);
+      }
+      clearForceReloadList();
+      return true;
+    }
+
+    function persistListSnapshot() {
+      var paginationWrap = document.getElementById('pagination-wrap');
+      setListSnapshot({
+        currentPage: currentPage,
+        currentKeyword: currentKeyword,
+        currentStatus: currentStatus,
+        bodyHtml: $('#list-body').html(),
+        paginationWrapHtml: paginationWrap ? paginationWrap.outerHTML : ''
+      });
+    }
+
     function deleteItem(id) {
       $.ajax({
         url: '/api/ke-hoach-xep-xe/' + id,
@@ -321,10 +402,12 @@
 
     $(document).on('click', '.btn-view-ke-hoach-xep-xe', function (e) {
       e.preventDefault();
+      persistListSnapshot();
       window.location.href = '/ke-hoach-xep-xe/' + $(this).data('id');
     });
     $(document).on('click', '.btn-edit-ke-hoach-xep-xe', function (e) {
       e.preventDefault();
+      persistListSnapshot();
       window.location.href = '/ke-hoach-xep-xe/' + $(this).data('id') + '/sua';
     });
     $(document).on('click', '.btn-delete-ke-hoach-xep-xe', function (e) {
@@ -387,6 +470,10 @@
       }
     });
 
+    if (canRestoreListSnapshot() && restoreListSnapshot()) {
+      return;
+    }
+    clearForceReloadList();
     loadList();
   }
 
@@ -469,6 +556,15 @@
         }
         tbody.innerHTML = html;
         renderPagination(resp);
+        if ($('#ke-hoach-list-app').length) {
+          setListSnapshot({
+            currentPage: currentPage,
+            currentKeyword: currentKeyword,
+            currentStatus: currentStatus,
+            bodyHtml: $('#list-body').html(),
+            paginationWrapHtml: document.getElementById('pagination-wrap') ? document.getElementById('pagination-wrap').outerHTML : ''
+          });
+        }
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
@@ -529,6 +625,7 @@
       diaDiem: { bai: [], cang: [] },
       cauHinh: { diaChiKho: [], loaiCont: [] },
       contCandidateCache: {},
+      contCandidatePending: {},
       lines: [],
       activeLineKey: null
     };
@@ -989,29 +1086,48 @@
         renderContCandidateRows(line, $card);
         return;
       }
+      if (state.contCandidatePending[cacheKey]) {
+        $body.html('<tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr>');
+        state.contCandidatePending[cacheKey].push($card);
+        return;
+      }
       var requestData = {};
       if (hinhThuc === 'cat_keo') {
         requestData.dia_chi_kho = line.dia_chi_kho || '';
       }
       $body.html('<tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr>');
+      state.contCandidatePending[cacheKey] = [$card];
       $.ajax({
         url: '/api/quan-ly-cont',
         type: 'GET',
         dataType: 'json',
         data: requestData,
         success: function (res) {
+          var waitingCards = state.contCandidatePending[cacheKey] || [];
           if (res.status !== 'success' || !res.data || !res.data.items) {
-            $body.html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+            for (var i = 0; i < waitingCards.length; i++) {
+              waitingCards[i].find('.line-cont-picker-body').html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+            }
             return;
           }
           state.contCandidateCache[cacheKey] = res.data.items || [];
-          $card.data('contCandidates', res.data.items || []);
-          $card.data('contCandidatesCacheKey', cacheKey);
-          $card.data('contCandidatesLoaded', true);
-          renderContCandidateRows(line, $card);
+          for (var j = 0; j < waitingCards.length; j++) {
+            var $waitingCard = waitingCards[j];
+            var waitingLine = syncLine($waitingCard);
+            $waitingCard.data('contCandidates', res.data.items || []);
+            $waitingCard.data('contCandidatesCacheKey', cacheKey);
+            $waitingCard.data('contCandidatesLoaded', true);
+            renderContCandidateRows(waitingLine, $waitingCard);
+          }
         },
         error: function () {
-          $body.html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+          var waitingCards = state.contCandidatePending[cacheKey] || [];
+          for (var i = 0; i < waitingCards.length; i++) {
+            waitingCards[i].find('.line-cont-picker-body').html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+          }
+        },
+        complete: function () {
+          delete state.contCandidatePending[cacheKey];
         }
       });
     }
@@ -1402,6 +1518,9 @@
             return;
           }
           if (notyf) notyf.success(nid ? 'Đã cập nhật kế hoạch' : 'Đã tạo kế hoạch');
+          if (nid) {
+            markForceReloadList();
+          }
           if (nid) {
             if (res.data) {
               populateEdit(res.data);
