@@ -756,9 +756,9 @@
     function vehicleSummaryCardHtml(line) {
       var text = vehicleOnlyText(line);
       if (!text) {
-        return '<div class="vehicle-summary-empty"></div>';
+        return '<span class="vehicle-inline-placeholder">Chọn phương tiện</span>';
       }
-      return '<div class="vehicle-summary-text">' + escHtml(text) + '</div>';
+      return '<span class="vehicle-inline-text">' + escHtml(text) + '</span>';
     }
 
     function moocSummaryText(line) {
@@ -910,9 +910,9 @@
               '</div>' +
               '<div class="col-md-3"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '"></div>' +
               '<div class="col-md-3"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
-              '<div class="col-md-3"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '"></div>' +
-              '<div class="col-md-3"><label class="form-label">Số seal tạm</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '"></div>' +
-              '<div class="col-md-3"><label class="form-label">Địa chỉ kho</label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
+              '<div class="col-md-3"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính"></div>' +
+              '<div class="col-md-3"><label class="form-label">Số seal tạm</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Số seal tạm"></div>' +
+              '<div class="col-md-3"><label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
               '<div class="col-md-3"><label class="form-label">Bãi lấy cont</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
               '<div class="col-md-3"><label class="form-label">Bãi hạ cont</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
               '<div class="col-md-3"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
@@ -1236,11 +1236,34 @@
       return hinhThuc === 'cat_keo' || hinhThuc === 'cat_keo_cheo' || hinhThuc === 'rut_mooc';
     }
 
+    function renderContPickerLoading($card, message) {
+      var $wrap = $card.find('.line-cont-picker-wrap');
+      var $body = $card.find('.line-cont-picker-body');
+      $wrap.addClass('is-loading');
+      $body.html(
+        '<tr>' +
+          '<td colspan="5" class="text-center py-4">' +
+            '<div class="cont-picker-loading">' +
+              '<div class="spinner-border spinner-border-sm text-primary" role="status">' +
+                '<span class="visually-hidden">Đang tải...</span>' +
+              '</div>' +
+              '<span>' + escHtml(message || 'Đang tải danh sách cont...') + '</span>' +
+            '</div>' +
+          '</td>' +
+        '</tr>'
+      );
+    }
+
+    function clearContPickerLoading($card) {
+      $card.find('.line-cont-picker-wrap').removeClass('is-loading');
+    }
+
     function loadContCandidates(line, $card) {
       var hinhThuc = line.hinh_thuc_van_tai || '';
       var $wrap = $card.find('.line-cont-picker-wrap');
       var $body = $card.find('.line-cont-picker-body');
       if (!shouldShowContPicker(hinhThuc)) {
+        clearContPickerLoading($card);
         $wrap.hide();
         $body.html('<tr><td colspan="5" class="text-center text-muted">Không áp dụng cho hình thức này</td></tr>');
         return;
@@ -1248,6 +1271,7 @@
       $wrap.show();
       var cacheKey = [hinhThuc, line.dia_chi_kho || ''].join('||');
       if (state.contCandidateCache[cacheKey]) {
+        clearContPickerLoading($card);
         $card.data('contCandidates', state.contCandidateCache[cacheKey]);
         $card.data('contCandidatesCacheKey', cacheKey);
         $card.data('contCandidatesLoaded', true);
@@ -1255,7 +1279,7 @@
         return;
       }
       if (state.contCandidatePending[cacheKey]) {
-        $body.html('<tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr>');
+        renderContPickerLoading($card, 'Đang tải danh sách cont...');
         state.contCandidatePending[cacheKey].push($card);
         return;
       }
@@ -1263,7 +1287,7 @@
       if (hinhThuc === 'cat_keo') {
         requestData.dia_chi_kho = line.dia_chi_kho || '';
       }
-      $body.html('<tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr>');
+      renderContPickerLoading($card, 'Đang tải danh sách cont...');
       state.contCandidatePending[cacheKey] = [$card];
       $.ajax({
         url: '/api/quan-ly-cont',
@@ -1274,6 +1298,7 @@
           var waitingCards = state.contCandidatePending[cacheKey] || [];
           if (res.status !== 'success' || !res.data || !res.data.items) {
             for (var i = 0; i < waitingCards.length; i++) {
+              clearContPickerLoading(waitingCards[i]);
               waitingCards[i].find('.line-cont-picker-body').html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
             }
             return;
@@ -1282,6 +1307,7 @@
           for (var j = 0; j < waitingCards.length; j++) {
             var $waitingCard = waitingCards[j];
             var waitingLine = syncLine($waitingCard);
+            clearContPickerLoading($waitingCard);
             $waitingCard.data('contCandidates', res.data.items || []);
             $waitingCard.data('contCandidatesCacheKey', cacheKey);
             $waitingCard.data('contCandidatesLoaded', true);
@@ -1291,6 +1317,7 @@
         error: function () {
           var waitingCards = state.contCandidatePending[cacheKey] || [];
           for (var i = 0; i < waitingCards.length; i++) {
+            clearContPickerLoading(waitingCards[i]);
             waitingCards[i].find('.line-cont-picker-body').html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
           }
         },
@@ -1303,6 +1330,7 @@
     function renderContCandidateRows(line, $card) {
       var hinhThuc = line.hinh_thuc_van_tai || '';
       var $body = $card.find('.line-cont-picker-body');
+      clearContPickerLoading($card);
       var items = $card.data('contCandidates') || [];
       var fBkg = ($card.find('.line-cont-filter-bkg').val() || '').toLowerCase();
       var fCont = ($card.find('.line-cont-filter-cont').val() || '').toLowerCase();
@@ -1384,9 +1412,11 @@
         if (useTableLayout) {
           $row.removeClass('table-danger');
           $row.find('.line-inline-feedback').hide();
+          $row.find('.line-kho-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
         } else {
           $row.removeClass('line-card-invalid');
           $row.find('.line-driver-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
+          $row.find('.line-kho-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
           $row.find('.line-vehicle-feedback').hide();
         }
         if ((useTableLayout && !line.so_bkg) || (!useTableLayout && !$('#so_bkg-input').val().trim())) {
@@ -1403,6 +1433,16 @@
             $row.addClass('line-card-invalid');
             if (!line.nid_lai_xe) $row.find('.line-driver-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
             if (!line.nid_phuong_tien) $row.find('.line-vehicle-feedback').show();
+          }
+        }
+        if (!line.dia_chi_kho) {
+          ok = false;
+          if (useTableLayout) {
+            $row.addClass('table-danger');
+            $row.find('.line-kho-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+          } else {
+            $row.addClass('line-card-invalid');
+            $row.find('.line-kho-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
           }
         }
         if (line.nid_phuong_tien) {

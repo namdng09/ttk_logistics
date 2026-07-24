@@ -19,7 +19,7 @@
           <option value="">Tất cả phân loại</option>
           <option value="Phòng ban">Phòng ban</option>
           <option value="Chức vụ">Chức vụ</option>
-          <option value="Địa điểm">Địa điểm</option>
+          <option value="Kho">Kho</option>
           <option value="Chi phí">Chi phí</option>
         </select>
       </div>
@@ -104,7 +104,7 @@
                 <option value="">Chọn phân loại</option>
                 <option value="Phòng ban">Phòng ban</option>
                 <option value="Chức vụ">Chức vụ</option>
-                <option value="Địa điểm">Địa điểm</option>
+                <option value="Kho">Kho</option>
                 <option value="Chi phí">Chi phí</option>
               </select>
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>

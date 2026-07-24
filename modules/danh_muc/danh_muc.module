@@ -193,7 +193,7 @@ function _danh_muc_check_unique($input, $exclude_nid = NULL) {
  * Allowed phan_loai values for generic screen.
  */
 function _danh_muc_phan_loai_options() {
-  return array('Phòng ban', 'Chức vụ', 'Địa điểm', 'Chi phí');
+  return array('Phòng ban', 'Chức vụ', 'Kho', 'Chi phí');
 }
 
 function _danh_muc_validate_phan_loai($value) {
@@ -289,13 +289,16 @@ function _danh_muc_bai_normalize_phu_phi($items, $phan_loai) {
 
 function _danh_muc_bai_save_phu_phi($danh_muc_id, $items, $phan_loai) {
   $normalized = _danh_muc_bai_normalize_phu_phi($items, $phan_loai);
-  $existing = db_query("SELECT thong_tin_json FROM {danh_muc} WHERE nid = :id", array(':id' => (int) $danh_muc_id))->fetchField();
-  $thong_tin = _danh_muc_decode_thong_tin($existing);
-  $thong_tin['phu_phi'] = $normalized;
+  $thong_tin_json = '';
+  if (!empty($normalized)) {
+    $thong_tin_json = _danh_muc_encode_thong_tin(array(
+      'phu_phi' => $normalized,
+    ));
+  }
 
   db_update('danh_muc')
     ->fields(array(
-      'thong_tin_json' => _danh_muc_encode_thong_tin($thong_tin),
+      'thong_tin_json' => $thong_tin_json,
       'changed' => _danh_muc_now(),
     ))
     ->condition('nid', (int) $danh_muc_id)
@@ -613,17 +616,13 @@ function _danh_muc_bai_rest_create() {
   if ($dup) return $dup;
 
   $normalized_phan_loai = _danh_muc_normalize_dia_diem_phan_loai($input['phan_loai']);
-  $thong_tin = array(
-    'ghi_chu' => isset($input['ghi_chu']) ? trim($input['ghi_chu']) : '',
-  );
-
   $transaction = db_transaction();
   try {
     $nid = db_insert('danh_muc')
       ->fields(array(
         'ten' => trim($input['ten']),
         'phan_loai' => $normalized_phan_loai,
-        'thong_tin_json' => _danh_muc_encode_thong_tin($thong_tin),
+        'thong_tin_json' => '',
         'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
         'created' => _danh_muc_now(),
         'changed' => _danh_muc_now(),
@@ -705,17 +704,13 @@ function _danh_muc_bai_rest_update($id) {
   if ($dup) return $dup;
 
   $normalized_phan_loai = _danh_muc_normalize_dia_diem_phan_loai($input['phan_loai']);
-  $thong_tin = array(
-    'ghi_chu' => isset($input['ghi_chu']) ? trim($input['ghi_chu']) : '',
-  );
-
   $transaction = db_transaction();
   try {
     db_update('danh_muc')
       ->fields(array(
         'ten' => trim($input['ten']),
         'phan_loai' => $normalized_phan_loai,
-        'thong_tin_json' => _danh_muc_encode_thong_tin($thong_tin),
+        'thong_tin_json' => '',
         'changed' => _danh_muc_now(),
       ))
       ->condition('nid', $id)

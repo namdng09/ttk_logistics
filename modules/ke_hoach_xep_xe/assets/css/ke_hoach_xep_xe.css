@@ -150,24 +150,6 @@ body .flatpickr-calendar {
   border-color: inherit;
 }
 
-.vehicle-summary-empty {
-  width: 100%;
-}
-
-.vehicle-summary-text {
-  color: #344054;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.vehicle-summary-empty {
-  color: #98a2b3;
-  font-style: italic;
-}
-
 .btn-clear-vehicle {
   position: absolute;
   top: 50%;
@@ -444,24 +426,31 @@ body .flatpickr-calendar {
 }
 
 
-.line-vehicle-display {
+.vehicle-summary,
+.line-vehicle-display,
+.line-mooc-display {
   min-height: 38px;
   max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  border-color: #d0d5dd;
+  border: var(--bs-border-width) solid color-mix(in sRGB, var(--bs-base-color) 22%, var(--bs-paper-bg)) !important;
   color: #101828;
   overflow: hidden;
   font-size: 0.8rem !important;
   font-weight: 400 !important;
+  background: #fff;
+  box-shadow: none !important;
 }
 
-.line-vehicle-display.is-selected {
-  border-color: #7367f0;
+.vehicle-summary.is-selected,
+.line-vehicle-display.is-selected,
+.line-mooc-display.is-selected {
+  border-color: color-mix(in sRGB, var(--bs-base-color) 22%, var(--bs-paper-bg)) !important;
   background: #fff;
 }
 
+.vehicle-summary .vehicle-inline-placeholder,
 .line-vehicle-display .vehicle-inline-placeholder,
 .line-mooc-display .vehicle-inline-placeholder {
   color: #98a2b3;
@@ -469,6 +458,7 @@ body .flatpickr-calendar {
   font-size: 0.85rem;
 }
 
+.vehicle-summary .vehicle-inline-text,
 .line-vehicle-display .vehicle-inline-text,
 .line-mooc-display .vehicle-inline-text {
   color: #344054;
@@ -482,6 +472,31 @@ body .flatpickr-calendar {
   font-size: 0.85rem !important;
   line-height: 1.5;
   font-weight: inherit !important;
+}
+
+.line-cont-picker-wrap {
+  position: relative;
+}
+
+.line-cont-picker-wrap.is-loading {
+  opacity: 0.78;
+  transition: opacity 0.2s ease;
+}
+
+.cont-picker-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #667085;
+  font-size: 0.85rem;
+}
+
+.line-cont-picker-wrap .table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.line-cont-picker-wrap .table tbody tr:hover > td {
+  background: #f3f4f6;
 }
 
 .ke-hoach-table-row.table-danger td {

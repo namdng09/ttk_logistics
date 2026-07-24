@@ -564,7 +564,7 @@
       url: '/api/danh-muc',
       type: 'GET',
       dataType: 'json',
-      data: { phan_loai: 'Địa điểm', limit: 500 },
+      data: { phan_loai: 'Kho', limit: 500 },
       success: function (res) {
         if (res.status === 'success' && res.data && res.data.items) {
           var names = [];
@@ -676,7 +676,7 @@
         url: '/api/danh-muc',
         type: 'GET',
         dataType: 'json',
-        data: { phan_loai: 'Địa điểm', limit: 500 },
+        data: { phan_loai: 'Kho', limit: 500 },
         success: function (res) {
           if (res.status === 'success' && res.data && res.data.items) {
             var names = [];
@@ -698,7 +698,7 @@
   }
 
   function initDiaDiemSelect(selEl, value) {
-    selEl.innerHTML = '<option value="">Chọn/Nhập địa điểm</option>';
+    selEl.innerHTML = '<option value="">Chọn/Nhập kho</option>';
     for (var i = 0; i < DIADIEM_LIST.length; i++) {
       var opt = document.createElement('option');
       opt.value = DIADIEM_LIST[i];
@@ -721,7 +721,7 @@
       if ($sel.data('select2')) $sel.select2('destroy');
       $sel.select2({
         dropdownParent: $jq('#khach-hang-modal'),
-        placeholder: 'Chọn/Nhập địa điểm',
+        placeholder: 'Chọn/Nhập kho',
         allowClear: true,
         tags: true,
         width: '100%'
