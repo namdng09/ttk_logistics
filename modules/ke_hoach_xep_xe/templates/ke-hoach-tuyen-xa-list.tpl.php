@@ -85,19 +85,11 @@
           <input type="hidden" name="nid" value="">
 
           <div class="row g-3 mb-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Khách hàng <span class="text-danger">*</span></label>
               <select class="form-select" name="nid_khach_hang" required>
                 <option value="">Chọn khách hàng</option>
               </select>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Loại tuyến xa</label>
-              <select class="form-select" name="loai_hinh_tuyen_xa"></select>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Trạng thái</label>
-              <input type="text" class="form-control" name="trang_thai_van_chuyen" placeholder="Mới tạo">
             </div>
             <div class="col-md-3">
               <label class="form-label">Số BKG <span class="text-danger">*</span></label>
@@ -111,33 +103,31 @@
               <label class="form-label">Loại cont</label>
               <input type="text" class="form-control" name="loai_cont" placeholder="Ví dụ: 45'">
             </div>
-            <div class="col-md-3">
-              <label class="form-label">Kho / điểm nhận</label>
-              <input type="text" class="form-control" name="dia_chi_kho" placeholder="Nhập kho / nơi nhận hàng">
-            </div>
             <div class="col-md-4">
               <label class="form-label">Điểm đi <span class="text-danger">*</span></label>
               <input type="text" class="form-control" name="diem_di" placeholder="Ví dụ: Campuchia">
             </div>
             <div class="col-md-4">
               <label class="form-label">Cửa khẩu</label>
-              <input type="text" class="form-control" name="cua_khau" placeholder="Ví dụ: Hữu Nghị - Lạng Sơn">
+              <select class="form-select" name="cua_khau">
+                <option value="">Chọn cửa khẩu</option>
+              </select>
             </div>
             <div class="col-md-4">
               <label class="form-label">Điểm đến <span class="text-danger">*</span></label>
               <input type="text" class="form-control" name="diem_den" placeholder="Ví dụ: Hà Nội">
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
+              <label class="form-label">Kho / điểm nhận</label>
+              <input type="text" class="form-control" name="dia_chi_kho" placeholder="Nhập kho / nơi nhận hàng">
+            </div>
+            <div class="col-md-4">
               <label class="form-label">Ngày bắt đầu</label>
               <input type="text" class="form-control input-date-only" name="ngay_bat_dau" placeholder="dd/mm/yyyy">
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
               <label class="form-label">Ngày kết thúc dự kiến</label>
               <input type="text" class="form-control input-date-only" name="ngay_ket_thuc_du_kien" placeholder="dd/mm/yyyy">
-            </div>
-            <div class="col-12">
-              <label class="form-label">Ghi chú</label>
-              <textarea class="form-control" name="ghi_chu" rows="2" placeholder="Nhập ghi chú nếu có"></textarea>
             </div>
           </div>
 
@@ -214,6 +204,15 @@
                 </thead>
                 <tbody id="ke-hoach-tuyen-xa-dau-body"></tbody>
               </table>
+            </div>
+          </div>
+
+          <div class="ke-hoach-tuyen-xa-section">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Ghi chú</label>
+                <textarea class="form-control" name="ghi_chu" rows="3" placeholder="Nhập ghi chú nếu có"></textarea>
+              </div>
             </div>
           </div>
         </form>

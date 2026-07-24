@@ -193,7 +193,7 @@ function _danh_muc_check_unique($input, $exclude_nid = NULL) {
  * Allowed phan_loai values for generic screen.
  */
 function _danh_muc_phan_loai_options() {
-  return array('Phòng ban', 'Chức vụ', 'Kho', 'Chi phí');
+  return array('Phòng ban', 'Chức vụ', 'Kho', 'Chi phí', 'Cửa khẩu');
 }
 
 function _danh_muc_validate_phan_loai($value) {

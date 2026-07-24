@@ -21,6 +21,7 @@
           <option value="Chức vụ">Chức vụ</option>
           <option value="Kho">Kho</option>
           <option value="Chi phí">Chi phí</option>
+          <option value="Cửa khẩu">Cửa khẩu</option>
         </select>
       </div>
       <div class="col-6 col-md-4">
@@ -106,6 +107,7 @@
                 <option value="Chức vụ">Chức vụ</option>
                 <option value="Kho">Kho</option>
                 <option value="Chi phí">Chi phí</option>
+                <option value="Cửa khẩu">Cửa khẩu</option>
               </select>
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>
             </div>

@@ -13,6 +13,7 @@
   var state = {
     mode: 'create',
     customers: [],
+    checkpoints: [],
     drivers: [],
     vehicles: [],
     changs: [],
@@ -370,7 +371,7 @@
     supportCallbacks.push(callback);
     if (supportLoading) return;
     supportLoading = true;
-    var pending = 3;
+    var pending = 4;
     function done() {
       pending--;
       if (pending > 0) return;
@@ -382,6 +383,9 @@
     }
     $.getJSON('/api/khach-hang', { limit: 500 }, function (res) {
       if (res.status === 'success' && res.data) state.customers = res.data.items || [];
+    }).always(done);
+    $.getJSON('/api/danh-muc', { limit: 500, phan_loai: 'Cửa khẩu' }, function (res) {
+      if (res.status === 'success' && res.data) state.checkpoints = res.data.items || [];
     }).always(done);
     $.getJSON('/api/lai-xe', { limit: 500 }, function (res) {
       if (res.status === 'success' && res.data) state.drivers = res.data.items || [];
@@ -454,20 +458,29 @@
 
   function renderSupportOptions() {
     var $customer = $('#form-ke-hoach-tuyen-xa select[name="nid_khach_hang"]');
+    var currentCustomer = $customer.val() || '';
+    var $checkpoint = $('#form-ke-hoach-tuyen-xa select[name="cua_khau"]');
+    var currentCheckpoint = $checkpoint.val() || '';
     var customerHtml = '<option value="">Chọn khách hàng</option>';
     for (var i = 0; i < state.customers.length; i++) {
       customerHtml += '<option value="' + state.customers[i].nid + '">' + escHtml(state.customers[i].ten || ('#' + state.customers[i].nid)) + '</option>';
     }
     $customer.html(customerHtml);
 
-    var loaiHtml = '<option value="">Chọn loại tuyến xa</option>';
-    $.each(settings.loai_hinh_options || {}, function (key, label) {
-      loaiHtml += '<option value="' + key + '">' + escHtml(label) + '</option>';
-    });
-    $('#form-ke-hoach-tuyen-xa select[name="loai_hinh_tuyen_xa"]').html(loaiHtml);
+    var checkpointHtml = '<option value="">Chọn cửa khẩu</option>';
+    for (var j = 0; j < state.checkpoints.length; j++) {
+      checkpointHtml += '<option value="' + escHtml(state.checkpoints[j].ten || '') + '">' + escHtml(state.checkpoints[j].ten || '') + '</option>';
+    }
+    $checkpoint.html(checkpointHtml);
 
     initSelect2($customer[0], 'Chọn khách hàng');
-    initSelect2($('#form-ke-hoach-tuyen-xa select[name="loai_hinh_tuyen_xa"]')[0], 'Chọn loại tuyến xa');
+    initSelect2($checkpoint[0], 'Chọn cửa khẩu');
+    if (currentCustomer) {
+      $customer.val(String(currentCustomer)).trigger('change');
+    }
+    if (currentCheckpoint) {
+      $checkpoint.val(String(currentCheckpoint)).trigger('change');
+    }
     initDateInputs('#ke-hoach-tuyen-xa-modal');
   }
 
@@ -593,14 +606,12 @@
     var form = $('#form-ke-hoach-tuyen-xa');
     form.find('[name="nid"]').val(data.nid || '');
     form.find('[name="nid_khach_hang"]').val(data.khach_hang ? data.khach_hang.nid : '').trigger('change');
-    form.find('[name="loai_hinh_tuyen_xa"]').val(data.loai_hinh_tuyen_xa || '').trigger('change');
-    form.find('[name="trang_thai_van_chuyen"]').val(data.trang_thai_van_chuyen || '');
     form.find('[name="so_bkg"]').val(data.so_bkg || '');
     form.find('[name="so_cont"]').val(data.so_cont || '');
     form.find('[name="loai_cont"]').val(data.loai_cont || '');
     form.find('[name="dia_chi_kho"]').val(data.dia_chi_kho || '');
     form.find('[name="diem_di"]').val(data.diem_di || '');
-    form.find('[name="cua_khau"]').val(data.cua_khau || '');
+    form.find('[name="cua_khau"]').val(data.cua_khau || '').trigger('change');
     form.find('[name="diem_den"]').val(data.diem_den || '');
     form.find('[name="ngay_bat_dau"]').val(apiToDate(data.ngay_bat_dau || ''));
     form.find('[name="ngay_ket_thuc_du_kien"]').val(apiToDate(data.ngay_ket_thuc_du_kien || ''));
@@ -716,14 +727,12 @@
     syncStateFromDom();
     return {
       nid_khach_hang: form.find('[name="nid_khach_hang"]').val(),
-      loai_hinh_tuyen_xa: form.find('[name="loai_hinh_tuyen_xa"]').val(),
-      trang_thai_van_chuyen: form.find('[name="trang_thai_van_chuyen"]').val().trim(),
       so_bkg: form.find('[name="so_bkg"]').val().trim(),
       so_cont: form.find('[name="so_cont"]').val().trim(),
       loai_cont: form.find('[name="loai_cont"]').val().trim(),
       dia_chi_kho: form.find('[name="dia_chi_kho"]').val().trim(),
       diem_di: form.find('[name="diem_di"]').val().trim(),
-      cua_khau: form.find('[name="cua_khau"]').val().trim(),
+      cua_khau: form.find('[name="cua_khau"]').val() || '',
       diem_den: form.find('[name="diem_den"]').val().trim(),
       ngay_bat_dau: dateToApi(form.find('[name="ngay_bat_dau"]').val()),
       ngay_ket_thuc_du_kien: dateToApi(form.find('[name="ngay_ket_thuc_du_kien"]').val()),
