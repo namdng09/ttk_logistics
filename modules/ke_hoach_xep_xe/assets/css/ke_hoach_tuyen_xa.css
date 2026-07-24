@@ -1,0 +1,57 @@
+#ke-hoach-tuyen-xa-app th,
+#ke-hoach-tuyen-xa-app td {
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+.ke-hoach-tuyen-xa-section {
+  border-top: 1px solid #eceef1;
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+#ke-hoach-tuyen-xa-modal .table .form-control,
+#ke-hoach-tuyen-xa-modal .table .form-select {
+  min-width: 140px;
+  font-size: 0.83rem;
+}
+
+#ke-hoach-tuyen-xa-modal .section-readonly {
+  pointer-events: none;
+  opacity: 0.96;
+}
+
+#ke-hoach-tuyen-xa-modal .table td.text-center .btn {
+  padding: 0.35rem 0.5rem;
+}
+
+#ke-hoach-tuyen-xa-modal .modal-body {
+  background: #f8f8fb;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+#ke-hoach-tuyen-xa-modal .modal-header,
+#ke-hoach-tuyen-xa-modal .modal-footer {
+  background: #fff;
+}
+
+.ke-hoach-tuyen-xa-route {
+  line-height: 1.5;
+}
+
+.ke-hoach-tuyen-xa-route .route-arrow {
+  color: #98a2b3;
+  margin: 0 0.25rem;
+}
+
+.ke-hoach-tuyen-xa-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #344054;
+  font-size: 0.78rem;
+  font-weight: 600;
+}

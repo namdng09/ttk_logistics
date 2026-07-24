@@ -15,7 +15,7 @@ function ke_hoach_xep_xe_permission() {
 
 function ke_hoach_xep_xe_init() {
   $path = current_path();
-  if (strpos($path, 'api/ke-hoach-xep-xe') === 0) {
+  if (strpos($path, 'api/ke-hoach-xep-xe') === 0 || strpos($path, 'api/ke-hoach-tuyen-xa') === 0) {
     drupal_add_http_header('Access-Control-Allow-Origin', '*');
     drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
@@ -43,6 +43,19 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/ke-hoach-tuyen-xa'] = array(
+    'page callback' => 'ke_hoach_tuyen_xa_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/ke-hoach-tuyen-xa/%'] = array(
+    'page callback' => 'ke_hoach_tuyen_xa_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/quan-ly-cont'] = array(
     'page callback' => 'ke_hoach_cont_rest_collection',
     'access callback' => TRUE,
@@ -60,6 +73,12 @@ function ke_hoach_xep_xe_menu() {
   $items['ke-hoach-xep-xe'] = array(
     'title' => 'Kế hoạch xếp xe',
     'page callback' => 'ke_hoach_xep_xe_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['ke-hoach-tuyen-xa'] = array(
+    'title' => 'Kế hoạch tuyến xa',
+    'page callback' => 'ke_hoach_tuyen_xa_page_list',
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
   );
@@ -121,6 +140,10 @@ function ke_hoach_xep_xe_theme() {
       'template' => 'ke-hoach-xep-xe-detail',
       'path' => $path,
       'variables' => array('mode' => 'detail', 'data' => NULL),
+    ),
+    'ke_hoach_tuyen_xa_list_page' => array(
+      'template' => 'ke-hoach-tuyen-xa-list',
+      'path' => $path,
     ),
     'ke_hoach_cont_list_page' => array(
       'template' => 'ke-hoach-cont-list',
@@ -395,6 +418,13 @@ function _ke_hoach_xep_xe_statuses() {
   );
 }
 
+function _ke_hoach_xep_xe_query_condition_thuong($query, $alias = 'kh') {
+  $or = db_or();
+  $or->condition($alias . '.loai_ke_hoach', 'thuong');
+  $or->isNull($alias . '.loai_ke_hoach');
+  $query->condition($or);
+}
+
 function ke_hoach_xep_xe_rest_collection() {
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'GET':
@@ -414,6 +444,7 @@ function _ke_hoach_xep_xe_rest_list() {
   $query = db_select('ke_hoach_xep_xe', 'kh');
   $query->fields('kh');
   $query->condition('kh.hoat_dong', 1);
+  _ke_hoach_xep_xe_query_condition_thuong($query, 'kh');
 
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
@@ -542,7 +573,7 @@ function ke_hoach_xep_xe_rest_item($id) {
 }
 
 function _ke_hoach_xep_xe_rest_get($id) {
-  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND (loai_ke_hoach = :loai OR loai_ke_hoach IS NULL)", array(':id' => $id, ':loai' => 'thuong'))->fetch();
   if (!$row) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -554,7 +585,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch');
   }
 
-  $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND (loai_ke_hoach = :loai OR loai_ke_hoach IS NULL)", array(':id' => $id, ':loai' => 'thuong'))->fetchField();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -629,7 +660,7 @@ function _ke_hoach_xep_xe_rest_delete($id) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá kế hoạch');
   }
 
-  $existing = db_query("SELECT nid, so_bkg FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  $existing = db_query("SELECT nid, so_bkg FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND (loai_ke_hoach = :loai OR loai_ke_hoach IS NULL)", array(':id' => $id, ':loai' => 'thuong'))->fetch();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -679,6 +710,7 @@ function ke_hoach_cont_rest_item($id) {
 
 function _ke_hoach_cont_rest_list() {
   $query = db_select('ke_hoach_xep_xe', 'kh')->fields('kh')->condition('kh.hoat_dong', 1)->orderBy('kh.nid', 'DESC');
+  _ke_hoach_xep_xe_query_condition_thuong($query, 'kh');
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
     $query->condition(db_or()->condition('kh.so_bkg', $like, 'LIKE')->condition('kh.so_cont', $like, 'LIKE')->condition('kh.dia_chi_kho', $like, 'LIKE'));
@@ -779,7 +811,7 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
   if (!$id) {
     return MENU_NOT_FOUND;
   }
-  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND (loai_ke_hoach = :loai OR loai_ke_hoach IS NULL)", array(':id' => $id, ':loai' => 'thuong'))->fetch();
   if (!$row) {
     return MENU_NOT_FOUND;
   }
@@ -809,7 +841,7 @@ function ke_hoach_xep_xe_page_detail($id) {
   if (!$id) {
     return MENU_NOT_FOUND;
   }
-  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND (loai_ke_hoach = :loai OR loai_ke_hoach IS NULL)", array(':id' => $id, ':loai' => 'thuong'))->fetch();
   if (!$row) {
     return MENU_NOT_FOUND;
   }
@@ -828,4 +860,529 @@ function ke_hoach_xep_xe_page_detail($id) {
   )), 'setting');
 
   return theme('ke_hoach_xep_xe_detail_page', array('mode' => 'detail', 'data' => $data));
+}
+
+function _ke_hoach_tuyen_xa_loai_hinh_options() {
+  return array(
+    'di_ha_noi' => 'Đi Hà Nội',
+    'xuyen_bien_gioi' => 'Xuyên biên giới',
+    'bac_nam' => 'Bắc Nam',
+    'khac' => 'Khác',
+  );
+}
+
+function _ke_hoach_tuyen_xa_loai_chang_options() {
+  return array('khoan', 'chuyen');
+}
+
+function _ke_hoach_tuyen_xa_loai_chi_phi_options() {
+  return array(
+    'cuoc_van_chuyen' => 'Cước vận chuyển',
+    'phat_sinh' => 'Phát sinh',
+    'chi_phi_cua_khau' => 'Chi phí cửa khẩu',
+    'chi_phi_nha_may' => 'Chi phí nhà máy',
+    'neo' => 'Neo',
+    'hoa_hong' => 'Hoa hồng',
+    'vat' => 'VAT',
+    'khac' => 'Khác',
+  );
+}
+
+function _ke_hoach_tuyen_xa_loai_dau_options() {
+  return array(
+    'do_duong' => 'Đổ dọc đường',
+    've_bai_dau_keo' => 'Về bãi đầu kéo',
+    've_bai_mooc' => 'Về bãi mooc',
+    'dau_dau_cai' => 'Dầu đầu cái',
+    'khac' => 'Khác',
+  );
+}
+
+function _ke_hoach_tuyen_xa_json_text($value, $key = 'ghi_chu') {
+  $json = _ke_hoach_xep_xe_json_decode($value);
+  return !empty($json[$key]) ? $json[$key] : '';
+}
+
+function _ke_hoach_tuyen_xa_parent_ngay($value) {
+  $value = trim((string) $value);
+  if ($value === '') {
+    return '';
+  }
+  return substr($value, 0, 10);
+}
+
+function _ke_hoach_tuyen_xa_normalize_date($value) {
+  $value = trim((string) $value);
+  if ($value === '') {
+    return '';
+  }
+  return substr($value, 0, 10);
+}
+
+function _ke_hoach_tuyen_xa_validate_input($input, $is_update = FALSE) {
+  if (empty($input['nid_khach_hang'])) {
+    return _ke_hoach_xep_xe_fail('Khách hàng bắt buộc');
+  }
+  if (empty($input['so_bkg'])) {
+    return _ke_hoach_xep_xe_fail('Số BKG bắt buộc');
+  }
+  if (empty($input['so_cont'])) {
+    return _ke_hoach_xep_xe_fail('Số cont bắt buộc');
+  }
+  if (empty($input['diem_di'])) {
+    return _ke_hoach_xep_xe_fail('Điểm đi bắt buộc');
+  }
+  if (empty($input['diem_den'])) {
+    return _ke_hoach_xep_xe_fail('Điểm đến bắt buộc');
+  }
+  $changs = !empty($input['changs']) && is_array($input['changs']) ? $input['changs'] : array();
+  if (empty($changs)) {
+    return _ke_hoach_xep_xe_fail('Cần ít nhất một chặng');
+  }
+  foreach ($changs as $index => $item) {
+    $row_no = $index + 1;
+    if (!empty($item['loai_chang']) && !in_array($item['loai_chang'], _ke_hoach_tuyen_xa_loai_chang_options(), TRUE)) {
+      return _ke_hoach_xep_xe_fail('Loại chặng ở dòng #' . $row_no . ' không hợp lệ');
+    }
+    if (empty($item['diem_di']) || empty($item['diem_den'])) {
+      return _ke_hoach_xep_xe_fail('Điểm đi/điểm đến của chặng #' . $row_no . ' bắt buộc');
+    }
+  }
+  return NULL;
+}
+
+function _ke_hoach_tuyen_xa_build_parent_record($input) {
+  $record = _ke_hoach_xep_xe_default_record();
+  $first_chang = !empty($input['changs'][0]) && is_array($input['changs'][0]) ? $input['changs'][0] : array();
+  $json = array();
+  if (!empty($input['ghi_chu'])) {
+    $json['ghi_chu'] = trim((string) $input['ghi_chu']);
+  }
+  if (!empty($input['thong_tin_json']) && is_array($input['thong_tin_json'])) {
+    $json = array_merge($json, $input['thong_tin_json']);
+  }
+
+  $record['nid_khach_hang'] = (int) $input['nid_khach_hang'];
+  $record['so_bkg'] = trim((string) $input['so_bkg']);
+  $record['so_cont'] = !empty($input['so_cont']) ? trim((string) $input['so_cont']) : '';
+  $record['loai_cont'] = !empty($input['loai_cont']) ? trim((string) $input['loai_cont']) : '';
+  $record['dia_chi_kho'] = !empty($input['dia_chi_kho']) ? trim((string) $input['dia_chi_kho']) : '';
+  $record['trang_thai_van_chuyen'] = !empty($input['trang_thai_van_chuyen']) ? trim((string) $input['trang_thai_van_chuyen']) : 'Mới tạo';
+  $record['nid_phuong_tien'] = !empty($first_chang['nid_phuong_tien']) ? (int) $first_chang['nid_phuong_tien'] : 0;
+  $record['nid_mooc'] = !empty($first_chang['nid_mooc']) ? (int) $first_chang['nid_mooc'] : 0;
+  $record['nid_lai_xe'] = !empty($first_chang['nid_lai_xe']) ? (int) $first_chang['nid_lai_xe'] : 0;
+  $record['ngay'] = !empty($input['ngay_bat_dau']) ? _ke_hoach_tuyen_xa_parent_ngay($input['ngay_bat_dau']) : '';
+  $record['cut_off'] = !empty($input['ngay_ket_thuc_du_kien']) ? _ke_hoach_tuyen_xa_normalize_date($input['ngay_ket_thuc_du_kien']) : '';
+  $record['thong_tin_json'] = !empty($json) ? _ke_hoach_xep_xe_json_encode($json) : '';
+
+  return array(
+    'parent' => $record,
+    'loai_ke_hoach' => 'tuyen_xa',
+    'loai_hinh_tuyen_xa' => trim((string) $input['loai_hinh_tuyen_xa']),
+    'diem_di' => trim((string) $input['diem_di']),
+    'cua_khau' => !empty($input['cua_khau']) ? trim((string) $input['cua_khau']) : '',
+    'diem_den' => trim((string) $input['diem_den']),
+    'ngay_bat_dau' => !empty($input['ngay_bat_dau']) ? _ke_hoach_tuyen_xa_normalize_date($input['ngay_bat_dau']) : '',
+    'ngay_ket_thuc_du_kien' => !empty($input['ngay_ket_thuc_du_kien']) ? _ke_hoach_tuyen_xa_normalize_date($input['ngay_ket_thuc_du_kien']) : '',
+  );
+}
+
+function _ke_hoach_tuyen_xa_save_changs($ke_hoach_id, array $items) {
+  db_delete('ke_hoach_tuyen_xa_chang')->condition('ke_hoach_id', (int) $ke_hoach_id)->execute();
+  $now = _ke_hoach_xep_xe_now();
+  $key_map = array();
+  foreach ($items as $index => $item) {
+    $id = db_insert('ke_hoach_tuyen_xa_chang')
+      ->fields(array(
+        'ke_hoach_id' => (int) $ke_hoach_id,
+        'thu_tu' => $index + 1,
+        'loai_chang' => !empty($item['loai_chang']) ? trim((string) $item['loai_chang']) : '',
+        'diem_di' => !empty($item['diem_di']) ? trim((string) $item['diem_di']) : '',
+        'diem_den' => !empty($item['diem_den']) ? trim((string) $item['diem_den']) : '',
+        'ngay_di' => !empty($item['ngay_di']) ? _ke_hoach_tuyen_xa_normalize_date($item['ngay_di']) : '',
+        'ngay_den' => !empty($item['ngay_den']) ? _ke_hoach_tuyen_xa_normalize_date($item['ngay_den']) : '',
+        'nid_phuong_tien' => !empty($item['nid_phuong_tien']) ? (int) $item['nid_phuong_tien'] : 0,
+        'nid_mooc' => !empty($item['nid_mooc']) ? (int) $item['nid_mooc'] : 0,
+        'nid_lai_xe' => !empty($item['nid_lai_xe']) ? (int) $item['nid_lai_xe'] : 0,
+        'thong_tin_json' => '',
+        'created' => $now,
+        'changed' => $now,
+        'hoat_dong' => 1,
+      ))
+      ->execute();
+    $chang_key = !empty($item['chang_key']) ? (string) $item['chang_key'] : (string) ($index + 1);
+    $key_map[$chang_key] = (int) $id;
+  }
+  return $key_map;
+}
+
+function _ke_hoach_tuyen_xa_save_chi_phi($ke_hoach_id, array $items, array $chang_key_map = array()) {
+  db_delete('ke_hoach_tuyen_xa_chi_phi')->condition('ke_hoach_id', (int) $ke_hoach_id)->execute();
+  $now = _ke_hoach_xep_xe_now();
+  foreach ($items as $item) {
+    if (empty($item['ten_chi_phi']) && empty($item['loai_chi_phi']) && empty($item['so_tien'])) {
+      continue;
+    }
+    db_insert('ke_hoach_tuyen_xa_chi_phi')
+      ->fields(array(
+        'ke_hoach_id' => (int) $ke_hoach_id,
+        'chang_id' => !empty($item['chang_key']) && isset($chang_key_map[(string) $item['chang_key']]) ? (int) $chang_key_map[(string) $item['chang_key']] : 0,
+        'loai_chi_phi' => !empty($item['loai_chi_phi']) ? trim((string) $item['loai_chi_phi']) : '',
+        'ten_chi_phi' => !empty($item['ten_chi_phi']) ? trim((string) $item['ten_chi_phi']) : '',
+        'so_tien' => !empty($item['so_tien']) ? (int) $item['so_tien'] : 0,
+        'ngay' => !empty($item['ngay']) ? _ke_hoach_tuyen_xa_normalize_date($item['ngay']) : '',
+        'is_co_dinh' => !empty($item['is_co_dinh']) ? 1 : 0,
+        'thong_tin_json' => '',
+        'created' => $now,
+        'changed' => $now,
+        'hoat_dong' => 1,
+      ))
+      ->execute();
+  }
+}
+
+function _ke_hoach_tuyen_xa_save_dau($ke_hoach_id, array $items, array $chang_key_map = array()) {
+  db_delete('ke_hoach_tuyen_xa_dau')->condition('ke_hoach_id', (int) $ke_hoach_id)->execute();
+  $now = _ke_hoach_xep_xe_now();
+  foreach ($items as $item) {
+    if (empty($item['ngay']) && empty($item['so_lit']) && empty($item['so_tien']) && empty($item['loai_dau'])) {
+      continue;
+    }
+    db_insert('ke_hoach_tuyen_xa_dau')
+      ->fields(array(
+        'ke_hoach_id' => (int) $ke_hoach_id,
+        'chang_id' => !empty($item['chang_key']) && isset($chang_key_map[(string) $item['chang_key']]) ? (int) $chang_key_map[(string) $item['chang_key']] : 0,
+        'ngay' => !empty($item['ngay']) ? _ke_hoach_tuyen_xa_normalize_date($item['ngay']) : '',
+        'loai_dau' => !empty($item['loai_dau']) ? trim((string) $item['loai_dau']) : '',
+        'so_lit' => isset($item['so_lit']) && $item['so_lit'] !== '' ? (float) $item['so_lit'] : 0,
+        'so_tien' => !empty($item['so_tien']) ? (int) $item['so_tien'] : 0,
+        'thong_tin_json' => '',
+        'created' => $now,
+        'changed' => $now,
+        'hoat_dong' => 1,
+      ))
+      ->execute();
+  }
+}
+
+function _ke_hoach_tuyen_xa_load_changs($ke_hoach_id) {
+  $items = array();
+  $rows = db_select('ke_hoach_tuyen_xa_chang', 'c')
+    ->fields('c')
+    ->condition('c.ke_hoach_id', (int) $ke_hoach_id)
+    ->condition('c.hoat_dong', 1)
+    ->orderBy('c.thu_tu', 'ASC')
+    ->execute()
+    ->fetchAll();
+  foreach ($rows as $row) {
+    $item = (array) $row;
+    $item['chang_key'] = (string) $item['id'];
+    if (!empty($item['nid_lai_xe'])) {
+      $lx = db_query("SELECT nid, ten, ma_nhan_vien, sdt FROM {lai_xe} WHERE nid = :nid", array(':nid' => (int) $item['nid_lai_xe']))->fetch();
+      $item['lai_xe'] = $lx ? (array) $lx : NULL;
+    }
+    else {
+      $item['lai_xe'] = NULL;
+    }
+    if (!empty($item['nid_phuong_tien'])) {
+      $pt = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien FROM {phuong_tien} WHERE nid = :nid", array(':nid' => (int) $item['nid_phuong_tien']))->fetch();
+      $item['phuong_tien'] = $pt ? (array) $pt : NULL;
+    }
+    else {
+      $item['phuong_tien'] = NULL;
+    }
+    if (!empty($item['nid_mooc'])) {
+      $mooc = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien FROM {phuong_tien} WHERE nid = :nid", array(':nid' => (int) $item['nid_mooc']))->fetch();
+      $item['mooc'] = $mooc ? (array) $mooc : NULL;
+    }
+    else {
+      $item['mooc'] = NULL;
+    }
+    $item['ghi_chu'] = _ke_hoach_tuyen_xa_json_text(isset($item['thong_tin_json']) ? $item['thong_tin_json'] : '');
+    $items[] = $item;
+  }
+  return $items;
+}
+
+function _ke_hoach_tuyen_xa_load_chi_phi($ke_hoach_id) {
+  $items = array();
+  $rows = db_select('ke_hoach_tuyen_xa_chi_phi', 'c')
+    ->fields('c')
+    ->condition('c.ke_hoach_id', (int) $ke_hoach_id)
+    ->condition('c.hoat_dong', 1)
+    ->orderBy('c.id', 'ASC')
+    ->execute()
+    ->fetchAll();
+  foreach ($rows as $row) {
+    $item = (array) $row;
+    $item['chang_key'] = !empty($item['chang_id']) ? (string) $item['chang_id'] : '';
+    $items[] = $item;
+  }
+  return $items;
+}
+
+function _ke_hoach_tuyen_xa_load_dau($ke_hoach_id) {
+  $items = array();
+  $rows = db_select('ke_hoach_tuyen_xa_dau', 'd')
+    ->fields('d')
+    ->condition('d.ke_hoach_id', (int) $ke_hoach_id)
+    ->condition('d.hoat_dong', 1)
+    ->orderBy('d.id', 'ASC')
+    ->execute()
+    ->fetchAll();
+  foreach ($rows as $row) {
+    $item = (array) $row;
+    $item['so_lit'] = isset($item['so_lit']) ? (string) $item['so_lit'] : '0';
+    $item['chang_key'] = !empty($item['chang_id']) ? (string) $item['chang_id'] : '';
+    $items[] = $item;
+  }
+  return $items;
+}
+
+function _ke_hoach_tuyen_xa_enrich_row($row, $with_children = TRUE) {
+  $result = _ke_hoach_xep_xe_enrich_row($row);
+  $result['ghi_chu'] = _ke_hoach_tuyen_xa_json_text(isset($result['thong_tin_json']) ? $result['thong_tin_json'] : '');
+  if ($with_children) {
+    $result['changs'] = _ke_hoach_tuyen_xa_load_changs($result['nid']);
+    $result['chi_phi'] = _ke_hoach_tuyen_xa_load_chi_phi($result['nid']);
+    $result['dau'] = _ke_hoach_tuyen_xa_load_dau($result['nid']);
+  }
+  return $result;
+}
+
+function ke_hoach_tuyen_xa_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ke_hoach_tuyen_xa_rest_list();
+    case 'POST':
+      return _ke_hoach_tuyen_xa_rest_create();
+    default:
+      return _ke_hoach_xep_xe_method_not_allowed('GET, POST');
+  }
+}
+
+function ke_hoach_tuyen_xa_rest_item($id) {
+  $id = (int) $id;
+  if (!$id) {
+    return _ke_hoach_xep_xe_fail('ID không hợp lệ');
+  }
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ke_hoach_tuyen_xa_rest_get($id);
+    case 'PUT':
+      return _ke_hoach_tuyen_xa_rest_update($id);
+    case 'DELETE':
+      return _ke_hoach_tuyen_xa_rest_delete($id);
+    default:
+      return _ke_hoach_xep_xe_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+function _ke_hoach_tuyen_xa_rest_list() {
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $offset = ($page - 1) * $limit;
+
+  $query = db_select('ke_hoach_xep_xe', 'kh');
+  $query->fields('kh');
+  $query->condition('kh.hoat_dong', 1);
+  $query->condition('kh.loai_ke_hoach', 'tuyen_xa');
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like($_GET['keyword']) . '%';
+    $query->condition(db_or()
+      ->condition('kh.so_bkg', $like, 'LIKE')
+      ->condition('kh.so_cont', $like, 'LIKE')
+      ->condition('kh.diem_di', $like, 'LIKE')
+      ->condition('kh.cua_khau', $like, 'LIKE')
+      ->condition('kh.diem_den', $like, 'LIKE'));
+  }
+  if (!empty($_GET['loai_hinh_tuyen_xa'])) {
+    $query->condition('kh.loai_hinh_tuyen_xa', $_GET['loai_hinh_tuyen_xa']);
+  }
+
+  $count = clone $query;
+  $total = (int) $count->countQuery()->execute()->fetchField();
+  $total_pages = $total > 0 ? (int) ceil($total / $limit) : 0;
+
+  $query->orderBy('kh.nid', 'DESC');
+  $query->range($offset, $limit);
+  $items = array();
+  foreach ($query->execute()->fetchAll() as $row) {
+    $item = _ke_hoach_tuyen_xa_enrich_row($row, FALSE);
+    $item['chang_count'] = (int) db_query("SELECT COUNT(*) FROM {ke_hoach_tuyen_xa_chang} WHERE ke_hoach_id = :id AND hoat_dong = 1", array(':id' => $item['nid']))->fetchField();
+    $items[] = $item;
+  }
+
+  return _ke_hoach_xep_xe_success(array(
+    'items' => $items,
+    'total' => $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+  ));
+}
+
+function _ke_hoach_tuyen_xa_rest_create() {
+  if (!user_access('ke_hoach_xep_xe_create')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền tạo kế hoạch tuyến xa');
+  }
+  $input = _ke_hoach_xep_xe_input();
+  $validation = _ke_hoach_tuyen_xa_validate_input($input);
+  if ($validation) {
+    return $validation;
+  }
+  $built = _ke_hoach_tuyen_xa_build_parent_record($input);
+  $record = $built['parent'];
+  $transaction = db_transaction();
+  try {
+    $nid = db_insert('ke_hoach_xep_xe')
+      ->fields(array(
+        'ngay' => $record['ngay'],
+        'nid_khach_hang' => $record['nid_khach_hang'],
+        'nid_lai_xe' => $record['nid_lai_xe'],
+        'so_bkg' => $record['so_bkg'],
+        'dia_chi_kho' => $record['dia_chi_kho'],
+        'loai_cont' => $record['loai_cont'],
+        'so_cont' => $record['so_cont'],
+        'nid_phuong_tien' => $record['nid_phuong_tien'],
+        'nid_mooc' => $record['nid_mooc'],
+        'so_seal_chinh' => $record['so_seal_chinh'],
+        'so_seal_tam' => $record['so_seal_tam'],
+        'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
+        'bai_lay_cont' => $record['bai_lay_cont'],
+        'bai_ha_cont' => $record['bai_ha_cont'],
+        'cang_xuat' => $record['cang_xuat'],
+        'cut_off' => $record['cut_off'],
+        'hinh_thuc_van_tai' => '',
+        'ke_hoach_cont_ref_nid' => 0,
+        'da_cat_mooc' => 0,
+        'da_du_hang' => 0,
+        'ha_bai_ngoai' => 0,
+        'ha_cang' => 0,
+        'thong_tin_json' => $record['thong_tin_json'],
+        'loai_ke_hoach' => 'tuyen_xa',
+        'loai_hinh_tuyen_xa' => $built['loai_hinh_tuyen_xa'],
+        'diem_di' => $built['diem_di'],
+        'cua_khau' => $built['cua_khau'],
+        'diem_den' => $built['diem_den'],
+        'ngay_bat_dau' => $built['ngay_bat_dau'],
+        'ngay_ket_thuc_du_kien' => $built['ngay_ket_thuc_du_kien'],
+        'created' => _ke_hoach_xep_xe_now(),
+        'changed' => _ke_hoach_xep_xe_now(),
+        'hoat_dong' => 1,
+      ))
+      ->execute();
+
+    $chang_key_map = _ke_hoach_tuyen_xa_save_changs($nid, $input['changs']);
+    _ke_hoach_tuyen_xa_save_chi_phi($nid, !empty($input['chi_phi']) && is_array($input['chi_phi']) ? $input['chi_phi'] : array(), $chang_key_map);
+    _ke_hoach_tuyen_xa_save_dau($nid, !empty($input['dau']) && is_array($input['dau']) ? $input['dau'] : array(), $chang_key_map);
+
+    $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $nid))->fetch();
+    watchdog('ke_hoach_tuyen_xa', 'Tạo kế hoạch tuyến xa #%id', array('%id' => $nid));
+    return _ke_hoach_xep_xe_success(_ke_hoach_tuyen_xa_enrich_row($row));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('ke_hoach_tuyen_xa', 'Lỗi tạo kế hoạch tuyến xa: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ke_hoach_xep_xe_error('Lỗi hệ thống khi tạo kế hoạch tuyến xa');
+  }
+}
+
+function _ke_hoach_tuyen_xa_rest_get($id) {
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':id' => $id, ':loai' => 'tuyen_xa'))->fetch();
+  if (!$row) {
+    return _ke_hoach_xep_xe_not_found('Kế hoạch tuyến xa không tồn tại');
+  }
+  return _ke_hoach_xep_xe_success(_ke_hoach_tuyen_xa_enrich_row($row));
+}
+
+function _ke_hoach_tuyen_xa_rest_update($id) {
+  if (!user_access('ke_hoach_xep_xe_create')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch tuyến xa');
+  }
+  $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':id' => $id, ':loai' => 'tuyen_xa'))->fetchField();
+  if (!$existing) {
+    return _ke_hoach_xep_xe_not_found('Kế hoạch tuyến xa không tồn tại');
+  }
+  $input = _ke_hoach_xep_xe_input();
+  $validation = _ke_hoach_tuyen_xa_validate_input($input, TRUE);
+  if ($validation) {
+    return $validation;
+  }
+  $built = _ke_hoach_tuyen_xa_build_parent_record($input);
+  $record = $built['parent'];
+  $transaction = db_transaction();
+  try {
+    db_update('ke_hoach_xep_xe')
+      ->fields(array(
+        'ngay' => $record['ngay'],
+        'nid_khach_hang' => $record['nid_khach_hang'],
+        'nid_lai_xe' => $record['nid_lai_xe'],
+        'so_bkg' => $record['so_bkg'],
+        'dia_chi_kho' => $record['dia_chi_kho'],
+        'loai_cont' => $record['loai_cont'],
+        'so_cont' => $record['so_cont'],
+        'nid_phuong_tien' => $record['nid_phuong_tien'],
+        'nid_mooc' => $record['nid_mooc'],
+        'thong_tin_json' => $record['thong_tin_json'],
+        'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
+        'loai_hinh_tuyen_xa' => $built['loai_hinh_tuyen_xa'],
+        'diem_di' => $built['diem_di'],
+        'cua_khau' => $built['cua_khau'],
+        'diem_den' => $built['diem_den'],
+        'ngay_bat_dau' => $built['ngay_bat_dau'],
+        'ngay_ket_thuc_du_kien' => $built['ngay_ket_thuc_du_kien'],
+        'changed' => _ke_hoach_xep_xe_now(),
+      ))
+      ->condition('nid', $id)
+      ->execute();
+
+    $chang_key_map = _ke_hoach_tuyen_xa_save_changs($id, $input['changs']);
+    _ke_hoach_tuyen_xa_save_chi_phi($id, !empty($input['chi_phi']) && is_array($input['chi_phi']) ? $input['chi_phi'] : array(), $chang_key_map);
+    _ke_hoach_tuyen_xa_save_dau($id, !empty($input['dau']) && is_array($input['dau']) ? $input['dau'] : array(), $chang_key_map);
+
+    $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+    return _ke_hoach_xep_xe_success(_ke_hoach_tuyen_xa_enrich_row($row));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('ke_hoach_tuyen_xa', 'Lỗi cập nhật kế hoạch tuyến xa #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ke_hoach_xep_xe_error('Lỗi hệ thống khi cập nhật kế hoạch tuyến xa');
+  }
+}
+
+function _ke_hoach_tuyen_xa_rest_delete($id) {
+  if (!user_access('ke_hoach_xep_xe_delete')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá kế hoạch tuyến xa');
+  }
+  $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':id' => $id, ':loai' => 'tuyen_xa'))->fetchField();
+  if (!$existing) {
+    return _ke_hoach_xep_xe_not_found('Kế hoạch tuyến xa không tồn tại');
+  }
+  db_update('ke_hoach_xep_xe')
+    ->fields(array('hoat_dong' => 0, 'changed' => _ke_hoach_xep_xe_now()))
+    ->condition('nid', $id)
+    ->execute();
+  db_update('ke_hoach_tuyen_xa_chang')->fields(array('hoat_dong' => 0, 'changed' => _ke_hoach_xep_xe_now()))->condition('ke_hoach_id', $id)->execute();
+  db_update('ke_hoach_tuyen_xa_chi_phi')->fields(array('hoat_dong' => 0, 'changed' => _ke_hoach_xep_xe_now()))->condition('ke_hoach_id', $id)->execute();
+  db_update('ke_hoach_tuyen_xa_dau')->fields(array('hoat_dong' => 0, 'changed' => _ke_hoach_xep_xe_now()))->condition('ke_hoach_id', $id)->execute();
+  return _ke_hoach_xep_xe_success(array('nid' => $id, 'deleted' => TRUE));
+}
+
+function ke_hoach_tuyen_xa_page_list() {
+  drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
+  drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_tuyen_xa.css');
+  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_tuyen_xa.js', array('group' => JS_THEME, 'weight' => 3));
+  drupal_add_js(array('ke_hoach_tuyen_xa' => array(
+    'permissions' => array(
+      'view' => user_access('ke_hoach_xep_xe_view'),
+      'create' => user_access('ke_hoach_xep_xe_create'),
+      'delete' => user_access('ke_hoach_xep_xe_delete'),
+    ),
+    'loai_hinh_options' => _ke_hoach_tuyen_xa_loai_hinh_options(),
+    'loai_chang_options' => _ke_hoach_tuyen_xa_loai_chang_options(),
+    'loai_chi_phi_options' => _ke_hoach_tuyen_xa_loai_chi_phi_options(),
+    'loai_dau_options' => _ke_hoach_tuyen_xa_loai_dau_options(),
+  )), 'setting');
+  return theme('ke_hoach_tuyen_xa_list_page');
 }
