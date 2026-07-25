@@ -6,16 +6,23 @@
   var currentPage = 1;
   var currentKeyword = '';
   var modal;
+  var vehicleModal;
   var supportLoaded = false;
   var supportLoading = false;
   var supportCallbacks = [];
   var changKeySeq = 0;
+  var activeChangKey = '';
+  var activePickerType = 'vehicle';
   var state = {
     mode: 'create',
     customers: [],
     checkpoints: [],
+    expenseNames: [],
     drivers: [],
     vehicles: [],
+    vehicleMap: {},
+    moocs: [],
+    moocMap: {},
     changs: [],
     chiPhi: [],
     dau: []
@@ -59,21 +66,134 @@
     return num ? new Intl.NumberFormat('vi-VN').format(num) : '';
   }
 
+  function numericText(val) {
+    return String(val || '').replace(/[^\d]/g, '');
+  }
+
+  function decimalText(val) {
+    var raw = String(val || '').replace(/[^\d.,]/g, '').replace(/,/g, '.');
+    var parts = raw.split('.');
+    if (parts.length <= 1) return raw;
+    return parts[0] + '.' + parts.slice(1).join('').replace(/\./g, '').slice(0, 2);
+  }
+
+  function loaiChangLabel(val) {
+    if (val === 'khoan') return 'Khoán';
+    if (val === 'chuyen') return 'Chuyến';
+    return val || '';
+  }
+
+  function loaiChangOptions() {
+    var opts = settings.loai_chang_options || [];
+    if (!opts.length) {
+      opts = ['khoan', 'chuyen'];
+    }
+    return opts;
+  }
+
   function _jq() {
     return (typeof $ === 'function' && $.fn && $.fn.select2) ? $ : null;
   }
 
-  function initSelect2(el, placeholder, dropdownParent) {
+  function initSelect2(el, placeholder, dropdownParent, extraOptions) {
     var jq = _jq();
     if (!jq || !el) return;
     var $el = jq(el);
     if ($el.data('select2')) $el.select2('destroy');
-    $el.select2({
+    $el.css({
+      width: '100%',
+      minWidth: '0',
+      maxWidth: '100%'
+    });
+    var options = $.extend({}, {
       placeholder: placeholder || '— Chọn —',
       allowClear: true,
-      width: '100%',
+      width: 'style',
+      dropdownAutoWidth: false,
       dropdownParent: dropdownParent || jq('#ke-hoach-tuyen-xa-modal')
+    }, extraOptions || {});
+    $el.select2(options);
+    forceSelect2Width($el);
+    $el.off('.forceWidth').on('change.forceWidth select2:select.forceWidth select2:clear.forceWidth', function () {
+      forceSelect2Width($el);
+      setTimeout(function () {
+        forceSelect2Width($el);
+      }, 0);
     });
+  }
+
+  function forceSelect2Width($el) {
+    var $container = $el.next('.select2-container');
+    if (!$container.length) {
+      return;
+    }
+    $container.css({
+      width: '100%',
+      minWidth: '0',
+      maxWidth: '100%',
+      display: 'block'
+    });
+    $container.find('.selection, .select2-selection').css({
+      width: '100%',
+      minWidth: '0',
+      maxWidth: '100%'
+    });
+    $container.find('.select2-selection__rendered').css({
+      display: 'block',
+      width: '100%',
+      maxWidth: '100%',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    });
+  }
+
+  function initTaggableSelect2(el, placeholder, dropdownParent) {
+    initSelect2(el, placeholder, dropdownParent, {
+      tags: true,
+      maximumInputLength: 120,
+      createTag: function (params) {
+        var term = $.trim(params.term || '');
+        if (!term) return null;
+        return {
+          id: term,
+          text: term,
+          newTag: true
+        };
+      }
+    });
+  }
+
+  function termOptions(items, selected, placeholder) {
+    var html = '<option value="">' + escHtml(placeholder || '— Chọn —') + '</option>';
+    var seen = {};
+    var current = (selected || '').trim();
+    for (var i = 0; i < items.length; i++) {
+      var text = $.trim(String(items[i] || ''));
+      if (!text || seen[text]) continue;
+      seen[text] = true;
+      html += '<option value="' + escHtml(text) + '"' + (text === current ? ' selected' : '') + '>' + escHtml(text) + '</option>';
+    }
+    if (current && !seen[current]) {
+      html += '<option value="' + escHtml(current) + '" selected>' + escHtml(current) + '</option>';
+    }
+    return html;
+  }
+
+  function keyedOptions(items, selected, placeholder, allowCurrentOutsideList) {
+    var html = '<option value="">' + escHtml(placeholder || '— Chọn —') + '</option>';
+    var seen = {};
+    var current = $.trim(String(selected || ''));
+    $.each(items || {}, function (key, label) {
+      var value = $.trim(String(key || ''));
+      if (!value || seen[value]) return;
+      seen[value] = true;
+      html += '<option value="' + escHtml(value) + '"' + (value === current ? ' selected' : '') + '>' + escHtml(label || value) + '</option>';
+    });
+    if (allowCurrentOutsideList && current && !seen[current]) {
+      html += '<option value="' + escHtml(current) + '" selected>' + escHtml(current) + '</option>';
+    }
+    return html;
   }
 
   function initDateInputs(scope) {
@@ -156,6 +276,34 @@
       e.preventDefault();
       deleteItem($(this).data('id'));
     });
+    $(document).on('click', '.btn-open-chang-vehicle-modal', function () {
+      openPickerModal($(this).closest('tr').attr('data-chang-key'), 'vehicle');
+    });
+    $(document).on('click', '.btn-open-chang-mooc-modal', function () {
+      openPickerModal($(this).closest('tr').attr('data-chang-key'), 'mooc');
+    });
+    $(document).on('click', '.btn-pick-vehicle', function () {
+      selectVehicleForChang($(this).data('id'));
+    });
+    $(document).on('change', 'input[name="vehicle-picker-radio"]', function () {
+      selectVehicleForChang($(this).val());
+    });
+    $('#vehicle-picker-search').on('input', function () {
+      renderVehicleTable(this.value);
+    });
+    $('#vehicle-picker-clear-btn').on('click', function () {
+      clearVehicleForChang();
+    });
+    $('#vehicle-picker-modal').on('show.bs.modal', function () {
+      $('#vehicle-picker-modal').css('z-index', '200000');
+      setTimeout(function () {
+        $('.modal-backdrop').last().css('z-index', '199999');
+      }, 0);
+    });
+    $('#vehicle-picker-modal').on('hidden.bs.modal', function () {
+      $('#vehicle-picker-modal').css('z-index', '');
+      $('.modal-backdrop').last().css('z-index', '');
+    });
 
     $(document).on('mouseover', function (e) {
       var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
@@ -201,6 +349,15 @@
       syncStateFromDom();
       state.dau.push(blankDau());
       renderDau();
+    });
+
+    $(document).on('input', '.chi-phi-so-tien, .dau-so-tien', function () {
+      var digits = numericText(this.value);
+      this.value = digits ? moneyText(digits) : '';
+    });
+
+    $(document).on('input', '.dau-so-lit', function () {
+      this.value = decimalText(this.value);
     });
 
     $('#ke-hoach-tuyen-xa-chang-body').on('click', '.btn-remove-chang', function () {
@@ -281,7 +438,7 @@
 
   function loadList() {
     var tbody = $('#table-ke-hoach-tuyen-xa-tbody');
-    tbody.html('<tr id="loading-row"><td colspan="10" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></td></tr>');
+    tbody.html('<tr id="loading-row"><td colspan="9" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></td></tr>');
     $.ajax({
       url: '/api/ke-hoach-tuyen-xa',
       type: 'GET',
@@ -289,13 +446,13 @@
       data: { page: currentPage, keyword: currentKeyword },
       success: function (res) {
         if (res.status !== 'success' || !res.data) {
-          tbody.html('<tr><td colspan="10" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi tải dữ liệu') + '</td></tr>');
+          tbody.html('<tr><td colspan="9" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi tải dữ liệu') + '</td></tr>');
           return;
         }
         var resp = res.data;
         var items = resp.items || [];
         if (!items.length) {
-          tbody.html('<tr><td colspan="10" class="text-center py-4">Không có dữ liệu</td></tr>');
+          tbody.html('<tr><td colspan="9" class="text-center py-4">Không có dữ liệu</td></tr>');
           renderPagination(resp);
           return;
         }
@@ -310,9 +467,8 @@
             '<td class="ke-hoach-tuyen-xa-route">' +
               '<div>' + escHtml(item.diem_di || '') + (item.cua_khau ? '<span class="route-arrow">→</span>' + escHtml(item.cua_khau) : '') + (item.diem_den ? '<span class="route-arrow">→</span>' + escHtml(item.diem_den) : '') + '</div>' +
             '</td>' +
-            '<td><span class="ke-hoach-tuyen-xa-chip">' + escHtml((settings.loai_hinh_options || {})[item.loai_hinh_tuyen_xa] || item.loai_hinh_tuyen_xa || '') + '</span></td>' +
             '<td>' + escHtml(apiToDate(item.ngay_bat_dau || '')) + '</td>' +
-            '<td>' + escHtml(apiToDate(item.ngay_ket_thuc_du_kien || '')) + '</td>' +
+            '<td>' + escHtml(apiToDate(item.ngay_ket_thuc || '')) + '</td>' +
             '<td>' + (item.chang_count || 0) + '</td>' +
             '<td>' + escHtml(item.trang_thai_van_chuyen || '') + '</td>' +
           '</tr>';
@@ -321,7 +477,7 @@
         renderPagination(resp);
       },
       error: function (jqXHR) {
-        tbody.html('<tr><td colspan="10" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>');
+        tbody.html('<tr><td colspan="9" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -371,7 +527,7 @@
     supportCallbacks.push(callback);
     if (supportLoading) return;
     supportLoading = true;
-    var pending = 4;
+    var pending = 5;
     function done() {
       pending--;
       if (pending > 0) return;
@@ -387,11 +543,31 @@
     $.getJSON('/api/danh-muc', { limit: 500, phan_loai: 'Cửa khẩu' }, function (res) {
       if (res.status === 'success' && res.data) state.checkpoints = res.data.items || [];
     }).always(done);
+    $.getJSON('/api/danh-muc', { limit: 500, phan_loai: 'Chi phí' }, function (res) {
+      if (res.status === 'success' && res.data) {
+        state.expenseNames = $.map(res.data.items || [], function (item) {
+          return item && item.ten ? item.ten : '';
+        });
+      }
+    }).always(done);
     $.getJSON('/api/lai-xe', { limit: 500 }, function (res) {
       if (res.status === 'success' && res.data) state.drivers = res.data.items || [];
     }).always(done);
     $.getJSON('/api/phuong-tien', { limit: 500 }, function (res) {
-      if (res.status === 'success' && res.data) state.vehicles = res.data.items || [];
+      if (res.status === 'success' && res.data) {
+        state.vehicles = res.data.items || [];
+        state.vehicleMap = {};
+        state.moocs = [];
+        state.moocMap = {};
+        for (var i = 0; i < state.vehicles.length; i++) {
+          var item = state.vehicles[i];
+          state.vehicleMap[String(item.nid)] = item;
+          if (String(item.loai_phuong_tien || '').toLowerCase().indexOf('mooc') !== -1) {
+            state.moocs.push(item);
+            state.moocMap[String(item.nid)] = item;
+          }
+        }
+      }
     }).always(done);
   }
 
@@ -502,9 +678,38 @@
     var html = '<option value="">— Chọn —</option>';
     for (var i = 0; i < state.drivers.length; i++) {
       var item = state.drivers[i];
-      html += '<option value="' + item.nid + '"' + (String(selected || '') === String(item.nid) ? ' selected' : '') + '>' + escHtml(item.ten || ('#' + item.nid)) + '</option>';
+      var label = item.ten || ('#' + item.nid);
+      if (item.ma_nhan_vien) label += ' - ' + item.ma_nhan_vien;
+      html += '<option value="' + item.nid + '"' + (String(selected || '') === String(item.nid) ? ' selected' : '') + '>' + escHtml(label) + '</option>';
     }
     return html;
+  }
+
+  function findVehicleById(id) {
+    id = parseInt(id, 10) || 0;
+    if (!id) return null;
+    return state.vehicleMap[String(id)] || null;
+  }
+
+  function findMoocById(id) {
+    id = parseInt(id, 10) || 0;
+    if (!id) return null;
+    return state.moocMap[String(id)] || findVehicleById(id);
+  }
+
+  function vehicleSummaryText(item) {
+    if (!item) return '';
+    var text = item.bks || '';
+    if (item.ma_tai_san) text += ' - ' + item.ma_tai_san;
+    return text;
+  }
+
+  function vehicleSummaryHtml(item, placeholder) {
+    var text = vehicleSummaryText(item);
+    if (!text) {
+      return '<span class="vehicle-inline-placeholder">' + escHtml(placeholder || 'Chọn phương tiện') + '</span>';
+    }
+    return '<span class="vehicle-inline-text">' + escHtml(text) + '</span>';
   }
 
   function changRefOptions(selected) {
@@ -524,14 +729,16 @@
 
   function renderChangs() {
     var html = '';
-    var changOptions = settings.loai_chang_options || [];
+    var changOptions = loaiChangOptions();
     for (var i = 0; i < state.changs.length; i++) {
       var item = state.changs[i];
       var loaiHtml = '<option value="">Chọn loại</option>';
       for (var j = 0; j < changOptions.length; j++) {
         var key = changOptions[j];
-        loaiHtml += '<option value="' + key + '"' + (item.loai_chang === key ? ' selected' : '') + '>' + escHtml(key) + '</option>';
+        loaiHtml += '<option value="' + key + '"' + (item.loai_chang === key ? ' selected' : '') + '>' + escHtml(loaiChangLabel(key)) + '</option>';
       }
+      var vehicle = item.phuong_tien || findVehicleById(item.nid_phuong_tien);
+      var mooc = item.mooc || findMoocById(item.nid_mooc);
       html += '<tr data-index="' + i + '" data-chang-key="' + escHtml(item.chang_key || '') + '">' +
         '<td>' + (i + 1) + '</td>' +
         '<td><select class="form-select chang-loai">' + loaiHtml + '</select></td>' +
@@ -539,8 +746,8 @@
         '<td><input type="text" class="form-control chang-diem-den" value="' + escHtml(item.diem_den || '') + '" placeholder="Điểm đến"></td>' +
         '<td><input type="text" class="form-control input-date-only chang-ngay-di" value="' + escHtml(apiToDate(item.ngay_di || '')) + '" placeholder="dd/mm/yyyy"></td>' +
         '<td><input type="text" class="form-control input-date-only chang-ngay-den" value="' + escHtml(apiToDate(item.ngay_den || '')) + '" placeholder="dd/mm/yyyy"></td>' +
-        '<td><select class="form-select chang-phuong-tien">' + vehicleOptions('dau_keo', item.nid_phuong_tien) + '</select></td>' +
-        '<td><select class="form-select chang-mooc">' + vehicleOptions('mooc', item.nid_mooc) + '</select></td>' +
+        '<td><input type="hidden" class="chang-phuong-tien-id" value="' + escHtml(item.nid_phuong_tien || '') + '"><button type="button" class="btn btn-outline-secondary w-100 text-start line-vehicle-display btn-open-chang-vehicle-modal' + (item.nid_phuong_tien ? ' is-selected' : '') + '">' + vehicleSummaryHtml(vehicle, 'Chọn đầu kéo') + '</button></td>' +
+        '<td><input type="hidden" class="chang-mooc-id" value="' + escHtml(item.nid_mooc || '') + '"><button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-chang-mooc-modal' + (item.nid_mooc ? ' is-selected' : '') + '">' + vehicleSummaryHtml(mooc, 'Chọn mooc') + '</button></td>' +
         '<td><select class="form-select chang-lai-xe">' + driverOptions(item.nid_lai_xe) + '</select></td>' +
         '<td class="text-center"><button type="button" class="btn btn-sm btn-label-danger btn-remove-chang"><i class="ti tabler-trash"></i></button></td>' +
       '</tr>';
@@ -555,16 +762,14 @@
     var opts = settings.loai_chi_phi_options || {};
     for (var i = 0; i < state.chiPhi.length; i++) {
       var item = state.chiPhi[i];
-      var loaiHtml = '<option value="">Chọn loại</option>';
-      $.each(opts, function (key, label) {
-        loaiHtml += '<option value="' + key + '"' + (item.loai_chi_phi === key ? ' selected' : '') + '>' + escHtml(label) + '</option>';
-      });
+      var loaiHtml = keyedOptions(opts, item.loai_chi_phi || '', 'Chọn loại', false);
+      var tenHtml = termOptions(state.expenseNames || [], item.ten_chi_phi || '', 'Chọn hoặc nhập tên chi phí');
       html += '<tr data-index="' + i + '">' +
-        '<td><select class="form-select chi-phi-loai">' + loaiHtml + '</select></td>' +
-        '<td><input type="text" class="form-control chi-phi-ten" value="' + escHtml(item.ten_chi_phi || '') + '" placeholder="Tên chi phí"></td>' +
-        '<td><input type="text" class="form-control chi-phi-so-tien" value="' + escHtml(moneyText(item.so_tien || '')) + '" placeholder="Số tiền"></td>' +
-        '<td><input type="text" class="form-control input-date-only chi-phi-ngay" value="' + escHtml(apiToDate(item.ngay || '')) + '" placeholder="dd/mm/yyyy"></td>' +
-        '<td><select class="form-select chi-phi-chang-key">' + changRefOptions(item.chang_key) + '</select></td>' +
+        '<td style="width:180px;min-width:180px;max-width:180px;"><select class="form-select chi-phi-loai">' + loaiHtml + '</select></td>' +
+        '<td style="width:260px;min-width:260px;max-width:260px;"><select class="form-select chi-phi-ten">' + tenHtml + '</select></td>' +
+        '<td style="width:140px;min-width:140px;max-width:140px;"><input type="text" inputmode="numeric" class="form-control chi-phi-so-tien" value="' + escHtml(moneyText(item.so_tien || '')) + '" placeholder="Số tiền"></td>' +
+        '<td style="width:130px;min-width:130px;max-width:130px;"><input type="text" class="form-control input-date-only chi-phi-ngay" value="' + escHtml(apiToDate(item.ngay || '')) + '" placeholder="dd/mm/yyyy"></td>' +
+        '<td style="width:120px;min-width:120px;max-width:120px;"><select class="form-select chi-phi-chang-key">' + changRefOptions(item.chang_key) + '</select></td>' +
         '<td class="text-center"><button type="button" class="btn btn-sm btn-label-danger btn-remove-chi-phi"><i class="ti tabler-trash"></i></button></td>' +
       '</tr>';
     }
@@ -578,16 +783,13 @@
     var opts = settings.loai_dau_options || {};
     for (var i = 0; i < state.dau.length; i++) {
       var item = state.dau[i];
-      var loaiHtml = '<option value="">Chọn loại</option>';
-      $.each(opts, function (key, label) {
-        loaiHtml += '<option value="' + key + '"' + (item.loai_dau === key ? ' selected' : '') + '>' + escHtml(label) + '</option>';
-      });
+      var loaiHtml = keyedOptions(opts, item.loai_dau || '', 'Chọn loại dầu', true);
       html += '<tr data-index="' + i + '">' +
-        '<td><select class="form-select dau-loai">' + loaiHtml + '</select></td>' +
-        '<td><input type="text" class="form-control input-date-only dau-ngay" value="' + escHtml(apiToDate(item.ngay || '')) + '" placeholder="dd/mm/yyyy"></td>' +
-        '<td><input type="text" class="form-control dau-so-lit" value="' + escHtml(item.so_lit || '') + '" placeholder="Số lít"></td>' +
-        '<td><input type="text" class="form-control dau-so-tien" value="' + escHtml(moneyText(item.so_tien || '')) + '" placeholder="Số tiền"></td>' +
-        '<td><select class="form-select dau-chang-key">' + changRefOptions(item.chang_key) + '</select></td>' +
+        '<td style="width:220px;min-width:220px;max-width:220px;"><select class="form-select dau-loai">' + loaiHtml + '</select></td>' +
+        '<td style="width:130px;min-width:130px;max-width:130px;"><input type="text" class="form-control input-date-only dau-ngay" value="' + escHtml(apiToDate(item.ngay || '')) + '" placeholder="dd/mm/yyyy"></td>' +
+        '<td style="width:120px;min-width:120px;max-width:120px;"><input type="text" inputmode="decimal" class="form-control dau-so-lit" value="' + escHtml(item.so_lit || '') + '" placeholder="Số lít"></td>' +
+        '<td style="width:140px;min-width:140px;max-width:140px;"><input type="text" inputmode="numeric" class="form-control dau-so-tien" value="' + escHtml(moneyText(item.so_tien || '')) + '" placeholder="Số tiền"></td>' +
+        '<td style="width:120px;min-width:120px;max-width:120px;"><select class="form-select dau-chang-key">' + changRefOptions(item.chang_key) + '</select></td>' +
         '<td class="text-center"><button type="button" class="btn btn-sm btn-label-danger btn-remove-dau"><i class="ti tabler-trash"></i></button></td>' +
       '</tr>';
     }
@@ -598,6 +800,13 @@
 
   function initSelectsInTable(scope) {
     $(scope).find('select').each(function () {
+      if ($(this).hasClass('chang-loai')) {
+        return;
+      }
+      if ($(this).hasClass('chi-phi-ten') || $(this).hasClass('dau-loai')) {
+        initTaggableSelect2(this, '— Chọn hoặc nhập mới —');
+        return;
+      }
       initSelect2(this, '— Chọn —');
     });
   }
@@ -614,7 +823,7 @@
     form.find('[name="cua_khau"]').val(data.cua_khau || '').trigger('change');
     form.find('[name="diem_den"]').val(data.diem_den || '');
     form.find('[name="ngay_bat_dau"]').val(apiToDate(data.ngay_bat_dau || ''));
-    form.find('[name="ngay_ket_thuc_du_kien"]').val(apiToDate(data.ngay_ket_thuc_du_kien || ''));
+    form.find('[name="ngay_ket_thuc"]').val(apiToDate(data.ngay_ket_thuc || ''));
     form.find('[name="ghi_chu"]').val(data.ghi_chu || '');
     state.changs = data.changs && data.changs.length ? $.map(data.changs, function (item) {
       return {
@@ -626,7 +835,9 @@
         ngay_den: item.ngay_den || '',
         nid_phuong_tien: item.nid_phuong_tien || '',
         nid_mooc: item.nid_mooc || '',
-        nid_lai_xe: item.nid_lai_xe || ''
+        nid_lai_xe: item.nid_lai_xe || '',
+        phuong_tien: item.phuong_tien || null,
+        mooc: item.mooc || null
       };
     }) : [blankChang()];
     state.chiPhi = data.chi_phi && data.chi_phi.length ? $.map(data.chi_phi, function (item) {
@@ -661,9 +872,11 @@
         diem_den: $tr.find('.chang-diem-den').val().trim(),
         ngay_di: dateToApi($tr.find('.chang-ngay-di').val()),
         ngay_den: dateToApi($tr.find('.chang-ngay-den').val()),
-        nid_phuong_tien: $tr.find('.chang-phuong-tien').val() || '',
-        nid_mooc: $tr.find('.chang-mooc').val() || '',
-        nid_lai_xe: $tr.find('.chang-lai-xe').val() || ''
+        nid_phuong_tien: $tr.find('.chang-phuong-tien-id').val() || '',
+        nid_mooc: $tr.find('.chang-mooc-id').val() || '',
+        nid_lai_xe: $tr.find('.chang-lai-xe').val() || '',
+        phuong_tien: findVehicleById($tr.find('.chang-phuong-tien-id').val()),
+        mooc: findMoocById($tr.find('.chang-mooc-id').val())
       });
     });
     state.chiPhi = [];
@@ -671,7 +884,7 @@
       var $tr = $(this);
       state.chiPhi.push({
         loai_chi_phi: $tr.find('.chi-phi-loai').val() || '',
-        ten_chi_phi: $tr.find('.chi-phi-ten').val().trim(),
+        ten_chi_phi: $.trim(String($tr.find('.chi-phi-ten').val() || '')),
         so_tien: parseMoney($tr.find('.chi-phi-so-tien').val()),
         ngay: dateToApi($tr.find('.chi-phi-ngay').val()),
         chang_key: $tr.find('.chi-phi-chang-key').val() || ''
@@ -683,7 +896,7 @@
       state.dau.push({
         loai_dau: $tr.find('.dau-loai').val() || '',
         ngay: dateToApi($tr.find('.dau-ngay').val()),
-        so_lit: ($tr.find('.dau-so-lit').val() || '').trim(),
+        so_lit: decimalText($tr.find('.dau-so-lit').val()),
         so_tien: parseMoney($tr.find('.dau-so-tien').val()),
         chang_key: $tr.find('.dau-chang-key').val() || ''
       });
@@ -735,7 +948,7 @@
       cua_khau: form.find('[name="cua_khau"]').val() || '',
       diem_den: form.find('[name="diem_den"]').val().trim(),
       ngay_bat_dau: dateToApi(form.find('[name="ngay_bat_dau"]').val()),
-      ngay_ket_thuc_du_kien: dateToApi(form.find('[name="ngay_ket_thuc_du_kien"]').val()),
+      ngay_ket_thuc: dateToApi(form.find('[name="ngay_ket_thuc"]').val()),
       ghi_chu: form.find('[name="ghi_chu"]').val().trim(),
       changs: state.changs,
       chi_phi: state.chiPhi,
@@ -758,7 +971,9 @@
       success: function (res) {
         if (res.status === 'success') {
           if (notyf) notyf.success(id ? 'Cập nhật thành công' : 'Tạo kế hoạch tuyến xa thành công');
-          getModal().hide();
+          if (!id) {
+            getModal().hide();
+          }
           loadList();
         } else if (notyf) {
           notyf.error(res.message || 'Lưu thất bại');
@@ -800,5 +1015,103 @@
     $('#ke-hoach-tuyen-xa-chang-body').empty();
     $('#ke-hoach-tuyen-xa-chi-phi-body').empty();
     $('#ke-hoach-tuyen-xa-dau-body').empty();
+  }
+
+  function openPickerModal(changKey, type) {
+    activeChangKey = changKey || '';
+    activePickerType = type === 'mooc' ? 'mooc' : 'vehicle';
+    var index = $('#ke-hoach-tuyen-xa-chang-body tr[data-chang-key="' + changKey + '"]').index() + 1;
+    if (activePickerType === 'mooc') {
+      $('#vehicle-picker-target').text('Đang chọn mooc cho chặng #' + index);
+      $('#vehicle-picker-modal .modal-title').text('Chọn mooc');
+      $('#vehicle-picker-modal .text-muted.small').first().text('Chọn mooc phù hợp cho chặng đang thao tác.');
+      $('#vehicle-picker-col-extra').text('Mã tài sản');
+    } else {
+      $('#vehicle-picker-target').text('Đang chọn đầu kéo cho chặng #' + index);
+      $('#vehicle-picker-modal .modal-title').text('Chọn phương tiện');
+      $('#vehicle-picker-modal .text-muted.small').first().text('Chọn đầu kéo phù hợp cho chặng đang thao tác.');
+      $('#vehicle-picker-col-extra').text('Lái xe hiện tại');
+    }
+    $('#vehicle-picker-col-bks').text('Biển số');
+    $('#vehicle-picker-col-type').text('Loại xe');
+    $('#vehicle-picker-search').val('');
+    renderVehicleTable('');
+    if (!vehicleModal) vehicleModal = new bootstrap.Modal(document.getElementById('vehicle-picker-modal'));
+    vehicleModal.show();
+  }
+
+  function renderVehicleTable(keyword) {
+    keyword = String(keyword || '').toLowerCase();
+    var line = null;
+    for (var i = 0; i < state.changs.length; i++) {
+      if (String(state.changs[i].chang_key) === String(activeChangKey)) {
+        line = state.changs[i];
+        break;
+      }
+    }
+    var sourceItems = activePickerType === 'mooc' ? state.moocs : state.vehicles;
+    var html = '';
+    for (var j = 0; j < sourceItems.length; j++) {
+      var item = sourceItems[j];
+      if (activePickerType === 'vehicle' && String(item.loai_phuong_tien || '').toLowerCase() !== 'dau_keo') continue;
+      if (activePickerType === 'mooc' && String(item.loai_phuong_tien || '').toLowerCase().indexOf('mooc') === -1) continue;
+      var driverText = item.lai_xe && item.lai_xe.ten ? item.lai_xe.ten + (item.lai_xe.ma_nhan_vien ? ' - ' + item.lai_xe.ma_nhan_vien : '') : 'Chưa gán lái xe';
+      var extraText = activePickerType === 'mooc' ? (item.ma_tai_san || 'Chưa có mã tài sản') : driverText;
+      var haystack = [item.bks, item.ma_tai_san, item.loai_phuong_tien, driverText].join(' ').toLowerCase();
+      if (keyword && haystack.indexOf(keyword) === -1) continue;
+      var checked = line && (activePickerType === 'mooc'
+        ? parseInt(line.nid_mooc, 10) === parseInt(item.nid, 10)
+        : parseInt(line.nid_phuong_tien, 10) === parseInt(item.nid, 10));
+      html += '<tr>' +
+        '<td class="text-center"><input type="radio" name="vehicle-picker-radio" value="' + item.nid + '"' + (checked ? ' checked' : '') + '></td>' +
+        '<td><strong>' + escHtml(item.bks || ('#' + item.nid)) + '</strong><div class="text-muted small">' + escHtml(item.ma_tai_san || '') + '</div></td>' +
+        '<td><span class="badge bg-label-warning">' + escHtml(item.loai_phuong_tien || 'Chưa phân loại') + '</span></td>' +
+        '<td><div>' + escHtml(extraText) + '</div><div class="vehicle-picker-driver">' + escHtml(activePickerType === 'mooc' ? '' : (item.lai_xe && item.lai_xe.sdt ? item.lai_xe.sdt : '')) + '</div></td>' +
+        '<td class="text-center"><button type="button" class="btn btn-sm btn-primary btn-pick-vehicle" data-id="' + item.nid + '">Chọn</button></td>' +
+      '</tr>';
+    }
+    if (!html) {
+      html = '<tr><td colspan="5" class="text-center text-muted py-4">Không tìm thấy ' + (activePickerType === 'mooc' ? 'mooc' : 'đầu kéo') + ' phù hợp</td></tr>';
+    }
+    $('#vehicle-picker-body').html(html);
+  }
+
+  function selectVehicleForChang(vehicleId) {
+    vehicleId = parseInt(vehicleId, 10) || 0;
+    if (!vehicleId) return;
+    var $tr = $('#ke-hoach-tuyen-xa-chang-body tr[data-chang-key="' + activeChangKey + '"]');
+    if (!$tr.length) return;
+    if (activePickerType === 'mooc') {
+      var mooc = findMoocById(vehicleId);
+      $tr.find('.chang-mooc-id').val(mooc ? mooc.nid : '');
+      $tr.find('.line-mooc-display')
+        .toggleClass('is-selected', !!mooc)
+        .html(vehicleSummaryHtml(mooc, 'Chọn mooc'));
+    } else {
+      var vehicle = findVehicleById(vehicleId);
+      var driverId = vehicle && vehicle.lai_xe && vehicle.lai_xe.nid ? vehicle.lai_xe.nid : '';
+      $tr.find('.chang-phuong-tien-id').val(vehicle ? vehicle.nid : '');
+      $tr.find('.line-vehicle-display')
+        .toggleClass('is-selected', !!vehicle)
+        .html(vehicleSummaryHtml(vehicle, 'Chọn đầu kéo'));
+      $tr.find('.chang-lai-xe').val(driverId).trigger('change');
+    }
+    syncStateFromDom();
+    if (vehicleModal) vehicleModal.hide();
+  }
+
+  function clearVehicleForChang() {
+    var $tr = $('#ke-hoach-tuyen-xa-chang-body tr[data-chang-key="' + activeChangKey + '"]');
+    if (!$tr.length) return;
+    if (activePickerType === 'mooc') {
+      $tr.find('.chang-mooc-id').val('');
+      $tr.find('.line-mooc-display').removeClass('is-selected').html(vehicleSummaryHtml(null, 'Chọn mooc'));
+    } else {
+      $tr.find('.chang-phuong-tien-id').val('');
+      $tr.find('.line-vehicle-display').removeClass('is-selected').html(vehicleSummaryHtml(null, 'Chọn đầu kéo'));
+      $tr.find('.chang-lai-xe').val('').trigger('change');
+    }
+    syncStateFromDom();
+    if (vehicleModal) vehicleModal.hide();
   }
 })(jQuery, Drupal);

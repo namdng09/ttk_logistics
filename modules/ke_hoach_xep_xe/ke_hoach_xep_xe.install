@@ -9,11 +9,6 @@ function ke_hoach_xep_xe_schema() {
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
-      'ngay' => array(
-        'type' => 'varchar',
-        'length' => 10,
-        'not null' => FALSE,
-      ),
       'nid_khach_hang' => array(
         'type' => 'int',
         'unsigned' => TRUE,
@@ -139,11 +134,6 @@ function ke_hoach_xep_xe_schema() {
         'not null' => TRUE,
         'default' => 'thuong',
       ),
-      'loai_hinh_tuyen_xa' => array(
-        'type' => 'varchar',
-        'length' => 100,
-        'not null' => FALSE,
-      ),
       'diem_di' => array(
         'type' => 'varchar',
         'length' => 500,
@@ -164,7 +154,7 @@ function ke_hoach_xep_xe_schema() {
         'length' => 10,
         'not null' => FALSE,
       ),
-      'ngay_ket_thuc_du_kien' => array(
+      'ngay_ket_thuc' => array(
         'type' => 'varchar',
         'length' => 10,
         'not null' => FALSE,
@@ -191,7 +181,6 @@ function ke_hoach_xep_xe_schema() {
       'hoat_dong' => array('hoat_dong'),
       'loai_ke_hoach' => array('loai_ke_hoach'),
       'so_bkg' => array('so_bkg'),
-      'ngay' => array('ngay'),
       'trang_thai_van_chuyen' => array('trang_thai_van_chuyen'),
     ),
   );
@@ -351,12 +340,11 @@ function ke_hoach_xep_xe_update_7007() {
 function ke_hoach_xep_xe_update_7008() {
   $fields = array(
     'loai_ke_hoach' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'thuong'),
-    'loai_hinh_tuyen_xa' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
     'diem_di' => array('type' => 'varchar', 'length' => 500, 'not null' => FALSE),
     'cua_khau' => array('type' => 'varchar', 'length' => 500, 'not null' => FALSE),
     'diem_den' => array('type' => 'varchar', 'length' => 500, 'not null' => FALSE),
     'ngay_bat_dau' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
-    'ngay_ket_thuc_du_kien' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+    'ngay_ket_thuc' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
   );
   foreach ($fields as $name => $definition) {
     if (!db_field_exists('ke_hoach_xep_xe', $name)) {
@@ -388,7 +376,7 @@ function ke_hoach_xep_xe_update_7009() {
 
 function ke_hoach_xep_xe_update_7010() {
   $date_fields = array(
-    'ke_hoach_xep_xe' => array('ngay_bat_dau', 'ngay_ket_thuc_du_kien', 'cut_off'),
+    'ke_hoach_xep_xe' => array('ngay_bat_dau', 'ngay_ket_thuc', 'cut_off'),
     'ke_hoach_tuyen_xa_chang' => array('ngay_di', 'ngay_den'),
     'ke_hoach_tuyen_xa_chi_phi' => array('ngay'),
     'ke_hoach_tuyen_xa_dau' => array('ngay'),
@@ -408,8 +396,8 @@ function ke_hoach_xep_xe_update_7010() {
   if (db_field_exists('ke_hoach_xep_xe', 'ngay_bat_dau')) {
     db_change_field('ke_hoach_xep_xe', 'ngay_bat_dau', 'ngay_bat_dau', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
   }
-  if (db_field_exists('ke_hoach_xep_xe', 'ngay_ket_thuc_du_kien')) {
-    db_change_field('ke_hoach_xep_xe', 'ngay_ket_thuc_du_kien', 'ngay_ket_thuc_du_kien', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  if (db_field_exists('ke_hoach_xep_xe', 'ngay_ket_thuc')) {
+    db_change_field('ke_hoach_xep_xe', 'ngay_ket_thuc', 'ngay_ket_thuc', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
   }
   if (db_field_exists('ke_hoach_xep_xe', 'cut_off')) {
     db_change_field('ke_hoach_xep_xe', 'cut_off', 'cut_off', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
@@ -428,4 +416,42 @@ function ke_hoach_xep_xe_update_7010() {
   }
 
   return 'Đã chuẩn hoá toàn bộ ngày của kế hoạch tuyến xa về định dạng date-only.';
+}
+
+function ke_hoach_xep_xe_update_7011() {
+  if (db_field_exists('ke_hoach_xep_xe', 'loai_hinh_tuyen_xa')) {
+    db_drop_field('ke_hoach_xep_xe', 'loai_hinh_tuyen_xa');
+  }
+
+  return 'Đã xoá field loai_hinh_tuyen_xa khỏi ke_hoach_xep_xe.';
+}
+
+function ke_hoach_xep_xe_update_7012() {
+  if (db_field_exists('ke_hoach_xep_xe', 'ngay_ket_thuc_du_kien') && !db_field_exists('ke_hoach_xep_xe', 'ngay_ket_thuc')) {
+    db_change_field('ke_hoach_xep_xe', 'ngay_ket_thuc_du_kien', 'ngay_ket_thuc', array(
+      'type' => 'varchar',
+      'length' => 10,
+      'not null' => FALSE,
+    ));
+  }
+  elseif (db_field_exists('ke_hoach_xep_xe', 'ngay_ket_thuc')) {
+    db_change_field('ke_hoach_xep_xe', 'ngay_ket_thuc', 'ngay_ket_thuc', array(
+      'type' => 'varchar',
+      'length' => 10,
+      'not null' => FALSE,
+    ));
+  }
+
+  return 'Đã đổi tên field ngay_ket_thuc_du_kien thành ngay_ket_thuc.';
+}
+
+function ke_hoach_xep_xe_update_7013() {
+  if (db_index_exists('ke_hoach_xep_xe', 'ngay')) {
+    db_drop_index('ke_hoach_xep_xe', 'ngay');
+  }
+  if (db_field_exists('ke_hoach_xep_xe', 'ngay')) {
+    db_drop_field('ke_hoach_xep_xe', 'ngay');
+  }
+
+  return 'Đã xoá field ngay khỏi ke_hoach_xep_xe.';
 }

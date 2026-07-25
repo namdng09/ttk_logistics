@@ -34,7 +34,6 @@
             <th>Khách hàng</th>
             <th>BKG / Cont</th>
             <th>Tuyến</th>
-            <th>Loại</th>
             <th>Ngày đi</th>
             <th>Ngày dự kiến xong</th>
             <th>Số chặng</th>
@@ -43,7 +42,7 @@
         </thead>
         <tbody id="table-ke-hoach-tuyen-xa-tbody">
           <tr id="loading-row">
-            <td colspan="10" class="text-center py-4">
+            <td colspan="9" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -63,6 +62,56 @@
           <span class="text-muted small">Trang</span>
           <input type="text" class="form-control form-control-sm" id="pagination-ke-hoach-tuyen-xa-jump" style="width:60px;text-align:center;" inputmode="numeric">
           <span class="text-muted small" id="pagination-ke-hoach-tuyen-xa-total-pages"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="vehicle-picker-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0">Chọn phương tiện</h5>
+          <div class="text-muted small">Chọn đầu kéo cho chặng đang thao tác.</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 align-items-center mb-3">
+          <div class="col-md-6">
+            <input type="text" class="form-control" id="vehicle-picker-search" placeholder="Tìm theo BKS, mã tài sản, lái xe...">
+          </div>
+          <div class="col-md-6 text-md-end">
+            <div class="d-inline-flex align-items-center gap-2 justify-content-md-end flex-wrap">
+              <div class="text-muted small" id="vehicle-picker-target">Đang chọn cho chặng #1</div>
+              <button type="button" class="btn btn-sm btn-label-secondary" id="vehicle-picker-clear-btn">
+                <i class="ti tabler-x me-1"></i>Bỏ chọn
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width:60px" class="text-center">Chọn</th>
+                <th id="vehicle-picker-col-bks">Biển số</th>
+                <th id="vehicle-picker-col-type">Loại xe</th>
+                <th id="vehicle-picker-col-extra">Lái xe hiện tại</th>
+                <th style="width:130px" class="text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="vehicle-picker-body">
+              <tr>
+                <td colspan="5" class="text-center py-4">
+                  <div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải phương tiện...
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -126,8 +175,8 @@
               <input type="text" class="form-control input-date-only" name="ngay_bat_dau" placeholder="dd/mm/yyyy">
             </div>
             <div class="col-md-4">
-              <label class="form-label">Ngày kết thúc dự kiến</label>
-              <input type="text" class="form-control input-date-only" name="ngay_ket_thuc_du_kien" placeholder="dd/mm/yyyy">
+              <label class="form-label">Ngày kết thúc</label>
+              <input type="text" class="form-control input-date-only" name="ngay_ket_thuc" placeholder="dd/mm/yyyy">
             </div>
           </div>
 
@@ -167,7 +216,15 @@
               </button>
             </div>
             <div class="table-responsive">
-              <table class="table table-bordered align-middle mb-0">
+              <table class="table table-bordered align-middle mb-0 ke-hoach-tuyen-xa-chi-phi-table">
+                <colgroup>
+                  <col style="width: 180px;">
+                  <col style="width: 260px;">
+                  <col style="width: 140px;">
+                  <col style="width: 130px;">
+                  <col style="width: 120px;">
+                  <col style="width: 70px;">
+                </colgroup>
                 <thead class="table-light">
                   <tr>
                     <th>Loại chi phí</th>
@@ -191,7 +248,15 @@
               </button>
             </div>
             <div class="table-responsive">
-              <table class="table table-bordered align-middle mb-0">
+              <table class="table table-bordered align-middle mb-0 ke-hoach-tuyen-xa-dau-table">
+                <colgroup>
+                  <col style="width: 220px;">
+                  <col style="width: 130px;">
+                  <col style="width: 120px;">
+                  <col style="width: 140px;">
+                  <col style="width: 120px;">
+                  <col style="width: 70px;">
+                </colgroup>
                 <thead class="table-light">
                   <tr>
                     <th>Loại dầu</th>

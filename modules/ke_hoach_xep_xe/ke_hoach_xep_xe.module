@@ -244,7 +244,6 @@ function _ke_hoach_xep_xe_json_encode(array $data) {
 
 function _ke_hoach_xep_xe_build_record($common, $line) {
   $record = _ke_hoach_xep_xe_default_record();
-  $record['ngay'] = !empty($common['ngay']) ? trim($common['ngay']) : '';
   $record['nid_khach_hang'] = !empty($common['nid_khach_hang']) ? (int) $common['nid_khach_hang'] : 0;
   $record['so_bkg'] = !empty($line['so_bkg']) ? trim($line['so_bkg']) : '';
   $record['nid_lai_xe'] = !empty($line['nid_lai_xe']) ? (int) $line['nid_lai_xe'] : 0;
@@ -507,7 +506,6 @@ function _ke_hoach_xep_xe_rest_create() {
       _ke_hoach_xep_xe_apply_cont_logic($record);
       $nid = db_insert('ke_hoach_xep_xe')
         ->fields(array(
-          'ngay' => $record['ngay'],
           'nid_khach_hang' => $record['nid_khach_hang'],
           'nid_lai_xe' => $record['nid_lai_xe'],
           'so_bkg' => $record['so_bkg'],
@@ -609,7 +607,6 @@ function _ke_hoach_xep_xe_rest_update($id) {
   try {
     db_update('ke_hoach_xep_xe')
       ->fields(array(
-        'ngay' => $record['ngay'],
         'nid_khach_hang' => $record['nid_khach_hang'],
         'nid_lai_xe' => $record['nid_lai_xe'],
         'so_bkg' => $record['so_bkg'],
@@ -862,15 +859,6 @@ function ke_hoach_xep_xe_page_detail($id) {
   return theme('ke_hoach_xep_xe_detail_page', array('mode' => 'detail', 'data' => $data));
 }
 
-function _ke_hoach_tuyen_xa_loai_hinh_options() {
-  return array(
-    'di_ha_noi' => 'Đi Hà Nội',
-    'xuyen_bien_gioi' => 'Xuyên biên giới',
-    'bac_nam' => 'Bắc Nam',
-    'khac' => 'Khác',
-  );
-}
-
 function _ke_hoach_tuyen_xa_loai_chang_options() {
   return array('khoan', 'chuyen');
 }
@@ -901,14 +889,6 @@ function _ke_hoach_tuyen_xa_loai_dau_options() {
 function _ke_hoach_tuyen_xa_json_text($value, $key = 'ghi_chu') {
   $json = _ke_hoach_xep_xe_json_decode($value);
   return !empty($json[$key]) ? $json[$key] : '';
-}
-
-function _ke_hoach_tuyen_xa_parent_ngay($value) {
-  $value = trim((string) $value);
-  if ($value === '') {
-    return '';
-  }
-  return substr($value, 0, 10);
 }
 
 function _ke_hoach_tuyen_xa_normalize_date($value) {
@@ -971,19 +951,16 @@ function _ke_hoach_tuyen_xa_build_parent_record($input) {
   $record['nid_phuong_tien'] = !empty($first_chang['nid_phuong_tien']) ? (int) $first_chang['nid_phuong_tien'] : 0;
   $record['nid_mooc'] = !empty($first_chang['nid_mooc']) ? (int) $first_chang['nid_mooc'] : 0;
   $record['nid_lai_xe'] = !empty($first_chang['nid_lai_xe']) ? (int) $first_chang['nid_lai_xe'] : 0;
-  $record['ngay'] = !empty($input['ngay_bat_dau']) ? _ke_hoach_tuyen_xa_parent_ngay($input['ngay_bat_dau']) : '';
-  $record['cut_off'] = !empty($input['ngay_ket_thuc_du_kien']) ? _ke_hoach_tuyen_xa_normalize_date($input['ngay_ket_thuc_du_kien']) : '';
   $record['thong_tin_json'] = !empty($json) ? _ke_hoach_xep_xe_json_encode($json) : '';
 
   return array(
     'parent' => $record,
     'loai_ke_hoach' => 'tuyen_xa',
-    'loai_hinh_tuyen_xa' => trim((string) $input['loai_hinh_tuyen_xa']),
     'diem_di' => trim((string) $input['diem_di']),
     'cua_khau' => !empty($input['cua_khau']) ? trim((string) $input['cua_khau']) : '',
     'diem_den' => trim((string) $input['diem_den']),
     'ngay_bat_dau' => !empty($input['ngay_bat_dau']) ? _ke_hoach_tuyen_xa_normalize_date($input['ngay_bat_dau']) : '',
-    'ngay_ket_thuc_du_kien' => !empty($input['ngay_ket_thuc_du_kien']) ? _ke_hoach_tuyen_xa_normalize_date($input['ngay_ket_thuc_du_kien']) : '',
+    'ngay_ket_thuc' => !empty($input['ngay_ket_thuc']) ? _ke_hoach_tuyen_xa_normalize_date($input['ngay_ket_thuc']) : '',
   );
 }
 
@@ -1196,10 +1173,6 @@ function _ke_hoach_tuyen_xa_rest_list() {
       ->condition('kh.cua_khau', $like, 'LIKE')
       ->condition('kh.diem_den', $like, 'LIKE'));
   }
-  if (!empty($_GET['loai_hinh_tuyen_xa'])) {
-    $query->condition('kh.loai_hinh_tuyen_xa', $_GET['loai_hinh_tuyen_xa']);
-  }
-
   $count = clone $query;
   $total = (int) $count->countQuery()->execute()->fetchField();
   $total_pages = $total > 0 ? (int) ceil($total / $limit) : 0;
@@ -1237,7 +1210,6 @@ function _ke_hoach_tuyen_xa_rest_create() {
   try {
     $nid = db_insert('ke_hoach_xep_xe')
       ->fields(array(
-        'ngay' => $record['ngay'],
         'nid_khach_hang' => $record['nid_khach_hang'],
         'nid_lai_xe' => $record['nid_lai_xe'],
         'so_bkg' => $record['so_bkg'],
@@ -1252,7 +1224,6 @@ function _ke_hoach_tuyen_xa_rest_create() {
         'bai_lay_cont' => $record['bai_lay_cont'],
         'bai_ha_cont' => $record['bai_ha_cont'],
         'cang_xuat' => $record['cang_xuat'],
-        'cut_off' => $record['cut_off'],
         'hinh_thuc_van_tai' => '',
         'ke_hoach_cont_ref_nid' => 0,
         'da_cat_mooc' => 0,
@@ -1261,12 +1232,11 @@ function _ke_hoach_tuyen_xa_rest_create() {
         'ha_cang' => 0,
         'thong_tin_json' => $record['thong_tin_json'],
         'loai_ke_hoach' => 'tuyen_xa',
-        'loai_hinh_tuyen_xa' => $built['loai_hinh_tuyen_xa'],
         'diem_di' => $built['diem_di'],
         'cua_khau' => $built['cua_khau'],
         'diem_den' => $built['diem_den'],
         'ngay_bat_dau' => $built['ngay_bat_dau'],
-        'ngay_ket_thuc_du_kien' => $built['ngay_ket_thuc_du_kien'],
+        'ngay_ket_thuc' => $built['ngay_ket_thuc'],
         'created' => _ke_hoach_xep_xe_now(),
         'changed' => _ke_hoach_xep_xe_now(),
         'hoat_dong' => 1,
@@ -1315,7 +1285,6 @@ function _ke_hoach_tuyen_xa_rest_update($id) {
   try {
     db_update('ke_hoach_xep_xe')
       ->fields(array(
-        'ngay' => $record['ngay'],
         'nid_khach_hang' => $record['nid_khach_hang'],
         'nid_lai_xe' => $record['nid_lai_xe'],
         'so_bkg' => $record['so_bkg'],
@@ -1326,12 +1295,11 @@ function _ke_hoach_tuyen_xa_rest_update($id) {
         'nid_mooc' => $record['nid_mooc'],
         'thong_tin_json' => $record['thong_tin_json'],
         'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
-        'loai_hinh_tuyen_xa' => $built['loai_hinh_tuyen_xa'],
         'diem_di' => $built['diem_di'],
         'cua_khau' => $built['cua_khau'],
         'diem_den' => $built['diem_den'],
         'ngay_bat_dau' => $built['ngay_bat_dau'],
-        'ngay_ket_thuc_du_kien' => $built['ngay_ket_thuc_du_kien'],
+        'ngay_ket_thuc' => $built['ngay_ket_thuc'],
         'changed' => _ke_hoach_xep_xe_now(),
       ))
       ->condition('nid', $id)
@@ -1379,7 +1347,6 @@ function ke_hoach_tuyen_xa_page_list() {
       'create' => user_access('ke_hoach_xep_xe_create'),
       'delete' => user_access('ke_hoach_xep_xe_delete'),
     ),
-    'loai_hinh_options' => _ke_hoach_tuyen_xa_loai_hinh_options(),
     'loai_chang_options' => _ke_hoach_tuyen_xa_loai_chang_options(),
     'loai_chi_phi_options' => _ke_hoach_tuyen_xa_loai_chi_phi_options(),
     'loai_dau_options' => _ke_hoach_tuyen_xa_loai_dau_options(),
