@@ -17,6 +17,18 @@ function edusoul_preprocess_page(&$variables)
 function getMainMenuSoft()
 {
     global $user;
+    $current_path = current_path();
+    $active_ke_hoach_tuyen_xa = strpos($current_path, 'ke-hoach-tuyen-xa') === 0;
+    $active_ke_hoach_xep_xe = strpos($current_path, 'ke-hoach-xep-xe') === 0 || $current_path === 'tao-ke-hoach-xep-xe';
+
+    if (preg_match('#^ke-hoach-xep-xe/([0-9]+)#', $current_path, $matches) && db_table_exists('ke_hoach_xep_xe')) {
+        $loai_ke_hoach = db_query("SELECT loai_ke_hoach FROM {ke_hoach_xep_xe} WHERE nid = :nid", array(':nid' => (int) $matches[1]))->fetchField();
+        if ($loai_ke_hoach === 'tuyen_xa') {
+            $active_ke_hoach_tuyen_xa = TRUE;
+            $active_ke_hoach_xep_xe = FALSE;
+        }
+    }
+
     return '<aside id="layout-menu" class="layout-menu menu-vertical menu">
                 <div class="app-brand demo">
                     <a href="/" class="app-brand-link">
@@ -76,13 +88,13 @@ function getMainMenuSoft()
                             <div data-i18n="Tạo kế hoạch">Tạo kế hoạch</div>
                         </a>
                     </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'ke-hoach-xep-xe') === 0 || current_path() === 'tao-ke-hoach-xep-xe') ? ' active' : '') . '">
+                    <li class="menu-item' . ($active_ke_hoach_xep_xe ? ' active' : '') . '">
                         <a href="/ke-hoach-xep-xe" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-calendar-stats"></i>
                             <div data-i18n="Kế hoạch xếp xe">Kế hoạch xếp xe</div>
                         </a>
                     </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'ke-hoach-tuyen-xa') === 0) ? ' active' : '') . '">
+                    <li class="menu-item' . ($active_ke_hoach_tuyen_xa ? ' active' : '') . '">
                         <a href="/ke-hoach-tuyen-xa" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-route-2"></i>
                             <div data-i18n="Kế hoạch tuyến xa">Kế hoạch tuyến xa</div>

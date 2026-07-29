@@ -1,6 +1,12 @@
+<?php
+$is_tuyen_xa = isset($plan_type) && $plan_type === 'tuyen_xa';
+$list_title = $is_tuyen_xa ? 'Kế hoạch tuyến xa' : 'Danh sách kế hoạch xếp xe';
+$create_title = $is_tuyen_xa ? 'Tạo kế hoạch tuyến xa' : 'Tạo kế hoạch xếp xe';
+$create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo kế hoạch';
+?>
 <div class="card" id="ke-hoach-list-app">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <h4 class="card-title">Danh sách kế hoạch xếp xe</h4>
+    <h4 class="card-title"><?php print check_plain($list_title); ?></h4>
   </div>
 
   <div class="card-body">
@@ -16,7 +22,7 @@
       </div>
       <div class="col-12 col-md-8">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
-          <button type="button" class="btn btn-primary waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i>Tạo kế hoạch</button>
+          <button type="button" class="btn btn-primary waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?></button>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload waves-effect">
             <i class="ti tabler-refresh"></i>
           </button>
@@ -118,7 +124,7 @@
     <div class="modal-dialog modal-fullscreen" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Tạo kế hoạch xếp xe</h5>
+          <h5 class="modal-title"><?php print check_plain($create_title); ?></h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
 

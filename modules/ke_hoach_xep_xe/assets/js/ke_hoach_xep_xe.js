@@ -15,6 +15,22 @@
   var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
   var formDropdownCacheMemory = null;
 
+  function currentPlanType() {
+    return settings.plan_type === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
+  }
+
+  function currentListPath() {
+    return currentPlanType() === 'tuyen_xa' ? '/ke-hoach-tuyen-xa' : '/ke-hoach-xep-xe';
+  }
+
+  function listSnapshotKey() {
+    return LIST_SNAPSHOT_CACHE_KEY + '_' + currentPlanType();
+  }
+
+  function listForceReloadKey() {
+    return LIST_FORCE_RELOAD_KEY + '_' + currentPlanType();
+  }
+
   var HINH_THUC_MAP = {
     cat_keo: 'Cắt kéo',
     cat_keo_cheo: 'Cắt kéo chéo',
@@ -167,7 +183,7 @@
 
   function isKeHoachRoute(path) {
     path = path || window.location.pathname || '';
-    return path.indexOf('/ke-hoach-xep-xe') === 0 || path.indexOf('/tao-ke-hoach-xep-xe') === 0;
+    return path.indexOf('/ke-hoach-xep-xe') === 0 || path.indexOf('/ke-hoach-tuyen-xa') === 0 || path.indexOf('/tao-ke-hoach-xep-xe') === 0;
   }
 
   function clearFormDropdownCache() {
@@ -222,7 +238,7 @@
 
   function getListSnapshot() {
     try {
-      var raw = sessionStorage.getItem(LIST_SNAPSHOT_CACHE_KEY);
+      var raw = sessionStorage.getItem(listSnapshotKey());
       return raw ? JSON.parse(raw) : null;
     } catch (e) {
       return null;
@@ -231,28 +247,28 @@
 
   function setListSnapshot(data) {
     try {
-      sessionStorage.setItem(LIST_SNAPSHOT_CACHE_KEY, JSON.stringify(data));
+      sessionStorage.setItem(listSnapshotKey(), JSON.stringify(data));
     } catch (e) {}
   }
 
   function clearListSnapshot() {
-    try { sessionStorage.removeItem(LIST_SNAPSHOT_CACHE_KEY); } catch (e) {}
+    try { sessionStorage.removeItem(listSnapshotKey()); } catch (e) {}
   }
 
   function shouldForceReloadList() {
     try {
-      return sessionStorage.getItem(LIST_FORCE_RELOAD_KEY) === '1';
+      return sessionStorage.getItem(listForceReloadKey()) === '1';
     } catch (e) {
       return false;
     }
   }
 
   function markForceReloadList() {
-    try { sessionStorage.setItem(LIST_FORCE_RELOAD_KEY, '1'); } catch (e) {}
+    try { sessionStorage.setItem(listForceReloadKey(), '1'); } catch (e) {}
   }
 
   function clearForceReloadList() {
-    try { sessionStorage.removeItem(LIST_FORCE_RELOAD_KEY); } catch (e) {}
+    try { sessionStorage.removeItem(listForceReloadKey()); } catch (e) {}
   }
 
   maybeResetFormDropdownCache();
@@ -299,7 +315,7 @@
       e.preventDefault();
       var modalEl = document.getElementById('ke-hoach-fullscreen-modal');
       if (!modalEl) {
-        window.location.href = '/ke-hoach-xep-xe?open_create=1';
+        window.location.href = currentListPath() + '?open_create=1';
         return;
       }
       var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
@@ -440,7 +456,7 @@
       try {
         var refUrl = new URL(document.referrer, window.location.origin);
         if (refUrl.origin !== window.location.origin) return false;
-        return isKeHoachRoute(refUrl.pathname) && refUrl.pathname !== '/ke-hoach-xep-xe';
+        return isKeHoachRoute(refUrl.pathname) && refUrl.pathname !== currentListPath();
       } catch (e) {
         return false;
       }
@@ -617,7 +633,7 @@
   function loadList() {
     var tbody = document.getElementById('list-body');
     tbody.innerHTML = '<tr id="loading-row"><td colspan="12" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
-    var params = { page: currentPage };
+    var params = { page: currentPage, loai_ke_hoach: currentPlanType() };
     if (currentKeyword) params.keyword = currentKeyword;
     if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
     $.ajax({
@@ -757,6 +773,10 @@
   function initForm() {
     if (initForm._bound) return;
     initForm._bound = true;
+    if (currentPlanType() === 'tuyen_xa') {
+      $('#form-title').text('Xếp xe tuyến xa');
+      $('#ke-hoach-form-app .card-header a[href="/ke-hoach-xep-xe"]').attr('href', '/ke-hoach-tuyen-xa');
+    }
 
     var state = {
       customers: [],
@@ -1457,7 +1477,7 @@
       }
       $wrap.show();
       var currentNid = parseInt($('#nid-input').val(), 10) || 0;
-      var cacheKey = [hinhThuc, line.dia_chi_kho || '', currentNid].join('||');
+      var cacheKey = [currentPlanType(), hinhThuc, line.dia_chi_kho || '', currentNid].join('||');
       if (state.contCandidateCache[cacheKey]) {
         clearContPickerLoading($card);
         $card.data('contCandidates', state.contCandidateCache[cacheKey]);
@@ -1472,7 +1492,8 @@
         return;
       }
       var requestData = {
-        da_cat_mooc: 1
+        da_cat_mooc: 1,
+        loai_ke_hoach: currentPlanType()
       };
       if (currentNid) {
         requestData.exclude_nid = currentNid;
@@ -1744,6 +1765,7 @@
       syncAllLines();
       return {
         nid_khach_hang: parseInt($('#nid_khach_hang-input').val(), 10) || 0,
+        loai_ke_hoach: currentPlanType(),
         items: $.map(state.lines, function (line) {
           return {
             so_bkg: line.so_bkg || '',

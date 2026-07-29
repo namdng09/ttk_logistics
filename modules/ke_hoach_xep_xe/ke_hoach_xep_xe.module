@@ -125,6 +125,7 @@ function ke_hoach_xep_xe_theme() {
     'ke_hoach_xep_xe_list_page' => array(
       'template' => 'ke-hoach-xep-xe-list',
       'path' => $path,
+      'variables' => array('plan_type' => 'thuong'),
     ),
     'ke_hoach_xep_xe_edit_page' => array(
       'template' => 'ke-hoach-xep-xe-edit',
@@ -425,11 +426,20 @@ function _ke_hoach_xep_xe_statuses() {
   );
 }
 
-function _ke_hoach_xep_xe_query_condition_thuong($query, $alias = 'kh') {
+function _ke_hoach_xep_xe_query_condition_loai($query, $loai_ke_hoach = 'thuong', $alias = 'kh') {
+  $loai_ke_hoach = $loai_ke_hoach === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
+  if ($loai_ke_hoach === 'tuyen_xa') {
+    $query->condition($alias . '.loai_ke_hoach', 'tuyen_xa');
+    return;
+  }
   $or = db_or();
   $or->condition($alias . '.loai_ke_hoach', 'thuong');
   $or->isNull($alias . '.loai_ke_hoach');
   $query->condition($or);
+}
+
+function _ke_hoach_xep_xe_query_condition_thuong($query, $alias = 'kh') {
+  _ke_hoach_xep_xe_query_condition_loai($query, 'thuong', $alias);
 }
 
 function ke_hoach_xep_xe_rest_collection() {
@@ -447,11 +457,12 @@ function _ke_hoach_xep_xe_rest_list() {
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
   $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
   $offset = ($page - 1) * $limit;
+  $loai_ke_hoach = !empty($_GET['loai_ke_hoach']) && $_GET['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
 
   $query = db_select('ke_hoach_xep_xe', 'kh');
   $query->fields('kh');
   $query->condition('kh.hoat_dong', 1);
-  _ke_hoach_xep_xe_query_condition_thuong($query, 'kh');
+  _ke_hoach_xep_xe_query_condition_loai($query, $loai_ke_hoach, 'kh');
 
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
@@ -511,6 +522,7 @@ function _ke_hoach_xep_xe_rest_create() {
   try {
     foreach ($input['items'] as $index => $line) {
       $record = _ke_hoach_xep_xe_build_record($input, $line);
+      $loai_ke_hoach = !empty($input['loai_ke_hoach']) && $input['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
       _ke_hoach_xep_xe_apply_cont_logic($record);
       $nid = db_insert('ke_hoach_xep_xe')
         ->fields(array(
@@ -537,6 +549,7 @@ function _ke_hoach_xep_xe_rest_create() {
           'ha_bai_ngoai' => $record['ha_bai_ngoai'],
           'ha_cang' => $record['ha_cang'],
           'thong_tin_json' => $record['thong_tin_json'],
+          'loai_ke_hoach' => $loai_ke_hoach,
           'created' => _ke_hoach_xep_xe_now(),
           'changed' => _ke_hoach_xep_xe_now(),
           'hoat_dong' => 1,
@@ -580,7 +593,7 @@ function ke_hoach_xep_xe_rest_item($id) {
 }
 
 function _ke_hoach_xep_xe_rest_get($id) {
-  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND (loai_ke_hoach = :loai OR loai_ke_hoach IS NULL)", array(':id' => $id, ':loai' => 'thuong'))->fetch();
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$row) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -592,7 +605,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch');
   }
 
-  $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND (loai_ke_hoach = :loai OR loai_ke_hoach IS NULL)", array(':id' => $id, ':loai' => 'thuong'))->fetchField();
+  $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -667,7 +680,7 @@ function _ke_hoach_xep_xe_rest_delete($id) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá kế hoạch');
   }
 
-  $existing = db_query("SELECT nid, so_bkg FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND (loai_ke_hoach = :loai OR loai_ke_hoach IS NULL)", array(':id' => $id, ':loai' => 'thuong'))->fetch();
+  $existing = db_query("SELECT nid, so_bkg FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -716,8 +729,9 @@ function ke_hoach_cont_rest_item($id) {
 }
 
 function _ke_hoach_cont_rest_list() {
+  $loai_ke_hoach = !empty($_GET['loai_ke_hoach']) && $_GET['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
   $query = db_select('ke_hoach_xep_xe', 'kh')->fields('kh')->condition('kh.hoat_dong', 1)->orderBy('kh.nid', 'DESC');
-  _ke_hoach_xep_xe_query_condition_thuong($query, 'kh');
+  _ke_hoach_xep_xe_query_condition_loai($query, $loai_ke_hoach, 'kh');
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
     $query->condition(db_or()->condition('kh.so_bkg', $like, 'LIKE')->condition('kh.so_cont', $like, 'LIKE')->condition('kh.dia_chi_kho', $like, 'LIKE'));
@@ -795,6 +809,10 @@ function ke_hoach_xep_xe_page_list() {
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
 
   drupal_add_js(array('ke_hoach_xep_xe' => array(
+    'plan_type' => 'thuong',
+    'list_title' => 'Danh sách kế hoạch xếp xe',
+    'create_title' => 'Tạo kế hoạch xếp xe',
+    'create_button_text' => 'Tạo kế hoạch',
     'statuses' => _ke_hoach_xep_xe_statuses(),
     'permissions' => array(
       'view' => user_access('ke_hoach_xep_xe_view'),
@@ -803,7 +821,7 @@ function ke_hoach_xep_xe_page_list() {
     ),
   )), 'setting');
 
-  return theme('ke_hoach_xep_xe_list_page');
+  return theme('ke_hoach_xep_xe_list_page', array('plan_type' => 'thuong'));
 }
 
 function ke_hoach_cont_page_list($mode = 'overall') {
@@ -830,7 +848,7 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
   if (!$id) {
     return MENU_NOT_FOUND;
   }
-  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND (loai_ke_hoach = :loai OR loai_ke_hoach IS NULL)", array(':id' => $id, ':loai' => 'thuong'))->fetch();
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$row) {
     return MENU_NOT_FOUND;
   }
@@ -839,6 +857,7 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
 
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'mode' => $mode,
+    'plan_type' => !empty($data['loai_ke_hoach']) && $data['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong',
     'data' => $data,
     'statuses' => _ke_hoach_xep_xe_statuses(),
     'permissions' => array(
@@ -860,7 +879,7 @@ function ke_hoach_xep_xe_page_detail($id) {
   if (!$id) {
     return MENU_NOT_FOUND;
   }
-  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND (loai_ke_hoach = :loai OR loai_ke_hoach IS NULL)", array(':id' => $id, ':loai' => 'thuong'))->fetch();
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$row) {
     return MENU_NOT_FOUND;
   }
@@ -1362,17 +1381,18 @@ function _ke_hoach_tuyen_xa_rest_delete($id) {
 
 function ke_hoach_tuyen_xa_page_list() {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
-  drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_tuyen_xa.css');
-  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_tuyen_xa.js', array('group' => JS_THEME, 'weight' => 3));
-  drupal_add_js(array('ke_hoach_tuyen_xa' => array(
+  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
+  drupal_add_js(array('ke_hoach_xep_xe' => array(
+    'plan_type' => 'tuyen_xa',
+    'list_title' => 'Kế hoạch tuyến xa',
+    'create_title' => 'Tạo kế hoạch tuyến xa',
+    'create_button_text' => 'Thêm kế hoạch tuyến xa',
+    'statuses' => _ke_hoach_xep_xe_statuses(),
     'permissions' => array(
       'view' => user_access('ke_hoach_xep_xe_view'),
       'create' => user_access('ke_hoach_xep_xe_create'),
       'delete' => user_access('ke_hoach_xep_xe_delete'),
     ),
-    'loai_chang_options' => _ke_hoach_tuyen_xa_loai_chang_options(),
-    'loai_chi_phi_options' => _ke_hoach_tuyen_xa_loai_chi_phi_options(),
-    'loai_dau_options' => _ke_hoach_tuyen_xa_loai_dau_options(),
   )), 'setting');
-  return theme('ke_hoach_tuyen_xa_list_page');
+  return theme('ke_hoach_xep_xe_list_page', array('plan_type' => 'tuyen_xa'));
 }
