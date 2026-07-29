@@ -12,29 +12,19 @@
 }
 
 .khxh-list-table .khxh-col-actions { width: 60px; }
-.khxh-list-table .khxh-col-stt { width: 50px; }
+.khxh-list-table .khxh-col-stt { width: 36px; }
 .khxh-list-table .khxh-col-date { width: 92px; }
 .khxh-list-table .khxh-col-common { width: 210px; }
 .khxh-list-table .khxh-col-bkg { width: 120px; }
-.khxh-list-table .khxh-col-kho { width: 260px; }
+.khxh-list-table .khxh-col-kho { width: 220px; }
 .khxh-list-table .khxh-col-container { width: 160px; }
 .khxh-list-table .khxh-col-vehicle { width: 180px; }
-.khxh-list-table .khxh-col-route { width: 240px; }
+.khxh-list-table .khxh-col-route { width: 190px; }
 .khxh-list-table .khxh-col-cang { width: 150px; }
 .khxh-list-table .khxh-col-status { width: 110px; }
 
 .khxh-list-table th {
   white-space: nowrap;
-}
-
-.khxh-list-table th:nth-child(1),
-.khxh-list-table td:nth-child(1) {
-  min-width: 60px;
-}
-
-.khxh-list-table th:nth-child(2),
-.khxh-list-table td:nth-child(2) {
-  min-width: 50px;
 }
 
 .khxh-list-table th:nth-child(3),
@@ -46,48 +36,6 @@
   max-width: 92px;
   white-space: nowrap;
   text-align: center;
-}
-
-.khxh-list-table th:nth-child(4),
-.khxh-list-table td:nth-child(4) {
-  min-width: 210px;
-}
-
-.khxh-list-table th:nth-child(5),
-.khxh-list-table td:nth-child(5) {
-  min-width: 120px;
-}
-
-.khxh-list-table th:nth-child(6),
-.khxh-list-table td:nth-child(6) {
-  min-width: 260px;
-}
-
-.khxh-list-table th:nth-child(7),
-.khxh-list-table td:nth-child(7) {
-  min-width: 160px;
-}
-
-.khxh-list-table th:nth-child(8),
-.khxh-list-table td:nth-child(8),
-.khxh-list-table th:nth-child(9),
-.khxh-list-table td:nth-child(9) {
-  min-width: 180px;
-}
-
-.khxh-list-table th:nth-child(9),
-.khxh-list-table td:nth-child(9) {
-  min-width: 240px;
-}
-
-.khxh-list-table th:nth-child(11),
-.khxh-list-table td:nth-child(11) {
-  min-width: 150px;
-}
-
-.khxh-list-table th:nth-child(12),
-.khxh-list-table td:nth-child(12) {
-  min-width: 110px;
 }
 
 .khxh-date-badge {
@@ -105,6 +53,39 @@
 
 .khxh-common-cell {
   line-height: 1.35;
+}
+
+.khxh-common-cell .khxh-customer-cell {
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.45rem;
+}
+
+.khxh-common-cell .khxh-htvt-cell {
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.khxh-container-cell,
+.khxh-vehicle-cell {
+  line-height: 1.55;
+}
+
+.khxh-mini-label {
+  color: #667085;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.khxh-vehicle-bks {
+  font-weight: 800;
+  color: #1f2937;
+}
+
+.khxh-vehicle-mooc,
+.khxh-vehicle-driver {
+  color: #667085;
+  font-size: 0.8rem;
 }
 
 .khxh-kho-cell,

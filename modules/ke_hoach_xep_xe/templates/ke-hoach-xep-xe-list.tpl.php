@@ -44,14 +44,14 @@
         <thead class="table-light">
           <tr>
             <th style="width:60px;text-align:center">CN</th>
-            <th style="width:50px">#</th>
+            <th>#</th>
             <th>Ngày K.H</th>
             <th>T.T Chung</th>
             <th>bkg</th>
             <th>Địa chỉ kho</th>
             <th>Container</th>
             <th>PT / Lái xe</th>
-            <th>Hành trình</th>
+            <th>Bãi lấy<br>Bãi hạ</th>
             <th>Cut off</th>
             <th>Cảng xuất</th>
             <th>T.Thái</th>

@@ -534,25 +534,27 @@
             '<td>' + stt + '</td>' +
             '<td class="khxh-date-cell">' + formatDateBadge(row.created) + '</td>' +
             '<td class="khxh-common-cell">' +
-              '<div class="khxh-htvt-cell mb-1">' +
+              '<div class="khxh-customer-cell">' + (khName ? escHtml(khName) : '<span class="text-muted fst-italic small">khách hàng</span>') + '</div>' +
+              '<div class="khxh-htvt-cell">' +
                 (hinhThucStatus ? '<div class="khxh-htvt-status">' + escHtml(hinhThucStatus) + '</div>' : '') +
                 (hinhThucBadge ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + '</div>' : '') +
               '</div>' +
-              '<div class="khxh-customer-cell">' + escHtml(khName) + '</div>' +
             '</td>' +
             '<td class="khxh-bkg-cell">' + escHtml(row.so_bkg || '') + '</td>' +
             '<td class="khxh-kho-cell">' + escHtml(row.dia_chi_kho || '') + '</td>' +
-            '<td class="khxh-container-cell" style="line-height:1.6">' +
-              (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '<br>' +
-              (row.so_cont ? '<span class="khxh-so-cont-value">' + escHtml(row.so_cont) + '</span>' : '<span class="text-muted fst-italic small">số cont</span>') + '<br>' +
-              (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '<br>' +
-              (row.so_seal_tam ? escHtml(row.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') +
+            '<td class="khxh-container-cell">' +
+              '<div>' + (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '</div>' +
+              '<div>' + (row.so_cont ? '<span class="khxh-so-cont-value">' + escHtml(row.so_cont) + '</span>' : '<span class="text-muted fst-italic small">số cont</span>') + '</div>' +
+              '<div>' + (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '</div>' +
+              '<div>' + (row.so_seal_tam ? escHtml(row.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') + '</div>' +
             '</td>' +
-            '<td class="khxh-vehicle-cell" style="line-height:1.6">' +
-              (ptBks ? escHtml(ptBks) : '<span class="text-muted fst-italic small">BKS đầu kéo</span>') + '<br>' +
-              (moocBks ? '<span class="text-muted small">' + escHtml(moocBks) + '</span>' : '<span class="text-muted fst-italic small">BKS mooc</span>') + '<br>' +
-              (lxName ? escHtml(lxName) : '<span class="text-muted fst-italic small">lái xe</span>') +
-              (row.lai_xe && row.lai_xe.sdt ? ' - ' + escHtml(row.lai_xe.sdt) : '') +
+            '<td class="khxh-vehicle-cell">' +
+              '<div class="khxh-vehicle-bks">' + (ptBks ? escHtml(ptBks) : '<span class="text-muted fst-italic small">BKS đầu kéo</span>') + '</div>' +
+              '<div class="khxh-vehicle-mooc">' + (moocBks ? escHtml(moocBks) : '<span class="text-muted fst-italic small">BKS mooc</span>') + '</div>' +
+              '<div class="khxh-vehicle-driver">' +
+                (lxName ? escHtml(lxName) : '<span class="text-muted fst-italic small">lái xe</span>') +
+                (row.lai_xe && row.lai_xe.sdt ? ' - ' + escHtml(row.lai_xe.sdt) : '') +
+              '</div>' +
             '</td>' +
             '<td class="text-nowrap">' +
               '<div class="khxh-hanh-trinh-cell">' +
@@ -563,7 +565,7 @@
             '</td>' +
             '<td class="khxh-date-cell">' + cutOffBadge(row.cut_off) + '</td>' +
             '<td class="khxh-cang-cell">' + escHtml(row.cang_xuat || '') + '</td>' +
-            '<td class="khxh-status-cell"><span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (daDuHang ? 'Đã đủ hàng' : 'updating..') + '</span></td>' +
+            '<td class="khxh-status-cell"><span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</span></td>' +
             '</tr>';
         }
         tbody.innerHTML = html;
