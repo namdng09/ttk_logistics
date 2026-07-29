@@ -7,11 +7,12 @@
 }
 
 .khxh-list-table {
-  min-width: 1280px;
+  width: 100%;
+  min-width: 100%;
   table-layout: fixed;
 }
 
-.khxh-list-table .khxh-col-actions { width: 45px; }
+.khxh-list-table .khxh-col-actions { width: 35px; }
 .khxh-list-table .khxh-col-stt { width: 33px; }
 .khxh-list-table .khxh-col-date { width: 85px; }
 .khxh-list-table .khxh-col-common { width: 155px; }
@@ -38,6 +39,11 @@
   text-align: center;
 }
 
+#ke-hoach-list-app .khxh-list-table td:first-child {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .khxh-date-badge {
   display: inline-flex;
   padding: 0.35rem 0.55rem;
@@ -46,7 +52,7 @@
 
 .khxh-date-stack {
   display: inline-block;
-  line-height: 1.2;
+  line-height: 1.5;
   text-align: center;
   white-space: nowrap;
 }
@@ -429,8 +435,12 @@ body .flatpickr-calendar {
 
 #ke-hoach-fullscreen-modal .modal-body {
   background: #f8f8fb;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+#ke-hoach-fullscreen-modal #ke-hoach-form {
+  max-width: 100%;
 }
 
 #ke-hoach-fullscreen-modal #ke-hoach-lines .ke-hoach-line-card {
@@ -488,7 +498,6 @@ body .flatpickr-calendar {
 
 .th-split-label {
   display: inline-block;
-  line-height: 1.35;
   white-space: normal;
   min-width: 100%;
 }
