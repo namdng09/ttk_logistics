@@ -690,7 +690,6 @@
               '</div>' +
             '</td>' +
             '<td class="khxh-bkg-cell">' + escHtml(row.so_bkg || '') + '</td>' +
-            '<td class="khxh-kho-cell">' + escHtml(row.dia_chi_kho || '') + '</td>' +
             '<td class="khxh-container-cell">' +
               '<div>' + (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '</div>' +
               '<div>' + (row.so_cont ? '<span class="khxh-so-cont-value">' + escHtml(row.so_cont) + '</span>' : '<span class="text-muted fst-italic small">số cont</span>') + '</div>' +
@@ -698,6 +697,7 @@
               '<div>' + (row.so_seal_tam ? escHtml(row.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') + '</div>' +
             '</td>' +
             '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(row) + '</td>' +
+            '<td class="khxh-kho-cell">' + escHtml(row.dia_chi_kho || '') + '</td>' +
             '<td class="text-nowrap">' +
               '<div class="khxh-hanh-trinh-cell">' +
                 '<div class="khxh-hanh-trinh-box">' + (row.bai_lay_cont ? escHtml(row.bai_lay_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
@@ -705,8 +705,8 @@
                 '<div class="khxh-hanh-trinh-box">' + (row.bai_ha_cont ? escHtml(row.bai_ha_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
               '</div>' +
             '</td>' +
-            '<td class="khxh-date-cell">' + cutOffBadge(row.cut_off) + '</td>' +
             '<td class="khxh-cang-cell">' + escHtml(row.cang_xuat || '') + '</td>' +
+            '<td class="khxh-date-cell">' + cutOffBadge(row.cut_off) + '</td>' +
             '<td class="khxh-status-cell"><span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</span></td>' +
             '</tr>';
         }

@@ -30,8 +30,8 @@
 
 .khxh-list-table th:nth-child(3),
 .khxh-list-table td:nth-child(3),
-.khxh-list-table th:nth-child(10),
-.khxh-list-table td:nth-child(10) {
+.khxh-list-table th:nth-child(11),
+.khxh-list-table td:nth-child(11) {
   width: 92px;
   min-width: 92px;
   max-width: 92px;

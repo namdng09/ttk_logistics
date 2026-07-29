@@ -39,12 +39,12 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
           <col class="khxh-col-date">
           <col class="khxh-col-common">
           <col class="khxh-col-bkg">
-          <col class="khxh-col-kho">
           <col class="khxh-col-container">
           <col class="khxh-col-vehicle">
+          <col class="khxh-col-kho">
           <col class="khxh-col-route">
-          <col class="khxh-col-date">
           <col class="khxh-col-cang">
+          <col class="khxh-col-date">
           <col class="khxh-col-status">
         </colgroup>
         <thead class="table-light">
@@ -54,12 +54,12 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
             <th>Ngày K.H</th>
             <th>T.T Chung</th>
             <th>bkg</th>
-            <th>Địa chỉ kho</th>
             <th>Container</th>
             <th>PT / Lái xe</th>
+            <th>Địa chỉ kho</th>
             <th>Bãi lấy/hạ</th>
-            <th>Cut off</th>
             <th>Cảng xuất</th>
+            <th>Cut off</th>
             <th>T.Thái</th>
           </tr>
         </thead>
