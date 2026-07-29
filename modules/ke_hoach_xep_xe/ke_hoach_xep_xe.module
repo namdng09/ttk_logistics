@@ -737,6 +737,9 @@ function _ke_hoach_cont_rest_list() {
   if (isset($_GET['da_cat_mooc']) && $_GET['da_cat_mooc'] !== '') {
     $query->condition('kh.da_cat_mooc', (int) $_GET['da_cat_mooc']);
   }
+  if (!empty($_GET['exclude_nid'])) {
+    $query->condition('kh.nid', (int) $_GET['exclude_nid'], '<>');
+  }
   if (isset($_GET['da_du_hang']) && $_GET['da_du_hang'] !== '') {
     $query->condition('kh.da_du_hang', (int) $_GET['da_du_hang']);
   }
@@ -752,6 +755,10 @@ function _ke_hoach_cont_rest_list() {
 function _ke_hoach_cont_rest_update($id) {
   if (!user_access('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật quản lý cont');
+  }
+  $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  if (!$existing) {
+    return _ke_hoach_xep_xe_not_found('Kế hoạch cont không tồn tại');
   }
   $input = _ke_hoach_xep_xe_input();
   $fields = array('da_du_hang', 'ha_bai_ngoai', 'ha_cang');

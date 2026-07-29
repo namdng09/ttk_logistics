@@ -662,6 +662,7 @@
       cauHinh: { diaChiKho: [], loaiCont: [] },
       contCandidateCache: {},
       contCandidatePending: {},
+      pendingContDestinationUpdates: {},
       lines: [],
       activeLineKey: null
     };
@@ -1345,7 +1346,8 @@
         return;
       }
       $wrap.show();
-      var cacheKey = [hinhThuc, line.dia_chi_kho || ''].join('||');
+      var currentNid = parseInt($('#nid-input').val(), 10) || 0;
+      var cacheKey = [hinhThuc, line.dia_chi_kho || '', currentNid].join('||');
       if (state.contCandidateCache[cacheKey]) {
         clearContPickerLoading($card);
         $card.data('contCandidates', state.contCandidateCache[cacheKey]);
@@ -1359,7 +1361,12 @@
         state.contCandidatePending[cacheKey].push($card);
         return;
       }
-      var requestData = {};
+      var requestData = {
+        da_cat_mooc: 1
+      };
+      if (currentNid) {
+        requestData.exclude_nid = currentNid;
+      }
       if (hinhThuc === 'cat_keo') {
         requestData.dia_chi_kho = line.dia_chi_kho || '';
       }
@@ -1414,10 +1421,11 @@
       var fKho = ($picker.find('.line-cont-filter-kho').val() || '').toLowerCase();
       var fDuHang = $picker.find('.line-cont-filter-du-hang').val();
       var rows = [];
+      var currentNid = parseInt($('#nid-input').val(), 10) || 0;
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
-        if (!item.da_cat_mooc) continue;
-        if (!item.so_cont || item.nid === parseInt($('#nid-input').val(), 10)) continue;
+        if (parseInt(item.da_cat_mooc, 10) !== 1) continue;
+        if (!item.so_cont || (parseInt(item.nid, 10) || 0) === currentNid) continue;
         if (hinhThuc === 'cat_keo' && item.dia_chi_kho !== line.dia_chi_kho) continue;
         if ((hinhThuc === 'cat_keo_cheo' || hinhThuc === 'rut_mooc') && item.dia_chi_kho === line.dia_chi_kho) continue;
         if (fBkg && String(item.so_bkg || '').toLowerCase().indexOf(fBkg) === -1) continue;
@@ -1475,26 +1483,41 @@
       }
     }
 
-    function saveContBaiHaThucTe($card, contId, value) {
+    function stageContBaiHaThucTe($card, contId, value) {
+      contId = parseInt(contId, 10) || 0;
+      if (!contId) return;
+      state.pendingContDestinationUpdates[String(contId)] = value || '';
       updateContCandidateItem($card, contId, { bai_ha_thuc_te: value || '' });
       renderContCandidateRows(syncLine($card), $card);
-      $.ajax({
-        url: '/api/quan-ly-cont/' + contId,
-        type: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify({ bai_ha_thuc_te: value || '' }),
-        dataType: 'json',
-        success: function (res) {
-          if (res.status === 'success' && res.data) {
-            updateContCandidateItem($card, contId, { bai_ha_thuc_te: res.data.bai_ha_thuc_te || '' });
-            renderContCandidateRows(syncLine($card), $card);
-          } else if (notyf) {
-            notyf.error(res.message || 'Không cập nhật được bãi hạ thực tế');
+    }
+
+    function flushPendingContDestinationUpdates() {
+      var updates = $.extend({}, state.pendingContDestinationUpdates);
+      var ids = Object.keys(updates);
+      if (!ids.length) return $.Deferred().resolve().promise();
+
+      var requests = $.map(ids, function (id) {
+        var deferred = $.Deferred();
+        $.ajax({
+          url: '/api/quan-ly-cont/' + id,
+          type: 'PUT',
+          contentType: 'application/json',
+          data: JSON.stringify({ bai_ha_thuc_te: updates[id] || '' }),
+          dataType: 'json'
+        }).done(function (res) {
+          if (res && res.status === 'success') {
+            deferred.resolve(res);
+          } else {
+            deferred.reject({ responseText: JSON.stringify(res || { message: 'Không cập nhật được bãi hạ thực tế' }) });
           }
-        },
-        error: function (jqXHR) {
-          if (notyf) notyf.error(apiMsg(jqXHR));
-        }
+        }).fail(function (jqXHR) {
+          deferred.reject(jqXHR);
+        });
+        return deferred.promise();
+      });
+
+      return $.when.apply($, requests).then(function () {
+        state.pendingContDestinationUpdates = {};
       });
     }
 
@@ -1670,6 +1693,7 @@
     function populateEdit(row) {
       var khachHangId = (row.khach_hang && row.khach_hang.nid) || 0;
       $('#nid-input').val(row.nid || '');
+      state.pendingContDestinationUpdates = {};
       state.lines = [];
       addLine({
         nid_khach_hang: khachHangId,
@@ -1867,27 +1891,34 @@
         contentType: 'application/json',
         data: JSON.stringify(nid ? gatherEditPayload() : gatherCreatePayload()),
         success: function (res) {
-          showLoading(false);
           if (res.status !== 'success') {
+            showLoading(false);
             if (notyf) notyf.error(res.message || 'Lưu thất bại');
             return;
           }
-          if (notyf) notyf.success(nid ? 'Đã cập nhật kế hoạch' : 'Đã tạo kế hoạch');
-          if (nid) {
-            markForceReloadList();
-          }
-          if (nid) {
-            if (res.data) {
-              populateEdit(res.data);
+
+          flushPendingContDestinationUpdates().done(function () {
+            showLoading(false);
+            if (notyf) notyf.success(nid ? 'Đã cập nhật kế hoạch' : 'Đã tạo kế hoạch');
+            if (nid) {
+              markForceReloadList();
             }
-          } else {
-            if (formModal) formModal.hide();
-            $('#ke-hoach-form')[0].reset();
-            $('#nid_khach_hang-input').val('0').trigger('change');
-            state.lines = [];
-            addLine({});
-            if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
-          }
+            if (nid) {
+              if (res.data) {
+                populateEdit(res.data);
+              }
+            } else {
+              if (formModal) formModal.hide();
+              $('#ke-hoach-form')[0].reset();
+              $('#nid_khach_hang-input').val('0').trigger('change');
+              state.lines = [];
+              addLine({});
+              if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
+            }
+          }).fail(function (jqXHR) {
+            showLoading(false);
+            if (notyf) notyf.error(apiMsg(jqXHR));
+          });
         },
         error: function (jqXHR) {
           showLoading(false);
@@ -1963,11 +1994,11 @@
       var contId = parseInt($checkbox.data('id'), 10) || 0;
       if (!contId) return;
       if ($checkbox.is(':checked')) {
-        saveContBaiHaThucTe($card, contId, '');
+        stageContBaiHaThucTe($card, contId, '');
         return;
       }
       $checkbox.closest('td').find('.line-bai-ha-thuc-te-select').val('').trigger('change.select2');
-      saveContBaiHaThucTe($card, contId, '');
+      stageContBaiHaThucTe($card, contId, '');
     });
     $(document).on('change', '.line-cont-picker-wrap .line-bai-ha-thuc-te-select', function () {
       var $select = $(this);
@@ -1978,7 +2009,7 @@
       var planned = ($select.attr('data-planned') || '').trim();
       var value = ($select.val() || '').trim();
       if (!contId) return;
-      saveContBaiHaThucTe($card, contId, normalizeBaiHaThucTe(value, planned));
+      stageContBaiHaThucTe($card, contId, normalizeBaiHaThucTe(value, planned));
     });
     $(document).on('change blur', '.cont-inline-note', function () {
       var $input = $(this);
