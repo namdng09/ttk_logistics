@@ -17,33 +17,7 @@
     <form id="ke-hoach-form" novalidate>
       <input type="hidden" id="nid-input" value="">
 
-      <div class="row g-3 mb-4">
-        <div class="col-md-6">
-          <label class="form-label">Khách hàng <span class="text-danger">*</span></label>
-          <select id="nid_khach_hang-input" class="form-select select2-searchable" style="width:100%" required>
-            <option value="0">— Chọn —</option>
-          </select>
-          <div class="invalid-feedback">Vui lòng chọn khách hàng</div>
-        </div>
-
-        <div class="col-md-6">
-          <label class="form-label">Số BKG <span class="text-danger">*</span></label>
-          <div class="input-group">
-            <input type="text" id="so_bkg-input" class="form-control" placeholder="Nhập số BKG" required>
-            <button class="btn btn-outline-secondary" type="button" id="paste-bkg-btn" title="Dán từ clipboard">
-              <i class="ti tabler-clipboard-copy"></i>
-            </button>
-          </div>
-          <div class="invalid-feedback">Vui lòng nhập số BKG</div>
-        </div>
-      </div>
-
       <div class="ke-hoach-lines-wrap">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-          <div>
-            <h5 class="mb-0">Phương tiện thực hiện</h5>
-          </div>
-        </div>
 
         <div id="ke-hoach-lines"></div>
       </div>

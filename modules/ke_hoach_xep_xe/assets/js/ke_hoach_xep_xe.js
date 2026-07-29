@@ -699,6 +699,7 @@
     function createLine(source) {
       return $.extend({
         key: nextLineKey(),
+        nid_khach_hang: 0,
         nid_phuong_tien: 0,
         nid_mooc: 0,
         mooc: null,
@@ -813,6 +814,15 @@
       return html;
     }
 
+    function buildCustomerOptions(selectedId) {
+      var html = '<option value="0">— Chọn —</option>';
+      for (var i = 0; i < state.customers.length; i++) {
+        var item = state.customers[i];
+        html += '<option value="' + item.nid + '"' + ((parseInt(selectedId, 10) === parseInt(item.nid, 10)) ? ' selected' : '') + '>' + escHtml(item.ten || ('#' + item.nid)) + '</option>';
+      }
+      return html;
+    }
+
     function buildMoocOptions(selectedId) {
       var html = '<option value="0">— Chọn mooc —</option>';
       for (var i = 0; i < state.moocs.length; i++) {
@@ -878,6 +888,7 @@
     }
 
     function initCardUi($card, line) {
+      initSelect2($card.find('#nid_khach_hang-input')[0], '— Chọn khách hàng —');
       initSelect2($card.find('.line-driver-select')[0], '— Chọn lái xe —');
       initSelect2($card.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true });
       initSelect2($card.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true });
@@ -907,32 +918,40 @@
           '<div class="ke-hoach-line-card" data-line-key="' + line.key + '">' +
             '<div class="ke-hoach-line-section ke-hoach-line-section-primary">' +
               '<div class="row g-3">' +
-              '<div class="col-md-6">' +
+              '<div class="col-lg-3 col-md-6">' +
+                '<label class="form-label">Khách hàng <span class="text-danger">*</span></label>' +
+                '<select id="nid_khach_hang-input" class="form-select select2-searchable" style="width:100%" required>' +
+                  buildCustomerOptions(line.nid_khach_hang || 0) +
+                '</select>' +
+                '<div class="invalid-feedback">Vui lòng chọn khách hàng</div>' +
+              '</div>' +
+              '<div class="col-lg-3 col-md-6">' +
                 '<label class="form-label">Phương tiện <span class="text-danger">*</span></label>' +
                 '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
                 '<button type="button" class="btn btn-outline-secondary w-100 text-start vehicle-summary btn-open-vehicle-modal' + (line.nid_phuong_tien ? ' is-selected' : '') + '"></button>' +
                 '<div class="invalid-feedback d-block line-vehicle-feedback" style="display:none !important;">Vui lòng chọn phương tiện</div>' +
               '</div>' +
-              '<div class="col-md-3">' +
+              '<div class="col-lg-3 col-md-6">' +
+                '<label class="form-label">Lái xe <span class="text-danger">*</span></label>' +
+                '<select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select>' +
+              '</div>' +
+              '<div class="col-lg-3 col-md-6">' +
                 '<label class="form-label">Mooc</label>' +
                 '<input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '">' +
                 '<button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal' + (line.nid_mooc ? ' is-selected' : '') + '">' + moocSummaryHtml(line) + '</button>' +
               '</div>' +
-              '<div class="col-md-3">' +
-                '<label class="form-label">Lái xe <span class="text-danger">*</span></label>' +
-                '<select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select>' +
-              '</div>' +
-              '<div class="col-md-3"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '"></div>' +
-              '<div class="col-md-3"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
-              '<div class="col-md-3"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính"></div>' +
-              '<div class="col-md-3"><label class="form-label">Số seal tạm</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Số seal tạm"></div>' +
-              '<div class="col-md-3"><label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
-              '<div class="col-md-3"><label class="form-label">Bãi lấy cont</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
-              '<div class="col-md-3"><label class="form-label">Bãi hạ cont</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
-              '<div class="col-md-3"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
-              '<div class="col-md-3"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
-              '<div class="col-md-9"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
-              '<div class="col-12"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Nhập ghi chú"></div>' +
+              '<div class="col-lg-2 col-md-4"><label class="form-label">Số BKG <span class="text-danger">*</span></label><div class="input-group"><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG" required><button class="btn btn-outline-secondary" type="button" id="paste-bkg-btn" title="Dán từ clipboard"><i class="ti tabler-clipboard-copy"></i></button></div><div class="invalid-feedback">Vui lòng nhập số BKG</div></div>' +
+              '<div class="col-lg-2 col-md-4"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '"></div>' +
+              '<div class="col-lg-2 col-md-4"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
+              '<div class="col-lg-3 col-md-6"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính"></div>' +
+              '<div class="col-lg-3 col-md-6"><label class="form-label">Seal phụ</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Seal phụ"></div>' +
+              '<div class="col-lg-3 col-md-6"><label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
+              '<div class="col-lg-2 col-md-6"><label class="form-label">Bãi lấy</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
+              '<div class="col-lg-2 col-md-6"><label class="form-label">Bãi hạ</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
+              '<div class="col-lg-2 col-md-6"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
+              '<div class="col-lg-3 col-md-6"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
+              '<div class="col-lg-8 col-md-12"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
+              '<div class="col-lg-4 col-md-12"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Nhập ghi chú"></div>' +
               '<div class="col-12 line-cont-picker-wrap" style="display:none;">' +
                 '<label class="form-label d-block">Chọn cont phù hợp</label>' +
                 '<div class="row g-2 mb-2">' +
@@ -1019,6 +1038,7 @@
       var line = findLine($row.data('line-key'));
       if (!line) return null;
       if (!useTableLayout) {
+        line.nid_khach_hang = parseInt($('#nid_khach_hang-input').val(), 10) || 0;
         line.nid_phuong_tien = parseInt($row.find('.line-vehicle-id').val(), 10) || 0;
         line.nid_mooc = parseInt($row.find('.line-mooc-id').val(), 10) || 0;
         if (line.nid_mooc && (!line.mooc || parseInt(line.mooc.nid, 10) !== line.nid_mooc)) {
@@ -1543,10 +1563,9 @@
     function populateEdit(row) {
       var khachHangId = (row.khach_hang && row.khach_hang.nid) || 0;
       $('#nid-input').val(row.nid || '');
-      $('#nid_khach_hang-input').val(khachHangId).trigger('change');
-      if ($('#so_bkg-input').length) $('#so_bkg-input').val(row.so_bkg || '');
       state.lines = [];
       addLine({
+        nid_khach_hang: khachHangId,
         so_bkg: row.so_bkg || '',
         nid_phuong_tien: row.phuong_tien ? row.phuong_tien.nid : 0,
         nid_mooc: row.mooc ? row.mooc.nid : 0,
@@ -1569,6 +1588,8 @@
         ha_bai_ngoai: row.ha_bai_ngoai || 0,
         ha_cang: row.ha_cang || 0
       });
+      $('#nid_khach_hang-input').val(khachHangId).trigger('change');
+      if ($('#so_bkg-input').length) $('#so_bkg-input').val(row.so_bkg || '');
     }
 
     function loadEditDetail(done) {
@@ -1693,7 +1714,7 @@
       });
     }
 
-    $('#nid_khach_hang-input').on('change', function () {
+    $(document).on('change', '#nid_khach_hang-input', function () {
       loadCauHinh(parseInt($(this).val(), 10) || 0);
     });
     $('#add-line-btn').on('click', function () {

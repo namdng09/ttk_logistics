@@ -159,8 +159,8 @@ body .flatpickr-calendar {
 }
 
 .ke-hoach-lines-wrap {
-  border-top: 1px solid #eceef1;
-  padding-top: 1rem;
+  border-top: 0;
+  padding-top: 0;
 }
 
 #ke-hoach-lines .ke-hoach-line-card {
