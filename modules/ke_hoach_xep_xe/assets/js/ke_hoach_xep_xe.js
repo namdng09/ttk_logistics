@@ -926,6 +926,7 @@
 
     function renderCards() {
       var html = '';
+      var pickerHtml = '';
       for (var i = 0; i < state.lines.length; i++) {
         var line = state.lines[i];
         html += '' +
@@ -966,8 +967,16 @@
               '<div class="col-lg-3 col-md-6"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
               '<div class="col-lg-8 col-md-12"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
               '<div class="col-lg-4 col-md-12"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Nhập ghi chú"></div>' +
-              '<div class="col-12 line-cont-picker-wrap" style="display:none;">' +
-                '<label class="form-label d-block">Chọn cont kéo về</label>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        pickerHtml += '' +
+            '<div class="ke-hoach-cont-picker-card line-cont-picker-wrap" data-line-key="' + line.key + '" style="display:none;">' +
+              '<div class="ke-hoach-cont-picker-head">' +
+                '<div>' +
+                  '<label class="form-label d-block mb-1">Chọn cont kéo về</label>' +
+                '</div>' +
+              '</div>' +
                 '<div class="row g-2 mb-2">' +
                   '<div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div>' +
                   '<div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>' +
@@ -980,12 +989,13 @@
                     '<tbody class="line-cont-picker-body"><tr><td colspan="6" class="text-center text-muted">Chưa có dữ liệu</td></tr></tbody>' +
                   '</table>' +
                 '</div>' +
-              '</div>' +
-              '</div>' +
-            '</div>' +
-          '</div>';
+            '</div>';
       }
       $('#ke-hoach-lines').html(html);
+      if (!$('#ke-hoach-cont-pickers').length) {
+        $('#ke-hoach-lines').after('<div id="ke-hoach-cont-pickers"></div>');
+      }
+      $('#ke-hoach-cont-pickers').html(pickerHtml);
       $('#ke-hoach-lines .ke-hoach-line-card').each(function () {
         var $card = $(this);
         var line = findLine($card.data('line-key'));
@@ -1284,9 +1294,15 @@
       return hinhThuc === 'cat_keo' || hinhThuc === 'cat_keo_cheo' || hinhThuc === 'rut_mooc';
     }
 
+    function getContPicker($card) {
+      var key = $card && $card.length ? $card.data('line-key') : '';
+      var $picker = key ? $('#ke-hoach-cont-pickers .line-cont-picker-wrap[data-line-key="' + key + '"]') : $();
+      return $picker.length ? $picker : $card.find('.line-cont-picker-wrap');
+    }
+
     function renderContPickerLoading($card, message) {
-      var $wrap = $card.find('.line-cont-picker-wrap');
-      var $body = $card.find('.line-cont-picker-body');
+      var $wrap = getContPicker($card);
+      var $body = $wrap.find('.line-cont-picker-body');
       $wrap.addClass('is-loading');
       $body.html(
         '<tr>' +
@@ -1303,13 +1319,13 @@
     }
 
     function clearContPickerLoading($card) {
-      $card.find('.line-cont-picker-wrap').removeClass('is-loading');
+      getContPicker($card).removeClass('is-loading');
     }
 
     function loadContCandidates(line, $card) {
       var hinhThuc = line.hinh_thuc_van_tai || '';
-      var $wrap = $card.find('.line-cont-picker-wrap');
-      var $body = $card.find('.line-cont-picker-body');
+      var $wrap = getContPicker($card);
+      var $body = $wrap.find('.line-cont-picker-body');
       if (!shouldShowContPicker(hinhThuc)) {
         clearContPickerLoading($card);
         $wrap.hide();
@@ -1347,7 +1363,7 @@
           if (res.status !== 'success' || !res.data || !res.data.items) {
             for (var i = 0; i < waitingCards.length; i++) {
               clearContPickerLoading(waitingCards[i]);
-              waitingCards[i].find('.line-cont-picker-body').html('<tr><td colspan="6" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+              getContPicker(waitingCards[i]).find('.line-cont-picker-body').html('<tr><td colspan="6" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
             }
             return;
           }
@@ -1366,7 +1382,7 @@
           var waitingCards = state.contCandidatePending[cacheKey] || [];
           for (var i = 0; i < waitingCards.length; i++) {
             clearContPickerLoading(waitingCards[i]);
-            waitingCards[i].find('.line-cont-picker-body').html('<tr><td colspan="6" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+            getContPicker(waitingCards[i]).find('.line-cont-picker-body').html('<tr><td colspan="6" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
           }
         },
         complete: function () {
@@ -1377,13 +1393,14 @@
 
     function renderContCandidateRows(line, $card) {
       var hinhThuc = line.hinh_thuc_van_tai || '';
-      var $body = $card.find('.line-cont-picker-body');
+      var $picker = getContPicker($card);
+      var $body = $picker.find('.line-cont-picker-body');
       clearContPickerLoading($card);
       var items = $card.data('contCandidates') || [];
-      var fBkg = ($card.find('.line-cont-filter-bkg').val() || '').toLowerCase();
-      var fCont = ($card.find('.line-cont-filter-cont').val() || '').toLowerCase();
-      var fKho = ($card.find('.line-cont-filter-kho').val() || '').toLowerCase();
-      var fDuHang = $card.find('.line-cont-filter-du-hang').val();
+      var fBkg = ($picker.find('.line-cont-filter-bkg').val() || '').toLowerCase();
+      var fCont = ($picker.find('.line-cont-filter-cont').val() || '').toLowerCase();
+      var fKho = ($picker.find('.line-cont-filter-kho').val() || '').toLowerCase();
+      var fDuHang = $picker.find('.line-cont-filter-du-hang').val();
       var rows = [];
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
@@ -1857,13 +1874,15 @@
       loadContCandidates(line, $card);
     });
     $(document).on('input change', '.line-cont-filter-bkg, .line-cont-filter-cont, .line-cont-filter-kho, .line-cont-filter-du-hang', function () {
-      var $card = $(this).closest('.ke-hoach-line-card');
+      var key = $(this).closest('.line-cont-picker-wrap').data('line-key');
+      var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]');
       var line = syncLine($card);
       renderContCandidateRows(line, $card);
     });
     $(document).on('change', '.line-cont-ref-checkbox', function () {
       var $checkbox = $(this);
-      var $card = $checkbox.closest('.ke-hoach-line-card');
+      var key = $checkbox.closest('.line-cont-picker-wrap').data('line-key');
+      var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]');
       var line = syncLine($card);
       line.ke_hoach_cont_ref_nid = $checkbox.is(':checked') ? (parseInt($checkbox.attr('data-id'), 10) || 0) : 0;
       renderContCandidateRows(line, $card);

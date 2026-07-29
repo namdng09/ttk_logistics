@@ -18,8 +18,8 @@
       <input type="hidden" id="nid-input" value="">
 
       <div class="ke-hoach-lines-wrap">
-
         <div id="ke-hoach-lines"></div>
+        <div id="ke-hoach-cont-pickers"></div>
       </div>
     </form>
   </div>

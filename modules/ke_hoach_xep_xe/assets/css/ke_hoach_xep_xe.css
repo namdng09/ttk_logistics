@@ -177,6 +177,10 @@ body .flatpickr-calendar {
   margin-bottom: 0;
 }
 
+#ke-hoach-cont-pickers {
+  margin-top: 1rem;
+}
+
 .ke-hoach-line-head {
   display: flex;
   flex-wrap: wrap;
@@ -564,6 +568,21 @@ body .flatpickr-calendar {
 
 .line-cont-picker-wrap {
   position: relative;
+}
+
+.ke-hoach-cont-picker-card {
+  border: 1px solid #e4e7ec;
+  border-radius: 14px;
+  background: #fbfcff;
+  padding: 14px;
+}
+
+.ke-hoach-cont-picker-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.875rem;
 }
 
 .line-cont-picker-wrap.is-loading {
