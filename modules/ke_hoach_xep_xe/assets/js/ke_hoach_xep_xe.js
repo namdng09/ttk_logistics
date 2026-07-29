@@ -131,6 +131,12 @@
       '</div>';
   }
 
+  function normalizeBaiHaThucTe(value, planned) {
+    value = (value || '').trim();
+    planned = (planned || '').trim();
+    return value && value !== planned ? value : '';
+  }
+
   function parseCutOff(val) {
     var parts = String(val).split(' ');
     if (parts.length < 1) return null;
@@ -726,6 +732,7 @@
         so_seal_tam: '',
         bai_lay_cont: '',
         bai_ha_cont: '',
+        bai_ha_thuc_te: '',
         cang_xuat: '',
         cut_off: '',
         ghi_chu: '',
@@ -886,6 +893,7 @@
       initSelect2($row.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-bai-lay-select')[0], '— Chọn bãi lấy cont —', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-bai-ha-select')[0], '— Chọn bãi hạ cont —', { dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-bai-ha-thuc-te-select')[0], '— Theo bãi hạ kế hoạch —', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-cang-select')[0], '— Chọn cảng xuất —', { dropdownParent: dropdownParent });
       if (typeof flatpickr !== 'undefined' && $row.find('.line-cut-off-input')[0]) {
         flatpickr($row.find('.line-cut-off-input')[0], {
@@ -908,6 +916,7 @@
       initSelect2($card.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true });
       initSelect2($card.find('.line-bai-lay-select')[0], '— Chọn bãi lấy cont —');
       initSelect2($card.find('.line-bai-ha-select')[0], '— Chọn bãi hạ cont —');
+      initSelect2($card.find('.line-bai-ha-thuc-te-select')[0], '— Theo bãi hạ kế hoạch —', { tags: true });
       initSelect2($card.find('.line-cang-select')[0], '— Chọn cảng xuất —');
       if (typeof flatpickr !== 'undefined' && $card.find('.line-cut-off-input')[0]) {
         flatpickr($card.find('.line-cut-off-input')[0], {
@@ -955,7 +964,7 @@
                 '<input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '">' +
                 '<button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal' + (line.nid_mooc ? ' is-selected' : '') + '">' + moocSummaryHtml(line) + '</button>' +
               '</div>' +
-              '<div class="col-lg-2 col-md-4"><label class="form-label">Số BKG <span class="text-danger">*</span></label><div class="input-group"><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG" required><button class="btn btn-outline-secondary" type="button" id="paste-bkg-btn" title="Dán từ clipboard"><i class="ti tabler-clipboard-copy"></i></button></div><div class="invalid-feedback">Vui lòng nhập số BKG</div></div>' +
+              '<div class="col-lg-2 col-md-4"><label class="form-label">Số BKG <span class="text-danger">*</span></label><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG" required><div class="invalid-feedback">Vui lòng nhập số BKG</div></div>' +
               '<div class="col-lg-2 col-md-4"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '"></div>' +
               '<div class="col-lg-2 col-md-4"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
               '<div class="col-lg-3 col-md-6"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính"></div>' +
@@ -965,8 +974,9 @@
               '<div class="col-lg-2 col-md-6"><label class="form-label">Bãi hạ</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
               '<div class="col-lg-2 col-md-6"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
               '<div class="col-lg-3 col-md-6"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
-              '<div class="col-lg-8 col-md-12"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
-              '<div class="col-lg-4 col-md-12"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Nhập ghi chú"></div>' +
+              '<div class="col-lg-6 col-md-12"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
+              '<div class="col-lg-3 col-md-6"><label class="form-label">Bãi hạ thực tế</label><select class="form-select line-bai-ha-thuc-te-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_thuc_te) + '</select></div>' +
+              '<div class="col-lg-3 col-md-6"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Nhập ghi chú"></div>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -985,8 +995,8 @@
                 '</div>' +
                 '<div class="table-responsive">' +
                   '<table class="table table-bordered table-sm mb-0">' +
-                    '<thead><tr><th></th><th>Xe kéo lên</th><th>Booking / Cont</th><th>Địa chỉ kho</th><th>Đủ hàng</th><th>Ghi chú</th></tr></thead>' +
-                    '<tbody class="line-cont-picker-body"><tr><td colspan="6" class="text-center text-muted">Chưa có dữ liệu</td></tr></tbody>' +
+                    '<thead><tr><th></th><th>Xe kéo lên</th><th>Booking / Cont</th><th>Địa chỉ kho</th><th>Bãi hạ</th><th>Đủ hàng</th><th>Ghi chú</th></tr></thead>' +
+                    '<tbody class="line-cont-picker-body"><tr><td colspan="7" class="text-center text-muted">Chưa có dữ liệu</td></tr></tbody>' +
                   '</table>' +
                 '</div>' +
             '</div>';
@@ -1033,7 +1043,7 @@
             '<select class="form-select line-bai-lay-select mb-2">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select>' +
             '<select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select>' +
           '</td>' +
-          '<td><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></td>' +
+          '<td><select class="form-select line-cang-select mb-2">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select><select class="form-select line-bai-ha-thuc-te-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_thuc_te) + '</select></td>' +
           '<td><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></td>' +
           '<td><select class="form-select line-hinh-thuc-select">' + hinhThucOptions + '</select></td>' +
           '<td class="text-center">' + actionCopy + '</td>' +
@@ -1081,6 +1091,7 @@
         line.bai_lay_cont = ($row.find('.line-bai-lay-select').val() || '').trim();
         line.bai_ha_cont = ($row.find('.line-bai-ha-select').val() || '').trim();
         line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
+        line.bai_ha_thuc_te = normalizeBaiHaThucTe(($row.find('.line-bai-ha-thuc-te-select').val() || '').trim(), line.bai_ha_cont);
         line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
         line.ghi_chu = ($row.find('.line-ghi-chu-input').val() || '').trim();
         line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-radio:checked').val() || '').trim();
@@ -1106,6 +1117,7 @@
       line.dia_chi_kho = ($row.find('.line-kho-select').val() || '').trim();
       line.bai_lay_cont = ($row.find('.line-bai-lay-select').val() || '').trim();
       line.bai_ha_cont = ($row.find('.line-bai-ha-select').val() || '').trim();
+      line.bai_ha_thuc_te = normalizeBaiHaThucTe(($row.find('.line-bai-ha-thuc-te-select').val() || '').trim(), line.bai_ha_cont);
       line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-select').val() || '').trim();
       line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
       line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
@@ -1306,7 +1318,7 @@
       $wrap.addClass('is-loading');
       $body.html(
         '<tr>' +
-          '<td colspan="6" class="text-center py-4">' +
+          '<td colspan="7" class="text-center py-4">' +
             '<div class="cont-picker-loading">' +
               '<div class="spinner-border spinner-border-sm text-primary" role="status">' +
                 '<span class="visually-hidden">Đang tải...</span>' +
@@ -1329,7 +1341,7 @@
       if (!shouldShowContPicker(hinhThuc)) {
         clearContPickerLoading($card);
         $wrap.hide();
-        $body.html('<tr><td colspan="6" class="text-center text-muted">Không áp dụng cho hình thức này</td></tr>');
+        $body.html('<tr><td colspan="7" class="text-center text-muted">Không áp dụng cho hình thức này</td></tr>');
         return;
       }
       $wrap.show();
@@ -1363,7 +1375,7 @@
           if (res.status !== 'success' || !res.data || !res.data.items) {
             for (var i = 0; i < waitingCards.length; i++) {
               clearContPickerLoading(waitingCards[i]);
-              getContPicker(waitingCards[i]).find('.line-cont-picker-body').html('<tr><td colspan="6" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+              getContPicker(waitingCards[i]).find('.line-cont-picker-body').html('<tr><td colspan="7" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
             }
             return;
           }
@@ -1382,7 +1394,7 @@
           var waitingCards = state.contCandidatePending[cacheKey] || [];
           for (var i = 0; i < waitingCards.length; i++) {
             clearContPickerLoading(waitingCards[i]);
-            getContPicker(waitingCards[i]).find('.line-cont-picker-body').html('<tr><td colspan="6" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+            getContPicker(waitingCards[i]).find('.line-cont-picker-body').html('<tr><td colspan="7" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
           }
         },
         complete: function () {
@@ -1413,16 +1425,77 @@
         if (fKho && String(item.dia_chi_kho || '').toLowerCase().indexOf(fKho) === -1) continue;
         if (fDuHang !== '' && parseInt(item.da_du_hang, 10) !== parseInt(fDuHang, 10)) continue;
         var selected = parseInt(line.ke_hoach_cont_ref_nid, 10) === parseInt(item.nid, 10);
+        var plannedBaiHa = item.bai_ha_cont || '';
+        var actualBaiHa = normalizeBaiHaThucTe(item.bai_ha_thuc_te || '', plannedBaiHa);
+        var destinationValue = actualBaiHa || plannedBaiHa;
+        var theoKeHoach = !actualBaiHa;
+        var duHang = parseInt(item.da_du_hang, 10) === 1;
         rows.push('<tr>' +
           '<td class="text-center"><input class="form-check-input line-cont-ref-checkbox" type="checkbox" value="' + item.nid + '" data-id="' + item.nid + '" data-so-cont="' + escHtml(item.so_cont || '') + '"' + (selected ? ' checked' : '') + '></td>' +
           '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(item) + '</td>' +
-          '<td><div>' + escHtml(item.so_bkg || '') + '</div><div class="small fw-semibold">' + escHtml(item.so_cont || '') + '</div></td>' +
-          '<td>' + escHtml(item.dia_chi_kho || '') + '</td>' +
-          '<td class="text-center">' + (parseInt(item.da_du_hang, 10) === 1 ? '<i class="ti tabler-check text-success"></i>' : '<i class="ti tabler-minus text-muted"></i>') + '</td>' +
+          '<td><div>' + escHtml(item.so_bkg || '') + '</div><div class="fw-semibold">' + escHtml(item.so_cont || '') + '</div></td>' +
+          '<td class="line-cont-kho-cell">' + escHtml(item.dia_chi_kho || '') + '</td>' +
+          '<td class="line-cont-destination-cell">' +
+            '<label class="form-check form-check-inline mb-1">' +
+              '<input class="form-check-input line-bai-ha-theo-ke-hoach-checkbox" type="checkbox" data-id="' + item.nid + '"' + (theoKeHoach ? ' checked' : '') + '>' +
+              '<span class="form-check-label small">Theo kế hoạch</span>' +
+            '</label>' +
+            '<select class="form-select form-select-sm line-bai-ha-thuc-te-select" data-id="' + item.nid + '" data-planned="' + escHtml(plannedBaiHa) + '">' + buildTagOptions(state.diaDiem.bai, destinationValue) + '</select>' +
+          '</td>' +
+          '<td class="text-center">' + (duHang ? '<span class="badge bg-label-success">Đủ hàng</span>' : '<span class="badge bg-label-secondary">Chưa đủ</span>') + '</td>' +
           '<td><input type="text" class="form-control form-control-sm cont-inline-note" data-id="' + item.nid + '" value="' + escHtml(item.ghi_chu || '') + '" placeholder="Ghi chú"></td>' +
           '</tr>');
       }
-      $body.html(rows.length ? rows.join('') : '<tr><td colspan="6" class="text-center text-muted">Không có cont phù hợp</td></tr>');
+      $body.html(rows.length ? rows.join('') : '<tr><td colspan="7" class="text-center text-muted">Không có cont phù hợp</td></tr>');
+      $body.find('.line-bai-ha-thuc-te-select').each(function () {
+        initSelect2(this, '— Chọn bãi hạ —', { tags: true, allowClear: false });
+      });
+    }
+
+    function updateContCandidateItem($card, id, fields) {
+      id = parseInt(id, 10) || 0;
+      if (!id) return;
+      var items = $card.data('contCandidates') || [];
+      for (var i = 0; i < items.length; i++) {
+        if ((parseInt(items[i].nid, 10) || 0) === id) {
+          $.extend(items[i], fields);
+          break;
+        }
+      }
+      $card.data('contCandidates', items);
+      var cacheKey = $card.data('contCandidatesCacheKey');
+      var cached = cacheKey ? state.contCandidateCache[cacheKey] : null;
+      if (cached) {
+        for (var j = 0; j < cached.length; j++) {
+          if ((parseInt(cached[j].nid, 10) || 0) === id) {
+            $.extend(cached[j], fields);
+            break;
+          }
+        }
+      }
+    }
+
+    function saveContBaiHaThucTe($card, contId, value) {
+      updateContCandidateItem($card, contId, { bai_ha_thuc_te: value || '' });
+      renderContCandidateRows(syncLine($card), $card);
+      $.ajax({
+        url: '/api/quan-ly-cont/' + contId,
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ bai_ha_thuc_te: value || '' }),
+        dataType: 'json',
+        success: function (res) {
+          if (res.status === 'success' && res.data) {
+            updateContCandidateItem($card, contId, { bai_ha_thuc_te: res.data.bai_ha_thuc_te || '' });
+            renderContCandidateRows(syncLine($card), $card);
+          } else if (notyf) {
+            notyf.error(res.message || 'Không cập nhật được bãi hạ thực tế');
+          }
+        },
+        error: function (jqXHR) {
+          if (notyf) notyf.error(apiMsg(jqXHR));
+        }
+      });
     }
 
     function loadCauHinh(khId, callback) {
@@ -1548,6 +1621,7 @@
             so_seal_tam: line.so_seal_tam || '',
             bai_lay_cont: line.bai_lay_cont || '',
             bai_ha_cont: line.bai_ha_cont || '',
+            bai_ha_thuc_te: normalizeBaiHaThucTe(line.bai_ha_thuc_te || '', line.bai_ha_cont || ''),
             cang_xuat: line.cang_xuat || '',
             cut_off: line.cut_off || '',
             ghi_chu: line.ghi_chu || '',
@@ -1579,6 +1653,7 @@
           so_seal_tam: line.so_seal_tam || '',
           bai_lay_cont: line.bai_lay_cont || '',
           bai_ha_cont: line.bai_ha_cont || '',
+          bai_ha_thuc_te: normalizeBaiHaThucTe(line.bai_ha_thuc_te || '', line.bai_ha_cont || ''),
           cang_xuat: line.cang_xuat || '',
           cut_off: line.cut_off || '',
           ghi_chu: line.ghi_chu || '',
@@ -1610,6 +1685,7 @@
         so_seal_tam: row.so_seal_tam || '',
         bai_lay_cont: row.bai_lay_cont || '',
         bai_ha_cont: row.bai_ha_cont || '',
+        bai_ha_thuc_te: row.bai_ha_thuc_te || '',
         cang_xuat: row.cang_xuat || '',
         cut_off: row.cut_off || '',
         ghi_chu: row.ghi_chu || '',
@@ -1828,15 +1904,6 @@
       syncAllLines();
       openMoocModal($(this).closest(useTableLayout ? '.ke-hoach-table-row' : '.ke-hoach-line-card').data('line-key'));
     });
-    $(document).on('click', '#paste-bkg-btn', function () {
-      var input = document.getElementById('so_bkg-input');
-      if (!input) return;
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        navigator.clipboard.readText().then(function (text) {
-          if (text) input.value = text;
-        }).catch(function () {});
-      }
-    });
     $(document).on('click', '.btn-remove-row-ke-hoach', function () {
       if (!useTableLayout) return;
       var key = $(this).closest('.ke-hoach-table-row').data('line-key');
@@ -1887,6 +1954,31 @@
       line.ke_hoach_cont_ref_nid = $checkbox.is(':checked') ? (parseInt($checkbox.attr('data-id'), 10) || 0) : 0;
       renderContCandidateRows(line, $card);
       if (line.ke_hoach_cont_ref_nid && notyf) notyf.success('Đã chọn cont kéo về: ' + ($checkbox.attr('data-so-cont') || ''));
+    });
+    $(document).on('change', '.line-bai-ha-theo-ke-hoach-checkbox', function () {
+      var $checkbox = $(this);
+      var $picker = $checkbox.closest('.line-cont-picker-wrap');
+      var key = $picker.data('line-key');
+      var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]');
+      var contId = parseInt($checkbox.data('id'), 10) || 0;
+      if (!contId) return;
+      if ($checkbox.is(':checked')) {
+        saveContBaiHaThucTe($card, contId, '');
+        return;
+      }
+      $checkbox.closest('td').find('.line-bai-ha-thuc-te-select').val('').trigger('change.select2');
+      saveContBaiHaThucTe($card, contId, '');
+    });
+    $(document).on('change', '.line-cont-picker-wrap .line-bai-ha-thuc-te-select', function () {
+      var $select = $(this);
+      var $picker = $select.closest('.line-cont-picker-wrap');
+      var key = $picker.data('line-key');
+      var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]');
+      var contId = parseInt($select.data('id'), 10) || 0;
+      var planned = ($select.attr('data-planned') || '').trim();
+      var value = ($select.val() || '').trim();
+      if (!contId) return;
+      saveContBaiHaThucTe($card, contId, normalizeBaiHaThucTe(value, planned));
     });
     $(document).on('change blur', '.cont-inline-note', function () {
       var $input = $(this);
@@ -2109,6 +2201,7 @@
           { label: 'Trạng thái', value: d.trang_thai_van_chuyen },
           { label: 'Bãi lấy cont', value: d.bai_lay_cont },
           { label: 'Bãi hạ cont', value: d.bai_ha_cont },
+          { label: 'Bãi hạ thực tế', value: d.bai_ha_thuc_te },
           { label: 'Cảng xuất', value: d.cang_xuat },
           { label: 'Cut-off', value: apiToDatetime(d.cut_off) },
           { label: 'Hình thức vận tải', value: HINH_THUC_MAP[d.hinh_thuc_van_tai] },

@@ -79,6 +79,11 @@ function ke_hoach_xep_xe_schema() {
         'length' => 500,
         'not null' => FALSE,
       ),
+      'bai_ha_thuc_te' => array(
+        'type' => 'varchar',
+        'length' => 500,
+        'not null' => FALSE,
+      ),
       'cang_xuat' => array(
         'type' => 'varchar',
         'length' => 500,
@@ -454,4 +459,16 @@ function ke_hoach_xep_xe_update_7013() {
   }
 
   return 'Đã xoá field ngay khỏi ke_hoach_xep_xe.';
+}
+
+function ke_hoach_xep_xe_update_7014() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'bai_ha_thuc_te')) {
+    db_add_field('ke_hoach_xep_xe', 'bai_ha_thuc_te', array(
+      'type' => 'varchar',
+      'length' => 500,
+      'not null' => FALSE,
+    ));
+  }
+
+  return 'Đã thêm field bai_ha_thuc_te cho kế hoạch xếp xe.';
 }

@@ -613,6 +613,18 @@ body .flatpickr-calendar {
   text-align: center;
 }
 
+.line-cont-destination-cell {
+  min-width: 220px;
+}
+
+.line-cont-kho-cell {
+  min-width: 240px;
+}
+
+.line-cont-destination-cell .form-check-label {
+  color: #475467;
+}
+
 .ke-hoach-table-row.table-danger td {
   background: rgba(234, 84, 85, 0.08);
 }

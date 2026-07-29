@@ -220,6 +220,7 @@ function _ke_hoach_xep_xe_default_record() {
     'trang_thai_van_chuyen' => 'Chưa xếp xe',
     'bai_lay_cont' => '',
     'bai_ha_cont' => '',
+    'bai_ha_thuc_te' => '',
     'cang_xuat' => '',
     'cut_off' => '',
     'hinh_thuc_van_tai' => '',
@@ -257,6 +258,10 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['trang_thai_van_chuyen'] = !empty($line['trang_thai_van_chuyen']) ? trim($line['trang_thai_van_chuyen']) : 'Chưa xếp xe';
   $record['bai_lay_cont'] = !empty($line['bai_lay_cont']) ? trim($line['bai_lay_cont']) : '';
   $record['bai_ha_cont'] = !empty($line['bai_ha_cont']) ? trim($line['bai_ha_cont']) : '';
+  $record['bai_ha_thuc_te'] = !empty($line['bai_ha_thuc_te']) ? trim($line['bai_ha_thuc_te']) : '';
+  if ($record['bai_ha_thuc_te'] === $record['bai_ha_cont']) {
+    $record['bai_ha_thuc_te'] = '';
+  }
   $record['cang_xuat'] = !empty($line['cang_xuat']) ? trim($line['cang_xuat']) : '';
   $record['cut_off'] = !empty($line['cut_off']) ? trim($line['cut_off']) : '';
   $record['hinh_thuc_van_tai'] = !empty($line['hinh_thuc_van_tai']) ? trim($line['hinh_thuc_van_tai']) : '';
@@ -519,6 +524,7 @@ function _ke_hoach_xep_xe_rest_create() {
           'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
           'bai_lay_cont' => $record['bai_lay_cont'],
           'bai_ha_cont' => $record['bai_ha_cont'],
+          'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
           'cang_xuat' => $record['cang_xuat'],
           'cut_off' => $record['cut_off'],
           'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
@@ -620,6 +626,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
         'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
         'bai_lay_cont' => $record['bai_lay_cont'],
         'bai_ha_cont' => $record['bai_ha_cont'],
+        'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
         'cang_xuat' => $record['cang_xuat'],
         'cut_off' => $record['cut_off'],
         'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
@@ -753,6 +760,11 @@ function _ke_hoach_cont_rest_update($id) {
     if (array_key_exists($field, $input)) {
       $update[$field] = !empty($input[$field]) ? 1 : 0;
     }
+  }
+  if (array_key_exists('bai_ha_thuc_te', $input)) {
+    $bai_ha_thuc_te = trim((string) $input['bai_ha_thuc_te']);
+    $bai_ha_cont = db_query("SELECT bai_ha_cont FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetchField();
+    $update['bai_ha_thuc_te'] = ($bai_ha_thuc_te && $bai_ha_thuc_te !== $bai_ha_cont) ? $bai_ha_thuc_te : '';
   }
   if (array_key_exists('ghi_chu', $input)) {
     $existing = db_query("SELECT thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetchField();
@@ -1223,6 +1235,7 @@ function _ke_hoach_tuyen_xa_rest_create() {
         'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
         'bai_lay_cont' => $record['bai_lay_cont'],
         'bai_ha_cont' => $record['bai_ha_cont'],
+        'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
         'cang_xuat' => $record['cang_xuat'],
         'hinh_thuc_van_tai' => '',
         'ke_hoach_cont_ref_nid' => 0,
