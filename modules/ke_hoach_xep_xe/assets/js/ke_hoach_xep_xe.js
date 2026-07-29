@@ -88,6 +88,16 @@
     return d[2] + '/' + d[1] + '/' + d[0] + (parts[1] ? ' ' + parts[1].substring(0, 5) : '');
   }
 
+  function dateTimeStack(val) {
+    if (!val) return '';
+    var parts = String(val).split(' ');
+    var d = parts[0] ? parts[0].split('-') : [];
+    if (d.length !== 3) return escHtml(val);
+    var year = d[0].slice(-2);
+    var time = parts[1] ? parts[1].substring(0, 5) : '';
+    return '<span class="khxh-date-stack">' + escHtml(d[2] + '/' + d[1] + '/' + year) + (time ? '<br>' + escHtml(time) : '') + '</span>';
+  }
+
   function cutOffBadge(val) {
     if (!val) return '<span class="text-muted fst-italic small">cut-off</span>';
     var normalized = apiToDatetime(val);
@@ -104,7 +114,7 @@
     } else {
       color = 'bg-label-success';
     }
-    return '<span class="badge ' + color + '">' + toDdMmYyyyHm(val) + '</span>';
+    return '<span class="badge ' + color + ' khxh-date-badge">' + dateTimeStack(val) + '</span>';
   }
 
   function parseCutOff(val) {
@@ -479,7 +489,7 @@
 
   function loadList() {
     var tbody = document.getElementById('list-body');
-    tbody.innerHTML = '<tr id="loading-row"><td colspan="13" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
+    tbody.innerHTML = '<tr id="loading-row"><td colspan="12" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
     var params = { page: currentPage };
     if (currentKeyword) params.keyword = currentKeyword;
     if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
@@ -491,14 +501,14 @@
       success: function (res) {
         $('#loading-row').remove();
         if (res.status !== 'success' || !res.data) {
-          tbody.innerHTML = '<tr><td colspan="13" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
           return;
         }
         var resp = res.data;
         var items = resp.items || [];
         var pageSize = resp.limit || 20;
         if (!items.length) {
-          tbody.innerHTML = '<tr><td colspan="13" class="text-center py-4">Không có dữ liệu</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="12" class="text-center py-4">Không có dữ liệu</td></tr>';
           renderPagination(resp);
           return;
         }
@@ -511,6 +521,7 @@
           var khName = (row.khach_hang && row.khach_hang.ten) || '';
           var lxName = (row.lai_xe && row.lai_xe.ten) || '';
           var ptBks = (row.phuong_tien && row.phuong_tien.bks) || '';
+          var moocBks = (row.mooc && row.mooc.bks) || '';
           var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + (HINH_THUC_COLOR[row.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</span>' : '';
           var hinhThucStatus = '';
           if (row.is_cont_keo_ve || row.hinh_thuc_van_tai === 'dong_hang_trong_ngay') {
@@ -521,24 +532,25 @@
           html += '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
-            '<td>' + formatDateBadge(row.created) + '</td>' +
-            '<td>' +
-              '<div class="khxh-htvt-cell">' +
+            '<td class="khxh-date-cell">' + formatDateBadge(row.created) + '</td>' +
+            '<td class="khxh-common-cell">' +
+              '<div class="khxh-htvt-cell mb-1">' +
                 (hinhThucStatus ? '<div class="khxh-htvt-status">' + escHtml(hinhThucStatus) + '</div>' : '') +
                 (hinhThucBadge ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + '</div>' : '') +
               '</div>' +
+              '<div class="khxh-customer-cell">' + escHtml(khName) + '</div>' +
             '</td>' +
-            '<td>' + escHtml(khName) + '</td>' +
-            '<td>' + escHtml(row.so_bkg || '') + '</td>' +
-            '<td>' + escHtml(row.dia_chi_kho || '') + '</td>' +
-            '<td style="line-height:1.6">' +
+            '<td class="khxh-bkg-cell">' + escHtml(row.so_bkg || '') + '</td>' +
+            '<td class="khxh-kho-cell">' + escHtml(row.dia_chi_kho || '') + '</td>' +
+            '<td class="khxh-container-cell" style="line-height:1.6">' +
               (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '<br>' +
               (row.so_cont ? '<span class="khxh-so-cont-value">' + escHtml(row.so_cont) + '</span>' : '<span class="text-muted fst-italic small">số cont</span>') + '<br>' +
               (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '<br>' +
               (row.so_seal_tam ? escHtml(row.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') +
             '</td>' +
-            '<td style="line-height:1.6">' +
-              (ptBks ? escHtml(ptBks) : '<span class="text-muted fst-italic small">BKS</span>') + '<br>' +
+            '<td class="khxh-vehicle-cell" style="line-height:1.6">' +
+              (ptBks ? escHtml(ptBks) : '<span class="text-muted fst-italic small">BKS đầu kéo</span>') + '<br>' +
+              (moocBks ? '<span class="text-muted small">' + escHtml(moocBks) + '</span>' : '<span class="text-muted fst-italic small">BKS mooc</span>') + '<br>' +
               (lxName ? escHtml(lxName) : '<span class="text-muted fst-italic small">lái xe</span>') +
               (row.lai_xe && row.lai_xe.sdt ? ' - ' + escHtml(row.lai_xe.sdt) : '') +
             '</td>' +
@@ -549,9 +561,9 @@
                 '<div class="khxh-hanh-trinh-box">' + (row.bai_ha_cont ? escHtml(row.bai_ha_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
               '</div>' +
             '</td>' +
-            '<td>' + cutOffBadge(row.cut_off) + '</td>' +
-            '<td>' + escHtml(row.cang_xuat || '') + '</td>' +
-            '<td><span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (daDuHang ? 'Đã đủ hàng' : 'updating..') + '</span></td>' +
+            '<td class="khxh-date-cell">' + cutOffBadge(row.cut_off) + '</td>' +
+            '<td class="khxh-cang-cell">' + escHtml(row.cang_xuat || '') + '</td>' +
+            '<td class="khxh-status-cell"><span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (daDuHang ? 'Đã đủ hàng' : 'updating..') + '</span></td>' +
             '</tr>';
         }
         tbody.innerHTML = html;
@@ -568,7 +580,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.innerHTML = '<tr><td colspan="13" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -610,7 +622,7 @@
 
   function formatDateBadge(val) {
     if (!val) return '';
-    return '<span class="badge bg-label-info fw-normal">' + toDdMmYyyyHm(val) + '</span>';
+    return '<span class="badge bg-label-info fw-normal khxh-date-badge">' + dateTimeStack(val) + '</span>';
   }
 
   function initForm() {

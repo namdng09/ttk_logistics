@@ -26,18 +26,31 @@
 
     <!-- Table -->
     <div class="table-responsive">
-      <table class="table table-bordered table-hover mb-0">
+      <table class="table table-bordered table-hover mb-0 khxh-list-table">
+        <colgroup>
+          <col class="khxh-col-actions">
+          <col class="khxh-col-stt">
+          <col class="khxh-col-date">
+          <col class="khxh-col-common">
+          <col class="khxh-col-bkg">
+          <col class="khxh-col-kho">
+          <col class="khxh-col-container">
+          <col class="khxh-col-vehicle">
+          <col class="khxh-col-route">
+          <col class="khxh-col-date">
+          <col class="khxh-col-cang">
+          <col class="khxh-col-status">
+        </colgroup>
         <thead class="table-light">
           <tr>
             <th style="width:60px;text-align:center">CN</th>
             <th style="width:50px">#</th>
-            <th>Ngày lập KH</th>
-            <th>H.Thức vận tải</th>
-            <th>Khách hàng</th>
+            <th>Ngày K.H</th>
+            <th>T.T Chung</th>
             <th>bkg</th>
             <th>Địa chỉ kho</th>
             <th>Container</th>
-            <th>Tài xế / PT</th>
+            <th>PT / Lái xe</th>
             <th>Hành trình</th>
             <th>Cut off</th>
             <th>Cảng xuất</th>
@@ -46,7 +59,7 @@
         </thead>
         <tbody id="list-body">
           <tr id="loading-row">
-            <td colspan="13" class="text-center py-4">
+            <td colspan="12" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>

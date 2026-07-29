@@ -6,6 +6,113 @@
   vertical-align: middle;
 }
 
+.khxh-list-table {
+  min-width: 1580px;
+  table-layout: fixed;
+}
+
+.khxh-list-table .khxh-col-actions { width: 60px; }
+.khxh-list-table .khxh-col-stt { width: 50px; }
+.khxh-list-table .khxh-col-date { width: 92px; }
+.khxh-list-table .khxh-col-common { width: 210px; }
+.khxh-list-table .khxh-col-bkg { width: 120px; }
+.khxh-list-table .khxh-col-kho { width: 260px; }
+.khxh-list-table .khxh-col-container { width: 160px; }
+.khxh-list-table .khxh-col-vehicle { width: 180px; }
+.khxh-list-table .khxh-col-route { width: 240px; }
+.khxh-list-table .khxh-col-cang { width: 150px; }
+.khxh-list-table .khxh-col-status { width: 110px; }
+
+.khxh-list-table th {
+  white-space: nowrap;
+}
+
+.khxh-list-table th:nth-child(1),
+.khxh-list-table td:nth-child(1) {
+  min-width: 60px;
+}
+
+.khxh-list-table th:nth-child(2),
+.khxh-list-table td:nth-child(2) {
+  min-width: 50px;
+}
+
+.khxh-list-table th:nth-child(3),
+.khxh-list-table td:nth-child(3),
+.khxh-list-table th:nth-child(10),
+.khxh-list-table td:nth-child(10) {
+  width: 92px;
+  min-width: 92px;
+  max-width: 92px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.khxh-list-table th:nth-child(4),
+.khxh-list-table td:nth-child(4) {
+  min-width: 210px;
+}
+
+.khxh-list-table th:nth-child(5),
+.khxh-list-table td:nth-child(5) {
+  min-width: 120px;
+}
+
+.khxh-list-table th:nth-child(6),
+.khxh-list-table td:nth-child(6) {
+  min-width: 260px;
+}
+
+.khxh-list-table th:nth-child(7),
+.khxh-list-table td:nth-child(7) {
+  min-width: 160px;
+}
+
+.khxh-list-table th:nth-child(8),
+.khxh-list-table td:nth-child(8),
+.khxh-list-table th:nth-child(9),
+.khxh-list-table td:nth-child(9) {
+  min-width: 180px;
+}
+
+.khxh-list-table th:nth-child(9),
+.khxh-list-table td:nth-child(9) {
+  min-width: 240px;
+}
+
+.khxh-list-table th:nth-child(11),
+.khxh-list-table td:nth-child(11) {
+  min-width: 150px;
+}
+
+.khxh-list-table th:nth-child(12),
+.khxh-list-table td:nth-child(12) {
+  min-width: 110px;
+}
+
+.khxh-date-badge {
+  display: inline-flex;
+  padding: 0.35rem 0.55rem;
+  line-height: 1.15;
+}
+
+.khxh-date-stack {
+  display: inline-block;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.khxh-common-cell {
+  line-height: 1.35;
+}
+
+.khxh-kho-cell,
+.khxh-customer-cell,
+.khxh-cang-cell {
+  line-height: 1.45;
+}
+
 .flatpickr-calendar,
 .select2-container--open {
   z-index: 99999 !important;
