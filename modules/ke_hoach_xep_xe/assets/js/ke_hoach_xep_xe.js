@@ -1145,14 +1145,18 @@
             '<input type="text" class="form-control line-seal-chinh-input mb-2" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính">' +
             '<input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Số seal tạm">' +
           '</td>' +
-          '<td><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></td>' +
+          '<td class="line-combo-cell">' +
+            '<select class="form-select line-kho-select mb-2">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select>' +
+            '<select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select>' +
+          '</td>' +
           '<td class="line-combo-cell">' +
             '<select class="form-select line-bai-lay-select mb-2">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select>' +
             '<select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select>' +
           '</td>' +
-          '<td><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></td>' +
-          '<td><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></td>' +
-          '<td><select class="form-select line-hinh-thuc-select">' + hinhThucOptions + '</select></td>' +
+          '<td class="line-combo-cell">' +
+            '<input type="text" class="form-control line-cut-off-input mb-2" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM">' +
+            '<select class="form-select line-hinh-thuc-select">' + hinhThucOptions + '</select>' +
+          '</td>' +
           '<td class="text-center">' + actionCopy + '</td>' +
           '<td class="text-center">' + actionRemove + '</td>' +
         '</tr>';

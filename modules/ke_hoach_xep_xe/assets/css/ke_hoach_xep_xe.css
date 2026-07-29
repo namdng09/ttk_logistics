@@ -558,6 +558,10 @@ body .flatpickr-calendar {
   margin-top: 0 !important;
 }
 
+.line-combo-cell .line-kho-select + .select2-container {
+  margin-bottom: 8px !important;
+}
+
 .line-combo-cell .select2-container + .select2-container {
   margin-top: 0.5rem;
 }
