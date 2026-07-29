@@ -298,7 +298,10 @@
     $(document).on('click', '.btn-open-create-ke-hoach', function (e) {
       e.preventDefault();
       var modalEl = document.getElementById('ke-hoach-fullscreen-modal');
-      if (!modalEl) return;
+      if (!modalEl) {
+        window.location.href = '/ke-hoach-xep-xe?open_create=1';
+        return;
+      }
       var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
       modal.show();
     });
@@ -601,6 +604,14 @@
     }
     clearForceReloadList();
     loadList();
+    try {
+      var url = new URL(window.location.href);
+      if (url.searchParams.get('open_create') === '1') {
+        url.searchParams.delete('open_create');
+        window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : ''));
+        $('.btn-open-create-ke-hoach').first().trigger('click');
+      }
+    } catch (e) {}
   }
 
   function loadList() {
@@ -754,7 +765,7 @@
       vehicleMap: {},
       moocs: [],
       moocMap: {},
-      diaDiem: { bai: [], cang: [] },
+      diaDiem: { bai: [], cang: [], kho: [] },
       cauHinh: { diaChiKho: [], loaiCont: [] },
       contCandidateCache: {},
       contCandidatePending: {},
@@ -787,7 +798,7 @@
           state.moocMap[String(state.vehicles[m].nid)] = state.vehicles[m];
         }
       }
-      state.diaDiem = cache.diaDiem || { bai: [], cang: [] };
+      state.diaDiem = $.extend({ bai: [], cang: [], kho: [] }, cache.diaDiem || {});
 
       var html = '<option value="0">— Chọn —</option>';
       for (var j = 0; j < state.customers.length; j++) {
@@ -988,9 +999,8 @@
       var dropdownParent = $('#ke-hoach-fullscreen-modal');
       initSelect2($row.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true, dropdownParent: dropdownParent });
-      initSelect2($row.find('.line-bai-lay-select')[0], '— Chọn bãi lấy cont —', { dropdownParent: dropdownParent });
-      initSelect2($row.find('.line-bai-ha-select')[0], '— Chọn bãi hạ cont —', { dropdownParent: dropdownParent });
-      initSelect2($row.find('.line-bai-ha-thuc-te-select')[0], '— Theo bãi hạ kế hoạch —', { tags: true, dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-bai-lay-select')[0], '— Chọn bãi lấy —', { dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-bai-ha-select')[0], '— Chọn bãi hạ —', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-cang-select')[0], '— Chọn cảng xuất —', { dropdownParent: dropdownParent });
       if (typeof flatpickr !== 'undefined' && $row.find('.line-cut-off-input')[0]) {
         flatpickr($row.find('.line-cut-off-input')[0], {
@@ -1011,8 +1021,8 @@
       initSelect2($card.find('.line-driver-select')[0], '— Chọn lái xe —');
       initSelect2($card.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true });
       initSelect2($card.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true });
-      initSelect2($card.find('.line-bai-lay-select')[0], '— Chọn bãi lấy cont —');
-      initSelect2($card.find('.line-bai-ha-select')[0], '— Chọn bãi hạ cont —');
+      initSelect2($card.find('.line-bai-lay-select')[0], '— Chọn bãi lấy —');
+      initSelect2($card.find('.line-bai-ha-select')[0], '— Chọn bãi hạ —');
       initSelect2($card.find('.line-bai-ha-thuc-te-select')[0], '— Theo bãi hạ kế hoạch —', { tags: true });
       initSelect2($card.find('.line-cang-select')[0], '— Chọn cảng xuất —');
       if (typeof flatpickr !== 'undefined' && $card.find('.line-cut-off-input')[0]) {
@@ -1087,7 +1097,7 @@
                 '<div class="row g-2 mb-2">' +
                   '<div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div>' +
                   '<div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>' +
-                  '<div class="col-md-4"><input type="text" class="form-control line-cont-filter-kho" placeholder="Tìm theo địa chỉ kho"></div>' +
+                  '<div class="col-md-4"><select class="form-select line-cont-filter-kho">' + buildTagOptions(state.diaDiem.kho, '') + '</select></div>' +
                   '<div class="col-md-2"><select class="form-select line-cont-filter-du-hang"><option value="">Trạng thái</option><option value="1">Đã đủ</option><option value="0">Chưa đủ</option></select></div>' +
                 '</div>' +
                 '<div class="table-responsive">' +
@@ -1140,7 +1150,7 @@
             '<select class="form-select line-bai-lay-select mb-2">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select>' +
             '<select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select>' +
           '</td>' +
-          '<td><select class="form-select line-cang-select mb-2">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select><select class="form-select line-bai-ha-thuc-te-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_thuc_te) + '</select></td>' +
+          '<td><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></td>' +
           '<td><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></td>' +
           '<td><select class="form-select line-hinh-thuc-select">' + hinhThucOptions + '</select></td>' +
           '<td class="text-center">' + actionCopy + '</td>' +
@@ -1554,6 +1564,9 @@
       $body.find('.line-bai-ha-thuc-te-select').each(function () {
         initSelect2(this, '— Chọn bãi hạ —', { tags: true, allowClear: false });
       });
+      $picker.find('.line-cont-filter-kho').each(function () {
+        initSelect2(this, '— Tìm theo địa chỉ kho —', { allowClear: true });
+      });
     }
 
     function updateContCandidateItem($card, id, fields) {
@@ -1869,7 +1882,7 @@
         return;
       }
       dropdownsLoading = true;
-      var pending = 4;
+      var pending = 5;
       function finish() {
         pending -= 1;
         if (pending === 0) {
@@ -1933,8 +1946,24 @@
         success: function (res) {
           if (res.status === 'success' && res.data && res.data.items) {
             for (var i = 0; i < res.data.items.length; i++) {
-              if (res.data.items[i].phan_loai === 'Bãi' && res.data.items[i].ten) state.diaDiem.bai.push(res.data.items[i].ten);
-              if (res.data.items[i].phan_loai === 'Cảng' && res.data.items[i].ten) state.diaDiem.cang.push(res.data.items[i].ten);
+              var phanLoai = String(res.data.items[i].phan_loai || '').toLowerCase();
+              if (phanLoai === 'bãi' && res.data.items[i].ten) state.diaDiem.bai.push(res.data.items[i].ten);
+              if (phanLoai === 'cảng' && res.data.items[i].ten) state.diaDiem.cang.push(res.data.items[i].ten);
+            }
+          }
+        },
+        complete: finish
+      });
+      $.ajax({
+        url: '/api/danh-muc',
+        type: 'GET',
+        dataType: 'json',
+        data: { phan_loai: 'Kho', limit: 500 },
+        success: function (res) {
+          if (res.status === 'success' && res.data && res.data.items) {
+            state.diaDiem.kho = [];
+            for (var i = 0; i < res.data.items.length; i++) {
+              if (res.data.items[i].ten) state.diaDiem.kho.push(res.data.items[i].ten);
             }
           }
         },

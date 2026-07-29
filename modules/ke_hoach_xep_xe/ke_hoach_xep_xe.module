@@ -126,11 +126,6 @@ function ke_hoach_xep_xe_theme() {
       'template' => 'ke-hoach-xep-xe-list',
       'path' => $path,
     ),
-    'ke_hoach_xep_xe_form_page' => array(
-      'template' => 'ke-hoach-xep-xe-form',
-      'path' => $path,
-      'variables' => array('mode' => 'create', 'data' => NULL),
-    ),
     'ke_hoach_xep_xe_edit_page' => array(
       'template' => 'ke-hoach-xep-xe-edit',
       'path' => $path,
@@ -857,7 +852,7 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
     return theme('ke_hoach_xep_xe_edit_page', array('mode' => $mode, 'data' => $data));
   }
 
-  return theme('ke_hoach_xep_xe_form_page', array('mode' => $mode, 'data' => $data));
+  return MENU_NOT_FOUND;
 }
 
 function ke_hoach_xep_xe_page_detail($id) {
