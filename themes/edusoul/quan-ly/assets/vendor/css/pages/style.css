@@ -223,3 +223,9 @@ table#table-hack-toan-trucking thead tr th {
     grid-template-columns: 1fr;
   }
 }
+
+.table > thead > tr > th {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  line-height: 2;
+}

@@ -1824,8 +1824,18 @@
       };
     }
 
+    function updateEditTitle(row) {
+      var parts = [currentPlanType() === 'tuyen_xa' ? 'Xếp xe tuyến xa' : 'Xếp xe'];
+      var khName = row && row.khach_hang && row.khach_hang.ten ? row.khach_hang.ten : '';
+      var soBkg = row && row.so_bkg ? row.so_bkg : '';
+      if (khName) parts.push(khName);
+      if (soBkg) parts.push(soBkg);
+      $('#form-title').text(parts.join(' - '));
+    }
+
     function populateEdit(row) {
       var khachHangId = (row.khach_hang && row.khach_hang.nid) || 0;
+      updateEditTitle(row);
       $('#nid-input').val(row.nid || '');
       state.pendingContDestinationUpdates = {};
       state.lines = [];

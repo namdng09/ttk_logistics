@@ -103,6 +103,10 @@
 .authentication-wrapper.authentication-basic .authentication-inner .card .app-brand {
   margin-block-end: 1.5rem;
 }
+.authentication-wrapper .login-brand-text {
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
 .authentication-wrapper .auth-input-wrapper .auth-input {
   font-size: 150%;
   max-inline-size: 50px;

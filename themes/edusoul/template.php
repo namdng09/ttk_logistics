@@ -60,7 +60,7 @@ function getMainMenuSoft()
                   </svg>
                 </span>
               </span>
-                        <span class="app-brand-text demo menu-text fw-bold ms-3">TTK</span>
+                        <span class="app-brand-text demo menu-text fw-bold ms-3">Tân Trường Khoa</span>
                     </a>
 
                     <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">

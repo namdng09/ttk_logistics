@@ -27,12 +27,6 @@
   white-space: nowrap;
 }
 
-#ke-hoach-list-app .table.khxh-list-table > thead > tr > th {
-  padding-top: 0.3rem;
-  padding-bottom: 0.3rem;
-  line-height: 2;
-}
-
 .khxh-list-table th:nth-child(3),
 .khxh-list-table td:nth-child(3),
 .khxh-list-table th:nth-child(10),
@@ -659,6 +653,12 @@ body .flatpickr-calendar {
 
 .line-cont-picker-wrap .table tbody tr:hover > td {
   background: #f3f4f6;
+}
+
+.line-cont-picker-wrap .table > thead > tr > th {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  line-height: 2;
 }
 
 .line-cont-picker-wrap .table th:first-child,
