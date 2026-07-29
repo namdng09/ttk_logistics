@@ -315,6 +315,103 @@
       '</ul></div>';
   }
 
+  function valueOrMuted(value, placeholder) {
+    return value ? escHtml(value) : '<span class="text-muted fst-italic">' + escHtml(placeholder || 'Chưa có') + '</span>';
+  }
+
+  function detailItem(label, value) {
+    return '<div class="detail-info-item"><div class="detail-info-label">' + escHtml(label) + '</div><div class="detail-info-value">' + valueOrMuted(value) + '</div></div>';
+  }
+
+  function transportCardHtml(title, row, emptyText) {
+    if (!row) {
+      return '<div class="detail-transport-card detail-transport-empty"><div class="detail-transport-title">' + escHtml(title) + '</div><div class="text-muted">' + escHtml(emptyText || 'Chưa có dữ liệu') + '</div></div>';
+    }
+    var driver = row.lai_xe || {};
+    var vehicle = row.phuong_tien || {};
+    var mooc = row.mooc || {};
+    var html = '<div class="detail-transport-card">' +
+      '<div class="detail-transport-title">' + escHtml(title) + '</div>' +
+      '<div class="detail-info-grid detail-info-grid-compact">' +
+        detailItem('Đầu kéo', vehicle.bks || '') +
+        detailItem('Mooc', mooc.bks || '') +
+        detailItem('Lái xe', driver.ten || '') +
+        detailItem('SĐT lái xe', driver.sdt || '') +
+        detailItem('Số BKG', row.so_bkg || '') +
+        detailItem('Số cont', row.so_cont || '') +
+      '</div>' +
+    '</div>';
+    return html;
+  }
+
+  function renderDetailModal(d) {
+    var khName = (d.khach_hang && d.khach_hang.ten) || '';
+    var hinhThuc = d.hinh_thuc_van_tai ? (HINH_THUC_MAP[d.hinh_thuc_van_tai] || d.hinh_thuc_van_tai) : '';
+    var diemDen = d.bai_ha_thuc_te || d.bai_ha_cont || '';
+    var commonHtml = '' +
+      '<div class="detail-info-grid">' +
+        detailItem('Ngày lập KH', d.created ? d.created.substring(0, 16) : '') +
+        detailItem('Khách hàng', khName) +
+        detailItem('Hình thức vận tải', hinhThuc) +
+        detailItem('Trạng thái', d.trang_thai_van_chuyen || '') +
+        detailItem('Cut-off', apiToDatetime(d.cut_off || '')) +
+        detailItem('Ghi chú', d.ghi_chu || '') +
+      '</div>';
+    var containerHtml = '' +
+      '<div class="detail-info-grid">' +
+        detailItem('Số BKG', d.so_bkg || '') +
+        detailItem('Số cont', d.so_cont || '') +
+        detailItem('Loại cont', d.loai_cont || '') +
+        detailItem('Seal chính', d.so_seal_chinh || '') +
+        detailItem('Seal phụ', d.so_seal_tam || '') +
+        detailItem('Địa chỉ kho', d.dia_chi_kho || '') +
+        detailItem('Bãi lấy', d.bai_lay_cont || '') +
+        detailItem('Bãi hạ kế hoạch', d.bai_ha_cont || '') +
+        detailItem('Bãi hạ thực tế', d.bai_ha_thuc_te || '') +
+        detailItem('Điểm đến', diemDen) +
+        detailItem('Cảng xuất', d.cang_xuat || '') +
+        detailItem('Đủ hàng', parseInt(d.da_du_hang, 10) === 1 ? 'Đủ hàng' : 'Chưa đủ') +
+      '</div>';
+    var transportHtml = '<div class="detail-transport-grid">' +
+      transportCardHtml('Kéo lên', d.cont_ref || d, 'Chưa có kế hoạch kéo lên') +
+      transportCardHtml('Kéo về', d.ke_hoach_cont_ref_nid ? d : d.cont_keo_ve_by, 'Chưa có kế hoạch kéo về') +
+    '</div>';
+    $('#ke-hoach-detail-subtitle').text((d.so_bkg || 'Kế hoạch') + (d.so_cont ? ' - ' + d.so_cont : ''));
+    $('#ke-hoach-detail-edit-btn').attr('href', '/ke-hoach-xep-xe/' + d.nid + '/sua');
+    $('#ke-hoach-detail-content').html(
+      '<div class="detail-card"><div class="detail-section-title">Thông tin chung</div>' + commonHtml + '</div>' +
+      '<div class="detail-card"><div class="detail-section-title">Thông tin container</div>' + containerHtml + '</div>' +
+      '<div class="detail-card"><div class="detail-section-title">Thông tin vận chuyển</div>' + transportHtml + '</div>'
+    );
+  }
+
+  function openDetailModal(id) {
+    var modalEl = document.getElementById('ke-hoach-detail-modal');
+    if (!modalEl) return;
+    var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
+    $('#ke-hoach-detail-content').html('');
+    $('#ke-hoach-detail-subtitle').text('Đang tải dữ liệu...');
+    $('#ke-hoach-detail-loading').show();
+    modal.show();
+    $.ajax({
+      url: '/api/ke-hoach-xep-xe/' + id,
+      type: 'GET',
+      dataType: 'json',
+      success: function (res) {
+        $('#ke-hoach-detail-loading').hide();
+        if (res.status !== 'success' || !res.data) {
+          $('#ke-hoach-detail-content').html('<div class="alert alert-danger mb-0">' + escHtml(res.message || 'Không tải được chi tiết kế hoạch') + '</div>');
+          return;
+        }
+        renderDetailModal(res.data);
+      },
+      error: function (jqXHR) {
+        $('#ke-hoach-detail-loading').hide();
+        $('#ke-hoach-detail-content').html('<div class="alert alert-danger mb-0">' + escHtml(apiMsg(jqXHR)) + '</div>');
+      }
+    });
+  }
+
   function initList() {
     if (initList._bound) return;
     initList._bound = true;
@@ -432,8 +529,7 @@
 
     $(document).on('click', '.btn-view-ke-hoach-xep-xe', function (e) {
       e.preventDefault();
-      persistListSnapshot();
-      window.location.href = '/ke-hoach-xep-xe/' + $(this).data('id');
+      openDetailModal($(this).data('id'));
     });
     $(document).on('click', '.btn-edit-ke-hoach-xep-xe', function (e) {
       e.preventDefault();

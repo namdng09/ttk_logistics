@@ -85,6 +85,32 @@
   </div>
 </div>
 
+<div class="modal fade" id="ke-hoach-detail-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0">Chi tiết kế hoạch</h5>
+          <div class="text-muted small" id="ke-hoach-detail-subtitle">Đang tải dữ liệu...</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body position-relative">
+        <div class="loading-overlay" id="ke-hoach-detail-loading" style="display:none;">
+          <div class="spinner-border text-primary"></div>
+        </div>
+        <div id="ke-hoach-detail-content"></div>
+      </div>
+      <div class="modal-footer">
+        <a href="#" class="btn btn-primary" id="ke-hoach-detail-edit-btn">
+          <i class="ti tabler-truck-delivery me-1"></i>Xếp xe
+        </a>
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng lại</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="ke-hoach-form-app">
   <input type="hidden" id="nid-input" value="">
 
