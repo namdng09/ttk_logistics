@@ -1065,8 +1065,7 @@
       for (var i = 0; i < state.lines.length; i++) {
         var line = state.lines[i];
         html += '' +
-          '<div class="ke-hoach-line-card" data-line-key="' + line.key + '">' +
-            '<div class="ke-hoach-line-section ke-hoach-line-section-primary">' +
+          '<div class="ke-hoach-line-card ke-hoach-line-section ke-hoach-line-section-primary" data-line-key="' + line.key + '">' +
               '<div class="row g-3">' +
               '<div class="col-lg-3 col-md-6">' +
                 '<label class="form-label">Khách hàng <span class="text-danger">*</span></label>' +
@@ -1104,16 +1103,15 @@
               '<div class="col-lg-3 col-md-6"><label class="form-label">Bãi hạ thực tế</label><select class="form-select line-bai-ha-thuc-te-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_thuc_te) + '</select></div>' +
               '<div class="col-lg-3 col-md-6"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Nhập ghi chú"></div>' +
               '</div>' +
-            '</div>' +
           '</div>';
         pickerHtml += '' +
-            '<div class="ke-hoach-cont-picker-card line-cont-picker-wrap" data-line-key="' + line.key + '" style="display:none;">' +
+            '<div class="line-cont-picker-wrap" data-line-key="' + line.key + '" style="display:none;">' +
               '<div class="ke-hoach-cont-picker-head">' +
                 '<div>' +
                   '<label class="form-label d-block mb-1">Chọn cont kéo về</label>' +
                 '</div>' +
               '</div>' +
-                '<div class="row g-2 mb-2">' +
+                '<div class="row line-cont-filter-row mb-2">' +
                   '<div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div>' +
                   '<div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>' +
                   '<div class="col-md-4"><select class="form-select line-cont-filter-kho">' + buildTagOptions(state.diaDiem.kho, '') + '</select></div>' +

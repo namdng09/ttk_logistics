@@ -171,12 +171,12 @@ body .flatpickr-calendar {
 
 #ke-hoach-lines .ke-hoach-line-card {
   display: block;
-  outline: 1px solid rgba(115, 103, 240, 0.15);
-  border-radius: 14px;
-  padding: 16px 16px 18px;
-  margin: 0 0 24px;
-  background: #fff;
-  box-shadow: 0 4px 12px rgba(115, 103, 240, 0.08);
+  outline: 0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0 0 18px;
+  background: transparent;
+  box-shadow: none;
 }
 
 #ke-hoach-lines .ke-hoach-line-card:last-child {
@@ -225,7 +225,7 @@ body .flatpickr-calendar {
 .ke-hoach-line-section {
   padding-top: 1rem;
   margin-top: 1rem;
-  border-top: 1px solid #f0f2f5;
+  border-top: 0;
 }
 
 .ke-hoach-line-section-primary {
@@ -628,11 +628,9 @@ body .flatpickr-calendar {
   position: relative;
 }
 
-.ke-hoach-cont-picker-card {
-  border: 1px solid #e4e7ec;
-  border-radius: 14px;
-  background: #fbfcff;
-  padding: 14px;
+.line-cont-filter-row {
+  --bs-gutter-x: 12px;
+  --bs-gutter-y: 12px;
 }
 
 .ke-hoach-cont-picker-head {

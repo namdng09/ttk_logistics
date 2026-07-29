@@ -52,7 +52,7 @@
             <th>Phòng ban</th>
             <th>Chức vụ</th>
             <th>Vai trò</th>
-            <th style="width:90px">Trạng thái</th>
+            <th>T.Thái</th>
           </tr>
         </thead>
         <tbody id="table-nhan-vien-tbody">
