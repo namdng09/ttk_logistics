@@ -587,6 +587,13 @@ body .flatpickr-calendar {
   background: #f3f4f6;
 }
 
+.line-cont-picker-wrap .table th:first-child,
+.line-cont-picker-wrap .table td:first-child {
+  width: 42px;
+  min-width: 42px;
+  text-align: center;
+}
+
 .ke-hoach-table-row.table-danger td {
   background: rgba(234, 84, 85, 0.08);
 }

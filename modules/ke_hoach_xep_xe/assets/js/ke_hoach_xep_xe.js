@@ -117,6 +117,20 @@
     return '<span class="badge ' + color + ' khxh-date-badge">' + dateTimeStack(val) + '</span>';
   }
 
+  function vehicleListInfoHtml(row) {
+    row = row || {};
+    var lxName = (row.lai_xe && row.lai_xe.ten) || '';
+    var ptBks = (row.phuong_tien && row.phuong_tien.bks) || '';
+    var moocBks = (row.mooc && row.mooc.bks) || '';
+    return '' +
+      '<div class="khxh-vehicle-bks">' + (ptBks ? escHtml(ptBks) : '<span class="text-muted fst-italic small">BKS đầu kéo</span>') + '</div>' +
+      '<div class="khxh-vehicle-mooc">' + (moocBks ? escHtml(moocBks) : '<span class="text-muted fst-italic small">BKS mooc</span>') + '</div>' +
+      '<div class="khxh-vehicle-driver">' +
+        (lxName ? escHtml(lxName) : '<span class="text-muted fst-italic small">lái xe</span>') +
+        (row.lai_xe && row.lai_xe.sdt ? ' - ' + escHtml(row.lai_xe.sdt) : '') +
+      '</div>';
+  }
+
   function parseCutOff(val) {
     var parts = String(val).split(' ');
     if (parts.length < 1) return null;
@@ -953,17 +967,17 @@
               '<div class="col-lg-8 col-md-12"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
               '<div class="col-lg-4 col-md-12"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Nhập ghi chú"></div>' +
               '<div class="col-12 line-cont-picker-wrap" style="display:none;">' +
-                '<label class="form-label d-block">Chọn cont phù hợp</label>' +
+                '<label class="form-label d-block">Chọn cont kéo về</label>' +
                 '<div class="row g-2 mb-2">' +
-                  '<div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Số BKG"></div>' +
-                  '<div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Số cont"></div>' +
-                  '<div class="col-md-4"><input type="text" class="form-control line-cont-filter-kho" placeholder="Địa chỉ kho"></div>' +
-                  '<div class="col-md-2"><select class="form-select line-cont-filter-du-hang"><option value="">Đủ hàng</option><option value="1">Đã đủ</option><option value="0">Chưa đủ</option></select></div>' +
+                  '<div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div>' +
+                  '<div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>' +
+                  '<div class="col-md-4"><input type="text" class="form-control line-cont-filter-kho" placeholder="Tìm theo địa chỉ kho"></div>' +
+                  '<div class="col-md-2"><select class="form-select line-cont-filter-du-hang"><option value="">Trạng thái</option><option value="1">Đã đủ</option><option value="0">Chưa đủ</option></select></div>' +
                 '</div>' +
                 '<div class="table-responsive">' +
                   '<table class="table table-bordered table-sm mb-0">' +
-                    '<thead><tr><th>TX kéo lên</th><th>Số Booking / Cont</th><th>Địa chỉ kho</th><th>Đủ hàng</th><th>Ghi chú</th></tr></thead>' +
-                    '<tbody class="line-cont-picker-body"><tr><td colspan="5" class="text-center text-muted">Chưa có dữ liệu</td></tr></tbody>' +
+                    '<thead><tr><th></th><th>Xe kéo lên</th><th>Booking / Cont</th><th>Địa chỉ kho</th><th>Đủ hàng</th><th>Ghi chú</th></tr></thead>' +
+                    '<tbody class="line-cont-picker-body"><tr><td colspan="6" class="text-center text-muted">Chưa có dữ liệu</td></tr></tbody>' +
                   '</table>' +
                 '</div>' +
               '</div>' +
@@ -1276,7 +1290,7 @@
       $wrap.addClass('is-loading');
       $body.html(
         '<tr>' +
-          '<td colspan="5" class="text-center py-4">' +
+          '<td colspan="6" class="text-center py-4">' +
             '<div class="cont-picker-loading">' +
               '<div class="spinner-border spinner-border-sm text-primary" role="status">' +
                 '<span class="visually-hidden">Đang tải...</span>' +
@@ -1299,7 +1313,7 @@
       if (!shouldShowContPicker(hinhThuc)) {
         clearContPickerLoading($card);
         $wrap.hide();
-        $body.html('<tr><td colspan="5" class="text-center text-muted">Không áp dụng cho hình thức này</td></tr>');
+        $body.html('<tr><td colspan="6" class="text-center text-muted">Không áp dụng cho hình thức này</td></tr>');
         return;
       }
       $wrap.show();
@@ -1333,7 +1347,7 @@
           if (res.status !== 'success' || !res.data || !res.data.items) {
             for (var i = 0; i < waitingCards.length; i++) {
               clearContPickerLoading(waitingCards[i]);
-              waitingCards[i].find('.line-cont-picker-body').html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+              waitingCards[i].find('.line-cont-picker-body').html('<tr><td colspan="6" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
             }
             return;
           }
@@ -1352,7 +1366,7 @@
           var waitingCards = state.contCandidatePending[cacheKey] || [];
           for (var i = 0; i < waitingCards.length; i++) {
             clearContPickerLoading(waitingCards[i]);
-            waitingCards[i].find('.line-cont-picker-body').html('<tr><td colspan="5" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
+            waitingCards[i].find('.line-cont-picker-body').html('<tr><td colspan="6" class="text-center text-danger">Không tải được danh sách cont</td></tr>');
           }
         },
         complete: function () {
@@ -1383,14 +1397,15 @@
         if (fDuHang !== '' && parseInt(item.da_du_hang, 10) !== parseInt(fDuHang, 10)) continue;
         var selected = parseInt(line.ke_hoach_cont_ref_nid, 10) === parseInt(item.nid, 10);
         rows.push('<tr>' +
-          '<td class="text-center"><button type="button" class="btn btn-sm ' + (selected ? 'btn-success' : 'btn-primary') + ' btn-pick-cont-ref" data-id="' + item.nid + '" data-so-cont="' + escHtml(item.so_cont || '') + '">' + (selected ? 'Đã chọn' : 'Chọn') + '</button></td>' +
+          '<td class="text-center"><input class="form-check-input line-cont-ref-checkbox" type="checkbox" value="' + item.nid + '" data-id="' + item.nid + '" data-so-cont="' + escHtml(item.so_cont || '') + '"' + (selected ? ' checked' : '') + '></td>' +
+          '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(item) + '</td>' +
           '<td><div>' + escHtml(item.so_bkg || '') + '</div><div class="small fw-semibold">' + escHtml(item.so_cont || '') + '</div></td>' +
           '<td>' + escHtml(item.dia_chi_kho || '') + '</td>' +
           '<td class="text-center">' + (parseInt(item.da_du_hang, 10) === 1 ? '<i class="ti tabler-check text-success"></i>' : '<i class="ti tabler-minus text-muted"></i>') + '</td>' +
-          '<td><input type="text" class="form-control form-control-sm cont-inline-note" data-id="' + item.nid + '" value="' + escHtml(item.ghi_chu || '') + '" placeholder="Ghi chú">' + (selected ? '<div class="small text-success mt-1">Đang được chọn để kéo về</div>' : '') + '</td>' +
+          '<td><input type="text" class="form-control form-control-sm cont-inline-note" data-id="' + item.nid + '" value="' + escHtml(item.ghi_chu || '') + '" placeholder="Ghi chú"></td>' +
           '</tr>');
       }
-      $body.html(rows.length ? rows.join('') : '<tr><td colspan="5" class="text-center text-muted">Không có cont phù hợp</td></tr>');
+      $body.html(rows.length ? rows.join('') : '<tr><td colspan="6" class="text-center text-muted">Không có cont phù hợp</td></tr>');
     }
 
     function loadCauHinh(khId, callback) {
@@ -1846,13 +1861,13 @@
       var line = syncLine($card);
       renderContCandidateRows(line, $card);
     });
-    $(document).on('click', '.btn-pick-cont-ref', function () {
-      var $btn = $(this);
-      var $card = $btn.closest('.ke-hoach-line-card');
+    $(document).on('change', '.line-cont-ref-checkbox', function () {
+      var $checkbox = $(this);
+      var $card = $checkbox.closest('.ke-hoach-line-card');
       var line = syncLine($card);
-      line.ke_hoach_cont_ref_nid = parseInt($btn.attr('data-id'), 10) || 0;
+      line.ke_hoach_cont_ref_nid = $checkbox.is(':checked') ? (parseInt($checkbox.attr('data-id'), 10) || 0) : 0;
       renderContCandidateRows(line, $card);
-      if (notyf) notyf.success('Đã chọn cont kéo về: ' + ($btn.attr('data-so-cont') || ''));
+      if (line.ke_hoach_cont_ref_nid && notyf) notyf.success('Đã chọn cont kéo về: ' + ($checkbox.attr('data-so-cont') || ''));
     });
     $(document).on('change blur', '.cont-inline-note', function () {
       var $input = $(this);
