@@ -7,24 +7,30 @@
 }
 
 .khxh-list-table {
-  min-width: 1580px;
+  min-width: 1280px;
   table-layout: fixed;
 }
 
-.khxh-list-table .khxh-col-actions { width: 60px; }
-.khxh-list-table .khxh-col-stt { width: 36px; }
-.khxh-list-table .khxh-col-date { width: 92px; }
-.khxh-list-table .khxh-col-common { width: 210px; }
-.khxh-list-table .khxh-col-bkg { width: 120px; }
-.khxh-list-table .khxh-col-kho { width: 220px; }
-.khxh-list-table .khxh-col-container { width: 160px; }
-.khxh-list-table .khxh-col-vehicle { width: 180px; }
-.khxh-list-table .khxh-col-route { width: 190px; }
-.khxh-list-table .khxh-col-cang { width: 150px; }
+.khxh-list-table .khxh-col-actions { width: 45px; }
+.khxh-list-table .khxh-col-stt { width: 33px; }
+.khxh-list-table .khxh-col-date { width: 85px; }
+.khxh-list-table .khxh-col-common { width: 155px; }
+.khxh-list-table .khxh-col-bkg { width: 130px; }
+.khxh-list-table .khxh-col-kho { width: 140px; }
+.khxh-list-table .khxh-col-container { width: 132px; }
+.khxh-list-table .khxh-col-vehicle { width: 110px; }
+.khxh-list-table .khxh-col-route { width: 110px; }
+.khxh-list-table .khxh-col-cang { width: 110px; }
 .khxh-list-table .khxh-col-status { width: 110px; }
 
 .khxh-list-table th {
   white-space: nowrap;
+}
+
+#ke-hoach-list-app .table.khxh-list-table > thead > tr > th {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  line-height: 2;
 }
 
 .khxh-list-table th:nth-child(3),

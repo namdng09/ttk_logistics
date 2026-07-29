@@ -57,7 +57,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
             <th>Địa chỉ kho</th>
             <th>Container</th>
             <th>PT / Lái xe</th>
-            <th>Bãi lấy<br>Bãi hạ</th>
+            <th>Bãi lấy/hạ</th>
             <th>Cut off</th>
             <th>Cảng xuất</th>
             <th>T.Thái</th>

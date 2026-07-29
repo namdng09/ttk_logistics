@@ -136,14 +136,25 @@
   function vehicleListInfoHtml(row) {
     row = row || {};
     var lxName = (row.lai_xe && row.lai_xe.ten) || '';
-    var ptBks = (row.phuong_tien && row.phuong_tien.bks) || '';
-    var moocBks = (row.mooc && row.mooc.bks) || '';
+    var lxSdt = (row.lai_xe && row.lai_xe.sdt) || '';
+    var pt = row.phuong_tien || {};
+    var mooc = row.mooc || {};
+    var ptDisplay = pt.bks || '';
+    var moocDisplay = mooc.bks || '';
+    var ptText = pt.bks ? pt.bks + (pt.ma_tai_san ? ' - ' + pt.ma_tai_san : '') : '';
+    var moocText = mooc.bks ? mooc.bks + (mooc.ma_tai_san ? ' - ' + mooc.ma_tai_san : '') : '';
+    var tooltipLines = [];
+    if (ptText) tooltipLines.push(ptText);
+    if (moocText) tooltipLines.push(moocText);
+    if (lxName || lxSdt) tooltipLines.push(lxName + (lxSdt ? ' - ' + lxSdt : ''));
+    var tooltip = tooltipLines.join('\n');
     return '' +
-      '<div class="khxh-vehicle-bks">' + (ptBks ? escHtml(ptBks) : '<span class="text-muted fst-italic small">BKS đầu kéo</span>') + '</div>' +
-      '<div class="khxh-vehicle-mooc">' + (moocBks ? escHtml(moocBks) : '<span class="text-muted fst-italic small">BKS mooc</span>') + '</div>' +
+      '<div class="khxh-vehicle-info"' + (tooltip ? ' title="' + escHtml(tooltip) + '"' : '') + '>' +
+      '<div class="khxh-vehicle-bks">' + (ptDisplay ? escHtml(ptDisplay) : '<span class="text-muted fst-italic small">BKS đầu kéo</span>') + '</div>' +
+      '<div class="khxh-vehicle-mooc">' + (moocDisplay ? escHtml(moocDisplay) : '<span class="text-muted fst-italic small">BKS mooc</span>') + '</div>' +
       '<div class="khxh-vehicle-driver">' +
         (lxName ? escHtml(lxName) : '<span class="text-muted fst-italic small">lái xe</span>') +
-        (row.lai_xe && row.lai_xe.sdt ? ' - ' + escHtml(row.lai_xe.sdt) : '') +
+      '</div>' +
       '</div>';
   }
 
@@ -356,8 +367,6 @@
         detailItem('Mooc', mooc.bks || '') +
         detailItem('Lái xe', driver.ten || '') +
         detailItem('SĐT lái xe', driver.sdt || '') +
-        detailItem('Số BKG', row.so_bkg || '') +
-        detailItem('Số cont', row.so_cont || '') +
       '</div>' +
     '</div>';
     return html;
@@ -393,7 +402,7 @@
       '</div>';
     var transportHtml = '<div class="detail-transport-grid">' +
       transportCardHtml('Kéo lên', d.cont_ref || d, 'Chưa có kế hoạch kéo lên') +
-      transportCardHtml('Kéo về', d.ke_hoach_cont_ref_nid ? d : d.cont_keo_ve_by, 'Chưa có kế hoạch kéo về') +
+      transportCardHtml('Kéo về', d.cont_keo_ve_by || null, 'Chưa có kế hoạch kéo về') +
     '</div>';
     $('#ke-hoach-detail-subtitle').text((d.so_bkg || 'Kế hoạch') + (d.so_cont ? ' - ' + d.so_cont : ''));
     $('#ke-hoach-detail-edit-btn').attr('href', '/ke-hoach-xep-xe/' + d.nid + '/sua');
@@ -662,9 +671,6 @@
           var stt = (resp.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(row.nid);
           var khName = (row.khach_hang && row.khach_hang.ten) || '';
-          var lxName = (row.lai_xe && row.lai_xe.ten) || '';
-          var ptBks = (row.phuong_tien && row.phuong_tien.bks) || '';
-          var moocBks = (row.mooc && row.mooc.bks) || '';
           var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + (HINH_THUC_COLOR[row.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</span>' : '';
           var hinhThucStatus = '';
           if (row.is_cont_keo_ve || row.hinh_thuc_van_tai === 'dong_hang_trong_ngay') {
@@ -691,14 +697,7 @@
               '<div>' + (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '</div>' +
               '<div>' + (row.so_seal_tam ? escHtml(row.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') + '</div>' +
             '</td>' +
-            '<td class="khxh-vehicle-cell">' +
-              '<div class="khxh-vehicle-bks">' + (ptBks ? escHtml(ptBks) : '<span class="text-muted fst-italic small">BKS đầu kéo</span>') + '</div>' +
-              '<div class="khxh-vehicle-mooc">' + (moocBks ? escHtml(moocBks) : '<span class="text-muted fst-italic small">BKS mooc</span>') + '</div>' +
-              '<div class="khxh-vehicle-driver">' +
-                (lxName ? escHtml(lxName) : '<span class="text-muted fst-italic small">lái xe</span>') +
-                (row.lai_xe && row.lai_xe.sdt ? ' - ' + escHtml(row.lai_xe.sdt) : '') +
-              '</div>' +
-            '</td>' +
+            '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(row) + '</td>' +
             '<td class="text-nowrap">' +
               '<div class="khxh-hanh-trinh-cell">' +
                 '<div class="khxh-hanh-trinh-box">' + (row.bai_lay_cont ? escHtml(row.bai_lay_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
