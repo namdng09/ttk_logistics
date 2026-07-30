@@ -483,7 +483,25 @@ function _ke_hoach_xep_xe_rest_list() {
     $query->condition($or);
   }
   if (!empty($_GET['trang_thai_van_chuyen'])) {
-    $query->condition('kh.trang_thai_van_chuyen', $_GET['trang_thai_van_chuyen']);
+    $trang_thai_filter = trim((string) $_GET['trang_thai_van_chuyen']);
+    if ($trang_thai_filter === 'Kéo lên') {
+      $query->condition('kh.hinh_thuc_van_tai', array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), 'IN');
+    }
+    elseif ($trang_thai_filter === 'Kéo về') {
+      $query->condition(db_or()
+        ->condition('kh.ke_hoach_cont_ref_nid', 0, '>')
+        ->condition('kh.hinh_thuc_van_tai', 'dong_hang_trong_ngay')
+      );
+    }
+    elseif ($trang_thai_filter === 'Đã cắt mooc') {
+      $query->condition('kh.da_cat_mooc', 1);
+    }
+    else {
+      $query->condition('kh.trang_thai_van_chuyen', $trang_thai_filter);
+    }
+  }
+  if (isset($_GET['da_du_hang']) && ($_GET['da_du_hang'] === '0' || $_GET['da_du_hang'] === '1')) {
+    $query->condition('kh.da_du_hang', (int) $_GET['da_du_hang']);
   }
   if (!empty($_GET['khach_hang'])) {
     $query->leftJoin('khach_hang', 'khh_filter', 'khh_filter.nid = kh.nid_khach_hang');

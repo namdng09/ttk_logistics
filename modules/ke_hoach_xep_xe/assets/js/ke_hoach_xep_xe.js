@@ -15,6 +15,16 @@
   var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v1';
   var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
   var formDropdownCacheMemory = null;
+  var listSearchDropdownsLoaded = false;
+  var listSearchDropdownsLoading = false;
+  var listSearchDropdownCallbacks = [];
+  var listSearchDropdownData = {
+    customers: [],
+    kho: [],
+    loaiCont: ['20DC', '40DC', '40HC', '45HC'],
+    vehicles: [],
+    moocs: []
+  };
 
   function currentPlanType() {
     return settings.plan_type === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
@@ -44,7 +54,8 @@
       so_seal_chinh: '#filter-seal-chinh',
       so_seal_tam: '#filter-seal-phu',
       bks_dau_keo: '#filter-bks-dau-keo',
-      bks_mooc: '#filter-bks-mooc'
+      bks_mooc: '#filter-bks-mooc',
+      da_du_hang: '#filter-da-du-hang'
     };
   }
 
@@ -462,7 +473,9 @@
     var fields = listFilterFields();
     for (var key in fields) {
       if (!fields.hasOwnProperty(key)) continue;
-      $(fields[key]).val(filters[key] || '');
+      var $field = $(fields[key]);
+      $field.val(filters[key] || '');
+      if ($field.data('select2')) $field.trigger('change');
     }
   }
 
@@ -472,6 +485,108 @@
     currentFilters = {};
     setListFilterInputs({});
     $('#status-filter').val('');
+    if ($('#status-filter').data('select2')) $('#status-filter').trigger('change');
+  }
+
+  function setListSearchLoading(show) {
+    var $modal = $('#ke-hoach-search-modal');
+    $('#ke-hoach-search-loading').toggle(!!show);
+    $modal.find('input, select, button').prop('disabled', !!show);
+  }
+
+  function appendTextOptions($select, items, selectedValue) {
+    var html = '<option></option>';
+    var seen = {};
+    selectedValue = selectedValue || '';
+    for (var i = 0; i < items.length; i++) {
+      var value = String(items[i] || '').trim();
+      if (!value || seen[value]) continue;
+      seen[value] = true;
+      html += '<option value="' + escHtml(value) + '"' + (value === selectedValue ? ' selected' : '') + '>' + escHtml(value) + '</option>';
+    }
+    if (selectedValue && !seen[selectedValue]) {
+      html += '<option value="' + escHtml(selectedValue) + '" selected>' + escHtml(selectedValue) + '</option>';
+    }
+    $select.html(html);
+  }
+
+  function initListSearchSelects() {
+    var dropdownParent = $('#ke-hoach-search-modal');
+    var filters = $.extend({}, currentFilters || {});
+    $('#ke-hoach-search-modal').find('input, select, button').prop('disabled', false);
+    appendTextOptions($('#filter-khach-hang'), $.map(listSearchDropdownData.customers, function (item) { return item.ten || ''; }), filters.khach_hang || '');
+    appendTextOptions($('#filter-dia-chi-kho'), listSearchDropdownData.kho, filters.dia_chi_kho || '');
+    appendTextOptions($('#filter-loai-cont'), listSearchDropdownData.loaiCont, filters.loai_cont || '');
+    appendTextOptions($('#filter-bks-dau-keo'), $.map(listSearchDropdownData.vehicles, function (item) { return item.bks || ''; }), filters.bks_dau_keo || '');
+    appendTextOptions($('#filter-bks-mooc'), $.map(listSearchDropdownData.moocs, function (item) { return item.bks || ''; }), filters.bks_mooc || '');
+    setListFilterInputs(filters);
+    $('#status-filter').val(currentStatus || '');
+    initSelect2(document.getElementById('filter-khach-hang'), '— Chọn khách hàng —', { dropdownParent: dropdownParent });
+    initSelect2(document.getElementById('filter-dia-chi-kho'), '— Chọn địa chỉ kho —', { dropdownParent: dropdownParent });
+    initSelect2(document.getElementById('filter-loai-cont'), 'Loại cont', { tags: true, dropdownParent: dropdownParent });
+    initSelect2(document.getElementById('filter-bks-dau-keo'), '— Chọn BKS đầu kéo —', { dropdownParent: dropdownParent });
+    initSelect2(document.getElementById('filter-bks-mooc'), '— Chọn BKS mooc —', { dropdownParent: dropdownParent });
+    initSelect2(document.getElementById('status-filter'), '— Chọn trạng thái —', { dropdownParent: dropdownParent, allowClear: true });
+    initSelect2(document.getElementById('filter-da-du-hang'), '— Chọn đủ hàng —', { dropdownParent: dropdownParent, allowClear: true });
+  }
+
+  function loadListSearchDropdowns(done) {
+    if (listSearchDropdownsLoaded) {
+      if (done) done();
+      return;
+    }
+    if (done) listSearchDropdownCallbacks.push(done);
+    if (listSearchDropdownsLoading) return;
+    listSearchDropdownsLoading = true;
+    var pending = 3;
+    function finish() {
+      pending -= 1;
+      if (pending > 0) return;
+      listSearchDropdownsLoaded = true;
+      listSearchDropdownsLoading = false;
+      var callbacks = listSearchDropdownCallbacks.splice(0);
+      for (var i = 0; i < callbacks.length; i++) callbacks[i]();
+    }
+    $.ajax({
+      url: '/api/khach-hang',
+      type: 'GET',
+      dataType: 'json',
+      data: { limit: 500 },
+      success: function (res) {
+        if (res.status === 'success' && res.data && res.data.items) listSearchDropdownData.customers = res.data.items;
+      },
+      complete: finish
+    });
+    $.ajax({
+      url: '/api/phuong-tien',
+      type: 'GET',
+      dataType: 'json',
+      data: { limit: 500 },
+      success: function (res) {
+        if (res.status === 'success' && res.data && res.data.items) {
+          listSearchDropdownData.vehicles = [];
+          listSearchDropdownData.moocs = [];
+          for (var i = 0; i < res.data.items.length; i++) {
+            var item = res.data.items[i];
+            if (String(item.loai_phuong_tien || '').toLowerCase().indexOf('mooc') !== -1) listSearchDropdownData.moocs.push(item);
+            else listSearchDropdownData.vehicles.push(item);
+          }
+        }
+      },
+      complete: finish
+    });
+    $.ajax({
+      url: '/api/danh-muc',
+      type: 'GET',
+      dataType: 'json',
+      data: { phan_loai: 'Kho', limit: 500 },
+      success: function (res) {
+        if (res.status === 'success' && res.data && res.data.items) {
+          listSearchDropdownData.kho = $.map(res.data.items, function (item) { return item.ten || ''; });
+        }
+      },
+      complete: finish
+    });
   }
 
   function initListDateFilters() {
@@ -491,15 +606,6 @@
     initList._bound = true;
     var doc = document;
     initListDateFilters();
-    var filterEl = doc.getElementById('status-filter');
-    if (filterEl) {
-      for (var i = 0; i < statuses.length; i++) {
-        var opt = doc.createElement('option');
-        opt.value = statuses[i];
-        opt.textContent = statuses[i];
-        filterEl.appendChild(opt);
-      }
-    }
 
     function canRestoreListSnapshot() {
       if (shouldForceReloadList()) return false;
@@ -568,23 +674,28 @@
 
     $('#search-btn').on('click', function () {
       currentFilters = collectListFilters();
+      currentStatus = $('#status-filter').val() || '';
       currentPage = 1;
       loadList();
+      var searchModalEl = document.getElementById('ke-hoach-search-modal');
+      var searchModal = searchModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal.getInstance ? bootstrap.Modal.getInstance(searchModalEl) : null;
+      if (searchModal) searchModal.hide();
     });
     $('.ke-hoach-list-filter input, .ke-hoach-list-filter select').on('keypress', function (e) {
       if (e.which === 13) {
         currentFilters = collectListFilters();
+        currentStatus = $('#status-filter').val() || '';
         currentPage = 1;
         loadList();
       }
     });
-    if (filterEl) {
-      filterEl.addEventListener('change', function () {
-        currentStatus = this.value;
-        currentPage = 1;
-        loadList();
+    $('#ke-hoach-search-modal').on('shown.bs.modal', function () {
+      setListSearchLoading(true);
+      loadListSearchDropdowns(function () {
+        initListSearchSelects();
+        setListSearchLoading(false);
       });
-    }
+    });
     $('.btn-reload').on('click', function () {
       clearListFilters();
       currentPage = 1;
@@ -879,6 +990,9 @@
     function showLoading(show) {
       $('#form-loading').toggle(show);
       $('#save-btn, #add-line-btn, #reset-lines-btn').prop('disabled', show);
+      if (useTableLayout) {
+        $('#ke-hoach-fullscreen-modal').find('input, select, button').not('.btn-close').prop('disabled', show);
+      }
     }
 
     function nextLineKey() {
@@ -2229,11 +2343,16 @@
     if (useTableLayout && modalEl) {
       formModal = new bootstrap.Modal(modalEl);
       modalEl.addEventListener('show.bs.modal', function () {
+        showLoading(true);
         loadDropdowns(function () {
-          if ($('#nid-input').val()) return;
+          if ($('#nid-input').val()) {
+            showLoading(false);
+            return;
+          }
           $('#ke-hoach-form')[0].reset();
           state.lines = [];
           addLine({});
+          showLoading(false);
         });
       });
     }

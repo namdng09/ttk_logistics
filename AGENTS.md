@@ -248,8 +248,10 @@ $items['<entity>'] = array(
 ### Template (lai-xe-list.tpl.php)
 - Card header: title (buttons chuyển xuống cùng hàng với search).
 - Card body: search + buttons (col-md-8 + col-md-4 text-end), table, pagination.
+- Không tự thêm text hướng dẫn/mô tả trong UI nếu user không yêu cầu rõ; tránh các đoạn `text-muted small` giải thích chức năng.
 - Modal: `modal-dialog-centered modal-xl`, `modal-body` có `position:relative`.
 - Loading overlay trong modal: `position:absolute;inset:0;z-index:10;background:rgba(255,255,255,0.85)`.
+- Mọi UI có call API hoặc phải chờ dữ liệu trước khi thao tác đều phải có animation/loading state; không để người dùng thao tác khi dữ liệu chưa sẵn sàng.
 - View modal: readonly fields.
 - Toast: dùng Notyf (Vuexy built-in).
 - JS: load list on page load, modal mở ngay với loading overlay, populate sau khi API trả về.
