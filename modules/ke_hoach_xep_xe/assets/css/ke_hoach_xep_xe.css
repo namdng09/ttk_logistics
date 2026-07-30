@@ -28,10 +28,10 @@
   white-space: nowrap;
 }
 
-.khxh-list-table th:nth-child(3),
-.khxh-list-table td:nth-child(3),
-.khxh-list-table th:nth-child(11),
-.khxh-list-table td:nth-child(11) {
+#ke-hoach-list-app .khxh-list-table th:nth-child(3),
+#ke-hoach-list-app .khxh-list-table td:nth-child(3),
+#ke-hoach-list-app .khxh-list-table th:nth-child(11),
+#ke-hoach-list-app .khxh-list-table td:nth-child(11) {
   width: 92px;
   min-width: 92px;
   max-width: 92px;

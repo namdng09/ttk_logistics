@@ -2290,31 +2290,35 @@
         for (var i = 0; i < items.length; i++) {
           var item = items[i];
           var daDuHang = parseInt(item.da_du_hang, 10) === 1;
-          var ptBks = item.phuong_tien && item.phuong_tien.bks ? item.phuong_tien.bks : '';
-          var lxName = item.lai_xe && item.lai_xe.ten ? item.lai_xe.ten : '';
           if (contMode === 'cat_mooc') {
             var hinhThucBadge = item.hinh_thuc_van_tai ? '<span class="badge ' + (HINH_THUC_COLOR[item.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[item.hinh_thuc_van_tai] || '') + '</span>' : '';
+            var khName = item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : '';
+            var contHtml = item.loai_cont ? escHtml(item.loai_cont) : '';
+            if (item.so_cont) {
+              contHtml += (contHtml ? ' - ' : '') + '<span class="khxh-so-cont-value">' + escHtml(item.so_cont) + '</span>';
+            }
             html += '<tr data-id="' + item.nid + '">' +
               '<td>' + (i + 1) + '</td>' +
-              '<td>' + formatDateBadge(item.created) + '</td>' +
-              '<td><div class="khxh-htvt-cell">' + (item.hinh_thuc_status_text ? '<div class="khxh-htvt-status">' + escHtml(item.hinh_thuc_status_text) + '</div>' : '') + (hinhThucBadge ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + '</div>' : '') + '</div></td>' +
-              '<td>' + escHtml(item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : '') + '</td>' +
-              '<td>' + escHtml(item.so_bkg || '') + '</td>' +
-              '<td>' + escHtml(item.dia_chi_kho || '') + '</td>' +
-              '<td style="line-height:1.6">' +
-                (item.loai_cont ? escHtml(item.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '<br>' +
-                (item.so_cont ? '<span class="khxh-so-cont-value">' + escHtml(item.so_cont) + '</span>' : '<span class="text-muted fst-italic small">số cont</span>') + '<br>' +
-                (item.so_seal_chinh ? escHtml(item.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '<br>' +
-                (item.so_seal_tam ? escHtml(item.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') +
+              '<td class="khxh-date-cell">' + formatDateBadge(item.created) + '</td>' +
+              '<td class="khxh-common-cell">' +
+                '<div class="khxh-customer-cell">' + (khName ? escHtml(khName) : '<span class="text-muted fst-italic small">khách hàng</span>') + '</div>' +
+                '<div class="khxh-htvt-cell">' +
+                  (item.hinh_thuc_status_text ? '<div class="khxh-htvt-status">' + escHtml(item.hinh_thuc_status_text) + '</div>' : '') +
+                  (hinhThucBadge ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + '</div>' : '') +
+                '</div>' +
               '</td>' +
-              '<td style="line-height:1.6">' +
-                (ptBks ? escHtml(ptBks) : '<span class="text-muted fst-italic small">BKS</span>') + '<br>' +
-                (lxName ? escHtml(lxName) : '<span class="text-muted fst-italic small">lái xe</span>') +
+              '<td class="khxh-bkg-cell">' + escHtml(item.so_bkg || '') + '</td>' +
+              '<td class="khxh-container-cell">' +
+                '<div>' + (contHtml || '<span class="text-muted fst-italic small">container</span>') + '</div>' +
+                '<div>' + (item.so_seal_tam ? escHtml(item.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') + '</div>' +
+                '<div>' + (item.so_seal_chinh ? escHtml(item.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '</div>' +
               '</td>' +
-              '<td><div class="khxh-hanh-trinh-cell"><div class="khxh-hanh-trinh-box">' + (item.bai_lay_cont ? escHtml(item.bai_lay_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + (item.bai_ha_cont ? escHtml(item.bai_ha_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div></div></td>' +
-              '<td>' + cutOffBadge(item.cut_off) + '</td>' +
-              '<td>' + escHtml(item.cang_xuat || '') + '</td>' +
-              '<td class="text-center"><button type="button" class="btn btn-sm ' + (daDuHang ? 'btn-success' : 'btn-label-secondary') + ' cont-toggle-btn" data-field="da_du_hang">' + (daDuHang ? 'Đã đủ hàng' : 'updating..') + '</button></td>' +
+              '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(item) + '</td>' +
+              '<td class="khxh-kho-cell">' + escHtml(item.dia_chi_kho || '') + '</td>' +
+              '<td class="text-nowrap"><div class="khxh-hanh-trinh-cell"><div class="khxh-hanh-trinh-box">' + (item.bai_lay_cont ? escHtml(item.bai_lay_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + (item.bai_ha_cont ? escHtml(item.bai_ha_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div></div></td>' +
+              '<td class="khxh-cang-cell">' + escHtml(item.cang_xuat || '') + '</td>' +
+              '<td class="khxh-date-cell">' + cutOffBadge(item.cut_off) + '</td>' +
+              '<td class="khxh-status-cell text-center"><button type="button" class="btn btn-sm ' + (daDuHang ? 'btn-success' : 'btn-label-secondary') + ' cont-toggle-btn" data-field="da_du_hang">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</button></td>' +
               '</tr>';
           } else {
             html += '<tr data-id="' + item.nid + '">' +
@@ -2370,7 +2374,7 @@
       if (typeof Swal !== 'undefined') {
         Swal.fire({
           title: 'Xác nhận cập nhật',
-          text: nextVal ? 'Chuyển cont này sang trạng thái đã đủ hàng?' : 'Chuyển cont này về trạng thái updating..? ',
+          text: nextVal ? 'Chuyển cont này sang trạng thái đã đủ hàng?' : 'Chuyển cont này về trạng thái chưa đủ hàng?',
           icon: 'warning',
           showCancelButton: true,
           confirmButtonText: 'Xác nhận',

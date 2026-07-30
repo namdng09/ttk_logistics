@@ -17,7 +17,7 @@
           <select class="form-select" id="cont-filter-khach-hang"><option value="">Khách hàng</option></select>
         </div>
         <div class="col-6 col-md-3 mb-2 mb-md-0">
-          <select class="form-select" id="cont-filter-du-hang"><option value="">Tất cả trạng thái</option><option value="1">Đã đủ hàng</option><option value="0">updating..</option></select>
+          <select class="form-select" id="cont-filter-du-hang"><option value="">Tất cả trạng thái</option><option value="1">Đã đủ hàng</option><option value="0">Chưa đủ hàng</option></select>
         </div>
         <div class="col-12 col-md-2">
           <div class="d-flex gap-2 justify-content-md-end justify-content-center">
@@ -41,25 +41,54 @@
     <?php endif; ?>
 
     <div class="table-responsive">
-      <table class="table table-bordered table-hover mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>Ngày lập KH</th>
-            <th>H.Thức vận tải</th>
-            <th>Khách hàng</th>
-            <th>Số BKG</th>
-            <th>Địa chỉ kho</th>
-            <th>Container</th>
-            <th>Tài xế / PT</th>
-            <th>Hành trình</th>
-            <th>Cut off</th>
-            <th>Cảng xuất</th>
-            <th>T.Thái</th>
-          </tr>
-        </thead>
+      <table class="table table-bordered table-hover mb-0<?php print $mode === 'cat_mooc' ? ' khxh-list-table' : ''; ?>">
+        <?php if ($mode === 'cat_mooc'): ?>
+          <colgroup>
+            <col class="khxh-col-stt">
+            <col class="khxh-col-date">
+            <col class="khxh-col-common">
+            <col class="khxh-col-bkg">
+            <col class="khxh-col-container">
+            <col class="khxh-col-vehicle">
+            <col class="khxh-col-kho">
+            <col class="khxh-col-route">
+            <col class="khxh-col-cang">
+            <col class="khxh-col-date">
+            <col class="khxh-col-status">
+          </colgroup>
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Ngày K.H</th>
+              <th>T.T Chung</th>
+              <th>bkg</th>
+              <th>Container</th>
+              <th>PT / Lái xe</th>
+              <th>Địa chỉ kho</th>
+              <th>Bãi lấy/hạ</th>
+              <th>Cảng xuất</th>
+              <th>Cut off</th>
+              <th>T.Thái</th>
+            </tr>
+          </thead>
+        <?php else: ?>
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Khách hàng</th>
+              <th>Số BKG</th>
+              <th>Số cont</th>
+              <th class="text-center">Đủ hàng</th>
+              <th class="text-center">Hạ bãi ngoài</th>
+              <th class="text-center">Hạ cảng</th>
+              <th>Địa chỉ kho</th>
+              <th>H.Thức</th>
+              <th>T.Thái cont</th>
+            </tr>
+          </thead>
+        <?php endif; ?>
         <tbody id="cont-list-body">
-          <tr><td colspan="11" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải dữ liệu...</td></tr>
+          <tr><td colspan="<?php print $mode === 'cat_mooc' ? '11' : '10'; ?>" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải dữ liệu...</td></tr>
         </tbody>
       </table>
     </div>
