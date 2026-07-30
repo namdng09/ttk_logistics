@@ -1400,7 +1400,7 @@
                 '</div>' +
                 '<div class="table-responsive">' +
                   '<table class="table table-bordered table-sm mb-0">' +
-                    '<thead><tr><th></th><th>Xe kéo lên</th><th>Booking / Cont</th><th>Địa chỉ kho</th><th>Bãi hạ</th><th>Đủ hàng</th><th>Ghi chú</th></tr></thead>' +
+                    '<thead><tr><th></th><th>Xe kéo lên</th><th>Booking / Cont</th><th>Địa chỉ đóng/ trả hàng (Kho)</th><th>Bãi hạ</th><th>Đủ hàng</th><th>Ghi chú</th></tr></thead>' +
                     '<tbody class="line-cont-picker-body"><tr><td colspan="7" class="text-center text-muted">Chưa có dữ liệu</td></tr></tbody>' +
                   '</table>' +
                 '</div>' +
@@ -1847,15 +1847,16 @@
         var destinationValue = actualBaiHa || plannedBaiHa;
         var theoKeHoach = !actualBaiHa;
         var duHang = parseInt(item.da_du_hang, 10) === 1;
+        var khachHangName = (item.khach_hang && item.khach_hang.ten) || item.ten_khach_hang || item.khach_hang_ten || '';
         rows.push('<tr>' +
           '<td class="text-center"><input class="form-check-input line-cont-ref-checkbox" type="checkbox" value="' + item.nid + '" data-id="' + item.nid + '" data-so-cont="' + escHtml(item.so_cont || '') + '"' + (selected ? ' checked' : '') + '></td>' +
           '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(item) + '</td>' +
           '<td><div>' + escHtml(item.so_bkg || '') + '</div><div class="fw-semibold">' + escHtml(item.so_cont || '') + '</div></td>' +
-          '<td class="line-cont-kho-cell">' + escHtml(item.dia_chi_kho || '') + '</td>' +
+          '<td class="line-cont-kho-cell"><div>' + escHtml(khachHangName) + '</div><div class="text-muted small">' + escHtml(item.dia_chi_kho || '') + '</div></td>' +
           '<td class="line-cont-destination-cell">' +
             '<label class="form-check form-check-inline mb-1">' +
               '<input class="form-check-input line-bai-ha-theo-ke-hoach-checkbox" type="checkbox" data-id="' + item.nid + '"' + (theoKeHoach ? ' checked' : '') + '>' +
-              '<span class="form-check-label small">Theo kế hoạch</span>' +
+              '<span class="form-check-label small">Hạ theo booking</span>' +
             '</label>' +
             '<select class="form-select form-select-sm line-bai-ha-thuc-te-select" data-id="' + item.nid + '" data-planned="' + escHtml(plannedBaiHa) + '">' + buildTagOptions(state.diaDiem.bai, destinationValue) + '</select>' +
           '</td>' +
