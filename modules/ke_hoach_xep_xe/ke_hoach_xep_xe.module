@@ -286,8 +286,6 @@ function _ke_hoach_xep_xe_validate_lines($items) {
     return _ke_hoach_xep_xe_fail('Danh sách phương tiện bắt buộc');
   }
 
-  $seen_vehicle = array();
-  $seen_driver = array();
   $allowed = _ke_hoach_xep_xe_hinh_thuc_options();
 
   foreach ($items as $index => $item) {
@@ -304,17 +302,6 @@ function _ke_hoach_xep_xe_validate_lines($items) {
     if (empty($item['nid_lai_xe'])) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': lái xe bắt buộc');
     }
-
-    $vehicle_id = (int) $item['nid_phuong_tien'];
-    $driver_id = (int) $item['nid_lai_xe'];
-    if (isset($seen_vehicle[$vehicle_id])) {
-      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': phương tiện đã được chọn ở dòng khác');
-    }
-    if (isset($seen_driver[$driver_id])) {
-      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': lái xe đã được chọn ở dòng khác');
-    }
-    $seen_vehicle[$vehicle_id] = TRUE;
-    $seen_driver[$driver_id] = TRUE;
 
     if (!empty($item['hinh_thuc_van_tai']) && !in_array($item['hinh_thuc_van_tai'], $allowed)) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': hình thức vận tải không hợp lệ');

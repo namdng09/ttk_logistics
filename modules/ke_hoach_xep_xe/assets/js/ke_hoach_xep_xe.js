@@ -1696,8 +1696,6 @@
         if (notyf) notyf.error('Cần có ít nhất một dòng xe');
         return false;
       }
-      var seenVehicle = {};
-      var seenDriver = {};
       var selector = useTableLayout ? '#ke-hoach-lines-body .ke-hoach-table-row' : '#ke-hoach-lines .ke-hoach-line-card';
       $(selector).each(function () {
         var $row = $(this);
@@ -1737,22 +1735,6 @@
             $row.addClass('line-card-invalid');
             $row.find('.line-kho-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
           }
-        }
-        if (line.nid_phuong_tien) {
-          if (seenVehicle[line.nid_phuong_tien]) {
-            ok = false;
-            if (notyf) notyf.error('Phương tiện bị trùng giữa các dòng');
-            return false;
-          }
-          seenVehicle[line.nid_phuong_tien] = true;
-        }
-        if (line.nid_lai_xe) {
-          if (seenDriver[line.nid_lai_xe]) {
-            ok = false;
-            if (notyf) notyf.error('Lái xe bị trùng giữa các dòng');
-            return false;
-          }
-          seenDriver[line.nid_lai_xe] = true;
         }
       });
       return ok;
