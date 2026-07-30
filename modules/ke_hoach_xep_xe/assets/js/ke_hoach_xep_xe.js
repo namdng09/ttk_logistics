@@ -732,6 +732,10 @@
           } else if (row.hinh_thuc_van_tai === 'cat_keo' || row.hinh_thuc_van_tai === 'cat_keo_cheo' || row.hinh_thuc_van_tai === 'tha_mooc') {
             hinhThucStatus = 'Kéo lên';
           }
+          var contHtml = row.loai_cont ? escHtml(row.loai_cont) : '';
+          if (row.so_cont) {
+            contHtml += (contHtml ? ' - ' : '') + '<span class="khxh-so-cont-value">' + escHtml(row.so_cont) + '</span>';
+          }
           html += '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
@@ -745,10 +749,9 @@
             '</td>' +
             '<td class="khxh-bkg-cell">' + escHtml(row.so_bkg || '') + '</td>' +
             '<td class="khxh-container-cell">' +
-              '<div>' + (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '</div>' +
-              '<div>' + (row.so_cont ? '<span class="khxh-so-cont-value">' + escHtml(row.so_cont) + '</span>' : '<span class="text-muted fst-italic small">số cont</span>') + '</div>' +
-              '<div>' + (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '</div>' +
+              '<div>' + (contHtml || '<span class="text-muted fst-italic small">container</span>') + '</div>' +
               '<div>' + (row.so_seal_tam ? escHtml(row.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') + '</div>' +
+              '<div>' + (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '</div>' +
             '</td>' +
             '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(row) + '</td>' +
             '<td class="khxh-kho-cell">' + escHtml(row.dia_chi_kho || '') + '</td>' +
@@ -1144,10 +1147,10 @@
                 '<button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal' + (line.nid_mooc ? ' is-selected' : '') + '">' + moocSummaryHtml(line) + '</button>' +
               '</div>' +
               '<div class="col-lg-2 col-md-4"><label class="form-label">Số BKG <span class="text-danger">*</span></label><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG" required><div class="invalid-feedback">Vui lòng nhập số BKG</div></div>' +
-              '<div class="col-lg-2 col-md-4"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '"></div>' +
               '<div class="col-lg-2 col-md-4"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
-              '<div class="col-lg-3 col-md-6"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính"></div>' +
+              '<div class="col-lg-2 col-md-4"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '"></div>' +
               '<div class="col-lg-3 col-md-6"><label class="form-label">Seal phụ</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Seal phụ"></div>' +
+              '<div class="col-lg-3 col-md-6"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính"></div>' +
               '<div class="col-lg-3 col-md-6"><label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
               '<div class="col-lg-2 col-md-6"><label class="form-label">Bãi lấy</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
               '<div class="col-lg-2 col-md-6"><label class="form-label">Bãi hạ</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
@@ -1209,12 +1212,12 @@
             '<div class="line-inline-feedback text-danger small mt-1" style="display:none;">Vui lòng chọn phương tiện có lái xe</div>' +
           '</td>' +
           '<td class="line-combo-cell">' +
-            '<input type="text" class="form-control line-so-cont-input mb-2" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont">' +
-            '<select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select>' +
+            '<select class="form-select line-loai-cont-select mb-2">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select>' +
+            '<input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont">' +
           '</td>' +
           '<td class="line-combo-cell">' +
-            '<input type="text" class="form-control line-seal-chinh-input mb-2" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính">' +
-            '<input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Số seal tạm">' +
+            '<input type="text" class="form-control line-seal-tam-input mb-2" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Số seal tạm">' +
+            '<input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính">' +
           '</td>' +
           '<td class="line-combo-cell">' +
             '<select class="form-select line-kho-select mb-2">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select>' +

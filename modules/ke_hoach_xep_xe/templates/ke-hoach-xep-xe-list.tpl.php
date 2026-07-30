@@ -154,8 +154,8 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
                   <tr>
                     <th style="width: 8%">Số BKG <span class="text-danger">*</span></th>
                     <th style="width: 8%">Phương tiện <span class="text-danger">*</span></th>
-                    <th style="width: 8%"><span class="th-split-label">Số cont <span class="text-danger">*</span><br>Loại cont</span></th>
-                    <th style="width: 8%"><span class="th-split-label">Số seal chính<br>Số seal tạm</span></th>
+                    <th style="width: 8%"><span class="th-split-label">Loại cont<br>Số cont <span class="text-danger">*</span></span></th>
+                    <th style="width: 8%"><span class="th-split-label">Số seal tạm<br>Số seal chính</span></th>
                     <th style="width: 14%"><span class="th-split-label">Địa chỉ kho <span class="text-danger">*</span><br>Cảng xuất</span></th>
                     <th style="width: 8%"><span class="th-split-label">Bãi lấy cont<br>Bãi hạ cont</span></th>
                     <th style="width: 10%"><span class="th-split-label">Cut-off<br>H.Thức VT</span></th>

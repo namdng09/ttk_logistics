@@ -18,7 +18,7 @@
 .khxh-list-table .khxh-col-common { width: 155px; }
 .khxh-list-table .khxh-col-bkg { width: 130px; }
 .khxh-list-table .khxh-col-kho { width: 140px; }
-.khxh-list-table .khxh-col-container { width: 132px; }
+.khxh-list-table .khxh-col-container { width: 180px; }
 .khxh-list-table .khxh-col-vehicle { width: 110px; }
 .khxh-list-table .khxh-col-route { width: 110px; }
 .khxh-list-table .khxh-col-cang { width: 110px; }
@@ -536,6 +536,10 @@ body .flatpickr-calendar {
 }
 
 .line-combo-cell .line-bai-lay-select {
+  margin-bottom: 0.5rem !important;
+}
+
+.line-combo-cell .line-loai-cont-select + .select2-container {
   margin-bottom: 0.5rem !important;
 }
 
