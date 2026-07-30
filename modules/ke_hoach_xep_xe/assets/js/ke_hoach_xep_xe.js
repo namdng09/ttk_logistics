@@ -416,7 +416,7 @@
         detailItem('Địa chỉ kho', d.dia_chi_kho || '') +
         detailItem('Bãi lấy', d.bai_lay_cont || '') +
         detailItem('Bãi lấy thực tế', d.bai_lay_thuc_te || '') +
-        detailItem('Bãi hạ kế hoạch', d.bai_ha_cont || '') +
+        detailItem('Bãi hạ', d.bai_ha_cont || '') +
         detailItem('Bãi hạ thực tế', d.bai_ha_thuc_te || '') +
         detailItem('Điểm đến', diemDen) +
         detailItem('Cảng xuất', d.cang_xuat || '') +
@@ -745,8 +745,15 @@
         loadList();
       }
     });
+    $('#ke-hoach-search-modal').on('show.bs.modal', function () {
+      if (!listSearchDropdownsLoaded) setListSearchLoading(true);
+    });
     $('#ke-hoach-search-modal').on('shown.bs.modal', function () {
-      setListSearchLoading(true);
+      if (listSearchDropdownsLoaded) {
+        initListSearchSelects();
+        setListSearchLoading(false);
+        return;
+      }
       loadListSearchDropdowns(function () {
         initListSearchSelects();
         setListSearchLoading(false);

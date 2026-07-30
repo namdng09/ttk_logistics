@@ -15,7 +15,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
         <i class="ti tabler-search me-1"></i>Tìm kiếm
       </button>
       <button type="button" class="btn btn-label-secondary btn-reload waves-effect">
-        <i class="ti tabler-refresh me-1"></i>Reset lọc
+        <i class="ti tabler-refresh me-1"></i>Reset
       </button>
       <button type="button" class="btn btn-primary waves-effect waves-light btn-open-create-ke-hoach">
         <i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?>
