@@ -119,7 +119,8 @@ body .flatpickr-calendar {
   justify-content: center;
 }
 
-#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app {
+#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app,
+#ke-hoach-tuyen-xa-edit-fullscreen-modal #ke-hoach-form-app {
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -127,14 +128,16 @@ body .flatpickr-calendar {
   min-height: 100vh;
 }
 
-#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app > .card-header {
+#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app > .card-header,
+#ke-hoach-tuyen-xa-edit-fullscreen-modal #ke-hoach-form-app > .card-header {
   position: sticky;
   top: 0;
   z-index: 20;
   background: #fff;
 }
 
-#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app > .card-body {
+#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app > .card-body,
+#ke-hoach-tuyen-xa-edit-fullscreen-modal #ke-hoach-form-app > .card-body {
   min-height: calc(100vh - 4.25rem);
 }
 
@@ -208,19 +211,20 @@ body .flatpickr-calendar {
 
 .ke-hoach-edit-grid {
   display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.ke-hoach-edit-grid-5 {
-  grid-template-columns: 1fr 1fr 1fr 1fr 2fr;
+.khxh-span-3 {
+  grid-column: span 3;
 }
 
-.ke-hoach-edit-grid-6 {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+.khxh-span-4 {
+  grid-column: span 4;
 }
 
-.ke-hoach-edit-grid-7 {
-  grid-template-columns: 1fr 0.75fr 0.75fr 0.75fr 0.75fr 1fr 1fr;
+.khxh-span-8 {
+  grid-column: span 8;
 }
 
 .ke-hoach-edit-grid .select2-container {
@@ -228,22 +232,18 @@ body .flatpickr-calendar {
 }
 
 @media (max-width: 1199.98px) {
-  .ke-hoach-edit-grid-6,
-  .ke-hoach-edit-grid-7 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .ke-hoach-edit-grid-5 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .khxh-span-3,
+  .khxh-span-4,
+  .khxh-span-8 {
+    grid-column: span 8;
   }
 }
 
 @media (max-width: 767.98px) {
-  .ke-hoach-edit-grid,
-  .ke-hoach-edit-grid-5,
-  .ke-hoach-edit-grid-6,
-  .ke-hoach-edit-grid-7 {
-    grid-template-columns: 1fr;
+  .khxh-span-3,
+  .khxh-span-4,
+  .khxh-span-8 {
+    grid-column: 1 / -1;
   }
 }
 

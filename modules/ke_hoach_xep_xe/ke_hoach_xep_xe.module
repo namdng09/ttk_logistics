@@ -132,6 +132,11 @@ function ke_hoach_xep_xe_theme() {
       'path' => $path,
       'variables' => array('mode' => 'edit', 'data' => NULL),
     ),
+    'ke_hoach_tuyen_xa_edit_page' => array(
+      'template' => 'ke-hoach-tuyen-xa-edit',
+      'path' => $path,
+      'variables' => array('mode' => 'edit', 'data' => NULL),
+    ),
     'ke_hoach_xep_xe_form_page' => array(
       'template' => 'ke-hoach-xep-xe-form-modal',
       'path' => $path,
@@ -141,10 +146,6 @@ function ke_hoach_xep_xe_theme() {
       'template' => 'ke-hoach-xep-xe-detail',
       'path' => $path,
       'variables' => array('mode' => 'detail', 'data' => NULL),
-    ),
-    'ke_hoach_tuyen_xa_list_page' => array(
-      'template' => 'ke-hoach-tuyen-xa-list',
-      'path' => $path,
     ),
     'ke_hoach_cont_list_page' => array(
       'template' => 'ke-hoach-cont-list',
@@ -260,14 +261,8 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['trang_thai_van_chuyen'] = !empty($line['trang_thai_van_chuyen']) ? trim($line['trang_thai_van_chuyen']) : 'Chưa xếp xe';
   $record['bai_lay_cont'] = !empty($line['bai_lay_cont']) ? trim($line['bai_lay_cont']) : '';
   $record['bai_lay_thuc_te'] = !empty($line['bai_lay_thuc_te']) ? trim($line['bai_lay_thuc_te']) : '';
-  if ($record['bai_lay_thuc_te'] === $record['bai_lay_cont']) {
-    $record['bai_lay_thuc_te'] = '';
-  }
   $record['bai_ha_cont'] = !empty($line['bai_ha_cont']) ? trim($line['bai_ha_cont']) : '';
   $record['bai_ha_thuc_te'] = !empty($line['bai_ha_thuc_te']) ? trim($line['bai_ha_thuc_te']) : '';
-  if ($record['bai_ha_thuc_te'] === $record['bai_ha_cont']) {
-    $record['bai_ha_thuc_te'] = '';
-  }
   $record['cang_xuat'] = !empty($line['cang_xuat']) ? trim($line['cang_xuat']) : '';
   $record['cut_off'] = !empty($line['cut_off']) ? trim($line['cut_off']) : '';
   $record['hinh_thuc_van_tai'] = !empty($line['hinh_thuc_van_tai']) ? trim($line['hinh_thuc_van_tai']) : '';
