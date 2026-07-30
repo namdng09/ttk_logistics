@@ -66,14 +66,16 @@
     cat_keo_cheo: 'Cắt kéo chéo',
     tha_mooc: 'Thả mooc',
     rut_mooc: 'Rút mooc',
-    dong_hang_trong_ngay: 'Đóng hàng trong ngày'
+    dong_hang_trong_ngay: 'Đóng hàng trong ngày',
+    roi_cont: 'Rời Cont'
   };
   var HINH_THUC_COLOR = {
     cat_keo: 'bg-label-success',
     cat_keo_cheo: 'bg-label-primary',
     tha_mooc: 'bg-label-warning',
     rut_mooc: 'bg-label-info',
-    dong_hang_trong_ngay: 'bg-label-danger'
+    dong_hang_trong_ngay: 'bg-label-danger',
+    roi_cont: 'bg-label-secondary'
   };
 
   function apiMsg(jqXHR) {
@@ -413,6 +415,7 @@
         detailItem('Seal phụ', d.so_seal_tam || '') +
         detailItem('Địa chỉ kho', d.dia_chi_kho || '') +
         detailItem('Bãi lấy', d.bai_lay_cont || '') +
+        detailItem('Bãi lấy thực tế', d.bai_lay_thuc_te || '') +
         detailItem('Bãi hạ kế hoạch', d.bai_ha_cont || '') +
         detailItem('Bãi hạ thực tế', d.bai_ha_thuc_te || '') +
         detailItem('Điểm đến', diemDen) +
@@ -1118,6 +1121,7 @@
         so_seal_chinh: '',
         so_seal_tam: '',
         bai_lay_cont: '',
+        bai_lay_thuc_te: '',
         bai_ha_cont: '',
         bai_ha_thuc_te: '',
         cang_xuat: '',
@@ -1303,6 +1307,7 @@
       initSelect2($card.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true });
       initSelect2($card.find('.line-bai-lay-select')[0], '— Chọn bãi lấy —');
       initSelect2($card.find('.line-bai-ha-select')[0], '— Chọn bãi hạ —');
+      initSelect2($card.find('.line-bai-lay-thuc-te-select')[0], '— Theo bãi lấy kế hoạch —', { tags: true });
       initSelect2($card.find('.line-bai-ha-thuc-te-select')[0], '— Theo bãi hạ kế hoạch —', { tags: true });
       initSelect2($card.find('.line-cang-select')[0], '— Chọn cảng xuất —');
       if (typeof flatpickr !== 'undefined' && $card.find('.line-cut-off-input')[0]) {
@@ -1327,42 +1332,44 @@
         var line = state.lines[i];
         html += '' +
           '<div class="ke-hoach-line-card ke-hoach-line-section ke-hoach-line-section-primary" data-line-key="' + line.key + '">' +
-              '<div class="row g-3">' +
-              '<div class="col-lg-3 col-md-6">' +
+              '<div class="ke-hoach-edit-grid ke-hoach-edit-grid-6 mb-3">' +
+              '<div>' +
                 '<label class="form-label">Khách hàng <span class="text-danger">*</span></label>' +
                 '<select id="nid_khach_hang-input" class="form-select select2-searchable" style="width:100%" required>' +
                   buildCustomerOptions(line.nid_khach_hang || 0) +
                 '</select>' +
                 '<div class="invalid-feedback">Vui lòng chọn khách hàng</div>' +
               '</div>' +
-              '<div class="col-lg-3 col-md-6">' +
+              '<div><label class="form-label">Số booking/ bill <span class="text-danger">*</span></label><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số booking/ bill" required><div class="invalid-feedback">Vui lòng nhập số booking/ bill</div></div>' +
+              '<div><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
+              '<div><label class="form-label">Bãi lấy</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
+              '<div><label class="form-label">Bãi hạ</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
+              '<div><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
+              '</div>' +
+              '<div class="ke-hoach-edit-grid ke-hoach-edit-grid-7 mb-3">' +
+              '<div><label class="form-label">Địa chỉ đóng/ trả hàng (Kho) <span class="text-danger">*</span></label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
+              '<div><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
+              '<div><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
+              '<div><label class="form-label">Seal phụ</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Seal phụ"></div>' +
+              '<div><label class="form-label">Seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Seal chính"></div>' +
+              '<div><label class="form-label">Bãi lấy thực tế</label><select class="form-select line-bai-lay-thuc-te-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_thuc_te) + '</select></div>' +
+              '<div><label class="form-label">Bãi hạ thực tế</label><select class="form-select line-bai-ha-thuc-te-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_thuc_te) + '</select></div>' +
+              '</div>' +
+              '<div class="ke-hoach-edit-grid ke-hoach-edit-grid-5">' +
+              '<div>' +
                 '<label class="form-label">Phương tiện</label>' +
                 '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
                 '<button type="button" class="btn btn-outline-secondary w-100 text-start vehicle-summary btn-open-vehicle-modal' + (line.nid_phuong_tien ? ' is-selected' : '') + '"></button>' +
                 '<div class="invalid-feedback d-block line-vehicle-feedback" style="display:none !important;">Vui lòng chọn phương tiện</div>' +
               '</div>' +
-              '<div class="col-lg-3 col-md-6">' +
-                '<label class="form-label">Lái xe</label>' +
-                '<select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select>' +
-              '</div>' +
-              '<div class="col-lg-3 col-md-6">' +
+              '<div><label class="form-label">Lái xe</label><select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select></div>' +
+              '<div>' +
                 '<label class="form-label">Mooc</label>' +
                 '<input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '">' +
                 '<button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal' + (line.nid_mooc ? ' is-selected' : '') + '">' + moocSummaryHtml(line) + '</button>' +
               '</div>' +
-              '<div class="col-lg-2 col-md-4"><label class="form-label">Số BKG <span class="text-danger">*</span></label><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG" required><div class="invalid-feedback">Vui lòng nhập số BKG</div></div>' +
-              '<div class="col-lg-2 col-md-4"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
-              '<div class="col-lg-2 col-md-4"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
-              '<div class="col-lg-3 col-md-6"><label class="form-label">Seal phụ</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Seal phụ"></div>' +
-              '<div class="col-lg-3 col-md-6"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính"></div>' +
-              '<div class="col-lg-3 col-md-6"><label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
-              '<div class="col-lg-2 col-md-6"><label class="form-label">Bãi lấy</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
-              '<div class="col-lg-2 col-md-6"><label class="form-label">Bãi hạ</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
-              '<div class="col-lg-2 col-md-6"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
-              '<div class="col-lg-3 col-md-6"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
-              '<div class="col-lg-6 col-md-12"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
-              '<div class="col-lg-3 col-md-6"><label class="form-label">Bãi hạ thực tế</label><select class="form-select line-bai-ha-thuc-te-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_thuc_te) + '</select></div>' +
-              '<div class="col-lg-3 col-md-6"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Nhập ghi chú"></div>' +
+              '<div><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Ghi chú"></div>' +
+              '<div><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
               '</div>' +
           '</div>';
         pickerHtml += '' +
@@ -1478,6 +1485,7 @@
         line.so_seal_tam = $row.find('.line-seal-tam-input').val().trim();
         line.dia_chi_kho = ($row.find('.line-kho-select').val() || '').trim();
         line.bai_lay_cont = ($row.find('.line-bai-lay-select').val() || '').trim();
+        line.bai_lay_thuc_te = normalizeBaiHaThucTe(($row.find('.line-bai-lay-thuc-te-select').val() || '').trim(), line.bai_lay_cont);
         line.bai_ha_cont = ($row.find('.line-bai-ha-select').val() || '').trim();
         line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
         line.bai_ha_thuc_te = normalizeBaiHaThucTe(($row.find('.line-bai-ha-thuc-te-select').val() || '').trim(), line.bai_ha_cont);
@@ -2017,6 +2025,7 @@
             so_seal_chinh: line.so_seal_chinh || '',
             so_seal_tam: line.so_seal_tam || '',
             bai_lay_cont: line.bai_lay_cont || '',
+            bai_lay_thuc_te: normalizeBaiHaThucTe(line.bai_lay_thuc_te || '', line.bai_lay_cont || ''),
             bai_ha_cont: line.bai_ha_cont || '',
             bai_ha_thuc_te: normalizeBaiHaThucTe(line.bai_ha_thuc_te || '', line.bai_ha_cont || ''),
             cang_xuat: line.cang_xuat || '',
@@ -2049,6 +2058,7 @@
           so_seal_chinh: line.so_seal_chinh || '',
           so_seal_tam: line.so_seal_tam || '',
           bai_lay_cont: line.bai_lay_cont || '',
+          bai_lay_thuc_te: normalizeBaiHaThucTe(line.bai_lay_thuc_te || '', line.bai_lay_cont || ''),
           bai_ha_cont: line.bai_ha_cont || '',
           bai_ha_thuc_te: normalizeBaiHaThucTe(line.bai_ha_thuc_te || '', line.bai_ha_cont || ''),
           cang_xuat: line.cang_xuat || '',
@@ -2092,6 +2102,7 @@
         so_seal_chinh: row.so_seal_chinh || '',
         so_seal_tam: row.so_seal_tam || '',
         bai_lay_cont: row.bai_lay_cont || '',
+        bai_lay_thuc_te: row.bai_lay_thuc_te || '',
         bai_ha_cont: row.bai_ha_cont || '',
         bai_ha_thuc_te: row.bai_ha_thuc_te || '',
         cang_xuat: row.cang_xuat || '',
@@ -2654,6 +2665,7 @@
           { label: 'Số seal tạm', value: d.so_seal_tam },
           { label: 'Trạng thái', value: d.trang_thai_van_chuyen },
           { label: 'Bãi lấy cont', value: d.bai_lay_cont },
+          { label: 'Bãi lấy thực tế', value: d.bai_lay_thuc_te },
           { label: 'Bãi hạ cont', value: d.bai_ha_cont },
           { label: 'Bãi hạ thực tế', value: d.bai_ha_thuc_te },
           { label: 'Cảng xuất', value: d.cang_xuat },

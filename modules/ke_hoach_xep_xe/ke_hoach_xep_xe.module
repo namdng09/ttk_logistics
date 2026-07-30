@@ -202,7 +202,7 @@ function _ke_hoach_xep_xe_method_not_allowed($allowed) {
 }
 
 function _ke_hoach_xep_xe_hinh_thuc_options() {
-  return array('cat_keo', 'cat_keo_cheo', 'tha_mooc', 'rut_mooc', 'dong_hang_trong_ngay');
+  return array('cat_keo', 'cat_keo_cheo', 'tha_mooc', 'rut_mooc', 'dong_hang_trong_ngay', 'roi_cont');
 }
 
 function _ke_hoach_xep_xe_default_record() {
@@ -220,6 +220,7 @@ function _ke_hoach_xep_xe_default_record() {
     'so_seal_tam' => '',
     'trang_thai_van_chuyen' => 'Chưa xếp xe',
     'bai_lay_cont' => '',
+    'bai_lay_thuc_te' => '',
     'bai_ha_cont' => '',
     'bai_ha_thuc_te' => '',
     'cang_xuat' => '',
@@ -258,6 +259,10 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['so_seal_tam'] = !empty($line['so_seal_tam']) ? trim($line['so_seal_tam']) : '';
   $record['trang_thai_van_chuyen'] = !empty($line['trang_thai_van_chuyen']) ? trim($line['trang_thai_van_chuyen']) : 'Chưa xếp xe';
   $record['bai_lay_cont'] = !empty($line['bai_lay_cont']) ? trim($line['bai_lay_cont']) : '';
+  $record['bai_lay_thuc_te'] = !empty($line['bai_lay_thuc_te']) ? trim($line['bai_lay_thuc_te']) : '';
+  if ($record['bai_lay_thuc_te'] === $record['bai_lay_cont']) {
+    $record['bai_lay_thuc_te'] = '';
+  }
   $record['bai_ha_cont'] = !empty($line['bai_ha_cont']) ? trim($line['bai_ha_cont']) : '';
   $record['bai_ha_thuc_te'] = !empty($line['bai_ha_thuc_te']) ? trim($line['bai_ha_thuc_te']) : '';
   if ($record['bai_ha_thuc_te'] === $record['bai_ha_cont']) {
@@ -594,6 +599,7 @@ function _ke_hoach_xep_xe_rest_create() {
           'so_seal_tam' => $record['so_seal_tam'],
           'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
           'bai_lay_cont' => $record['bai_lay_cont'],
+          'bai_lay_thuc_te' => $record['bai_lay_thuc_te'],
           'bai_ha_cont' => $record['bai_ha_cont'],
           'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
           'cang_xuat' => $record['cang_xuat'],
@@ -697,6 +703,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
         'so_seal_tam' => $record['so_seal_tam'],
         'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
         'bai_lay_cont' => $record['bai_lay_cont'],
+        'bai_lay_thuc_te' => $record['bai_lay_thuc_te'],
         'bai_ha_cont' => $record['bai_ha_cont'],
         'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
         'cang_xuat' => $record['cang_xuat'],
@@ -840,6 +847,11 @@ function _ke_hoach_cont_rest_update($id) {
     if (array_key_exists($field, $input)) {
       $update[$field] = !empty($input[$field]) ? 1 : 0;
     }
+  }
+  if (array_key_exists('bai_lay_thuc_te', $input)) {
+    $bai_lay_thuc_te = trim((string) $input['bai_lay_thuc_te']);
+    $bai_lay_cont = db_query("SELECT bai_lay_cont FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetchField();
+    $update['bai_lay_thuc_te'] = ($bai_lay_thuc_te && $bai_lay_thuc_te !== $bai_lay_cont) ? $bai_lay_thuc_te : '';
   }
   if (array_key_exists('bai_ha_thuc_te', $input)) {
     $bai_ha_thuc_te = trim((string) $input['bai_ha_thuc_te']);
@@ -1319,6 +1331,7 @@ function _ke_hoach_tuyen_xa_rest_create() {
         'so_seal_tam' => $record['so_seal_tam'],
         'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
         'bai_lay_cont' => $record['bai_lay_cont'],
+        'bai_lay_thuc_te' => $record['bai_lay_thuc_te'],
         'bai_ha_cont' => $record['bai_ha_cont'],
         'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
         'cang_xuat' => $record['cang_xuat'],
