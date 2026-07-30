@@ -16,6 +16,7 @@
   var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
   var formDropdownCacheMemory = null;
   var detachedCreateFormApp = null;
+  var listPageSettingsBeforeEdit = null;
   var listSearchDropdownsLoaded = false;
   var listSearchDropdownsLoading = false;
   var listSearchDropdownCallbacks = [];
@@ -469,6 +470,7 @@
       return;
     }
     $('#ke-hoach-edit-modal-loading').show();
+    listPageSettingsBeforeEdit = $.extend(true, {}, Drupal.settings.ke_hoach_xep_xe || {});
     if (!detachedCreateFormApp) {
       detachedCreateFormApp = $('#ke-hoach-form-app').detach();
     }
@@ -492,11 +494,13 @@
         });
         syncPageSettings();
         initForm._bound = false;
+        $(document).one('keHoachEditReady', function () {
+          $('#ke-hoach-edit-modal-loading').hide();
+        });
         initForm();
         $('#ke-hoach-edit-modal-content #ke-hoach-form-app .card-header a.btn-outline-secondary')
           .attr('href', '#')
           .attr('data-bs-dismiss', 'modal');
-        $('#ke-hoach-edit-modal-loading').hide();
       },
       error: function (jqXHR) {
         $('#ke-hoach-edit-modal-loading').hide();
@@ -780,8 +784,20 @@
       persistListSnapshot();
       openEditFullscreenModal(match[1]);
     });
-    $('#ke-hoach-edit-fullscreen-modal').on('hidden.bs.modal', function () {
-      window.location.reload();
+    $('#ke-hoach-edit-fullscreen-modal').on('hidden.bs.modal', function (e) {
+      if (e.target !== this) return;
+      $('#ke-hoach-edit-modal-content').empty();
+      if (detachedCreateFormApp) {
+        $('#ke-hoach-edit-modal-template').after(detachedCreateFormApp);
+        detachedCreateFormApp = null;
+      }
+      if (listPageSettingsBeforeEdit) {
+        Drupal.settings.ke_hoach_xep_xe = listPageSettingsBeforeEdit;
+        listPageSettingsBeforeEdit = null;
+        syncPageSettings();
+      }
+      initForm._bound = false;
+      initForm();
     });
     $(document).on('click', '.btn-delete-ke-hoach-xep-xe', function (e) {
       e.preventDefault();
@@ -1066,7 +1082,9 @@
     }
 
     function showLoading(show) {
-      $('#form-loading').toggle(show);
+      var editFullscreenActive = $('#ke-hoach-edit-fullscreen-modal').hasClass('show') && !useTableLayout;
+      $(editFullscreenActive ? '#ke-hoach-edit-modal-loading' : '#form-loading').toggle(show);
+      if (editFullscreenActive) $('#form-loading').hide();
       $('#save-btn, #add-line-btn, #reset-lines-btn').prop('disabled', show);
       if (useTableLayout) {
         $('#ke-hoach-fullscreen-modal').find('input, select, button').not('.btn-close').prop('disabled', show);
@@ -1318,13 +1336,13 @@
                 '<div class="invalid-feedback">Vui lòng chọn khách hàng</div>' +
               '</div>' +
               '<div class="col-lg-3 col-md-6">' +
-                '<label class="form-label">Phương tiện <span class="text-danger">*</span></label>' +
+                '<label class="form-label">Phương tiện</label>' +
                 '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
                 '<button type="button" class="btn btn-outline-secondary w-100 text-start vehicle-summary btn-open-vehicle-modal' + (line.nid_phuong_tien ? ' is-selected' : '') + '"></button>' +
                 '<div class="invalid-feedback d-block line-vehicle-feedback" style="display:none !important;">Vui lòng chọn phương tiện</div>' +
               '</div>' +
               '<div class="col-lg-3 col-md-6">' +
-                '<label class="form-label">Lái xe <span class="text-danger">*</span></label>' +
+                '<label class="form-label">Lái xe</label>' +
                 '<select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select>' +
               '</div>' +
               '<div class="col-lg-3 col-md-6">' +
@@ -1968,12 +1986,6 @@
           $row.find('.line-customer-feedback').show();
           $row.find('.line-customer-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
         }
-        if (!useTableLayout && (!line.nid_phuong_tien || !line.nid_lai_xe)) {
-          ok = false;
-          $row.addClass('line-card-invalid');
-          if (!line.nid_lai_xe) $row.find('.line-driver-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
-          if (!line.nid_phuong_tien) $row.find('.line-vehicle-feedback').show();
-        }
         if (!line.dia_chi_kho) {
           ok = false;
           if (useTableLayout) {
@@ -2293,6 +2305,9 @@
             if (notyf) notyf.success(nid ? 'Đã cập nhật kế hoạch' : 'Đã tạo kế hoạch');
             if (nid) {
               markForceReloadList();
+              if ($('#ke-hoach-edit-fullscreen-modal').hasClass('show')) {
+                if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
+              }
             }
             if (nid) {
               if (res.data) {
@@ -2417,6 +2432,11 @@
     $(document).on('click', '#vehicle-picker-clear-btn', function () {
       clearVehicleForActiveLine();
     });
+    $(document).off('hidden.bs.modal', '#vehicle-picker-modal').on('hidden.bs.modal', '#vehicle-picker-modal', function () {
+      if ($('#ke-hoach-edit-fullscreen-modal').hasClass('show')) {
+        $('body').addClass('modal-open');
+      }
+    });
 
     var modalEl = document.getElementById('ke-hoach-fullscreen-modal');
     if (useTableLayout && modalEl) {
@@ -2437,14 +2457,17 @@
     }
 
     if (mode === 'edit') {
+      showLoading(true);
       loadDropdowns(function () {
         initSelect2(document.getElementById('nid_khach_hang-input'), '— Chọn khách hàng —', useTableLayout ? { dropdownParent: $('#ke-hoach-fullscreen-modal') } : {});
-        showLoading(true);
         loadEditDetail(function (row) {
-          showLoading(false);
           if (row) {
             populateEdit(row);
           }
+          window.setTimeout(function () {
+            showLoading(false);
+            $(document).trigger('keHoachEditReady');
+          }, 0);
         });
       });
     }

@@ -668,7 +668,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
   }
 
   $line = isset($input['item']) && is_array($input['item']) ? $input['item'] : $input;
-  $line_validation = _ke_hoach_xep_xe_validate_lines(array($line));
+  $line_validation = _ke_hoach_xep_xe_validate_lines(array($line), FALSE, FALSE);
   if ($line_validation) {
     return $line_validation;
   }
