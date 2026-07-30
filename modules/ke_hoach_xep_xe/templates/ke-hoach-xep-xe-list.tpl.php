@@ -142,14 +142,14 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
               <table class="table table-bordered align-middle ke-hoach-entry-table" id="ke-hoach-entry-table">
                 <thead>
                   <tr>
-                    <th style="width: 10%">Khách hàng <span class="text-danger">*</span></th>
+                    <th style="width: 8%">Khách hàng <span class="text-danger">*</span></th>
                     <th style="width: 8%">Số BKG <span class="text-danger">*</span></th>
                     <th style="width: 8%">Phương tiện</th>
                     <th style="width: 8%"><span class="th-split-label">Container</span></th>
                     <th style="width: 8%"><span class="th-split-label">Seal tạm/chính</span></th>
-                    <th style="width: 14%"><span class="th-split-label">Kho <span class="text-danger">*</span>/Cảng xuất</span></th>
+                    <th style="width: 8%"><span class="th-split-label">Kho <span class="text-danger">*</span>/Cảng xuất</span></th>
                     <th style="width: 8%"><span class="th-split-label">Bãi lấy/hạ</span></th>
-                    <th style="width: 10%"><span class="th-split-label">Cut-off</span></th>
+                    <th style="width: 8%"><span class="th-split-label">Cut-off</span></th>
                     <th width="1%" class="text-center">
                       <button type="button" class="btn btn-sm btn-icon btn-label-success" id="add-line-btn" title="Thêm dòng">
                         <i class="ti tabler-circle-plus"></i>

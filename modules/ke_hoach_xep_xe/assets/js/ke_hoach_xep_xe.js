@@ -1004,7 +1004,7 @@
     }
 
     function buildDriverOptions(selectedId) {
-      var html = '<option value="0">— Chọn lái xe —</option>';
+      var html = '<option></option>';
       for (var i = 0; i < state.drivers.length; i++) {
         var item = state.drivers[i];
         html += '<option value="' + item.nid + '"' + ((parseInt(selectedId, 10) === parseInt(item.nid, 10)) ? ' selected' : '') + '>' + escHtml(item.ten || ('#' + item.nid)) + '</option>';
@@ -1066,7 +1066,7 @@
 
     function initRowUi($row, line) {
       var dropdownParent = $('#ke-hoach-fullscreen-modal');
-      initSelect2($row.find('.line-customer-select')[0], '— Chọn khách hàng —', { dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-customer-select')[0], 'Chọn khách hàng', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-bai-lay-select')[0], '— Chọn bãi lấy —', { dropdownParent: dropdownParent });
@@ -1142,7 +1142,7 @@
               '</div>' +
               '<div class="col-lg-2 col-md-4"><label class="form-label">Số BKG <span class="text-danger">*</span></label><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG" required><div class="invalid-feedback">Vui lòng nhập số BKG</div></div>' +
               '<div class="col-lg-2 col-md-4"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
-              '<div class="col-lg-2 col-md-4"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '"></div>' +
+              '<div class="col-lg-2 col-md-4"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
               '<div class="col-lg-3 col-md-6"><label class="form-label">Seal phụ</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Seal phụ"></div>' +
               '<div class="col-lg-3 col-md-6"><label class="form-label">Số seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Số seal chính"></div>' +
               '<div class="col-lg-3 col-md-6"><label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
@@ -1437,7 +1437,7 @@
           }
         } else {
           $card.find('.line-vehicle-id').val(line.nid_phuong_tien || 0);
-          $card.find('.line-driver-select').val(line.nid_lai_xe || 0).trigger('change');
+          $card.find('.line-driver-select').val(line.nid_lai_xe || '').trigger('change');
         }
         $card.find('.vehicle-summary').addClass('is-selected').html(vehicleSummaryCardHtml(line));
         $card.find('.line-vehicle-feedback').hide();
@@ -1474,7 +1474,7 @@
           $card.find('.line-mooc-display').removeClass('is-selected').html(moocSummaryHtml(line));
         } else {
           $card.find('.line-vehicle-id').val(0);
-          $card.find('.line-driver-select').val(0).trigger('change');
+          $card.find('.line-driver-select').val('').trigger('change');
         }
         $card.find('.vehicle-summary').removeClass('is-selected').html(vehicleSummaryCardHtml(line));
       }
