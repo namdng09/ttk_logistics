@@ -15,6 +15,7 @@
   var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v1';
   var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
   var formDropdownCacheMemory = null;
+  var detachedCreateFormApp = null;
   var listSearchDropdownsLoaded = false;
   var listSearchDropdownsLoading = false;
   var listSearchDropdownCallbacks = [];
@@ -457,6 +458,53 @@
     });
   }
 
+  function openEditFullscreenModal(id) {
+    id = parseInt(id, 10) || 0;
+    if (!id) return;
+    var modalEl = document.getElementById('ke-hoach-edit-fullscreen-modal');
+    var templateEl = document.getElementById('ke-hoach-edit-modal-template');
+    var contentEl = document.getElementById('ke-hoach-edit-modal-content');
+    if (!modalEl || !templateEl || !contentEl) {
+      window.location.href = '/ke-hoach-xep-xe/' + id + '/sua';
+      return;
+    }
+    $('#ke-hoach-edit-modal-loading').show();
+    if (!detachedCreateFormApp) {
+      detachedCreateFormApp = $('#ke-hoach-form-app').detach();
+    }
+    contentEl.innerHTML = templateEl.innerHTML;
+    var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
+    modal.show();
+    $.ajax({
+      url: '/api/ke-hoach-xep-xe/' + id,
+      type: 'GET',
+      dataType: 'json',
+      success: function (res) {
+        if (res.status !== 'success' || !res.data) {
+          $('#ke-hoach-edit-modal-loading').hide();
+          if (notyf) notyf.error(res.message || 'Không tải được kế hoạch');
+          return;
+        }
+        Drupal.settings.ke_hoach_xep_xe = $.extend({}, Drupal.settings.ke_hoach_xep_xe || {}, {
+          mode: 'edit',
+          plan_type: res.data.loai_ke_hoach === 'tuyen_xa' ? 'tuyen_xa' : 'thuong',
+          data: res.data
+        });
+        syncPageSettings();
+        initForm._bound = false;
+        initForm();
+        $('#ke-hoach-edit-modal-content #ke-hoach-form-app .card-header a.btn-outline-secondary')
+          .attr('href', '#')
+          .attr('data-bs-dismiss', 'modal');
+        $('#ke-hoach-edit-modal-loading').hide();
+      },
+      error: function (jqXHR) {
+        $('#ke-hoach-edit-modal-loading').hide();
+        if (notyf) notyf.error(apiMsg(jqXHR));
+      }
+    });
+  }
+
   function collectListFilters() {
     var fields = listFilterFields();
     var filters = {};
@@ -719,7 +767,21 @@
     $(document).on('click', '.btn-edit-ke-hoach-xep-xe', function (e) {
       e.preventDefault();
       persistListSnapshot();
-      window.location.href = '/ke-hoach-xep-xe/' + $(this).data('id') + '/sua';
+      openEditFullscreenModal($(this).data('id'));
+    });
+    $(document).on('click', '#ke-hoach-detail-edit-btn', function (e) {
+      var id = $(this).attr('href') || '';
+      var match = id.match(/ke-hoach-xep-xe\/(\d+)\/sua/);
+      if (!match) return;
+      e.preventDefault();
+      var detailModalEl = document.getElementById('ke-hoach-detail-modal');
+      var detailModal = detailModalEl && bootstrap.Modal.getInstance ? bootstrap.Modal.getInstance(detailModalEl) : null;
+      if (detailModal) detailModal.hide();
+      persistListSnapshot();
+      openEditFullscreenModal(match[1]);
+    });
+    $('#ke-hoach-edit-fullscreen-modal').on('hidden.bs.modal', function () {
+      window.location.reload();
     });
     $(document).on('click', '.btn-delete-ke-hoach-xep-xe', function (e) {
       e.preventDefault();
@@ -960,6 +1022,22 @@
     var dropdownsLoaded = false;
     var dropdownsLoading = false;
     var useTableLayout = $('#ke-hoach-lines-body').length > 0;
+
+    $(document)
+      .off('click', '.btn-open-vehicle-modal')
+      .off('click', '.btn-open-mooc-modal')
+      .off('click', '.btn-remove-row-ke-hoach')
+      .off('click', '.btn-copy-row-ke-hoach')
+      .off('click', '.btn-pick-vehicle')
+      .off('change', 'input[name="vehicle-picker-radio"]')
+      .off('click', '.line-hinh-thuc-radio')
+      .off('input change', '.line-cont-filter-bkg, .line-cont-filter-cont, .line-cont-filter-kho, .line-cont-filter-du-hang')
+      .off('change', '.line-cont-ref-checkbox')
+      .off('change', '.line-bai-ha-theo-ke-hoach-checkbox')
+      .off('change', '.line-cont-picker-wrap .line-bai-ha-thuc-te-select')
+      .off('change blur', '.cont-inline-note')
+      .off('click', '#vehicle-picker-clear-btn')
+      .off('change', '#nid_khach_hang-input');
 
     function applyDropdownData(cache) {
       cache = cache || {};
@@ -2161,6 +2239,7 @@
     $(document).on('change', '#nid_khach_hang-input', function () {
       loadCauHinh(parseInt($(this).val(), 10) || 0);
     });
+    $('#add-line-btn, #reset-lines-btn, #save-btn, #vehicle-picker-search, #ke-hoach-form').off();
     $('#add-line-btn').on('click', function () {
       syncAllLines();
       addLine({});

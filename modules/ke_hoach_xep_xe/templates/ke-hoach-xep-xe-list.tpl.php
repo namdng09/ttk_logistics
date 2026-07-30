@@ -144,6 +144,23 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
   </div>
 </div>
 
+<div class="modal fade" id="ke-hoach-edit-fullscreen-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen" role="document">
+    <div class="modal-content">
+      <div class="modal-body p-0 position-relative">
+        <div class="loading-overlay" id="ke-hoach-edit-modal-loading" style="display:none;">
+          <div class="spinner-border text-primary"></div>
+        </div>
+        <div id="ke-hoach-edit-modal-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<template id="ke-hoach-edit-modal-template">
+  <?php print theme('ke_hoach_xep_xe_edit_page', array('mode' => 'edit', 'data' => NULL)); ?>
+</template>
+
 <div id="ke-hoach-form-app">
   <input type="hidden" id="nid-input" value="">
 
