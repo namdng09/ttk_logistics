@@ -10,6 +10,7 @@
   var currentPage = 1;
   var currentKeyword = '';
   var currentStatus = '';
+  var currentFilters = {};
   var FORM_DROPDOWN_CACHE_KEY = 'ke_hoach_xep_xe_form_dropdowns_v1';
   var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v1';
   var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
@@ -29,6 +30,22 @@
 
   function listForceReloadKey() {
     return LIST_FORCE_RELOAD_KEY + '_' + currentPlanType();
+  }
+
+  function listFilterFields() {
+    return {
+      khach_hang: '#filter-khach-hang',
+      so_bkg: '#filter-so-bkg',
+      date_from: '#filter-date-from',
+      date_to: '#filter-date-to',
+      dia_chi_kho: '#filter-dia-chi-kho',
+      loai_cont: '#filter-loai-cont',
+      so_cont: '#filter-so-cont',
+      so_seal_chinh: '#filter-seal-chinh',
+      so_seal_tam: '#filter-seal-phu',
+      bks_dau_keo: '#filter-bks-dau-keo',
+      bks_mooc: '#filter-bks-mooc'
+    };
   }
 
   var HINH_THUC_MAP = {
@@ -440,10 +457,47 @@
     });
   }
 
+  function collectListFilters() {
+    var fields = listFilterFields();
+    var filters = {};
+    for (var key in fields) {
+      if (!fields.hasOwnProperty(key)) continue;
+      var value = ($(fields[key]).val() || '').trim();
+      if (value) filters[key] = value;
+    }
+    return filters;
+  }
+
+  function setListFilterInputs(filters) {
+    filters = filters || {};
+    var fields = listFilterFields();
+    for (var key in fields) {
+      if (!fields.hasOwnProperty(key)) continue;
+      $(fields[key]).val(filters[key] || '');
+    }
+  }
+
+  function clearListFilters() {
+    currentKeyword = '';
+    currentStatus = '';
+    currentFilters = {};
+    setListFilterInputs({});
+    $('#status-filter').val('');
+  }
+
+  function initListDateFilters() {
+    if (typeof flatpickr === 'undefined') return;
+    $('#filter-date-from, #filter-date-to').each(function () {
+      if (this._flatpickr) return;
+      flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, static: true });
+    });
+  }
+
   function initList() {
     if (initList._bound) return;
     initList._bound = true;
     var doc = document;
+    initListDateFilters();
     var filterEl = doc.getElementById('status-filter');
     if (filterEl) {
       for (var i = 0; i < statuses.length; i++) {
@@ -477,7 +531,8 @@
       currentPage = snapshot.currentPage || 1;
       currentKeyword = snapshot.currentKeyword || '';
       currentStatus = snapshot.currentStatus || '';
-      $('#search-input').val(currentKeyword);
+      currentFilters = snapshot.currentFilters || {};
+      setListFilterInputs(currentFilters);
       $('#status-filter').val(currentStatus);
       $('#list-body').html(snapshot.bodyHtml || '');
       if (snapshot.paginationWrapHtml) {
@@ -493,6 +548,7 @@
         currentPage: currentPage,
         currentKeyword: currentKeyword,
         currentStatus: currentStatus,
+        currentFilters: currentFilters,
         bodyHtml: $('#list-body').html(),
         paginationWrapHtml: paginationWrap ? paginationWrap.outerHTML : ''
       });
@@ -518,13 +574,13 @@
     }
 
     $('#search-btn').on('click', function () {
-      currentKeyword = $('#search-input').val().trim();
+      currentFilters = collectListFilters();
       currentPage = 1;
       loadList();
     });
-    $('#search-input').on('keypress', function (e) {
+    $('.ke-hoach-list-filter input, .ke-hoach-list-filter select').on('keypress', function (e) {
       if (e.which === 13) {
-        currentKeyword = this.value.trim();
+        currentFilters = collectListFilters();
         currentPage = 1;
         loadList();
       }
@@ -537,11 +593,8 @@
       });
     }
     $('.btn-reload').on('click', function () {
-      currentKeyword = '';
-      currentStatus = '';
+      clearListFilters();
       currentPage = 1;
-      $('#search-input').val('');
-      $('#status-filter').val('');
       loadList();
     });
     $('#pagination-jump').on('keypress', function (e) {
@@ -645,6 +698,7 @@
     var params = { page: currentPage, loai_ke_hoach: currentPlanType() };
     if (currentKeyword) params.keyword = currentKeyword;
     if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
+    $.extend(params, currentFilters || {});
     $.ajax({
       url: '/api/ke-hoach-xep-xe',
       type: 'GET',

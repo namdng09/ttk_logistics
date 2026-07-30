@@ -11,21 +11,23 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
 
   <div class="card-body">
     <!-- Search + Filter + Actions -->
-    <div class="row mb-3 align-items-center">
-      <div class="col-12 col-md-4 mb-2 mb-md-0">
-        <div class="input-group">
-          <input type="text" class="form-control" id="search-input" placeholder="Tìm kiếm (BKG, cont, kho, bãi, cảng…)">
-          <button class="btn btn-primary" type="button" id="search-btn">
-            <i class="ti tabler-search"></i> Tìm
-          </button>
-        </div>
-      </div>
-      <div class="col-12 col-md-8">
-        <div class="d-flex gap-2 justify-content-md-end justify-content-center">
+    <div class="row g-2 mb-3 align-items-end ke-hoach-list-filter">
+      <div class="col-12 col-md-3 col-xl-2"><label class="form-label">Khách hàng</label><input type="text" class="form-control" id="filter-khach-hang" placeholder="Tên khách hàng"></div>
+      <div class="col-12 col-md-3 col-xl-2"><label class="form-label">Số BKG</label><input type="text" class="form-control" id="filter-so-bkg" placeholder="Số BKG"></div>
+      <div class="col-6 col-md-3 col-xl-2"><label class="form-label">Loại cont</label><input type="text" class="form-control" id="filter-loai-cont" placeholder="Loại"></div>
+      <div class="col-6 col-md-3 col-xl-2"><label class="form-label">Số cont</label><input type="text" class="form-control" id="filter-so-cont" placeholder="Số cont"></div>
+      <div class="col-12 col-md-4 col-xl-2"><label class="form-label">Địa chỉ kho</label><input type="text" class="form-control" id="filter-dia-chi-kho" placeholder="Địa chỉ kho"></div>
+      <div class="col-6 col-md-2 col-xl-1"><label class="form-label">Từ ngày</label><input type="text" class="form-control flatpickr-date" id="filter-date-from" placeholder="dd/mm/yyyy"></div>
+      <div class="col-6 col-md-2 col-xl-1"><label class="form-label">Đến ngày</label><input type="text" class="form-control flatpickr-date" id="filter-date-to" placeholder="dd/mm/yyyy"></div>
+      <div class="col-6 col-md-3 col-xl-2"><label class="form-label">Seal chính</label><input type="text" class="form-control" id="filter-seal-chinh" placeholder="Seal chính"></div>
+      <div class="col-6 col-md-3 col-xl-2"><label class="form-label">Seal phụ</label><input type="text" class="form-control" id="filter-seal-phu" placeholder="Seal phụ"></div>
+      <div class="col-6 col-md-3 col-xl-2"><label class="form-label">BKS đầu kéo</label><input type="text" class="form-control" id="filter-bks-dau-keo" placeholder="BKS đầu kéo"></div>
+      <div class="col-6 col-md-3 col-xl-2"><label class="form-label">BKS mooc</label><input type="text" class="form-control" id="filter-bks-mooc" placeholder="BKS mooc"></div>
+      <div class="col-12 col-xl-4">
+        <div class="d-flex flex-wrap gap-2 justify-content-xl-end">
+          <button class="btn btn-primary" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm kiếm</button>
+          <button type="button" class="btn btn-label-secondary btn-reload waves-effect"><i class="ti tabler-refresh me-1"></i>Reset</button>
           <button type="button" class="btn btn-primary waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?></button>
-          <button type="button" class="btn btn-icon btn-label-secondary btn-reload waves-effect">
-            <i class="ti tabler-refresh"></i>
-          </button>
         </div>
       </div>
     </div>

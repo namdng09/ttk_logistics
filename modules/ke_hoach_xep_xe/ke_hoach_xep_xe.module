@@ -440,6 +440,26 @@ function ke_hoach_xep_xe_rest_collection() {
   }
 }
 
+function _ke_hoach_xep_xe_filter_date($value, $end_of_day = FALSE) {
+  $value = trim((string) $value);
+  if ($value === '') {
+    return '';
+  }
+  if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $value, $m)) {
+    return $m[3] . '-' . $m[2] . '-' . $m[1] . ($end_of_day ? ' 23:59:59' : ' 00:00:00');
+  }
+  if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m)) {
+    return $value . ($end_of_day ? ' 23:59:59' : ' 00:00:00');
+  }
+  return '';
+}
+
+function _ke_hoach_xep_xe_like_condition($query, $field, $param) {
+  if (!empty($_GET[$param])) {
+    $query->condition($field, '%' . db_like(trim($_GET[$param])) . '%', 'LIKE');
+  }
+}
+
 function _ke_hoach_xep_xe_rest_list() {
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
   $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
@@ -464,6 +484,32 @@ function _ke_hoach_xep_xe_rest_list() {
   }
   if (!empty($_GET['trang_thai_van_chuyen'])) {
     $query->condition('kh.trang_thai_van_chuyen', $_GET['trang_thai_van_chuyen']);
+  }
+  if (!empty($_GET['khach_hang'])) {
+    $query->leftJoin('khach_hang', 'khh_filter', 'khh_filter.nid = kh.nid_khach_hang');
+    $query->condition('khh_filter.ten', '%' . db_like(trim($_GET['khach_hang'])) . '%', 'LIKE');
+  }
+  _ke_hoach_xep_xe_like_condition($query, 'kh.so_bkg', 'so_bkg');
+  _ke_hoach_xep_xe_like_condition($query, 'kh.dia_chi_kho', 'dia_chi_kho');
+  _ke_hoach_xep_xe_like_condition($query, 'kh.loai_cont', 'loai_cont');
+  _ke_hoach_xep_xe_like_condition($query, 'kh.so_cont', 'so_cont');
+  _ke_hoach_xep_xe_like_condition($query, 'kh.so_seal_chinh', 'so_seal_chinh');
+  _ke_hoach_xep_xe_like_condition($query, 'kh.so_seal_tam', 'so_seal_tam');
+  if (!empty($_GET['bks_dau_keo'])) {
+    $query->leftJoin('phuong_tien', 'pt_filter', 'pt_filter.nid = kh.nid_phuong_tien');
+    $query->condition('pt_filter.bks', '%' . db_like(trim($_GET['bks_dau_keo'])) . '%', 'LIKE');
+  }
+  if (!empty($_GET['bks_mooc'])) {
+    $query->leftJoin('phuong_tien', 'mooc_filter', 'mooc_filter.nid = kh.nid_mooc');
+    $query->condition('mooc_filter.bks', '%' . db_like(trim($_GET['bks_mooc'])) . '%', 'LIKE');
+  }
+  $date_from = !empty($_GET['date_from']) ? _ke_hoach_xep_xe_filter_date($_GET['date_from']) : '';
+  if ($date_from) {
+    $query->condition('kh.created', $date_from, '>=');
+  }
+  $date_to = !empty($_GET['date_to']) ? _ke_hoach_xep_xe_filter_date($_GET['date_to'], TRUE) : '';
+  if ($date_to) {
+    $query->condition('kh.created', $date_to, '<=');
   }
 
   $count = clone $query;
