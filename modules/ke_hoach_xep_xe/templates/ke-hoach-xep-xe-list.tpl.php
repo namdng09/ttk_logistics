@@ -136,29 +136,20 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
           </div>
 
           <form id="ke-hoach-form" novalidate>
-            <div class="row mb-3">
-              <div class="col-md-3">
-                <label class="form-label">Khách hàng <span class="text-danger">*</span></label>
-                <select id="nid_khach_hang-input" class="form-select" required>
-                  <option value="0">-- Chọn khách hàng --</option>
-                </select>
-                <div class="invalid-feedback">Vui lòng chọn khách hàng</div>
-              </div>
-            </div>
-
             <h4 class="mt-2 mb-3">Danh sách chuyến xe</h4>
 
             <div class="table-responsive ke-hoach-table-wrap">
               <table class="table table-bordered align-middle ke-hoach-entry-table" id="ke-hoach-entry-table">
                 <thead>
                   <tr>
+                    <th style="width: 10%">Khách hàng <span class="text-danger">*</span></th>
                     <th style="width: 8%">Số BKG <span class="text-danger">*</span></th>
-                    <th style="width: 8%">Phương tiện <span class="text-danger">*</span></th>
-                    <th style="width: 8%"><span class="th-split-label">Loại cont<br>Số cont <span class="text-danger">*</span></span></th>
-                    <th style="width: 8%"><span class="th-split-label">Số seal tạm<br>Số seal chính</span></th>
-                    <th style="width: 14%"><span class="th-split-label">Địa chỉ kho <span class="text-danger">*</span><br>Cảng xuất</span></th>
-                    <th style="width: 8%"><span class="th-split-label">Bãi lấy cont<br>Bãi hạ cont</span></th>
-                    <th style="width: 10%"><span class="th-split-label">Cut-off<br>H.Thức VT</span></th>
+                    <th style="width: 8%">Phương tiện</th>
+                    <th style="width: 8%"><span class="th-split-label">Container</span></th>
+                    <th style="width: 8%"><span class="th-split-label">Seal tạm/chính</span></th>
+                    <th style="width: 14%"><span class="th-split-label">Kho <span class="text-danger">*</span>/Cảng xuất</span></th>
+                    <th style="width: 8%"><span class="th-split-label">Bãi lấy/hạ</span></th>
+                    <th style="width: 10%"><span class="th-split-label">Cut-off</span></th>
                     <th width="1%" class="text-center">
                       <button type="button" class="btn btn-sm btn-icon btn-label-success" id="add-line-btn" title="Thêm dòng">
                         <i class="ti tabler-circle-plus"></i>

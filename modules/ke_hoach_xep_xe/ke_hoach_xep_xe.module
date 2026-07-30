@@ -241,7 +241,7 @@ function _ke_hoach_xep_xe_json_encode(array $data) {
 
 function _ke_hoach_xep_xe_build_record($common, $line) {
   $record = _ke_hoach_xep_xe_default_record();
-  $record['nid_khach_hang'] = !empty($common['nid_khach_hang']) ? (int) $common['nid_khach_hang'] : 0;
+  $record['nid_khach_hang'] = !empty($line['nid_khach_hang']) ? (int) $line['nid_khach_hang'] : (!empty($common['nid_khach_hang']) ? (int) $common['nid_khach_hang'] : 0);
   $record['so_bkg'] = !empty($line['so_bkg']) ? trim($line['so_bkg']) : '';
   $record['nid_lai_xe'] = !empty($line['nid_lai_xe']) ? (int) $line['nid_lai_xe'] : 0;
   $record['nid_phuong_tien'] = !empty($line['nid_phuong_tien']) ? (int) $line['nid_phuong_tien'] : 0;
@@ -281,7 +281,7 @@ function _ke_hoach_xep_xe_validate_common($input) {
   return NULL;
 }
 
-function _ke_hoach_xep_xe_validate_lines($items) {
+function _ke_hoach_xep_xe_validate_lines($items, $require_vehicle_driver = TRUE, $require_container = TRUE) {
   if (empty($items) || !is_array($items)) {
     return _ke_hoach_xep_xe_fail('Danh sách phương tiện bắt buộc');
   }
@@ -293,13 +293,13 @@ function _ke_hoach_xep_xe_validate_lines($items) {
     if (empty($item['so_bkg'])) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': số BKG bắt buộc');
     }
-    if (empty($item['nid_phuong_tien'])) {
+    if ($require_vehicle_driver && empty($item['nid_phuong_tien'])) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': phương tiện bắt buộc');
     }
-    if (empty($item['so_cont'])) {
+    if ($require_container && empty($item['so_cont'])) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': số cont bắt buộc');
     }
-    if (empty($item['nid_lai_xe'])) {
+    if ($require_vehicle_driver && empty($item['nid_lai_xe'])) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': lái xe bắt buộc');
     }
 
@@ -544,7 +544,7 @@ function _ke_hoach_xep_xe_rest_create() {
   if ($validation) {
     return $validation;
   }
-  $line_validation = _ke_hoach_xep_xe_validate_lines(isset($input['items']) ? $input['items'] : array());
+  $line_validation = _ke_hoach_xep_xe_validate_lines(isset($input['items']) ? $input['items'] : array(), FALSE, FALSE);
   if ($line_validation) {
     return $line_validation;
   }

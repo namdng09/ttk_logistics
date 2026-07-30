@@ -82,6 +82,15 @@ thead.tableFloatingHeaderOriginal{
   margin-left: .1rem;
   margin-right: .1rem;
 }
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  padding-right: 0 !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__clear {
+  margin-right: 0 !important;
+}
+
 .dropend {
   position: relative;
 }

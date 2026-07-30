@@ -16,7 +16,7 @@
       <div class="col-12 col-md-8">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-primary btn-them-ke-hoach-tuyen-xa">
-            <i class="ti tabler-plus me-1"></i>Thêm kế hoạch tuyến xa
+            <i class="ti tabler-plus me-1"></i>Thêm tuyến xa
           </button>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-ke-hoach-tuyen-xa">
             <i class="ti tabler-refresh"></i>

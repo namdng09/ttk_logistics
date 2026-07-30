@@ -128,26 +128,15 @@
     if (d.length !== 3) return escHtml(val);
     var year = d[0].slice(-2);
     var time = parts[1] ? parts[1].substring(0, 5) : '';
-    return '<span class="khxh-date-stack">' + escHtml(d[2] + '/' + d[1] + '/' + year) + (time ? '<br>' + escHtml(time) : '') + '</span>';
+    return escHtml(d[2] + '/' + d[1] + '/' + year) + (time ? '<br>' + escHtml(time) : '');
   }
 
   function cutOffBadge(val) {
-    if (!val) return '<span class="text-muted fst-italic small">cut-off</span>';
+    if (!val) return '';
     var normalized = apiToDatetime(val);
     var d = parseCutOff(normalized);
     if (!d) return escHtml(val);
-    var now = new Date();
-    var diffMs = d - now;
-    var diffDays = diffMs / (1000 * 60 * 60 * 24);
-    var color;
-    if (diffMs < 0) {
-      color = 'bg-label-danger';
-    } else if (diffDays <= 1) {
-      color = 'bg-label-warning';
-    } else {
-      color = 'bg-label-success';
-    }
-    return '<span class="badge ' + color + ' khxh-date-badge">' + dateTimeStack(val) + '</span>';
+    return dateTimeStack(val);
   }
 
   function vehicleListInfoHtml(row) {
@@ -489,7 +478,11 @@
     if (typeof flatpickr === 'undefined') return;
     $('#filter-date-from, #filter-date-to').each(function () {
       if (this._flatpickr) return;
-      flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, static: true });
+      flatpickr(this, {
+        dateFormat: 'd/m/Y',
+        allowInput: true,
+        appendTo: document.body
+      });
     });
   }
 
@@ -734,7 +727,7 @@
           }
           var contHtml = row.loai_cont ? escHtml(row.loai_cont) : '';
           if (row.so_cont) {
-            contHtml += (contHtml ? ' - ' : '') + '<span class="khxh-so-cont-value">' + escHtml(row.so_cont) + '</span>';
+            contHtml += (contHtml ? ' - ' : '') + escHtml(row.so_cont);
           }
           html += '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
@@ -823,7 +816,7 @@
 
   function formatDateBadge(val) {
     if (!val) return '';
-    return '<span class="badge bg-label-info fw-normal khxh-date-badge">' + dateTimeStack(val) + '</span>';
+    return dateTimeStack(val);
   }
 
   function initForm() {
@@ -1020,7 +1013,7 @@
     }
 
     function buildCustomerOptions(selectedId) {
-      var html = '<option value="0">— Chọn —</option>';
+      var html = '<option></option>';
       for (var i = 0; i < state.customers.length; i++) {
         var item = state.customers[i];
         html += '<option value="' + item.nid + '"' + ((parseInt(selectedId, 10) === parseInt(item.nid, 10)) ? ' selected' : '') + '>' + escHtml(item.ten || ('#' + item.nid)) + '</option>';
@@ -1062,7 +1055,7 @@
     function vehicleSummaryTableHtml(line) {
       var vehicle = state.vehicleMap[String(line.nid_phuong_tien || 0)] || null;
       if (!vehicle) {
-        return '<span class="vehicle-inline-placeholder">Chọn phương tiện</span>';
+        return '<span class="vehicle-inline-placeholder">Chọn PT</span>';
       }
       var text = vehicle.bks || '';
       if (vehicle.lai_xe && vehicle.lai_xe.ten) {
@@ -1073,6 +1066,7 @@
 
     function initRowUi($row, line) {
       var dropdownParent = $('#ke-hoach-fullscreen-modal');
+      initSelect2($row.find('.line-customer-select')[0], '— Chọn khách hàng —', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-bai-lay-select')[0], '— Chọn bãi lấy —', { dropdownParent: dropdownParent });
@@ -1203,13 +1197,13 @@
       });
       return '' +
         '<tr class="ke-hoach-table-row" data-line-key="' + line.key + '">' +
+          '<td><select class="form-select line-customer-select">' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select><div class="line-customer-feedback text-danger small mt-1" style="display:none;">Vui lòng chọn khách hàng</div></td>' +
           '<td><input type="text" class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG"></td>' +
           '<td>' +
             '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
             '<button type="button" class="btn btn-outline-secondary w-100 text-start line-vehicle-display btn-open-vehicle-modal' + (line.nid_phuong_tien ? ' is-selected' : '') + '">' + vehicleSummaryTableHtml(line) + '</button>' +
             '<input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '">' +
             '<button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal mt-2' + (line.nid_mooc ? ' is-selected' : '') + '">' + moocSummaryHtml(line) + '</button>' +
-            '<div class="line-inline-feedback text-danger small mt-1" style="display:none;">Vui lòng chọn phương tiện có lái xe</div>' +
           '</td>' +
           '<td class="line-combo-cell">' +
             '<select class="form-select line-loai-cont-select mb-2">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select>' +
@@ -1286,6 +1280,7 @@
         }
         return line;
       }
+      line.nid_khach_hang = parseInt($row.find('.line-customer-select').val(), 10) || 0;
       line.nid_phuong_tien = parseInt($row.find('.line-vehicle-id').val(), 10) || 0;
       line.nid_mooc = parseInt($row.find('.line-mooc-id').val(), 10) || 0;
       if (line.nid_mooc && (!line.mooc || parseInt(line.mooc.nid, 10) !== line.nid_mooc)) {
@@ -1428,7 +1423,7 @@
           }
         }
         $row.removeClass('table-danger');
-        $row.find('.line-inline-feedback').hide();
+        $row.find('.line-customer-feedback').hide();
       }
       else {
         var $card = $('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + line.key + '"]');
@@ -1742,11 +1737,13 @@
 
     function validateForm() {
       var ok = true;
-      $('#nid_khach_hang-input').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
-      var khId = parseInt($('#nid_khach_hang-input').val(), 10) || 0;
-      if (!khId) {
-        ok = false;
-        $('#nid_khach_hang-input').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+      if (!useTableLayout) {
+        $('#nid_khach_hang-input').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
+        var khId = parseInt($('#nid_khach_hang-input').val(), 10) || 0;
+        if (!khId) {
+          ok = false;
+          $('#nid_khach_hang-input').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+        }
       }
       syncAllLines();
       if (!state.lines.length) {
@@ -1759,7 +1756,8 @@
         var line = syncLine($row);
         if (useTableLayout) {
           $row.removeClass('table-danger');
-          $row.find('.line-inline-feedback').hide();
+          $row.find('.line-customer-feedback').hide();
+          $row.find('.line-customer-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
           $row.find('.line-kho-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
         } else {
           $row.removeClass('line-card-invalid');
@@ -1772,16 +1770,17 @@
           if (useTableLayout) $row.addClass('table-danger');
           else $('#so_bkg-input').addClass('is-invalid');
         }
-        if (!line.nid_phuong_tien || !line.nid_lai_xe) {
+        if (useTableLayout && !line.nid_khach_hang) {
           ok = false;
-          if (useTableLayout) {
-            $row.addClass('table-danger');
-            $row.find('.line-inline-feedback').show();
-          } else {
-            $row.addClass('line-card-invalid');
-            if (!line.nid_lai_xe) $row.find('.line-driver-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
-            if (!line.nid_phuong_tien) $row.find('.line-vehicle-feedback').show();
-          }
+          $row.addClass('table-danger');
+          $row.find('.line-customer-feedback').show();
+          $row.find('.line-customer-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+        }
+        if (!useTableLayout && (!line.nid_phuong_tien || !line.nid_lai_xe)) {
+          ok = false;
+          $row.addClass('line-card-invalid');
+          if (!line.nid_lai_xe) $row.find('.line-driver-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+          if (!line.nid_phuong_tien) $row.find('.line-vehicle-feedback').show();
         }
         if (!line.dia_chi_kho) {
           ok = false;
@@ -1799,11 +1798,13 @@
 
     function gatherCreatePayload() {
       syncAllLines();
+      var firstLine = state.lines[0] || {};
       return {
-        nid_khach_hang: parseInt($('#nid_khach_hang-input').val(), 10) || 0,
+        nid_khach_hang: firstLine.nid_khach_hang || 0,
         loai_ke_hoach: currentPlanType(),
         items: $.map(state.lines, function (line) {
           return {
+            nid_khach_hang: line.nid_khach_hang || 0,
             so_bkg: line.so_bkg || '',
             nid_phuong_tien: line.nid_phuong_tien || 0,
             nid_mooc: line.nid_mooc || 0,
@@ -2229,10 +2230,8 @@
       formModal = new bootstrap.Modal(modalEl);
       modalEl.addEventListener('show.bs.modal', function () {
         loadDropdowns(function () {
-          initSelect2(document.getElementById('nid_khach_hang-input'), '— Chọn khách hàng —', { dropdownParent: $('#ke-hoach-fullscreen-modal') });
           if ($('#nid-input').val()) return;
           $('#ke-hoach-form')[0].reset();
-          $('#nid_khach_hang-input').val('0').trigger('change');
           state.lines = [];
           addLine({});
         });
@@ -2295,7 +2294,7 @@
             var khName = item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : '';
             var contHtml = item.loai_cont ? escHtml(item.loai_cont) : '';
             if (item.so_cont) {
-              contHtml += (contHtml ? ' - ' : '') + '<span class="khxh-so-cont-value">' + escHtml(item.so_cont) + '</span>';
+              contHtml += (contHtml ? ' - ' : '') + escHtml(item.so_cont);
             }
             html += '<tr data-id="' + item.nid + '">' +
               '<td>' + (i + 1) + '</td>' +
