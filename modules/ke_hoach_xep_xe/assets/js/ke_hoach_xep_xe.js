@@ -1557,14 +1557,12 @@
       if (activePickerType === 'mooc') {
         $('#vehicle-picker-target').text('Đang chọn mooc cho dòng #' + lineIndex);
         $('#vehicle-picker-modal .modal-title').text('Chọn mooc');
-        $('#vehicle-picker-modal .text-muted.small').first().text('Chọn mooc phù hợp cho kế hoạch đang chỉnh sửa.');
         $('#vehicle-picker-col-bks').text('Biển số');
         $('#vehicle-picker-col-type').text('Loại xe');
         $('#vehicle-picker-col-extra').text('Mã tài sản');
       } else {
         $('#vehicle-picker-target').text('Đang chọn phương tiện cho dòng #' + lineIndex);
         $('#vehicle-picker-modal .modal-title').text('Chọn phương tiện');
-        $('#vehicle-picker-modal .text-muted.small').first().text('Chọn đầu kéo phù hợp cho kế hoạch đang chỉnh sửa.');
         $('#vehicle-picker-col-bks').text('Biển số');
         $('#vehicle-picker-col-type').text('Loại xe');
         $('#vehicle-picker-col-extra').text('Lái xe hiện tại');
@@ -2171,7 +2169,7 @@
           });
           dropdownsLoaded = true;
           dropdownsLoading = false;
-          done();
+          if (done) done();
         }
       }
       $.ajax({
@@ -2444,14 +2442,18 @@
       modalEl.addEventListener('show.bs.modal', function () {
         showLoading(true);
         loadDropdowns(function () {
-          if ($('#nid-input').val()) {
+          try {
+            if (!$('#nid-input').val()) {
+              $('#ke-hoach-form')[0].reset();
+              state.lines = [];
+              addLine({});
+            }
+          } catch (err) {
+            if (window.console && console.error) console.error(err);
+            if (notyf) notyf.error('Không khởi tạo được form tạo kế hoạch');
+          } finally {
             showLoading(false);
-            return;
           }
-          $('#ke-hoach-form')[0].reset();
-          state.lines = [];
-          addLine({});
-          showLoading(false);
         });
       });
     }

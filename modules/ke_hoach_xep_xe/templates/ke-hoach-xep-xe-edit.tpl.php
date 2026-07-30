@@ -29,10 +29,7 @@
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <div>
-          <h5 class="modal-title mb-0">Chọn phương tiện</h5>
-          <div class="text-muted small">Chọn xe phù hợp cho kế hoạch đang chỉnh sửa.</div>
-        </div>
+        <h5 class="modal-title mb-0">Chọn phương tiện</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
@@ -41,7 +38,12 @@
             <input type="text" class="form-control" id="vehicle-picker-search" placeholder="Tìm theo biển số, loại xe, tài xế...">
           </div>
           <div class="col-md-6 text-md-end">
-            <div class="text-muted small" id="vehicle-picker-target">Đang chỉnh sửa phương tiện của kế hoạch</div>
+            <div class="d-inline-flex align-items-center gap-2 justify-content-md-end flex-wrap">
+              <div class="text-muted small" id="vehicle-picker-target">Đang chỉnh sửa phương tiện của kế hoạch</div>
+              <button type="button" class="btn btn-sm btn-label-secondary" id="vehicle-picker-clear-btn">
+                <i class="ti tabler-x me-1"></i>Bỏ chọn
+              </button>
+            </div>
           </div>
         </div>
 
