@@ -14,12 +14,12 @@
 
 .khxh-list-table .khxh-col-actions { width: 35px; }
 .khxh-list-table .khxh-col-stt { width: 33px; }
-.khxh-list-table .khxh-col-date { width: 85px; }
+.khxh-list-table .khxh-col-date { width: 73px; }
 .khxh-list-table .khxh-col-common { width: 155px; }
 .khxh-list-table .khxh-col-bkg { width: 130px; }
-.khxh-list-table .khxh-col-kho { width: 140px; }
-.khxh-list-table .khxh-col-container { width: 180px; }
-.khxh-list-table .khxh-col-vehicle { width: 110px; }
+.khxh-list-table .khxh-col-kho { width: 120px; }
+.khxh-list-table .khxh-col-container { width: 160px; }
+.khxh-list-table .khxh-col-vehicle { width: 95px; }
 .khxh-list-table .khxh-col-route { width: 110px; }
 .khxh-list-table .khxh-col-cang { width: 110px; }
 .khxh-list-table .khxh-col-status { width: 110px; }
@@ -531,7 +531,7 @@ body .flatpickr-calendar {
 
 .ke-hoach-entry-table {
   width: 100%;
-  min-width: 1550px;
+  min-width: 1400px;
   margin-bottom: 0;
 }
 

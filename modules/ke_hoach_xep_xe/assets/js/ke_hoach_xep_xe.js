@@ -318,11 +318,22 @@
     if (!jq || !el) return;
     var $el = jq(el);
     if ($el.data('select2')) $el.select2('destroy');
-    $el.select2($.extend({
+    var opts = $.extend({
       placeholder: placeholder || '— Chọn —',
       allowClear: true,
       width: '100%'
-    }, options || {}));
+    }, options || {});
+    if (!opts.dropdownParent) {
+      var $modal = $el.closest('.modal');
+      if ($modal.length) opts.dropdownParent = $modal;
+    }
+    $el.select2(opts);
+    $el.off('select2:open.khxhFocus').on('select2:open.khxhFocus', function () {
+      window.setTimeout(function () {
+        var search = document.querySelector('.select2-container--open .select2-search__field');
+        if (search) search.focus();
+      }, 0);
+    });
   }
 
   Drupal.behaviors.keHoachXepXe = {
@@ -1053,6 +1064,9 @@
     }
     function formDropdownParent() {
       var $modal = $formApp.closest('.modal');
+      if (!$modal.length) {
+        $modal = $form('#ke-hoach-fullscreen-modal');
+      }
       return $modal.length ? $modal : $(document.body);
     }
     var useTableLayout = $form('#ke-hoach-lines-body').length > 0;
@@ -1069,7 +1083,8 @@
       .off('click', '.btn-pick-vehicle')
       .off('change', 'input[name="vehicle-picker-radio"]')
       .off('click', '.line-hinh-thuc-radio')
-      .off('input change', '.line-cont-filter-bkg, .line-cont-filter-cont, .line-cont-filter-kho, .line-cont-filter-du-hang')
+      .off('input', '.line-cont-filter-bkg, .line-cont-filter-cont')
+      .off('change', '.line-cont-filter-kho, .line-cont-filter-du-hang')
       .off('change', '.line-cont-ref-checkbox')
       .off('change', '.line-bai-ha-theo-ke-hoach-checkbox')
       .off('change', '.line-cont-picker-wrap .line-bai-ha-thuc-te-select')
@@ -1823,6 +1838,8 @@
       var hinhThuc = line.hinh_thuc_van_tai || '';
       var $picker = getContPicker($card);
       var $body = $picker.find('.line-cont-picker-body');
+      var scrollTop = $picker.scrollTop();
+      var bodyScrollTop = $formApp.closest('.modal-body').scrollTop();
       clearContPickerLoading($card);
       var items = $card.data('contCandidates') || [];
       var fBkg = ($picker.find('.line-cont-filter-bkg').val() || '').toLowerCase();
@@ -1866,11 +1883,15 @@
       }
       $body.html(rows.length ? rows.join('') : '<tr><td colspan="7" class="text-center text-muted">Không có cont phù hợp</td></tr>');
       $body.find('.line-bai-ha-thuc-te-select').each(function () {
-        initSelect2(this, '— Chọn bãi hạ —', { tags: true, allowClear: false });
+        initSelect2(this, '— Chọn bãi hạ —', { tags: true, allowClear: false, dropdownParent: formDropdownParent() });
       });
       $picker.find('.line-cont-filter-kho').each(function () {
-        initSelect2(this, '— Tìm theo địa chỉ kho —', { allowClear: true });
+        if (!$(this).data('select2')) {
+          initSelect2(this, '— Tìm theo địa chỉ kho —', { allowClear: true, dropdownParent: formDropdownParent() });
+        }
       });
+      $picker.scrollTop(scrollTop);
+      $formApp.closest('.modal-body').scrollTop(bodyScrollTop);
     }
 
     function updateContCandidateItem($card, id, fields) {
@@ -2405,7 +2426,13 @@
       var line = syncLine($card);
       loadContCandidates(line, $card);
     });
-    $(document).on('input change', '.line-cont-filter-bkg, .line-cont-filter-cont, .line-cont-filter-kho, .line-cont-filter-du-hang', function () {
+    $(document).on('input', '.line-cont-filter-bkg, .line-cont-filter-cont', function () {
+      var key = $(this).closest('.line-cont-picker-wrap').data('line-key');
+      var $card = $form('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]');
+      var line = syncLine($card);
+      renderContCandidateRows(line, $card);
+    });
+    $(document).on('change', '.line-cont-filter-kho, .line-cont-filter-du-hang', function () {
       var key = $(this).closest('.line-cont-picker-wrap').data('line-key');
       var $card = $form('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]');
       var line = syncLine($card);

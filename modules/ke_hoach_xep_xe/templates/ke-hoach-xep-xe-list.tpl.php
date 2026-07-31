@@ -43,7 +43,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
           <tr>
             <th style="width:60px;text-align:center">CN</th>
             <th>#</th>
-            <th>Ngày K.H</th>
+            <th>Ngày</th>
             <th>T.T Chung</th>
             <th>bkg</th>
             <th>Container</th>

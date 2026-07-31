@@ -26,13 +26,13 @@ $create_title = $is_tuyen_xa ? 'Tạo kế hoạch tuyến xa' : 'Tạo kế ho�
                 <thead>
                   <tr>
                     <th style="width: 8%">Khách hàng <span class="text-danger">*</span></th>
-                    <th style="width: 8%">Số BKG <span class="text-danger">*</span></th>
-                    <th style="width: 8%">Phương tiện</th>
-                    <th style="width: 8%"><span class="th-split-label">Container</span></th>
-                    <th style="width: 8%"><span class="th-split-label">Seal tạm/chính</span></th>
+                    <th style="width: 10%">Số BKG <span class="text-danger">*</span></th>
+                    <th style="width: 10%">Phương tiện</th>
+                    <th style="width: 4%"><span class="th-split-label">Container</span></th>
+                    <th style="width: 4%"><span class="th-split-label">Seal tạm/chính</span></th>
                     <th style="width: 8%"><span class="th-split-label">Kho <span class="text-danger">*</span>/Cảng xuất</span></th>
                     <th style="width: 8%"><span class="th-split-label">Bãi lấy/hạ</span></th>
-                    <th style="width: 8%"><span class="th-split-label">Cut-off</span></th>
+                    <th style="width: 5%"><span class="th-split-label">Cut-off</span></th>
                     <th width="1%" class="text-center">
                       <button type="button" class="btn btn-sm btn-icon btn-label-success" id="add-line-btn" title="Thêm dòng">
                         <i class="ti tabler-circle-plus"></i>

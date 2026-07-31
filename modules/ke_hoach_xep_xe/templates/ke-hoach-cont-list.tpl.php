@@ -59,7 +59,7 @@
           <thead class="table-light">
             <tr>
               <th>#</th>
-              <th>Ngày K.H</th>
+              <th>Ngày</th>
               <th>T.T Chung</th>
               <th>bkg</th>
               <th>Container</th>
