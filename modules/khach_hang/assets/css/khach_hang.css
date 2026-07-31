@@ -212,3 +212,364 @@
 .kho-summary-item strong {
   font-size: 14px;
 }
+
+/* =====================================================
+   Customer route allowance matrix
+   ===================================================== */
+
+.kh-dm-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.kh-dm-app,
+.kh-dm-app * {
+  box-sizing: border-box;
+}
+
+.kh-dm-app {
+  height: calc(100vh - 8.75rem);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: #f4f6f9;
+}
+
+.kh-dm-topbar {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(240px, 360px) minmax(240px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(20, 37, 63, 0.07);
+}
+
+.kh-dm-customer {
+  font-weight: 700;
+}
+
+.kh-dm-location-add {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 7px;
+}
+
+.kh-dm-actions {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.kh-dm-matrix-card {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(20, 37, 63, 0.07);
+}
+
+.kh-dm-matrix-wrap {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+.kh-dm-matrix-table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 0;
+}
+
+.kh-dm-matrix-table th,
+.kh-dm-matrix-table td {
+  border-right: 1px solid #dbe2ea;
+  border-bottom: 1px solid #dbe2ea;
+  background: #fff;
+  vertical-align: top;
+}
+
+.kh-dm-matrix-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  width: 218px;
+  min-width: 218px;
+  padding: 0;
+  background: #eef4fb;
+}
+
+.kh-dm-matrix-table thead th:first-child {
+  left: 0;
+  z-index: 8;
+  width: 180px;
+  min-width: 180px;
+  background: #e4edf8;
+}
+
+.kh-dm-matrix-table tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  width: 180px;
+  min-width: 180px;
+  padding: 0;
+  background: #f7f9fc;
+}
+
+.kh-dm-matrix-table tbody td {
+  width: 218px;
+  min-width: 218px;
+  height: 96px;
+  padding: 6px;
+}
+
+.kh-dm-corner {
+  height: 64px;
+  display: grid;
+  place-items: center;
+  color: #0b6bcb;
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.kh-dm-place-head,
+.kh-dm-place-row {
+  position: relative;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 30px 8px 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.kh-dm-place-row {
+  min-height: 96px;
+  justify-content: flex-start;
+  text-align: left;
+  padding-left: 12px;
+}
+
+.kh-dm-remove-location {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #98a2b3;
+  cursor: pointer;
+}
+
+.kh-dm-remove-location:hover {
+  color: #d92d20;
+  background: #fff0ef;
+}
+
+.kh-dm-route-cell {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 5px;
+  height: 84px;
+}
+
+.kh-dm-route-cell.is-changed::after {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f5a623;
+  content: "";
+}
+
+.kh-dm-mini {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.kh-dm-mini input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+  width: 100%;
+  height: 100%;
+  min-height: 34px;
+  padding: 0 25px 0 7px;
+  border: 1px solid #cfd8e3;
+  border-radius: 7px;
+  outline: 0;
+  background: #fff;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.kh-dm-mini input::-webkit-outer-spin-button,
+.kh-dm-mini input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.kh-dm-mini input:focus {
+  border-color: #0b6bcb;
+  box-shadow: 0 0 0 2px rgba(11, 107, 203, 0.1);
+}
+
+.kh-dm-mini span {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  color: #667085;
+  font-size: 10px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.kh-dm-mini.allowance input {
+  padding-right: 19px;
+}
+
+.kh-dm-mini.allowance span {
+  right: 5px;
+  color: #0b6bcb;
+}
+
+.kh-dm-diagonal {
+  position: relative;
+  height: 96px;
+  overflow: hidden;
+  background: #f7f9fc;
+}
+
+.kh-dm-diagonal::after {
+  position: absolute;
+  top: 50%;
+  left: -12px;
+  right: -12px;
+  height: 2px;
+  background: #98a2b3;
+  transform: rotate(24deg);
+  content: "";
+}
+
+.kh-dm-matrix-table th.kh-dm-highlight-row,
+.kh-dm-matrix-table td.kh-dm-highlight-row,
+.kh-dm-matrix-table th.kh-dm-highlight-col,
+.kh-dm-matrix-table td.kh-dm-highlight-col {
+  background: #f1f7ff;
+}
+
+.kh-dm-matrix-table th.kh-dm-highlight-row .kh-dm-place-row,
+.kh-dm-matrix-table th.kh-dm-highlight-col .kh-dm-place-head {
+  color: #0b6bcb;
+}
+
+.kh-dm-matrix-table td.kh-dm-highlight-cell {
+  background: #e7f1ff;
+  box-shadow: inset 0 0 0 2px rgba(11, 107, 203, 0.28);
+}
+
+.kh-dm-matrix-table td.kh-dm-highlight-cell.kh-dm-diagonal::after {
+  height: 3px;
+  background: #0b6bcb;
+}
+
+.kh-dm-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  font-weight: 700;
+  color: #16834a;
+  white-space: nowrap;
+}
+
+.kh-dm-status.is-unsaved,
+.kh-dm-status.is-error {
+  color: #d92d20;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-app {
+  width: 100%;
+  min-height: calc(100vh - 8.75rem);
+  overflow: hidden;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-matrix-card {
+  min-height: 0;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-matrix-table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  table-layout: fixed !important;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-matrix-table th,
+#khach-hang-dinh-muc-modal .kh-dm-matrix-table td {
+  box-sizing: border-box;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-route-cell {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+  gap: 5px !important;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-mini {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-mini input {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 900px) {
+  .kh-dm-app {
+    height: auto;
+    min-height: calc(100vh - 8.75rem);
+  }
+
+  .kh-dm-topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .kh-dm-actions {
+    flex-wrap: wrap;
+  }
+
+  .kh-dm-matrix-card {
+    min-height: 70vh;
+  }
+}

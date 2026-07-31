@@ -84,6 +84,372 @@
   </div>
 </div>
 
+<style>
+  #khach-hang-dinh-muc-modal .kh-dm-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.85);
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-app,
+  #khach-hang-dinh-muc-modal .kh-dm-app * {
+    box-sizing: border-box;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-app {
+    width: 100%;
+    height: calc(100vh - 8.75rem);
+    min-height: calc(100vh - 8.75rem);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    overflow: hidden;
+    background: #f4f6f9;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-topbar {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: minmax(240px, 360px) minmax(240px, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #dbe2ea;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(20, 37, 63, 0.07);
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-customer {
+    font-weight: 700;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-location-add {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto;
+    gap: 7px;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-actions {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-card {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    border: 1px solid #dbe2ea;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(20, 37, 63, 0.07);
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-wrap {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table {
+    width: max-content;
+    min-width: 100%;
+    margin-bottom: 0;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table th,
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table td {
+    border-right: 1px solid #dbe2ea;
+    border-bottom: 1px solid #dbe2ea;
+    background: #fff;
+    vertical-align: top;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    width: 218px;
+    min-width: 218px;
+    padding: 0;
+    background: #eef4fb;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table thead th:first-child {
+    left: 0;
+    z-index: 8;
+    width: 180px;
+    min-width: 180px;
+    background: #e4edf8;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    width: 180px;
+    min-width: 180px;
+    padding: 0;
+    background: #f7f9fc;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table tbody td {
+    width: 218px;
+    min-width: 218px;
+    height: 96px;
+    padding: 6px;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-corner {
+    height: 64px;
+    display: grid;
+    place-items: center;
+    color: #0b6bcb;
+    font-size: 18px;
+    font-weight: 800;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-place-head,
+  #khach-hang-dinh-muc-modal .kh-dm-place-row {
+    position: relative;
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 30px 8px 10px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-place-row {
+    min-height: 96px;
+    justify-content: flex-start;
+    text-align: left;
+    padding-left: 12px;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-remove-location {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #98a2b3;
+    cursor: pointer;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-remove-location:hover {
+    color: #d92d20;
+    background: #fff0ef;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-route-cell {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    height: 84px;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-route-cell.is-changed::after {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f5a623;
+    content: "";
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-mini {
+    position: relative;
+    display: block;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-mini input {
+    appearance: textfield;
+    -moz-appearance: textfield;
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 34px;
+    padding: 0 25px 0 7px;
+    border: 1px solid #cfd8e3;
+    border-radius: 7px;
+    outline: 0;
+    background: #fff;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-mini input::-webkit-outer-spin-button,
+  #khach-hang-dinh-muc-modal .kh-dm-mini input::-webkit-inner-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-mini input:focus {
+    border-color: #0b6bcb;
+    box-shadow: 0 0 0 2px rgba(11, 107, 203, 0.1);
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-mini span {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    color: #667085;
+    font-size: 10px;
+    font-weight: 800;
+    pointer-events: none;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-mini.allowance input {
+    padding-right: 19px;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-mini.allowance span {
+    right: 5px;
+    color: #0b6bcb;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-diagonal {
+    position: relative;
+    height: 96px;
+    overflow: hidden;
+    background: #f7f9fc;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-diagonal::after {
+    position: absolute;
+    top: 50%;
+    left: -12px;
+    right: -12px;
+    height: 2px;
+    background: #98a2b3;
+    transform: rotate(24deg);
+    content: "";
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table th.kh-dm-highlight-row,
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table td.kh-dm-highlight-row,
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table th.kh-dm-highlight-col,
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table td.kh-dm-highlight-col {
+    background: #f1f7ff;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table th.kh-dm-highlight-row .kh-dm-place-row,
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table th.kh-dm-highlight-col .kh-dm-place-head {
+    color: #0b6bcb;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table td.kh-dm-highlight-cell {
+    background: #e7f1ff;
+    box-shadow: inset 0 0 0 2px rgba(11, 107, 203, 0.28);
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-matrix-table td.kh-dm-highlight-cell.kh-dm-diagonal::after {
+    height: 3px;
+    background: #0b6bcb;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    font-weight: 700;
+    color: #16834a;
+    white-space: nowrap;
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-status.is-unsaved,
+  #khach-hang-dinh-muc-modal .kh-dm-status.is-error {
+    color: #d92d20;
+  }
+
+  @media (max-width: 900px) {
+    #khach-hang-dinh-muc-modal .kh-dm-app {
+      height: auto;
+      min-height: calc(100vh - 8.75rem);
+    }
+
+    #khach-hang-dinh-muc-modal .kh-dm-topbar {
+      grid-template-columns: 1fr;
+    }
+
+    #khach-hang-dinh-muc-modal .kh-dm-actions {
+      flex-wrap: wrap;
+    }
+
+    #khach-hang-dinh-muc-modal .kh-dm-matrix-card {
+      min-height: 70vh;
+    }
+  }
+</style>
+
+<div class="modal fade" id="khach-hang-dinh-muc-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="khach-hang-dinh-muc-title">Định mức khách hàng</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0 position-relative">
+        <div id="khach-hang-dinh-muc-loading" class="kh-dm-loading" style="display:none;">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Đang tải...</span>
+          </div>
+        </div>
+        <div class="kh-dm-app">
+          <div class="kh-dm-topbar">
+            <input type="text" class="form-control kh-dm-customer" id="kh-dm-customer-name" readonly>
+            <div class="kh-dm-location-add">
+              <select class="form-select" id="kh-dm-new-location"></select>
+              <button type="button" class="btn btn-label-secondary" id="kh-dm-add-location">+ Điểm</button>
+            </div>
+            <div class="kh-dm-actions">
+              <button type="button" class="btn btn-label-secondary" id="kh-dm-copy-opposite">Sao chép đối xứng</button>
+              <span id="kh-dm-status" class="kh-dm-status">Đã lưu</span>
+            </div>
+          </div>
+          <div class="kh-dm-matrix-card">
+            <div class="kh-dm-matrix-wrap">
+              <table class="kh-dm-matrix-table" id="kh-dm-matrix-table">
+                <thead id="kh-dm-matrix-head"></thead>
+                <tbody id="kh-dm-matrix-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary" id="kh-dm-save"><i class="ti tabler-device-floppy me-1"></i>Lưu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Create/Edit/View Modal — Fullscreen -->
 <div class="modal fade" id="khach-hang-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen">

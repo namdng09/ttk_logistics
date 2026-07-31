@@ -1,7 +1,16 @@
-(function ($, Drupal) {
+(function bootKhachHang(window) {
+  if (!window.jQuery || !window.Drupal) {
+    window.setTimeout(function () {
+      bootKhachHang(window);
+    }, 30);
+    return;
+  }
+
+  (function ($, Drupal) {
   'use strict';
 
   var notyf;
+  var KHACH_HANG_INITIALIZED = false;
   var currentPage = 1;
   var currentKeyword = '';
   var currentPhanLoai = '';
@@ -13,10 +22,19 @@
   var DIADIEM_LIST = [];
   var NV_KINH_DOANH_LOADED = false;
   var DIADIEM_LIST_LOADED = false;
+  var DINH_MUC_LOCATION_LIST = [];
+  var DINH_MUC_LOCATION_LIST_LOADED = false;
   var FORM_SUPPORT_DATA_LOADED = false;
   var FORM_SUPPORT_DATA_LOADING = false;
   var FORM_SUPPORT_DATA_CALLBACKS = [];
   var moneyFormatter = new Intl.NumberFormat('vi-VN');
+  var DINH_MUC_STATE = {
+    customerId: 0,
+    customerName: '',
+    original: null,
+    data: { locations: [], routes: {} },
+    changed: false
+  };
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -30,18 +48,28 @@
     }
   }
 
+  function initKhachHang(context) {
+    context = context || document;
+    if (KHACH_HANG_INITIALIZED || !$('#table-khach-hang', context).length) return;
+    KHACH_HANG_INITIALIZED = true;
+
+    if (typeof Notyf !== 'undefined' && !notyf) {
+      notyf = new Notyf();
+    }
+
+    loadList();
+    bindNativeEvents();
+  }
+
   Drupal.behaviors.khachHang = {
     attach: function (context, settings) {
-      if (typeof Notyf !== 'undefined' && !notyf) {
-        notyf = new Notyf();
-      }
-
-      if ($('#table-khach-hang', context).length) {
-        loadList();
-        bindNativeEvents();
-      }
+      initKhachHang(context);
     }
   };
+
+  $(function () {
+    initKhachHang(document);
+  });
 
   function bindNativeEvents() {
     var doc = document;
@@ -152,6 +180,11 @@
             openEditModal(t.getAttribute('data-id'));
             return;
           }
+          if (t.classList.contains('btn-dinh-muc-khach-hang')) {
+            e.preventDefault();
+            openDinhMucModal(t.getAttribute('data-id'));
+            return;
+          }
           if (t.classList.contains('btn-delete-khach-hang')) {
             e.preventDefault();
             confirmDelete(t.getAttribute('data-id'));
@@ -197,6 +230,11 @@
             if (kCard2) refreshKhoSummary(kCard2);
             return;
           }
+          if (t.classList.contains('kh-dm-remove-location')) {
+            e.preventDefault();
+            removeDinhMucLocation(t.getAttribute('data-location'));
+            return;
+          }
           if (t.classList.contains('page-link')) {
             var pageLink = parseInt(t.getAttribute('data-page'));
             if (pageLink && pageLink !== currentPage) {
@@ -225,6 +263,9 @@
         var kCard = t.closest('.kho-card');
         if (kCard) refreshKhoSummary(kCard);
       }
+      if (t && t.classList && t.classList.contains('kh-dm-route-input')) {
+        updateDinhMucRouteInput(t);
+      }
     });
 
     doc.addEventListener('blur', function (e) {
@@ -233,6 +274,27 @@
         formatMoneyInput(t);
       }
     }, true);
+
+    var dmAdd = doc.getElementById('kh-dm-add-location');
+    if (dmAdd) dmAdd.addEventListener('click', addDinhMucLocation);
+    var dmNew = doc.getElementById('kh-dm-new-location');
+    if (dmNew) {
+      dmNew.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addDinhMucLocation();
+        }
+      });
+    }
+    var dmCopy = doc.getElementById('kh-dm-copy-opposite');
+    if (dmCopy) dmCopy.addEventListener('click', copyDinhMucOpposite);
+    var dmSave = doc.getElementById('kh-dm-save');
+    if (dmSave) dmSave.addEventListener('click', saveDinhMucData);
+    var dmTable = doc.getElementById('kh-dm-matrix-table');
+    if (dmTable) {
+      dmTable.addEventListener('mouseover', handleDinhMucMatrixHover);
+      dmTable.addEventListener('mouseleave', clearDinhMucMatrixHover);
+    }
 
     // Dropdown hover
     doc.addEventListener('mouseover', function (e) {
@@ -878,6 +940,20 @@
     return result;
   }
 
+  function emptyBangGiaCuocConfig() {
+    return {
+      bang_gia_cuoc: [],
+      dinh_muc: {
+        locations: [],
+        routes: {}
+      }
+    };
+  }
+
+  function getBangGiaCuocItems(config) {
+    return config && config.bang_gia_cuoc && config.bang_gia_cuoc.length ? config.bang_gia_cuoc : [];
+  }
+
   /* =====================================================
      Submit
      ===================================================== */
@@ -914,7 +990,9 @@
       sdt: document.querySelector('#form-khach-hang input[name="sdt"]').value,
       dia_chi: document.querySelector('#form-khach-hang input[name="dia_chi"]').value,
       thong_tin_ngan_hang: collectNganHang(),
-      bang_gia_cuoc: collectBangGiaCuoc(),
+      bang_gia_cuoc: {
+        bang_gia_cuoc: collectBangGiaCuoc()
+      },
       nv_kinh_doanh: nvKdVal.map(Number),
       dob: document.querySelector('#form-khach-hang input[name="dob"]').value,
       ghi_chu: document.querySelector('#form-khach-hang input[name="ghi_chu"]').value
@@ -1041,6 +1119,7 @@
     }
     if (perms.khach_hang_create) {
       items += '<li><button type="button" class="dropdown-item btn-edit-khach-hang" data-id="' + nid + '"><i class="ti tabler-edit me-2"></i>Sửa</button></li>';
+      items += '<li><button type="button" class="dropdown-item btn-dinh-muc-khach-hang" data-id="' + nid + '"><i class="ti tabler-map-dollar me-2"></i>Định mức</button></li>';
     }
     if (perms.khach_hang_delete) {
       items += '<li><hr class="dropdown-divider"></li>';
@@ -1328,9 +1407,10 @@
     // Warehouse + pricing (bang_gia_cuoc)
     var khoList = document.getElementById('kho-list');
     if (khoList) khoList.innerHTML = '';
-    if (d.bang_gia_cuoc && d.bang_gia_cuoc.length) {
-      for (var j = 0; j < d.bang_gia_cuoc.length; j++) {
-        addWarehouse(d.bang_gia_cuoc[j]);
+    var bangGiaCuocItems = getBangGiaCuocItems(d.bang_gia_cuoc || emptyBangGiaCuocConfig());
+    if (bangGiaCuocItems.length) {
+      for (var j = 0; j < bangGiaCuocItems.length; j++) {
+        addWarehouse(bangGiaCuocItems[j]);
       }
     } else {
       addWarehouse();
@@ -1398,6 +1478,398 @@
   }
 
   /* =====================================================
+     Định mức khách hàng
+     ===================================================== */
+
+  function cloneData(value) {
+    return JSON.parse(JSON.stringify(value || {}));
+  }
+
+  function routeKey(from, to) {
+    return from + '||' + to;
+  }
+
+  function emptyRoute() {
+    return { km: '', t: '', v: '', h: '' };
+  }
+
+  function setDinhMucLoading(show) {
+    var loading = document.getElementById('khach-hang-dinh-muc-loading');
+    var modal = document.getElementById('khach-hang-dinh-muc-modal');
+    if (loading) loading.style.display = show ? '' : 'none';
+    if (modal) {
+      modal.querySelectorAll('input, button').forEach(function (el) {
+        if (!el.classList.contains('btn-close')) el.disabled = !!show;
+      });
+    }
+  }
+
+  function setDinhMucStatus(text, state) {
+    var el = document.getElementById('kh-dm-status');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle('is-unsaved', state === 'unsaved');
+    el.classList.toggle('is-error', state === 'error');
+  }
+
+  function normalizeDinhMucPayload(payload) {
+    payload = payload || {};
+    var seen = {};
+    var locations = [];
+    $.each(payload.locations || [], function (_, item) {
+      item = $.trim(String(item || ''));
+      var key = item.toLowerCase();
+      if (item && !seen[key]) {
+        seen[key] = true;
+        locations.push(item);
+      }
+    });
+    return {
+      locations: locations,
+      routes: payload.routes || {}
+    };
+  }
+
+  function openDinhMucModal(id) {
+    id = parseInt(id, 10) || 0;
+    if (!id) return;
+
+    ensureDinhMucLocationSelect();
+    DINH_MUC_STATE.customerId = id;
+    DINH_MUC_STATE.customerName = '';
+    DINH_MUC_STATE.original = null;
+    DINH_MUC_STATE.data = { locations: [], routes: {} };
+    DINH_MUC_STATE.changed = false;
+    document.getElementById('kh-dm-customer-name').value = '';
+    setDinhMucLocationValue('');
+    document.getElementById('kh-dm-matrix-head').innerHTML = '';
+    document.getElementById('kh-dm-matrix-body').innerHTML = '';
+    setDinhMucStatus('Đã lưu');
+    setDinhMucLoading(true);
+    modalShow('khach-hang-dinh-muc-modal');
+
+    $.ajax({
+      url: '/api/khach-hang/' + id + '/dinh-muc',
+      type: 'GET',
+      dataType: 'json',
+      success: function (res) {
+        setDinhMucLoading(false);
+        if (res.status !== 'success' || !res.data) {
+          if (notyf) notyf.error(res.message || 'Không tải được định mức');
+          return;
+        }
+        DINH_MUC_STATE.customerName = res.data.khach_hang && res.data.khach_hang.ten ? res.data.khach_hang.ten : '';
+        DINH_MUC_STATE.data = normalizeDinhMucPayload(res.data);
+        DINH_MUC_STATE.original = cloneData(DINH_MUC_STATE.data);
+        DINH_MUC_STATE.changed = false;
+        document.getElementById('khach-hang-dinh-muc-title').textContent = 'Định mức - ' + DINH_MUC_STATE.customerName;
+        document.getElementById('kh-dm-customer-name').value = DINH_MUC_STATE.customerName;
+        renderDinhMucMatrix();
+        setDinhMucStatus('Đã lưu');
+      },
+      error: function (jqXHR) {
+        setDinhMucLoading(false);
+        if (notyf) notyf.error(apiMsg(jqXHR));
+      }
+    });
+  }
+
+  function renderDinhMucMatrix() {
+    var locations = DINH_MUC_STATE.data.locations || [];
+    var head = '<tr><th><div class="kh-dm-corner">ĐI → ĐẾN</div></th>';
+    for (var i = 0; i < locations.length; i++) {
+      head += '<th data-col="' + i + '"><div class="kh-dm-place-head"><span>' + escapeHtml(locations[i]) + '</span>' +
+        '<button class="kh-dm-remove-location" type="button" data-location="' + escapeHtml(locations[i]) + '" title="Xóa">×</button>' +
+        '</div></th>';
+    }
+    head += '</tr>';
+    document.getElementById('kh-dm-matrix-head').innerHTML = head;
+
+    var body = '';
+    for (var r = 0; r < locations.length; r++) {
+      var from = locations[r];
+      body += '<tr data-row="' + r + '"><th data-row="' + r + '"><div class="kh-dm-place-row"><span>' + escapeHtml(from) + '</span></div></th>';
+      for (var c = 0; c < locations.length; c++) {
+        body += renderDinhMucRouteCell(from, locations[c], r, c);
+      }
+      body += '</tr>';
+    }
+    document.getElementById('kh-dm-matrix-body').innerHTML = body || '<tr><td class="text-center text-muted py-5">Thêm địa điểm để cấu hình</td></tr>';
+  }
+
+  function renderDinhMucRouteCell(from, to, rowIndex, colIndex) {
+    if (from === to) {
+      return '<td class="kh-dm-diagonal" data-row="' + rowIndex + '" data-col="' + colIndex + '"></td>';
+    }
+    var route = DINH_MUC_STATE.data.routes[routeKey(from, to)] || emptyRoute();
+    return '<td data-row="' + rowIndex + '" data-col="' + colIndex + '"><div class="kh-dm-route-cell" data-from="' + escapeHtml(from) + '" data-to="' + escapeHtml(to) + '">' +
+      renderDinhMucMini('km', 'KM', route.km, '0.1', '') +
+      renderDinhMucMini('t', 'T', route.t, '1', ' allowance') +
+      renderDinhMucMini('v', 'V', route.v, '1', ' allowance') +
+      renderDinhMucMini('h', 'H', route.h, '1', ' allowance') +
+      '</div></td>';
+  }
+
+  function renderDinhMucMini(field, label, value, step, extraClass) {
+    var mode = field === 'km' ? 'decimal' : 'numeric';
+    var displayValue = field === 'km' ? value : formatMoneyValue(value);
+    return '<div class="kh-dm-mini' + extraClass + '">' +
+      '<input class="kh-dm-route-input" data-field="' + field + '" type="text" inputmode="' + mode + '" pattern="[0-9]*" value="' + escapeHtml(displayValue) + '" placeholder="0" autocomplete="off">' +
+      '<span>' + label + '</span>' +
+      '</div>';
+  }
+
+  function initDinhMucLocationSelect() {
+    var selEl = document.getElementById('kh-dm-new-location');
+    if (!selEl) return;
+
+    selEl.innerHTML = '<option></option>';
+    for (var i = 0; i < DINH_MUC_LOCATION_LIST.length; i++) {
+      var opt = document.createElement('option');
+      opt.value = DINH_MUC_LOCATION_LIST[i];
+      opt.textContent = DINH_MUC_LOCATION_LIST[i];
+      selEl.appendChild(opt);
+    }
+
+    var $jq = _jqSelect2();
+    if ($jq) {
+      var $sel = $jq(selEl);
+      if ($sel.data('select2')) $sel.select2('destroy');
+      $sel.select2({
+        dropdownParent: $jq('#khach-hang-dinh-muc-modal'),
+        placeholder: 'Thêm địa điểm',
+        allowClear: true,
+        tags: true,
+        width: '100%'
+      });
+    }
+  }
+
+  function ensureDinhMucLocationSelect() {
+    if (DINH_MUC_LOCATION_LIST_LOADED) {
+      initDinhMucLocationSelect();
+      return;
+    }
+
+    var types = ['Kho', 'Cảng', 'Bãi'];
+    var pending = types.length;
+    var seen = {};
+    var names = [];
+
+    function collect(res) {
+      if (res.status === 'success' && res.data && res.data.items) {
+        for (var i = 0; i < res.data.items.length; i++) {
+          var ten = $.trim(res.data.items[i].ten || '');
+          var key = ten.toLowerCase();
+          if (ten && !seen[key]) {
+            seen[key] = true;
+            names.push(ten);
+          }
+        }
+      }
+    }
+
+    function finish() {
+      pending--;
+      if (pending > 0) return;
+      DINH_MUC_LOCATION_LIST = names;
+      DINH_MUC_LOCATION_LIST_LOADED = true;
+      initDinhMucLocationSelect();
+    }
+
+    for (var i = 0; i < types.length; i++) {
+      $.ajax({
+        url: '/api/danh-muc',
+        type: 'GET',
+        dataType: 'json',
+        data: { phan_loai: types[i], limit: 500 },
+        success: collect,
+        complete: finish
+      });
+    }
+  }
+
+  function getDinhMucLocationValue() {
+    var selEl = document.getElementById('kh-dm-new-location');
+    if (!selEl) return '';
+    var $jq = _jqSelect2();
+    if ($jq && $jq(selEl).data('select2')) {
+      return $jq.trim($jq(selEl).val() || '');
+    }
+    return $.trim(selEl.value || '');
+  }
+
+  function setDinhMucLocationValue(value) {
+    var selEl = document.getElementById('kh-dm-new-location');
+    if (!selEl) return;
+    var $jq = _jqSelect2();
+    if ($jq && $jq(selEl).data('select2')) {
+      $jq(selEl).val(value || null).trigger('change');
+      return;
+    }
+    selEl.value = value || '';
+  }
+
+  function clearDinhMucMatrixHover() {
+    var table = document.getElementById('kh-dm-matrix-table');
+    if (!table) return;
+    table.querySelectorAll('.kh-dm-highlight-row, .kh-dm-highlight-col, .kh-dm-highlight-cell').forEach(function (el) {
+      el.classList.remove('kh-dm-highlight-row', 'kh-dm-highlight-col', 'kh-dm-highlight-cell');
+    });
+  }
+
+  function handleDinhMucMatrixHover(e) {
+    var table = document.getElementById('kh-dm-matrix-table');
+    var target = e.target && e.target.closest ? e.target.closest('[data-row], [data-col]') : null;
+    if (!table || !target || !table.contains(target)) return;
+
+    clearDinhMucMatrixHover();
+
+    var row = target.getAttribute('data-row');
+    var col = target.getAttribute('data-col');
+    if (row !== null) {
+      table.querySelectorAll('[data-row="' + row + '"]').forEach(function (el) {
+        el.classList.add('kh-dm-highlight-row');
+      });
+    }
+    if (col !== null) {
+      table.querySelectorAll('[data-col="' + col + '"]').forEach(function (el) {
+        el.classList.add('kh-dm-highlight-col');
+      });
+    }
+    if (row !== null && col !== null) {
+      var cell = target.closest('td, th');
+      if (cell) cell.classList.add('kh-dm-highlight-cell');
+    }
+  }
+
+  function markDinhMucChanged(cell) {
+    DINH_MUC_STATE.changed = true;
+    setDinhMucStatus('Chưa lưu', 'unsaved');
+    if (cell) cell.classList.add('is-changed');
+  }
+
+  function updateDinhMucRouteInput(input) {
+    var cell = input.closest('.kh-dm-route-cell');
+    if (!cell) return;
+    var from = cell.getAttribute('data-from');
+    var to = cell.getAttribute('data-to');
+    var field = input.getAttribute('data-field');
+    var rawValue = String(input.value || '');
+    var cleaned = rawValue.replace(',', '.').replace(field === 'km' ? /[^0-9.]/g : /[^0-9]/g, '');
+    if (field === 'km') {
+      var dotIndex = cleaned.indexOf('.');
+      if (dotIndex !== -1) {
+        cleaned = cleaned.slice(0, dotIndex + 1) + cleaned.slice(dotIndex + 1).replace(/\./g, '');
+      }
+      if (input.value !== cleaned) {
+        input.value = cleaned;
+      }
+    }
+    else {
+      input.value = cleaned ? moneyFormatter.format(Number(cleaned)) : '';
+    }
+    var key = routeKey(from, to);
+    if (!DINH_MUC_STATE.data.routes[key]) {
+      DINH_MUC_STATE.data.routes[key] = emptyRoute();
+    }
+    DINH_MUC_STATE.data.routes[key][field] = cleaned === '' ? '' : Number(cleaned);
+    var route = DINH_MUC_STATE.data.routes[key];
+    if (route.km === '' && route.t === '' && route.v === '' && route.h === '') {
+      delete DINH_MUC_STATE.data.routes[key];
+    }
+    markDinhMucChanged(cell);
+  }
+
+  function addDinhMucLocation() {
+    var name = getDinhMucLocationValue();
+    if (!name) return;
+    var exists = false;
+    $.each(DINH_MUC_STATE.data.locations, function (_, item) {
+      if (String(item).toLowerCase() === name.toLowerCase()) exists = true;
+    });
+    if (exists) {
+      setDinhMucStatus('Địa điểm đã tồn tại', 'error');
+      return;
+    }
+    DINH_MUC_STATE.data.locations.push(name);
+    setDinhMucLocationValue('');
+    markDinhMucChanged();
+    renderDinhMucMatrix();
+  }
+
+  function removeDinhMucLocation(name) {
+    if (!name) return;
+    if (!window.confirm('Xóa địa điểm "' + name + '"?')) return;
+    DINH_MUC_STATE.data.locations = $.grep(DINH_MUC_STATE.data.locations, function (item) {
+      return item !== name;
+    });
+    var nextRoutes = {};
+    $.each(DINH_MUC_STATE.data.routes, function (key, route) {
+      var parts = key.split('||');
+      if (parts[0] !== name && parts[1] !== name) {
+        nextRoutes[key] = route;
+      }
+    });
+    DINH_MUC_STATE.data.routes = nextRoutes;
+    markDinhMucChanged();
+    renderDinhMucMatrix();
+  }
+
+  function copyDinhMucOpposite() {
+    var copied = 0;
+    var locations = DINH_MUC_STATE.data.locations || [];
+    for (var i = 0; i < locations.length; i++) {
+      for (var j = 0; j < locations.length; j++) {
+        if (i === j) continue;
+        var sourceKey = routeKey(locations[i], locations[j]);
+        var targetKey = routeKey(locations[j], locations[i]);
+        var source = DINH_MUC_STATE.data.routes[sourceKey];
+        var target = DINH_MUC_STATE.data.routes[targetKey];
+        if (source && (!target || (target.km === '' && target.t === '' && target.v === '' && target.h === ''))) {
+          DINH_MUC_STATE.data.routes[targetKey] = cloneData(source);
+          copied++;
+        }
+      }
+    }
+    if (!copied) {
+      setDinhMucStatus('Không có ô trống để sao chép', 'error');
+      return;
+    }
+    markDinhMucChanged();
+    renderDinhMucMatrix();
+  }
+
+  function saveDinhMucData() {
+    if (!DINH_MUC_STATE.customerId) return;
+    setDinhMucLoading(true);
+    $.ajax({
+      url: '/api/khach-hang/' + DINH_MUC_STATE.customerId + '/dinh-muc',
+      type: 'PUT',
+      contentType: 'application/json',
+      dataType: 'json',
+      data: JSON.stringify(DINH_MUC_STATE.data),
+      success: function (res) {
+        setDinhMucLoading(false);
+        if (res.status !== 'success' || !res.data) {
+          if (notyf) notyf.error(res.message || 'Lưu định mức thất bại');
+          return;
+        }
+        DINH_MUC_STATE.data = normalizeDinhMucPayload(res.data);
+        DINH_MUC_STATE.original = cloneData(DINH_MUC_STATE.data);
+        DINH_MUC_STATE.changed = false;
+        renderDinhMucMatrix();
+        setDinhMucStatus('Đã lưu');
+        if (notyf) notyf.success('Đã lưu định mức');
+      },
+      error: function (jqXHR) {
+        setDinhMucLoading(false);
+        if (notyf) notyf.error(apiMsg(jqXHR));
+      }
+    });
+  }
+
+  /* =====================================================
      Helpers
      ===================================================== */
 
@@ -1419,4 +1891,5 @@
       .replace(/"/g, '&quot;');
   }
 
-})(jQuery, Drupal);
+  })(window.jQuery, window.Drupal);
+})(window);
