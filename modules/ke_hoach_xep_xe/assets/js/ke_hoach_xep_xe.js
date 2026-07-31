@@ -336,6 +336,15 @@
     });
   }
 
+  function setSelect2Invalid($select, invalid) {
+    if (!$select || !$select.length) return;
+    var instance = $select.data('select2');
+    var $container = instance && instance.$container ? instance.$container : $select.nextAll('.select2-container').first();
+    $select.removeClass('is-invalid');
+    $container.removeClass('is-invalid khxh-select2-invalid');
+    if (invalid) $container.addClass('khxh-select2-invalid');
+  }
+
   Drupal.behaviors.keHoachXepXe = {
     attach: function (context) {
       syncPageSettings();
@@ -1989,11 +1998,11 @@
     function validateForm() {
       var ok = true;
       if (!useTableLayout) {
-        $form('#nid_khach_hang-input').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
+        setSelect2Invalid($form('#nid_khach_hang-input'), false);
         var khId = parseInt($form('#nid_khach_hang-input').val(), 10) || 0;
         if (!khId) {
           ok = false;
-          $form('#nid_khach_hang-input').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+          setSelect2Invalid($form('#nid_khach_hang-input'), true);
         }
       }
       syncAllLines();
@@ -2008,33 +2017,38 @@
         if (useTableLayout) {
           $row.removeClass('table-danger');
           $row.find('.line-customer-feedback').hide();
-          $row.find('.line-customer-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
-          $row.find('.line-kho-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
+          setSelect2Invalid($row.find('.line-customer-select'), false);
+          $row.find('.line-so-bkg-input').removeClass('is-invalid');
+          setSelect2Invalid($row.find('.line-kho-select'), false);
+          setSelect2Invalid($row.find('.line-cang-select'), false);
         } else {
           $row.removeClass('line-card-invalid');
-          $row.find('.line-driver-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
-          $row.find('.line-kho-select').removeClass('is-invalid').next('.select2-container').removeClass('is-invalid');
+          $form('#so_bkg-input').removeClass('is-invalid');
+          setSelect2Invalid($row.find('.line-driver-select'), false);
+          setSelect2Invalid($row.find('.line-kho-select'), false);
+          setSelect2Invalid($row.find('.line-cang-select'), false);
           $row.find('.line-vehicle-feedback').hide();
         }
         if ((useTableLayout && !line.so_bkg) || (!useTableLayout && !$form('#so_bkg-input').val().trim())) {
           ok = false;
-          if (useTableLayout) $row.addClass('table-danger');
-          else $form('#so_bkg-input').addClass('is-invalid');
+          if (useTableLayout) {
+            $row.find('.line-so-bkg-input').addClass('is-invalid');
+          } else {
+            $form('#so_bkg-input').addClass('is-invalid');
+          }
         }
         if (useTableLayout && !line.nid_khach_hang) {
           ok = false;
-          $row.addClass('table-danger');
           $row.find('.line-customer-feedback').show();
-          $row.find('.line-customer-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+          setSelect2Invalid($row.find('.line-customer-select'), true);
         }
         if (!line.dia_chi_kho) {
           ok = false;
           if (useTableLayout) {
-            $row.addClass('table-danger');
-            $row.find('.line-kho-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+            setSelect2Invalid($row.find('.line-kho-select'), true);
           } else {
             $row.addClass('line-card-invalid');
-            $row.find('.line-kho-select').addClass('is-invalid').next('.select2-container').addClass('is-invalid');
+            setSelect2Invalid($row.find('.line-kho-select'), true);
           }
         }
       });

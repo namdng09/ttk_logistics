@@ -186,8 +186,12 @@ body .flatpickr-calendar {
   font-size: 0.875rem;
 }
 
-.select2-container.is-invalid .select2-selection {
+#ke-hoach-form-app .select2-container.khxh-select2-invalid .select2-selection,
+#ke-hoach-form-app .select2-container--default.khxh-select2-invalid .select2-selection--single,
+#ke-hoach-search-modal .select2-container.khxh-select2-invalid .select2-selection,
+#ke-hoach-search-modal .select2-container--default.khxh-select2-invalid .select2-selection--single {
   border-color: #ea5455 !important;
+  box-shadow: 0 0 0 0.12rem rgba(234, 84, 85, 0.12) !important;
 }
 
 .ke-hoach-lines-wrap {
