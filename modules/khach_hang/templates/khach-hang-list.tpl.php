@@ -95,6 +95,12 @@
     background: rgba(255, 255, 255, 0.85);
   }
 
+  #khach-hang-dinh-muc-modal .kh-dm-symbol-note {
+    color: #667085;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
   #khach-hang-dinh-muc-modal .kh-dm-app,
   #khach-hang-dinh-muc-modal .kh-dm-app * {
     box-sizing: border-box;
@@ -355,7 +361,7 @@
   #khach-hang-dinh-muc-modal .kh-dm-matrix-table td.kh-dm-highlight-row,
   #khach-hang-dinh-muc-modal .kh-dm-matrix-table th.kh-dm-highlight-col,
   #khach-hang-dinh-muc-modal .kh-dm-matrix-table td.kh-dm-highlight-col {
-    background: #f1f7ff;
+    background: #dcecff;
   }
 
   #khach-hang-dinh-muc-modal .kh-dm-matrix-table th.kh-dm-highlight-row .kh-dm-place-row,
@@ -364,8 +370,8 @@
   }
 
   #khach-hang-dinh-muc-modal .kh-dm-matrix-table td.kh-dm-highlight-cell {
-    background: #e7f1ff;
-    box-shadow: inset 0 0 0 2px rgba(11, 107, 203, 0.28);
+    background: #c8ddff;
+    box-shadow: inset 0 0 0 2px rgba(11, 107, 203, 0.46);
   }
 
   #khach-hang-dinh-muc-modal .kh-dm-matrix-table td.kh-dm-highlight-cell.kh-dm-diagonal::after {
@@ -411,7 +417,10 @@
   <div class="modal-dialog modal-fullscreen">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="khach-hang-dinh-muc-title">Định mức khách hàng</h5>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <h5 class="modal-title" id="khach-hang-dinh-muc-title">Định mức khách hàng</h5>
+          <span class="kh-dm-symbol-note">KM: Khoảng cách · T: Trống · V: Vỏ · H: Hàng</span>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-0 position-relative">
@@ -443,6 +452,9 @@
         </div>
       </div>
       <div class="modal-footer">
+        <input type="file" id="kh-dm-import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="d-none">
+        <button type="button" class="btn btn-label-secondary me-auto" id="kh-dm-import"><i class="ti tabler-file-import me-1"></i>Import Excel</button>
+        <button type="button" class="btn btn-label-secondary" id="kh-dm-export"><i class="ti tabler-file-export me-1"></i>Export Excel</button>
         <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
         <button type="button" class="btn btn-primary" id="kh-dm-save"><i class="ti tabler-device-floppy me-1"></i>Lưu</button>
       </div>

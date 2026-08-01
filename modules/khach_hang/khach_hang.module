@@ -798,8 +798,10 @@ function _khach_hang_dinh_muc_rest_update($id) {
 function khach_hang_page_list() {
   $module_path = drupal_get_path('module', 'khach_hang');
   $css_path = $module_path . '/assets/css/khach_hang.css';
+  $xlsx_path = $module_path . '/assets/vendor/xlsx.full.min.js';
   $js_path = $module_path . '/assets/js/khach_hang.js';
   $css_version = file_exists($css_path) ? filemtime($css_path) . '-' . filesize($css_path) : REQUEST_TIME;
+  $xlsx_version = file_exists($xlsx_path) ? filemtime($xlsx_path) . '-' . filesize($xlsx_path) : REQUEST_TIME;
   $js_version = file_exists($js_path) ? filemtime($js_path) . '-' . filesize($js_path) : REQUEST_TIME;
 
   drupal_add_css($css_path, array(
@@ -808,6 +810,13 @@ function khach_hang_page_list() {
     'weight' => 100,
     'preprocess' => FALSE,
     'version' => $css_version,
+  ));
+  drupal_add_js($xlsx_path, array(
+    'type' => 'file',
+    'scope' => 'footer',
+    'weight' => -10,
+    'preprocess' => FALSE,
+    'version' => $xlsx_version,
   ));
   drupal_add_js($js_path, array(
     'type' => 'file',

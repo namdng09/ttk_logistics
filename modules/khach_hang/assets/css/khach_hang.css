@@ -227,6 +227,12 @@
   background: rgba(255, 255, 255, 0.85);
 }
 
+.kh-dm-symbol-note {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .kh-dm-app,
 .kh-dm-app * {
   box-sizing: border-box;
@@ -482,7 +488,7 @@
 .kh-dm-matrix-table td.kh-dm-highlight-row,
 .kh-dm-matrix-table th.kh-dm-highlight-col,
 .kh-dm-matrix-table td.kh-dm-highlight-col {
-  background: #f1f7ff;
+  background: #dcecff;
 }
 
 .kh-dm-matrix-table th.kh-dm-highlight-row .kh-dm-place-row,
@@ -491,8 +497,8 @@
 }
 
 .kh-dm-matrix-table td.kh-dm-highlight-cell {
-  background: #e7f1ff;
-  box-shadow: inset 0 0 0 2px rgba(11, 107, 203, 0.28);
+  background: #c8ddff;
+  box-shadow: inset 0 0 0 2px rgba(11, 107, 203, 0.46);
 }
 
 .kh-dm-matrix-table td.kh-dm-highlight-cell.kh-dm-diagonal::after {

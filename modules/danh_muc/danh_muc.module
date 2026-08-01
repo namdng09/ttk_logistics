@@ -66,6 +66,12 @@ function danh_muc_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/danh-muc-dinh-muc-dia-diem'] = array(
+    'page callback' => 'danh_muc_dinh_muc_dia_diem_rest_list',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/danh-muc-bai'] = array(
     'page callback' => 'danh_muc_bai_rest_collection',
     'access callback' => TRUE,
@@ -329,14 +335,16 @@ function danh_muc_rest_collection() {
 
 function _danh_muc_rest_list() {
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $limit = isset($_GET['limit']) ? max(1, min(500, (int) $_GET['limit'])) : 20;
   $offset = ($page - 1) * $limit;
 
   $query = db_select('danh_muc', 'dm');
   $query->fields('dm');
 
   $query->condition('dm.hoat_dong', 1);
-  $query->condition('dm.phan_loai', _danh_muc_bai_query_phan_loai_options(), 'NOT IN');
+  if (empty($_GET['phan_loai'])) {
+    $query->condition('dm.phan_loai', _danh_muc_bai_query_phan_loai_options(), 'NOT IN');
+  }
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
     $or = db_or()
@@ -345,7 +353,30 @@ function _danh_muc_rest_list() {
     $query->condition($or);
   }
   if (!empty($_GET['phan_loai'])) {
-    $query->condition('dm.phan_loai', $_GET['phan_loai']);
+    $phan_loai = $_GET['phan_loai'];
+    if (is_array($phan_loai)) {
+      $values = array();
+      foreach ($phan_loai as $item) {
+        $item = trim((string) $item);
+        if ($item !== '') $values[] = $item;
+      }
+      if ($values) {
+        $query->condition('dm.phan_loai', $values, 'IN');
+      }
+    }
+    elseif (strpos($phan_loai, ',') !== FALSE) {
+      $values = array();
+      foreach (explode(',', $phan_loai) as $item) {
+        $item = trim($item);
+        if ($item !== '') $values[] = $item;
+      }
+      if ($values) {
+        $query->condition('dm.phan_loai', $values, 'IN');
+      }
+    }
+    else {
+      $query->condition('dm.phan_loai', $phan_loai);
+    }
   }
 
   $count = clone $query;
@@ -576,6 +607,52 @@ function _danh_muc_bai_rest_list() {
   $total = $count->countQuery()->execute()->fetchField();
 
   $query->orderBy('dm.nid', 'DESC');
+  $query->range($offset, $limit);
+  $rows = $query->execute()->fetchAll();
+
+  $items = array();
+  foreach ($rows as $row) {
+    $items[] = _danh_muc_bai_enrich_row($row);
+  }
+
+  $total_pages = (int) ceil($total / $limit);
+
+  return _danh_muc_success(array(
+    'items' => $items,
+    'total' => (int) $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+  ));
+}
+
+function danh_muc_dinh_muc_dia_diem_rest_list() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    return _danh_muc_method_not_allowed('GET');
+  }
+
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(500, (int) $_GET['limit'])) : 20;
+  $offset = ($page - 1) * $limit;
+
+  $query = db_select('danh_muc', 'dm');
+  $query->fields('dm');
+  $query->condition('dm.hoat_dong', 1);
+  $query->condition('dm.phan_loai', array('Kho', 'Bãi', 'Cảng'), 'IN');
+
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like($_GET['keyword']) . '%';
+    $or = db_or()
+      ->condition('dm.ten', $like, 'LIKE')
+      ->condition('dm.phan_loai', $like, 'LIKE');
+    $query->condition($or);
+  }
+
+  $count = clone $query;
+  $total = $count->countQuery()->execute()->fetchField();
+
+  $query->orderBy('dm.phan_loai', 'ASC');
+  $query->orderBy('dm.ten', 'ASC');
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();
 
