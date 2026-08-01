@@ -1,0 +1,194 @@
+#giao-dich-ops-app .table th,
+#giao-dich-ops-app .table td {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+#giao-dich-ops-app .ops-desc-cell {
+  min-width: 220px;
+  white-space: normal;
+}
+
+#giao-dich-ops-app .ops-code {
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+#giao-dich-ops-app .ops-person-main {
+  font-weight: 600;
+  color: #4b465c;
+}
+
+#giao-dich-ops-app .ops-person-sub {
+  color: #6d6b77;
+  font-size: 0.78rem;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 .125rem .375rem rgba(67, 89, 113, .08);
+}
+
+#giao-dich-ops-app .ops-wallet-kpi .card-body {
+  padding: .55rem .8rem;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi .text-muted.small {
+  font-size: .76rem;
+  line-height: 1.1;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi .h5 {
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-icon {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  display: inline-flex;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  font-size: 17px;
+  line-height: 1;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-icon i {
+  font-size: 17px;
+  line-height: 1;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-primary .ops-wallet-kpi-icon {
+  background: #f4efff !important;
+  color: #7367f0 !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-success .ops-wallet-kpi-icon {
+  background: #e8fadf !important;
+  color: #28c76f !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-danger .ops-wallet-kpi-icon {
+  background: #ffe2e3 !important;
+  color: #ea5455 !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-info .ops-wallet-kpi-icon {
+  background: #d9f8fc !important;
+  color: #00bad1 !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-success [data-kpi="credit"],
+#giao-dich-ops-app .ops-kpi-credit-value,
+.ops-money-credit {
+  color: #28c76f !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-danger [data-kpi="debit"],
+#giao-dich-ops-app .ops-kpi-debit-value,
+.ops-money-debit {
+  color: #ea5455 !important;
+}
+
+#giao-dich-ops-app .ops-direction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: .82rem;
+}
+
+#giao-dich-ops-app .ops-direction-pill-credit,
+#giao-dich-ops-app .ops-type-pill-credit {
+  background: #e8fadf;
+  color: #28c76f !important;
+}
+
+#giao-dich-ops-app .ops-direction-pill-debit,
+#giao-dich-ops-app .ops-type-pill-debit {
+  background: #ffe2e3;
+  color: #ea5455 !important;
+}
+
+#giao-dich-ops-app .ops-type-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: .18rem .55rem;
+  border-radius: .35rem;
+  font-weight: 600;
+  font-size: .82rem;
+}
+
+#giao-dich-ops-app .ops-money-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 110px;
+  font-weight: 700;
+  font-size: .88rem;
+}
+
+#giao-dich-ops-app .ops-money-pill-credit {
+  color: #28c76f !important;
+}
+
+#giao-dich-ops-app .ops-money-pill-debit {
+  color: #ea5455 !important;
+}
+
+#giao-dich-ops-app .ops-balance-pill {
+  display: inline-flex;
+  justify-content: flex-end;
+  min-width: 104px;
+  color: #6d6b77;
+  font-weight: 700;
+  font-size: .88rem;
+}
+
+.ops-modal-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.85);
+  border-radius: 0.375rem;
+}
+
+.ops-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ops-detail-item {
+  border: 1px solid #e6e6ef;
+  border-radius: 0.65rem;
+  padding: 0.75rem;
+}
+
+.ops-detail-label {
+  color: #6d6b77;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.ops-detail-value {
+  color: #4b465c;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+@media (max-width: 767px) {
+  .ops-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

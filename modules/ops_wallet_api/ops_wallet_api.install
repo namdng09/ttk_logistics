@@ -1,0 +1,98 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function ops_wallet_api_install() {
+  menu_rebuild();
+}
+
+/**
+ * Rebuild routes after upgrading from a package without this module.
+ */
+function ops_wallet_api_update_7101(&$sandbox) {
+  menu_rebuild();
+  cache_clear_all('*', 'cache_menu', TRUE);
+  return 'Đã đăng ký lại API danh sách cược vỏ OPS.';
+}
+
+
+/**
+ * Rebuild route/cache for v1.1 and clear field cache.
+ */
+function ops_wallet_api_update_7102(&$sandbox) {
+  field_cache_clear();
+  cache_clear_all('*', 'cache_menu', TRUE);
+  menu_rebuild();
+  return 'Đã cập nhật API cược vỏ để đọc trực tiếp field_noi_dung_json ngôn ngữ und.';
+}
+
+
+/**
+ * Rebuild menu/cache for watchdog debug version.
+ */
+function ops_wallet_api_update_7103(&$sandbox) {
+  cache_clear_all('*', 'cache_menu', TRUE);
+  menu_rebuild();
+  return 'Đã bổ sung watchdog debug cho API danh sách cược vỏ.';
+}
+
+/**
+ * Rebuild menu/cache sau khi bổ sung API tạo và tải phiếu ứng tiền OPS.
+ */
+function ops_wallet_api_update_7104(&$sandbox) {
+  field_cache_clear();
+  cache_clear_all('*', 'cache_menu', TRUE);
+  menu_rebuild();
+  return 'Đã đăng ký API phiếu ứng tiền OPS và làm mới menu cache.';
+}
+
+/**
+ * Bổ sung field_thong_tin_json cho user để lưu thông tin ngân hàng OPS.
+ */
+function ops_wallet_api_update_7105(&$sandbox) {
+  ops_wallet_api_install_ensure_user_thong_tin_json_field();
+  field_cache_clear();
+  cache_clear_all('*', 'cache_menu', TRUE);
+  menu_rebuild();
+  return 'Đã bổ sung field_thong_tin_json cho user để lưu thông tin ngân hàng OPS.';
+}
+
+function ops_wallet_api_install_ensure_user_thong_tin_json_field() {
+  if (!module_exists('field') || !module_exists('text')) {
+    return FALSE;
+  }
+  if (!field_info_field('field_thong_tin_json')) {
+    field_create_field(array(
+      'field_name' => 'field_thong_tin_json',
+      'type' => 'text_long',
+      'cardinality' => 1,
+      'settings' => array(),
+    ));
+  }
+  if (!field_info_instance('user', 'field_thong_tin_json', 'user')) {
+    field_create_instance(array(
+      'field_name' => 'field_thong_tin_json',
+      'entity_type' => 'user',
+      'bundle' => 'user',
+      'label' => 'Thông tin JSON',
+      'required' => FALSE,
+      'widget' => array('type' => 'text_textarea'),
+      'settings' => array(),
+      'display' => array(
+        'default' => array('label' => 'hidden', 'type' => 'hidden'),
+      ),
+    ));
+  }
+  return TRUE;
+}
+
+/**
+ * Rebuild menu/cache sau khi bổ sung API sửa và hủy phiếu ứng tiền OPS.
+ */
+function ops_wallet_api_update_7106(&$sandbox) {
+  field_cache_clear();
+  cache_clear_all('*', 'cache_menu', TRUE);
+  menu_rebuild();
+  return 'Đã đăng ký API sửa và hủy phiếu ứng tiền OPS.';
+}

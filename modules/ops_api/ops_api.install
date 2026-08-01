@@ -1,0 +1,278 @@
+<?php
+
+/**
+ * @file
+ * Cài đặt và cập nhật cấu trúc dữ liệu cho OPS API.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function ops_api_install() {
+  ops_api_install_ensure_chua_chon_het_field();
+  ops_api_install_migrate_all_orders();
+}
+
+/**
+ * Tạo field_chua_chon_het và migrate trạng thái cũ khỏi JSON.
+ */
+function ops_api_update_7101(&$sandbox) {
+  ops_api_install_ensure_chua_chon_het_field();
+  module_load_include('module', 'ops_api');
+
+  if (!isset($sandbox['initialized'])) {
+    $sandbox['initialized'] = TRUE;
+    $sandbox['last_nid'] = 0;
+    $sandbox['processed'] = 0;
+    $sandbox['total'] = (int) db_query("SELECT COUNT(nid) FROM {node} WHERE type = :type", array(':type' => 'don_hang'))->fetchField();
+  }
+
+  $result = db_select('node', 'n')
+    ->fields('n', array('nid'))
+    ->condition('n.type', 'don_hang')
+    ->condition('n.nid', (int) $sandbox['last_nid'], '>')
+    ->orderBy('n.nid', 'ASC')
+    ->range(0, 50)
+    ->execute();
+
+  $found = 0;
+  foreach ($result as $record) {
+    $found++;
+    $sandbox['last_nid'] = (int) $record->nid;
+    $node = node_load($record->nid, NULL, TRUE);
+    if ($node) {
+      ops_api_install_migrate_order_node($node);
+    }
+    $sandbox['processed']++;
+  }
+
+  if ($sandbox['total'] <= 0 || $found === 0 || $sandbox['processed'] >= $sandbox['total']) {
+    $sandbox['#finished'] = 1;
+  }
+  else {
+    $sandbox['#finished'] = $sandbox['processed'] / $sandbox['total'];
+  }
+
+  if ($sandbox['#finished'] >= 1) {
+    return t('Đã tạo field_chua_chon_het và chuyển trạng thái chọn vỏ của @count đơn hàng ra khỏi JSON.', array('@count' => $sandbox['processed']));
+  }
+}
+
+/**
+ * Rebuild menu/registry để callback ghép cont - seal được Drupal nhận đúng.
+ */
+function ops_api_update_7102() {
+  cache_clear_all('*', 'cache_menu', TRUE);
+  cache_clear_all('*', 'cache_bootstrap', TRUE);
+
+  if (function_exists('registry_rebuild')) {
+    registry_rebuild();
+  }
+
+  menu_rebuild();
+
+  return t('Đã làm mới menu và registry cho API ghép cont - seal.');
+}
+
+/**
+ * Tạo field và instance nếu chưa tồn tại.
+ */
+function ops_api_install_ensure_chua_chon_het_field() {
+  if (!module_exists('list')) {
+    module_enable(array('list'), TRUE);
+  }
+
+  $field_name = 'field_chua_chon_het';
+
+  if (!field_info_field($field_name)) {
+    field_create_field(array(
+      'field_name' => $field_name,
+      'type' => 'list_boolean',
+      'cardinality' => 1,
+      'translatable' => FALSE,
+      'settings' => array(
+        'allowed_values' => array(
+          0 => 'Đã chọn hết',
+          1 => 'Chưa chọn hết',
+        ),
+      ),
+    ));
+  }
+
+  if (!field_info_instance('node', $field_name, 'don_hang')) {
+    field_create_instance(array(
+      'field_name' => $field_name,
+      'entity_type' => 'node',
+      'bundle' => 'don_hang',
+      'label' => 'Chưa chọn hết vỏ cont',
+      'description' => 'Giá trị 1: chưa chọn hết vỏ cont; giá trị 0: đã chọn hết.',
+      'required' => FALSE,
+      'default_value' => array(
+        array('value' => 1),
+      ),
+      'widget' => array(
+        'type' => 'options_onoff',
+        'weight' => 30,
+        'settings' => array(
+          'display_label' => 1,
+        ),
+      ),
+      'display' => array(
+        'default' => array(
+          'label' => 'above',
+          'type' => 'list_default',
+          'weight' => 30,
+        ),
+        'teaser' => array(
+          'label' => 'hidden',
+          'type' => 'hidden',
+        ),
+      ),
+    ));
+  }
+
+  field_info_cache_clear();
+}
+
+/**
+ * Migrate toàn bộ đơn hàng khi cài module lần đầu trên website đã có dữ liệu.
+ */
+function ops_api_install_migrate_all_orders() {
+  module_load_include('module', 'ops_api');
+
+  $result = db_select('node', 'n')
+    ->fields('n', array('nid'))
+    ->condition('n.type', 'don_hang')
+    ->orderBy('n.nid', 'ASC')
+    ->execute();
+
+  foreach ($result as $record) {
+    $node = node_load($record->nid, NULL, TRUE);
+    if ($node) {
+      ops_api_install_migrate_order_node($node);
+    }
+  }
+}
+
+/**
+ * Đồng bộ một node don_hang sang field mới và xóa trạng thái cũ trong JSON.
+ */
+function ops_api_install_migrate_order_node($node) {
+  if (!$node || empty($node->nid) || $node->type !== 'don_hang') {
+    return;
+  }
+
+  $json_value = ops_api_get_node_field_first_value($node, 'field_noi_dung_json');
+  $data = ops_api_decode_order_json($json_value);
+
+  if (empty($data) || !is_array($data)) {
+    ops_api_set_order_incomplete_value($node, 0);
+    field_attach_presave('node', $node);
+    field_attach_update('node', $node);
+    return;
+  }
+
+  $data['tong_so_cont'] = ops_api_count_total_containers($data);
+  $data['so_cont_da_chon'] = ops_api_count_selected_containers($data);
+  ops_api_remove_legacy_container_status_keys($data);
+  ops_api_sync_order_incomplete_field($node, $data);
+  ops_api_set_node_field_first_value($node, 'field_noi_dung_json', ops_api_json_encode($data));
+  field_attach_presave('node', $node);
+  field_attach_update('node', $node);
+}
+
+/**
+ * Bảo đảm Drupal nạp đúng module và callback file của API ghép cont - seal.
+ */
+function ops_api_update_7103() {
+  $module_directory = dirname(__FILE__);
+  $relative_directory = str_replace('\\', '/', $module_directory);
+  $root = rtrim(str_replace('\\', '/', DRUPAL_ROOT), '/');
+
+  if (strpos($relative_directory, $root . '/') === 0) {
+    $relative_directory = substr($relative_directory, strlen($root) + 1);
+  }
+
+  $module_filename = trim($relative_directory, '/') . '/ops_api.module';
+
+  // Sửa trường hợp bảng system vẫn trỏ tới một bản sao hoặc vị trí module cũ.
+  db_update('system')
+    ->fields(array(
+      'filename' => $module_filename,
+      'status' => 1,
+    ))
+    ->condition('name', 'ops_api')
+    ->condition('type', 'module')
+    ->execute();
+
+  cache_clear_all('*', 'cache_menu', TRUE);
+  cache_clear_all('*', 'cache_bootstrap', TRUE);
+  cache_clear_all('*', 'cache', TRUE);
+
+  if (function_exists('registry_rebuild')) {
+    registry_rebuild();
+  }
+
+  menu_rebuild();
+
+  return t('Đã cập nhật đường dẫn module OPS API và đăng ký callback ghép cont - seal qua file include riêng.');
+}
+
+
+
+/**
+ * Chuyển phần ví OPS sang module độc lập ops_wallet.
+ *
+ * Giữ update number cũ để các website chưa chạy bản 1.7/1.8 vẫn cập nhật được.
+ */
+function ops_api_update_7104() {
+  if (!module_exists('ops_wallet')) {
+    if (!module_enable(array('ops_wallet'), TRUE)) {
+      throw new DrupalUpdateException(t('Không thể bật module ops_wallet. Hãy chép module ops_wallet vào sites/all/modules trước khi chạy update.php.'));
+    }
+  }
+
+  if (function_exists('ops_wallet_ensure_storage')) {
+    ops_wallet_ensure_storage();
+  }
+  if (function_exists('ops_wallet_ensure_content_type')) {
+    ops_wallet_ensure_content_type();
+  }
+
+  cache_clear_all('*', 'cache_menu', TRUE);
+  menu_rebuild();
+  return t('Đã chuyển sổ ví OPS và content type giao_dich_vi_ops sang module ops_wallet độc lập.');
+}
+
+/**
+ * Migrate node giao dịch ví cũ qua module ops_wallet.
+ */
+function ops_api_update_7105(&$sandbox) {
+  if (!module_exists('ops_wallet')) {
+    if (!module_enable(array('ops_wallet'), TRUE)) {
+      throw new DrupalUpdateException(t('Không thể bật module ops_wallet.'));
+    }
+  }
+
+  if (function_exists('ops_wallet_migrate_transaction_nodes_batch')) {
+    return ops_wallet_migrate_transaction_nodes_batch($sandbox);
+  }
+
+  $sandbox['#finished'] = 1;
+  return t('Module ops_wallet đã được bật. Không có dữ liệu cần migrate.');
+}
+
+/**
+ * Bảo đảm dependency mới được bật trên website đang nâng cấp từ bản cũ.
+ */
+function ops_api_update_7106() {
+  if (!module_exists('ops_wallet')) {
+    if (!module_enable(array('ops_wallet'), TRUE)) {
+      throw new DrupalUpdateException(t('Không thể bật module ops_wallet.'));
+    }
+  }
+  cache_clear_all('*', 'cache_bootstrap', TRUE);
+  cache_clear_all('*', 'cache_menu', TRUE);
+  menu_rebuild();
+  return t('Đã kích hoạt module ví OPS độc lập.');
+}

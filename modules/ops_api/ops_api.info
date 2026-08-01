@@ -1,0 +1,12 @@
+name = OPS API
+description = API đăng nhập OPS sử dụng tài khoản user Drupal 7.
+core = 7.x
+package = Custom
+version = 7.x-2.0
+
+dependencies[] = list
+
+dependencies[] = text
+dependencies[] = number
+
+dependencies[] = ops_wallet

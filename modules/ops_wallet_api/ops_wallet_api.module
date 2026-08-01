@@ -1,0 +1,1791 @@
+<?php
+
+if (!defined('OPS_WALLET_API_ROLE_OPS_RID')) {
+  define('OPS_WALLET_API_ROLE_OPS_RID', 15);
+}
+
+/**
+ * @file
+ * API riêng cho tab Cược vỏ. Module này cố ý dùng đường dẫn riêng để tránh
+ * cache menu hoặc callback cũ của module ops_api.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function ops_wallet_api_menu() {
+  $items = array();
+
+  $items['ops-wallet-api/container-deposit-bookings'] = array(
+    'title' => 'OPS Wallet Container Deposit Bookings API',
+    'page callback' => 'ops_wallet_api_container_deposit_bookings',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['ops-wallet-api/create-advance-request'] = array(
+    'title' => 'OPS Wallet Create Advance Request API',
+    'page callback' => 'ops_wallet_api_create_advance_request',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['ops-wallet-api/advance-requests'] = array(
+    'title' => 'OPS Wallet Advance Requests API',
+    'page callback' => 'ops_wallet_api_advance_requests',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['ops-wallet-api/advance-request-detail'] = array(
+    'title' => 'OPS Wallet Advance Request Detail API',
+    'page callback' => 'ops_wallet_api_advance_request_detail',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['ops-wallet-api/update-advance-request'] = array(
+    'title' => 'OPS Wallet Update Advance Request API',
+    'page callback' => 'ops_wallet_api_update_advance_request',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['ops-wallet-api/cancel-advance-request'] = array(
+    'title' => 'OPS Wallet Cancel Advance Request API',
+    'page callback' => 'ops_wallet_api_cancel_advance_request',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['ops-wallet-api/current-user-bank-info'] = array(
+    'title' => 'OPS Wallet Current User Bank Info API',
+    'page callback' => 'ops_wallet_api_current_user_bank_info',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['ops-wallet-api/save-user-bank-info'] = array(
+    'title' => 'OPS Wallet Save User Bank Info API',
+    'page callback' => 'ops_wallet_api_save_user_bank_info',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  // Alias khi Drupal được đặt trong thư mục /api.
+  $items['api/ops-wallet-api/container-deposit-bookings'] = $items['ops-wallet-api/container-deposit-bookings'];
+  $items['api/ops-wallet-api/create-advance-request'] = $items['ops-wallet-api/create-advance-request'];
+  $items['api/ops-wallet-api/advance-requests'] = $items['ops-wallet-api/advance-requests'];
+  $items['api/ops-wallet-api/advance-request-detail'] = $items['ops-wallet-api/advance-request-detail'];
+  $items['api/ops-wallet-api/update-advance-request'] = $items['ops-wallet-api/update-advance-request'];
+  $items['api/ops-wallet-api/cancel-advance-request'] = $items['ops-wallet-api/cancel-advance-request'];
+  $items['api/ops-wallet-api/current-user-bank-info'] = $items['ops-wallet-api/current-user-bank-info'];
+  $items['api/ops-wallet-api/save-user-bank-info'] = $items['ops-wallet-api/save-user-bank-info'];
+
+  return $items;
+}
+
+
+/**
+ * GET /ops-wallet-api/current-user-bank-info
+ *
+ * Đọc thông tin ngân hàng nhận tiền của OPS từ user.field_thong_tin_json.
+ */
+function ops_wallet_api_current_user_bank_info() {
+  ops_wallet_api_send_headers();
+  $request_id = ops_wallet_api_request_id('bank-info');
+  $endpoint = 'ops-wallet-api/current-user-bank-info';
+
+  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ops_wallet_api_response(array('success' => TRUE, 'request_id' => $request_id), 200);
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    ops_wallet_api_error('Phương thức không hợp lệ. Vui lòng sử dụng GET.', 405, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'method' => $_SERVER['REQUEST_METHOD']),
+    ));
+  }
+
+  $account = ops_wallet_api_get_account_from_token();
+  if (!$account) {
+    ops_wallet_api_error('Token không hợp lệ hoặc phiên đăng nhập đã hết hạn.', 401, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'auth' => 'failed'),
+    ));
+  }
+  if (!ops_wallet_api_account_is_ops($account)) {
+    ops_wallet_api_error('Tài khoản hiện tại không có vai trò OPS.', 403, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'uid' => (int) $account->uid),
+    ));
+  }
+
+  ops_wallet_api_ensure_user_thong_tin_json_field();
+  $bank_info = ops_wallet_api_get_user_bank_info($account);
+
+  ops_wallet_api_response(array(
+    'success' => TRUE,
+    'message' => $bank_info ? 'Đã tải thông tin ngân hàng OPS.' : 'OPS chưa lưu thông tin ngân hàng.',
+    'request_id' => $request_id,
+    'content' => array('bank_info' => $bank_info ? $bank_info : new stdClass()),
+  ), 200);
+}
+
+/**
+ * POST /ops-wallet-api/save-user-bank-info
+ *
+ * Lưu thông tin ngân hàng nhận tiền vào user.field_thong_tin_json.
+ */
+function ops_wallet_api_save_user_bank_info() {
+  ops_wallet_api_send_headers();
+  $request_id = ops_wallet_api_request_id('bank-save');
+  $endpoint = 'ops-wallet-api/save-user-bank-info';
+
+  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ops_wallet_api_response(array('success' => TRUE, 'request_id' => $request_id), 200);
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    ops_wallet_api_error('Phương thức không hợp lệ. Vui lòng sử dụng POST.', 405, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'method' => $_SERVER['REQUEST_METHOD']),
+    ));
+  }
+
+  $account = ops_wallet_api_get_account_from_token();
+  if (!$account) {
+    ops_wallet_api_error('Token không hợp lệ hoặc phiên đăng nhập đã hết hạn.', 401, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'auth' => 'failed'),
+    ));
+  }
+  if (!ops_wallet_api_account_is_ops($account)) {
+    ops_wallet_api_error('Tài khoản hiện tại không có vai trò OPS.', 403, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'uid' => (int) $account->uid),
+    ));
+  }
+
+  $request = ops_wallet_api_get_request_data();
+  $bank_info = ops_wallet_api_normalize_bank_info($request);
+  if (empty($bank_info['bank_name']) || empty($bank_info['bank_account_no']) || empty($bank_info['bank_account_name'])) {
+    ops_wallet_api_error('Vui lòng nhập đầy đủ ngân hàng, số tài khoản và chủ tài khoản.', 400, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'received_keys' => array_keys($request)),
+    ));
+  }
+
+  $saved = ops_wallet_api_save_bank_info_to_user($account, $bank_info);
+  if (empty($saved['success'])) {
+    ops_wallet_api_error(!empty($saved['message']) ? $saved['message'] : 'Không thể lưu thông tin ngân hàng OPS.', 500, array(
+      'request_id' => $request_id,
+      'diagnostic' => !empty($saved['diagnostic']) ? $saved['diagnostic'] : array('endpoint' => $endpoint),
+    ));
+  }
+
+  ops_wallet_api_response(array(
+    'success' => TRUE,
+    'message' => 'Đã lưu thông tin ngân hàng OPS.',
+    'request_id' => $request_id,
+    'content' => array('bank_info' => $saved['bank_info']),
+  ), 200);
+}
+
+/**
+ * POST /ops-wallet-api/create-advance-request
+ *
+ * Tạo Phiếu chi chờ duyệt cho chính nhân viên OPS đang đăng nhập. Phiếu lưu
+ * đối tượng liên quan theo bộ ba loại/id/tên; khi được duyệt module Thu chi sẽ
+ * cộng số tiền vào đúng ví OPS này.
+ */
+function ops_wallet_api_create_advance_request() {
+  ops_wallet_api_send_headers();
+  $request_id = ops_wallet_api_request_id('advance-create');
+  $endpoint = 'ops-wallet-api/create-advance-request';
+
+  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ops_wallet_api_response(array('success' => TRUE, 'request_id' => $request_id), 200);
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    ops_wallet_api_error('Phương thức không hợp lệ. Vui lòng sử dụng POST.', 405, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'method' => $_SERVER['REQUEST_METHOD']),
+    ));
+  }
+
+  $account = ops_wallet_api_get_account_from_token();
+  if (!$account) {
+    ops_wallet_api_error('Token không hợp lệ hoặc phiên đăng nhập đã hết hạn.', 401, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'auth' => 'failed'),
+    ));
+  }
+  if (!ops_wallet_api_account_is_ops($account)) {
+    ops_wallet_api_error('Tài khoản hiện tại không có vai trò OPS.', 403, array(
+      'request_id' => $request_id,
+      'diagnostic' => array(
+        'endpoint' => $endpoint,
+        'uid' => (int) $account->uid,
+        'roles' => !empty($account->roles) ? array_values($account->roles) : array(),
+      ),
+    ));
+  }
+
+  $diagnostic = ops_wallet_api_finance_diagnostic($endpoint);
+  if (empty($diagnostic['ready'])) {
+    watchdog('ops_wallet_api_advance', '[@request_id] Không thể tạo phiếu ứng tiền: @diagnostic', array(
+      '@request_id' => $request_id,
+      '@diagnostic' => drupal_json_encode($diagnostic),
+    ), WATCHDOG_ERROR);
+    ops_wallet_api_error('Module/endpoint tài chính chưa sẵn sàng để tạo phiếu ứng tiền.', 503, array(
+      'request_id' => $request_id,
+      'diagnostic' => $diagnostic,
+    ));
+  }
+
+  $request = ops_wallet_api_get_request_data();
+  $amount = isset($request['amount']) ? (int) preg_replace('/[^0-9]/', '', (string) $request['amount']) : 0;
+  if ($amount <= 0) {
+    ops_wallet_api_error('Số tiền ứng phải lớn hơn 0.', 400, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'received_amount' => isset($request['amount']) ? $request['amount'] : NULL),
+    ));
+  }
+
+  $purpose = !empty($request['purpose']) ? trim((string) $request['purpose']) : 'Ứng tiền cược vỏ cont';
+  $note = !empty($request['note']) ? trim((string) $request['note']) : '';
+  $request_date = !empty($request['date']) ? trim((string) $request['date']) : '';
+  $source = !empty($request['source']) ? trim((string) $request['source']) : 'flutter_ops_manual_advance';
+  $bank = ops_wallet_api_normalize_bank_info($request);
+
+  // Khi nhân viên OPS nhập/cập nhật ngân hàng trong form ứng tiền, lưu lại vào
+  // user.field_thong_tin_json để lần sau tự điền. Không chặn tạo phiếu nếu phần
+  // lưu thông tin user gặp lỗi tạm thời; phiếu vẫn lưu đủ thông tin ngân hàng.
+  if (!empty($bank['bank_name']) && !empty($bank['bank_account_no']) && !empty($bank['bank_account_name'])) {
+    $save_bank_result = ops_wallet_api_save_bank_info_to_user($account, $bank);
+    if (empty($save_bank_result['success'])) {
+      watchdog('ops_wallet_api_bank', '[@request_id] Không lưu được thông tin ngân hàng user @uid: @message', array(
+        '@request_id' => $request_id,
+        '@uid' => (int) $account->uid,
+        '@message' => !empty($save_bank_result['message']) ? $save_bank_result['message'] : 'unknown',
+      ), WATCHDOG_WARNING);
+    }
+  }
+
+  try {
+    $result = thu_chi_create_ops_advance_request($account, $amount, $purpose, $note, $bank, $request_date, $request_id, $source);
+    if (empty($result['success'])) {
+      ops_wallet_api_error(!empty($result['message']) ? $result['message'] : 'Không thể tạo phiếu ứng tiền.', 400, array(
+        'request_id' => $request_id,
+        'diagnostic' => !empty($result['diagnostic']) ? $result['diagnostic'] : $diagnostic,
+      ));
+    }
+
+    watchdog('ops_wallet_api_advance', '[@request_id] UID @uid tạo phiếu ứng tiền @code, số tiền @amount.', array(
+      '@request_id' => $request_id,
+      '@uid' => (int) $account->uid,
+      '@code' => !empty($result['advance']['code']) ? $result['advance']['code'] : '',
+      '@amount' => number_format($amount, 0, ',', '.'),
+    ), WATCHDOG_NOTICE);
+
+    ops_wallet_api_response(array(
+      'success' => TRUE,
+      'message' => !empty($result['message']) ? $result['message'] : 'Đã tạo phiếu ứng tiền chờ duyệt.',
+      'request_id' => $request_id,
+      'content' => array(
+        'advance' => $result['advance'],
+      ),
+      'diagnostic' => !empty($result['diagnostic']) ? $result['diagnostic'] : $diagnostic,
+    ), 201);
+  }
+  catch (Exception $e) {
+    watchdog_exception('ops_wallet_api_advance', $e, '[@request_id] Lỗi tạo phiếu ứng tiền.', array('@request_id' => $request_id), WATCHDOG_ERROR);
+    ops_wallet_api_error($e->getMessage(), 500, array(
+      'request_id' => $request_id,
+      'diagnostic' => $diagnostic,
+    ));
+  }
+}
+
+/**
+ * GET /ops-wallet-api/advance-requests
+ */
+function ops_wallet_api_advance_requests() {
+  ops_wallet_api_send_headers();
+  $request_id = ops_wallet_api_request_id('advance-list');
+  $endpoint = 'ops-wallet-api/advance-requests';
+
+  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ops_wallet_api_response(array('success' => TRUE, 'request_id' => $request_id), 200);
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    ops_wallet_api_error('Phương thức không hợp lệ. Vui lòng sử dụng GET.', 405, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'method' => $_SERVER['REQUEST_METHOD']),
+    ));
+  }
+
+  $account = ops_wallet_api_get_account_from_token();
+  if (!$account) {
+    ops_wallet_api_error('Token không hợp lệ hoặc phiên đăng nhập đã hết hạn.', 401, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'auth' => 'failed'),
+    ));
+  }
+  if (!ops_wallet_api_account_is_ops($account)) {
+    ops_wallet_api_error('Tài khoản hiện tại không có vai trò OPS.', 403, array(
+      'request_id' => $request_id,
+      'diagnostic' => array(
+        'endpoint' => $endpoint,
+        'uid' => (int) $account->uid,
+        'roles' => !empty($account->roles) ? array_values($account->roles) : array(),
+      ),
+    ));
+  }
+
+  $diagnostic = ops_wallet_api_finance_diagnostic($endpoint);
+  if (empty($diagnostic['ready']) || !function_exists('thu_chi_load_ops_advance_requests')) {
+    ops_wallet_api_error('Module Thu chi chưa sẵn sàng để tải danh sách phiếu ứng tiền.', 503, array(
+      'request_id' => $request_id,
+      'diagnostic' => $diagnostic,
+    ));
+  }
+
+  $items = thu_chi_load_ops_advance_requests((int) $account->uid, 100);
+  ops_wallet_api_response(array(
+    'success' => TRUE,
+    'message' => 'Đã tải ' . count($items) . ' phiếu ứng tiền OPS.',
+    'request_id' => $request_id,
+    'content' => array('items' => $items),
+    'diagnostic' => $diagnostic,
+  ), 200);
+}
+
+/**
+ * GET /ops-wallet-api/container-deposit-bookings
+ *
+ * Danh sách được lấy trực tiếp từ don_hang.field_noi_dung_json, không dùng
+ * field_chua_chon_het và không dùng so_cont_da_chon làm điều kiện lọc.
+ */
+
+/**
+ * POST /ops-wallet-api/update-advance-request
+ *
+ * Cho phép chính OPS sửa phiếu ứng tiền khi phiếu còn Chờ duyệt.
+ */
+function ops_wallet_api_update_advance_request() {
+  ops_wallet_api_send_headers();
+  $request_id = ops_wallet_api_request_id('advance-update');
+  $endpoint = 'ops-wallet-api/update-advance-request';
+
+  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ops_wallet_api_response(array('success' => TRUE, 'request_id' => $request_id), 200);
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    ops_wallet_api_error('Phương thức không hợp lệ. Vui lòng sử dụng POST.', 405, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'method' => $_SERVER['REQUEST_METHOD']),
+    ));
+  }
+
+  $account = ops_wallet_api_get_account_from_token();
+  if (!$account) {
+    ops_wallet_api_error('Token không hợp lệ hoặc phiên đăng nhập đã hết hạn.', 401, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'auth' => 'failed'),
+    ));
+  }
+  if (!ops_wallet_api_account_is_ops($account)) {
+    ops_wallet_api_error('Tài khoản hiện tại không có vai trò OPS.', 403, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'uid' => (int) $account->uid),
+    ));
+  }
+
+  $diagnostic = ops_wallet_api_finance_diagnostic($endpoint);
+  if (empty($diagnostic['ready']) || !function_exists('thu_chi_update_ops_advance_request')) {
+    ops_wallet_api_error('Module Thu chi chưa sẵn sàng để cập nhật phiếu ứng tiền.', 503, array(
+      'request_id' => $request_id,
+      'diagnostic' => $diagnostic,
+    ));
+  }
+
+  $request = ops_wallet_api_get_request_data();
+  $gd_id = isset($request['nid']) ? intval($request['nid']) : (isset($request['gd_id']) ? intval($request['gd_id']) : 0);
+  $amount = isset($request['amount']) ? (int) preg_replace('/[^0-9]/', '', (string) $request['amount']) : 0;
+  if ($gd_id <= 0) {
+    ops_wallet_api_error('Không xác định được phiếu ứng tiền cần sửa.', 400, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'received_keys' => array_keys($request)),
+    ));
+  }
+  if ($amount <= 0) {
+    ops_wallet_api_error('Số tiền ứng phải lớn hơn 0.', 400, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'received_amount' => isset($request['amount']) ? $request['amount'] : NULL),
+    ));
+  }
+
+  $purpose = !empty($request['purpose']) ? trim((string) $request['purpose']) : 'Ứng tiền OPS';
+  $note = !empty($request['note']) ? trim((string) $request['note']) : '';
+  $request_date = !empty($request['date']) ? trim((string) $request['date']) : '';
+  $bank = ops_wallet_api_normalize_bank_info($request);
+
+  if (!empty($bank['bank_name']) && !empty($bank['bank_account_no']) && !empty($bank['bank_account_name'])) {
+    $save_bank_result = ops_wallet_api_save_bank_info_to_user($account, $bank);
+    if (empty($save_bank_result['success'])) {
+      watchdog('ops_wallet_api_bank', '[@request_id] Không lưu được thông tin ngân hàng user @uid khi sửa phiếu: @message', array(
+        '@request_id' => $request_id,
+        '@uid' => (int) $account->uid,
+        '@message' => !empty($save_bank_result['message']) ? $save_bank_result['message'] : 'unknown',
+      ), WATCHDOG_WARNING);
+    }
+  }
+
+  try {
+    $result = thu_chi_update_ops_advance_request($account, $gd_id, $amount, $purpose, $note, $bank, $request_date, $request_id);
+    if (empty($result['success'])) {
+      ops_wallet_api_error(!empty($result['message']) ? $result['message'] : 'Không thể cập nhật phiếu ứng tiền.', 400, array(
+        'request_id' => $request_id,
+        'diagnostic' => !empty($result['diagnostic']) ? $result['diagnostic'] : $diagnostic,
+      ));
+    }
+
+    ops_wallet_api_response(array(
+      'success' => TRUE,
+      'message' => !empty($result['message']) ? $result['message'] : 'Đã cập nhật phiếu ứng tiền.',
+      'request_id' => $request_id,
+      'content' => array('advance' => $result['advance']),
+      'diagnostic' => !empty($result['diagnostic']) ? $result['diagnostic'] : $diagnostic,
+    ), 200);
+  }
+  catch (Exception $e) {
+    watchdog_exception('ops_wallet_api_advance', $e, '[@request_id] Lỗi cập nhật phiếu ứng tiền.', array('@request_id' => $request_id), WATCHDOG_ERROR);
+    ops_wallet_api_error($e->getMessage(), 500, array(
+      'request_id' => $request_id,
+      'diagnostic' => $diagnostic,
+    ));
+  }
+}
+
+/**
+ * POST /ops-wallet-api/cancel-advance-request
+ *
+ * Cho phép chính OPS hủy phiếu ứng tiền khi phiếu còn Chờ duyệt.
+ */
+function ops_wallet_api_cancel_advance_request() {
+  ops_wallet_api_send_headers();
+  $request_id = ops_wallet_api_request_id('advance-cancel');
+  $endpoint = 'ops-wallet-api/cancel-advance-request';
+
+  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ops_wallet_api_response(array('success' => TRUE, 'request_id' => $request_id), 200);
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    ops_wallet_api_error('Phương thức không hợp lệ. Vui lòng sử dụng POST.', 405, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'method' => $_SERVER['REQUEST_METHOD']),
+    ));
+  }
+
+  $account = ops_wallet_api_get_account_from_token();
+  if (!$account) {
+    ops_wallet_api_error('Token không hợp lệ hoặc phiên đăng nhập đã hết hạn.', 401, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'auth' => 'failed'),
+    ));
+  }
+  if (!ops_wallet_api_account_is_ops($account)) {
+    ops_wallet_api_error('Tài khoản hiện tại không có vai trò OPS.', 403, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'uid' => (int) $account->uid),
+    ));
+  }
+
+  $diagnostic = ops_wallet_api_finance_diagnostic($endpoint);
+  if (empty($diagnostic['ready']) || !function_exists('thu_chi_cancel_ops_advance_request')) {
+    ops_wallet_api_error('Module Thu chi chưa sẵn sàng để hủy phiếu ứng tiền.', 503, array(
+      'request_id' => $request_id,
+      'diagnostic' => $diagnostic,
+    ));
+  }
+
+  $request = ops_wallet_api_get_request_data();
+  $gd_id = isset($request['nid']) ? intval($request['nid']) : (isset($request['gd_id']) ? intval($request['gd_id']) : 0);
+  if ($gd_id <= 0) {
+    ops_wallet_api_error('Không xác định được phiếu ứng tiền cần hủy.', 400, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'received_keys' => array_keys($request)),
+    ));
+  }
+
+  try {
+    $result = thu_chi_cancel_ops_advance_request($account, $gd_id, $request_id);
+    if (empty($result['success'])) {
+      ops_wallet_api_error(!empty($result['message']) ? $result['message'] : 'Không thể hủy phiếu ứng tiền.', 400, array(
+        'request_id' => $request_id,
+        'diagnostic' => !empty($result['diagnostic']) ? $result['diagnostic'] : $diagnostic,
+      ));
+    }
+
+    ops_wallet_api_response(array(
+      'success' => TRUE,
+      'message' => !empty($result['message']) ? $result['message'] : 'Đã hủy phiếu ứng tiền.',
+      'request_id' => $request_id,
+      'content' => array('advance' => $result['advance']),
+      'diagnostic' => !empty($result['diagnostic']) ? $result['diagnostic'] : $diagnostic,
+    ), 200);
+  }
+  catch (Exception $e) {
+    watchdog_exception('ops_wallet_api_advance', $e, '[@request_id] Lỗi hủy phiếu ứng tiền.', array('@request_id' => $request_id), WATCHDOG_ERROR);
+    ops_wallet_api_error($e->getMessage(), 500, array(
+      'request_id' => $request_id,
+      'diagnostic' => $diagnostic,
+    ));
+  }
+}
+
+
+/**
+ * GET /ops-wallet-api/advance-request-detail?nid=123
+ *
+ * Trả chi tiết một phiếu ứng tiền OPS kèm lịch sử trạng thái duyệt.
+ */
+function ops_wallet_api_advance_request_detail() {
+  ops_wallet_api_send_headers();
+  $request_id = ops_wallet_api_request_id('advance-detail');
+  $endpoint = 'ops-wallet-api/advance-request-detail';
+
+  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ops_wallet_api_response(array('success' => TRUE, 'request_id' => $request_id), 200);
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    ops_wallet_api_error('Phương thức không hợp lệ. Vui lòng sử dụng GET.', 405, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'method' => $_SERVER['REQUEST_METHOD']),
+    ));
+  }
+
+  $account = ops_wallet_api_get_account_from_token();
+  if (!$account) {
+    ops_wallet_api_error('Token không hợp lệ hoặc phiên đăng nhập đã hết hạn.', 401, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'auth' => 'failed'),
+    ));
+  }
+  if (!ops_wallet_api_account_is_ops($account)) {
+    ops_wallet_api_error('Tài khoản hiện tại không có vai trò OPS.', 403, array(
+      'request_id' => $request_id,
+      'diagnostic' => array(
+        'endpoint' => $endpoint,
+        'uid' => (int) $account->uid,
+        'roles' => !empty($account->roles) ? array_values($account->roles) : array(),
+      ),
+    ));
+  }
+
+  $diagnostic = ops_wallet_api_finance_diagnostic($endpoint);
+  if (empty($diagnostic['ready']) || !function_exists('thu_chi_load_ops_advance_request_detail')) {
+    ops_wallet_api_error('Module Thu chi chưa sẵn sàng để tải chi tiết phiếu ứng tiền.', 503, array(
+      'request_id' => $request_id,
+      'diagnostic' => $diagnostic,
+    ));
+  }
+
+  $gd_id = isset($_GET['nid']) ? intval($_GET['nid']) : (isset($_GET['gd_id']) ? intval($_GET['gd_id']) : 0);
+  if ($gd_id <= 0) {
+    ops_wallet_api_error('Không xác định được phiếu ứng tiền cần xem.', 400, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'query' => $_GET),
+    ));
+  }
+
+  $detail = thu_chi_load_ops_advance_request_detail((int) $account->uid, $gd_id);
+  if (empty($detail)) {
+    ops_wallet_api_error('Không tìm thấy phiếu ứng tiền hoặc phiếu không thuộc OPS hiện tại.', 404, array(
+      'request_id' => $request_id,
+      'diagnostic' => array('endpoint' => $endpoint, 'uid' => (int) $account->uid, 'gd_id' => $gd_id),
+    ));
+  }
+
+  ops_wallet_api_response(array(
+    'success' => TRUE,
+    'message' => 'Đã tải chi tiết phiếu ứng tiền OPS.',
+    'request_id' => $request_id,
+    'content' => array('advance' => $detail),
+    'diagnostic' => $diagnostic,
+  ), 200);
+}
+
+function ops_wallet_api_container_deposit_bookings() {
+  ops_wallet_api_send_headers();
+
+  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ops_wallet_api_response(array('success' => TRUE), 200);
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    ops_wallet_api_error('Phương thức không hợp lệ. Vui lòng sử dụng GET.', 405);
+  }
+
+  $account = ops_wallet_api_get_account_from_token();
+  if (!$account) {
+    ops_wallet_api_error('Token không hợp lệ hoặc phiên đăng nhập đã hết hạn.', 401);
+  }
+
+  $debug_context = ops_wallet_api_debug_context($account);
+  ops_wallet_api_debug_log('request_start', array(
+    'uid' => (int) $account->uid,
+    'request_method' => isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : '',
+    'request_uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
+    'booking_filter' => $debug_context['booking_no'],
+    'nid_filter' => $debug_context['nid'],
+  ));
+
+  if (function_exists('ops_api_wallet_assert_storage_available')) {
+    ops_api_wallet_assert_storage_available();
+  }
+  if (function_exists('ops_api_wallet_ensure_opening_balance')) {
+    ops_api_wallet_ensure_opening_balance($account);
+  }
+
+  $bookings = array();
+  $containers = array();
+  $deposits = array();
+  $diagnostic = array(
+    'source' => 'don_hang.field_noi_dung_json.loai_xe[].conts[]',
+    'filter' => array('SEA NHẬP', 'AIR NHẬP'),
+    'uses_field_chua_chon_het' => FALSE,
+    'uses_so_cont_da_chon_for_filter' => FALSE,
+    'field_storage_mode' => '',
+    'candidate_order_count' => 0,
+    'candidate_field_row_count' => 0,
+    'scanned_orders' => 0,
+    'json_loaded_orders' => 0,
+    'import_orders' => 0,
+    'import_orders_with_containers' => 0,
+    'pending_container_count' => 0,
+    'deposited_container_count' => 0,
+    'skip_reasons' => array(
+      'missing_json' => 0,
+      'invalid_json' => 0,
+      'not_import' => 0,
+      'no_selected_container' => 0,
+    ),
+    'matched_orders' => array(),
+  );
+
+  // Đọc trực tiếp bảng field_data_field_noi_dung_json để không phụ thuộc
+  // ngôn ngữ hiện tại của request. Dữ liệu thực tế của hệ thống đang lưu ở
+  // field_noi_dung_json['und'][0]['value']; field_get_items() có thể trả rỗng
+  // khi field được cấu hình translatable hoặc request đang dùng ngôn ngữ vi.
+  $records = ops_wallet_api_load_order_records($diagnostic);
+  ops_wallet_api_debug_log('records_loaded', array(
+    'field_storage_mode' => $diagnostic['field_storage_mode'],
+    'candidate_order_count' => $diagnostic['candidate_order_count'],
+    'candidate_field_row_count' => $diagnostic['candidate_field_row_count'],
+  ));
+  if (!empty($records)) {
+    foreach (array_chunk(array_keys($records), 100) as $nid_chunk) {
+      $nodes = node_load_multiple($nid_chunk);
+      foreach ($nid_chunk as $nid) {
+        if (empty($nodes[$nid])) {
+          continue;
+        }
+        $node = $nodes[$nid];
+        $record = $records[$nid];
+        $diagnostic['scanned_orders']++;
+
+        if (ops_wallet_api_debug_matches_nid($node)) {
+          ops_wallet_api_debug_log('order_row_loaded', array(
+            'nid' => (int) $node->nid,
+            'title' => !empty($node->title) ? $node->title : '',
+            'status' => isset($node->status) ? (int) $node->status : NULL,
+            'field_language' => isset($record->field_language) ? $record->field_language : '',
+            'field_delta' => isset($record->field_delta) ? (int) $record->field_delta : NULL,
+            'record_json_length' => isset($record->json_value) ? strlen((string) $record->json_value) : 0,
+          ));
+        }
+
+        $json_value = isset($record->json_value) && trim((string) $record->json_value) !== ''
+          ? trim((string) $record->json_value)
+          : ops_wallet_api_get_field_value($node, 'field_noi_dung_json');
+        if ($json_value === '') {
+          $diagnostic['skip_reasons']['missing_json']++;
+          if (ops_wallet_api_debug_matches_nid($node)) {
+            ops_wallet_api_debug_log('skip_missing_json', array(
+              'nid' => (int) $node->nid,
+              'title' => !empty($node->title) ? $node->title : '',
+              'available_languages' => isset($node->field_noi_dung_json) && is_array($node->field_noi_dung_json) ? array_keys($node->field_noi_dung_json) : array(),
+            ), WATCHDOG_WARNING);
+          }
+          continue;
+        }
+
+        $data = ops_wallet_api_decode_json($json_value);
+        if (empty($data) || !is_array($data)) {
+          $diagnostic['skip_reasons']['invalid_json']++;
+          if (ops_wallet_api_debug_matches_nid($node)) {
+            ops_wallet_api_debug_log('skip_invalid_json', array(
+              'nid' => (int) $node->nid,
+              'title' => !empty($node->title) ? $node->title : '',
+              'json_length' => strlen($json_value),
+              'json_preview' => ops_wallet_api_debug_json_preview($json_value),
+              'json_last_error' => function_exists('json_last_error_msg') ? json_last_error_msg() : json_last_error(),
+            ), WATCHDOG_ERROR);
+          }
+          continue;
+        }
+        $diagnostic['json_loaded_orders']++;
+
+        $loai_xnk = isset($data['loai_xnk']) ? trim((string) $data['loai_xnk']) : '';
+        $direction = ops_wallet_api_trade_direction($loai_xnk);
+
+        $booking_no = isset($data['so_booking']) ? trim((string) $data['so_booking']) : '';
+        if ($booking_no === '') {
+          $booking_no = !empty($node->title) ? trim((string) $node->title) : ('DON-HANG-' . (int) $node->nid);
+        }
+
+        if (ops_wallet_api_debug_matches_order($node, $booking_no)) {
+          ops_wallet_api_debug_log('order_json_decoded', array(
+            'nid' => (int) $node->nid,
+            'title' => !empty($node->title) ? $node->title : '',
+            'booking_no' => $booking_no,
+            'loai_xnk_raw' => $loai_xnk,
+            'loai_xnk_normalized' => ops_wallet_api_normalize_text($loai_xnk),
+            'trade_direction' => $direction,
+            'hinh_thuc' => isset($data['hinh_thuc']) ? $data['hinh_thuc'] : '',
+            'trang_thai_don_hang' => isset($data['trang_thai_don_hang']) ? $data['trang_thai_don_hang'] : '',
+            'tong_so_cont' => isset($data['tong_so_cont']) ? (int) $data['tong_so_cont'] : NULL,
+            'so_cont_da_chon' => isset($data['so_cont_da_chon']) ? (int) $data['so_cont_da_chon'] : NULL,
+            'loai_xe_count' => !empty($data['loai_xe']) && is_array($data['loai_xe']) ? count($data['loai_xe']) : 0,
+            'container_snapshot' => ops_wallet_api_debug_container_snapshot($data),
+            'top_level_keys' => array_keys($data),
+          ));
+        }
+
+        if ($direction !== 'import') {
+          $diagnostic['skip_reasons']['not_import']++;
+          if (ops_wallet_api_debug_matches_order($node, $booking_no)) {
+            ops_wallet_api_debug_log('skip_not_import', array(
+              'nid' => (int) $node->nid,
+              'booking_no' => $booking_no,
+              'loai_xnk_raw' => $loai_xnk,
+              'loai_xnk_normalized' => ops_wallet_api_normalize_text($loai_xnk),
+              'trade_direction' => $direction,
+            ), WATCHDOG_WARNING);
+          }
+          continue;
+        }
+        $diagnostic['import_orders']++;
+
+        $selected_items = ops_wallet_api_extract_containers($data, $node, $booking_no);
+        if (empty($selected_items)) {
+          $diagnostic['skip_reasons']['no_selected_container']++;
+          if (ops_wallet_api_debug_matches_order($node, $booking_no)) {
+            ops_wallet_api_debug_log('skip_no_selected_container', array(
+              'nid' => (int) $node->nid,
+              'booking_no' => $booking_no,
+              'container_snapshot' => ops_wallet_api_debug_container_snapshot($data),
+            ), WATCHDOG_WARNING);
+          }
+          continue;
+        }
+        $diagnostic['import_orders_with_containers']++;
+
+        if (ops_wallet_api_debug_matches_order($node, $booking_no)) {
+          ops_wallet_api_debug_log('containers_extracted', array(
+            'nid' => (int) $node->nid,
+            'booking_no' => $booking_no,
+            'selected_count' => count($selected_items),
+            'items' => ops_wallet_api_debug_selected_items($selected_items),
+          ));
+        }
+
+        $pending_items = array();
+        $deposited_items = array();
+        foreach ($selected_items as $item) {
+          if (!empty($item['isDeposited'])) {
+            $deposited_items[] = $item;
+            $deposits[] = ops_wallet_api_build_deposit($item);
+            $diagnostic['deposited_container_count']++;
+          }
+          else {
+            $pending_items[] = $item;
+            $containers[] = $item;
+            $diagnostic['pending_container_count']++;
+          }
+        }
+
+        if (ops_wallet_api_debug_matches_order($node, $booking_no)) {
+          ops_wallet_api_debug_log('deposit_classification', array(
+            'nid' => (int) $node->nid,
+            'booking_no' => $booking_no,
+            'pending_count' => count($pending_items),
+            'deposited_count' => count($deposited_items),
+            'pending_containers' => ops_wallet_api_debug_selected_items($pending_items),
+            'deposited_containers' => ops_wallet_api_debug_selected_items($deposited_items),
+          ));
+        }
+
+        $booking = ops_wallet_api_build_booking($node, $data, $booking_no, $selected_items, $pending_items);
+        // Chỉ cần đưa booking vào tab nếu còn cont chờ cược. Lịch sử cược vẫn
+        // được trả ở deposits cấp ngoài.
+        if (!empty($pending_items)) {
+          $bookings[] = $booking;
+        }
+
+        if (count($diagnostic['matched_orders']) < 50) {
+          $diagnostic['matched_orders'][] = array(
+            'nid' => (int) $node->nid,
+            'booking_no' => $booking_no,
+            'node_status' => (int) $record->status,
+            'trang_thai_don_hang' => isset($data['trang_thai_don_hang']) ? $data['trang_thai_don_hang'] : '',
+            'loai_xnk' => $loai_xnk,
+            'selected' => count($selected_items),
+            'pending' => count($pending_items),
+            'deposited' => count($deposited_items),
+          );
+        }
+      }
+    }
+  }
+
+  $wallet = array('uid' => (int) $account->uid, 'balance' => 0, 'transactions' => array());
+  if (function_exists('ops_api_wallet_build_summary')) {
+    $wallet = ops_api_wallet_build_summary((int) $account->uid, 100);
+  }
+
+  $content = array(
+    'bookings' => array_values($bookings),
+    'containers' => array_values($containers),
+    'pending_containers' => array_values($containers),
+    'deposits' => array_values($deposits),
+    'wallet' => $wallet,
+    'diagnostic' => $diagnostic,
+  );
+
+  if (!empty($debug_context['enabled'])) {
+    $content['watchdog_debug'] = array(
+      'enabled' => TRUE,
+      'channel' => 'ops_wallet_api_deposit_debug',
+      'request_id' => $debug_context['request_id'],
+      'booking_filter' => $debug_context['booking_no'],
+      'nid_filter' => $debug_context['nid'],
+    );
+  }
+
+  ops_wallet_api_debug_log('request_complete', array(
+    'bookings_count' => count($bookings),
+    'pending_container_count' => count($containers),
+    'deposited_count' => count($deposits),
+    'diagnostic' => $diagnostic,
+  ));
+
+  ops_wallet_api_response(array(
+    'success' => TRUE,
+    'message' => empty($containers)
+      ? 'Không tìm thấy vỏ cont hàng nhập đang chờ cược.'
+      : 'Đã tải ' . count($containers) . ' vỏ cont đang chờ cược.',
+    'content' => $content,
+  ), 200);
+}
+
+/**
+ * Lấy danh sách đơn hàng và giá trị JSON trực tiếp từ bảng field.
+ *
+ * Ưu tiên bản ghi LANGUAGE_NONE (und). Nếu bảng field không tồn tại thì
+ * fallback về node_load + helper đọc mọi langcode.
+ */
+function ops_wallet_api_load_order_records(&$diagnostic) {
+  $records = array();
+  $field_table = 'field_data_field_noi_dung_json';
+  $value_column = 'field_noi_dung_json_value';
+
+  if (db_table_exists($field_table) && db_field_exists($field_table, $value_column)) {
+    $query = db_select($field_table, 'f');
+    $query->innerJoin('node', 'n', 'n.nid = f.entity_id');
+    $query->fields('n', array('nid', 'title', 'status', 'created', 'changed'));
+    $query->addField('f', 'language', 'field_language');
+    $query->addField('f', 'delta', 'field_delta');
+    $query->addField('f', $value_column, 'json_value');
+    $query->condition('f.entity_type', 'node');
+    $query->condition('f.bundle', 'don_hang');
+    $query->condition('f.deleted', 0);
+    $query->condition('n.type', 'don_hang');
+    $query->orderBy('n.created', 'DESC');
+    $query->orderBy('f.delta', 'ASC');
+
+    $rows = $query->execute()->fetchAll();
+    $diagnostic['field_storage_mode'] = 'field_data_field_noi_dung_json';
+    $diagnostic['candidate_field_row_count'] = count($rows);
+
+    foreach ($rows as $row) {
+      $nid = (int) $row->nid;
+      if ($nid <= 0) {
+        continue;
+      }
+      // Ưu tiên delta 0; nếu có nhiều ngôn ngữ thì ưu tiên und.
+      if (!isset($records[$nid])) {
+        $records[$nid] = $row;
+        continue;
+      }
+      $current_language = isset($records[$nid]->field_language) ? $records[$nid]->field_language : '';
+      $new_language = isset($row->field_language) ? $row->field_language : '';
+      if ($new_language === LANGUAGE_NONE && $current_language !== LANGUAGE_NONE) {
+        $records[$nid] = $row;
+      }
+    }
+  }
+  else {
+    $diagnostic['field_storage_mode'] = 'node_field_fallback';
+    $query = db_select('node', 'n');
+    $query->fields('n', array('nid', 'title', 'status', 'created', 'changed'));
+    $query->condition('n.type', 'don_hang');
+    $query->orderBy('n.created', 'DESC');
+    $records = $query->execute()->fetchAllAssoc('nid');
+    foreach ($records as $record) {
+      $record->json_value = '';
+    }
+  }
+
+  $diagnostic['candidate_order_count'] = count($records);
+  return $records;
+}
+
+/**
+ * Lấy các cont thực tế đã chọn trong JSON đơn hàng.
+ */
+function ops_wallet_api_extract_containers($data, $node, $booking_no) {
+  $items = array();
+  if (empty($data['loai_xe']) || !is_array($data['loai_xe'])) {
+    return $items;
+  }
+
+  $display_order = 0;
+  foreach ($data['loai_xe'] as $type_index => $vehicle_type) {
+    if (empty($vehicle_type['conts']) || !is_array($vehicle_type['conts'])) {
+      continue;
+    }
+    $vehicle_code = !empty($vehicle_type['ma']) ? trim((string) $vehicle_type['ma']) : '';
+
+    foreach ($vehicle_type['conts'] as $cont_index => $cont) {
+      if (!is_array($cont)) {
+        continue;
+      }
+      $container_no = !empty($cont['so_cont']) ? trim((string) $cont['so_cont']) : '';
+      if ($container_no === '') {
+        continue;
+      }
+      $display_order++;
+
+      $container_type = !empty($cont['loai_cont']) ? trim((string) $cont['loai_cont']) : $vehicle_code;
+      $is_deposited = ops_wallet_api_is_deposited($cont);
+      $unit_price = !empty($cont['tien_cuoc_vo']) ? (int) $cont['tien_cuoc_vo'] : 0;
+      $total_amount = !empty($cont['tong_tien_cuoc_vo']) ? (int) $cont['tong_tien_cuoc_vo'] : $unit_price;
+
+      $items[] = array(
+        'donHangNid' => (int) $node->nid,
+        'don_hang_nid' => (int) $node->nid,
+        'bookingNo' => $booking_no,
+        'booking_no' => $booking_no,
+        'containerOrder' => $display_order,
+        'container_order' => $display_order,
+        'containerNo' => $container_no,
+        'container_no' => $container_no,
+        'sealNo' => !empty($cont['so_seal']) ? trim((string) $cont['so_seal']) : '',
+        'seal_no' => !empty($cont['so_seal']) ? trim((string) $cont['so_seal']) : '',
+        'containerType' => $container_type,
+        'container_type' => $container_type,
+        'contNid' => !empty($cont['cont_nid']) ? (int) $cont['cont_nid'] : 0,
+        'cont_nid' => !empty($cont['cont_nid']) ? (int) $cont['cont_nid'] : 0,
+        'sealNid' => !empty($cont['seal_nid']) ? (int) $cont['seal_nid'] : 0,
+        'seal_nid' => !empty($cont['seal_nid']) ? (int) $cont['seal_nid'] : 0,
+        'loaiXeIndex' => (int) $type_index,
+        'loai_xe_index' => (int) $type_index,
+        'contIndex' => (int) $cont_index,
+        'cont_index' => (int) $cont_index,
+        'depositAmount' => $total_amount,
+        'deposit_amount' => $total_amount,
+        'depositUnitPrice' => $unit_price,
+        'deposit_unit_price' => $unit_price,
+        'depositExtraCosts' => !empty($cont['chi_phi_khac_cuoc_vo']) && is_array($cont['chi_phi_khac_cuoc_vo']) ? $cont['chi_phi_khac_cuoc_vo'] : array(),
+        'isDeposited' => $is_deposited,
+        'is_deposited' => $is_deposited,
+        'selectedBy' => ops_wallet_api_user_text($cont, 'nguoi_chon_vo'),
+        'depositedBy' => ops_wallet_api_user_text($cont, 'nguoi_cuoc_vo'),
+        'selectedAt' => !empty($cont['ngay_chon_vo']) ? $cont['ngay_chon_vo'] : '',
+        'depositDate' => !empty($cont['ngay_cuoc_vo']) ? $cont['ngay_cuoc_vo'] : '',
+        'depositDateTimestamp' => !empty($cont['ngay_cuoc_vo_timestamp']) ? (int) $cont['ngay_cuoc_vo_timestamp'] : 0,
+        'walletTransactionCode' => !empty($cont['ma_giao_dich_vi']) ? $cont['ma_giao_dich_vi'] : '',
+        'walletTransactionNid' => !empty($cont['giao_dich_vi_nid']) ? (int) $cont['giao_dich_vi_nid'] : 0,
+        'billDepositImage' => !empty($cont['bill_cuoc_vo']) ? $cont['bill_cuoc_vo'] : '',
+        'imageUrl' => !empty($cont['hinh_anh_chon_vo']) ? $cont['hinh_anh_chon_vo'] : '',
+      );
+    }
+  }
+
+  return $items;
+}
+
+function ops_wallet_api_build_booking($node, $data, $booking_no, $selected_items, $pending_items) {
+  $total = !empty($data['tong_so_cont']) ? (int) $data['tong_so_cont'] : 0;
+  if ($total <= 0 && !empty($data['loai_xe']) && is_array($data['loai_xe'])) {
+    foreach ($data['loai_xe'] as $type) {
+      if (!empty($type['so_luong'])) {
+        $total += (int) $type['so_luong'];
+      }
+      elseif (!empty($type['conts']) && is_array($type['conts'])) {
+        $total += count($type['conts']);
+      }
+    }
+  }
+  if ($total < count($selected_items)) {
+    $total = count($selected_items);
+  }
+
+  $incomplete_value = 0;
+  $incomplete_items = field_get_items('node', $node, 'field_chua_chon_het');
+  if (!empty($incomplete_items[0]['value'])) {
+    $incomplete_value = (int) $incomplete_items[0]['value'];
+  }
+
+  $eta_raw = isset($data['eta']) ? $data['eta'] : 0;
+  $eta_timestamp = is_numeric($eta_raw) && (int) $eta_raw > 0 ? (int) $eta_raw : 0;
+
+  return array(
+    'nid' => (int) $node->nid,
+    'title' => !empty($node->title) ? $node->title : '',
+    'bookingNo' => $booking_no,
+    'booking_no' => $booking_no,
+    'loaiXnk' => isset($data['loai_xnk']) ? $data['loai_xnk'] : '',
+    'loai_xnk' => isset($data['loai_xnk']) ? $data['loai_xnk'] : '',
+    'customerName' => isset($data['khach_hang']) ? $data['khach_hang'] : '',
+    'shippingLine' => ops_wallet_api_first_value($data, array('hang_tau', 'hang_tau_name', 'shipping_line')),
+    'vesselName' => isset($data['tau_chuyen']) ? $data['tau_chuyen'] : '',
+    'voyageNo' => '',
+    'etaTimestamp' => $eta_timestamp,
+    'etaText' => $eta_timestamp > 0 ? format_date($eta_timestamp, 'custom', 'd/m/Y H:i') : '',
+    'containerQuantity' => $total,
+    'selectedContainerCount' => count($selected_items),
+    'pendingDepositCount' => count($pending_items),
+    'field_chua_chon_het' => $incomplete_value,
+    'isContainerSelectionCompleted' => $total > 0 && count($selected_items) >= $total,
+    'containerTypeSummary' => ops_wallet_api_container_type_summary($data),
+    'containerNoSummary' => implode(', ', array_map('ops_wallet_api_item_container_no', $selected_items)),
+    'uploadedImageUrls' => !empty($data['hinh_anh_conts']) && is_array($data['hinh_anh_conts']) ? array_values($data['hinh_anh_conts']) : array(),
+    'containers' => array_values($pending_items),
+    'pending_containers' => array_values($pending_items),
+    'invoiceInfo' => array(
+      'companyName' => isset($data['khach_hang']) ? $data['khach_hang'] : '',
+      'taxCode' => '',
+      'address' => '',
+      'representativeName' => '',
+      'phone' => '',
+      'representativePosition' => '',
+    ),
+  );
+}
+
+function ops_wallet_api_build_deposit($item) {
+  return array(
+    'bookingNo' => $item['bookingNo'],
+    'containerOrder' => $item['containerOrder'],
+    'containerNo' => $item['containerNo'],
+    'containerType' => $item['containerType'],
+    'selectedBy' => $item['selectedBy'],
+    'depositedBy' => $item['depositedBy'],
+    'unitPrice' => $item['depositUnitPrice'],
+    'extraCosts' => $item['depositExtraCosts'],
+    'totalAmount' => $item['depositAmount'],
+    'billImageName' => $item['billDepositImage'],
+    'depositDate' => $item['depositDate'],
+    'depositDateTimestamp' => $item['depositDateTimestamp'],
+    'transactionCode' => $item['walletTransactionCode'],
+    'transactionNid' => $item['walletTransactionNid'],
+    'status' => 'Đã cược',
+  );
+}
+
+function ops_wallet_api_is_deposited($cont) {
+  return !empty($cont['nguoi_cuoc_vo']) ||
+    !empty($cont['ngay_cuoc_vo']) ||
+    !empty($cont['giao_dich_vi_nid']) ||
+    !empty($cont['ma_giao_dich_vi']) ||
+    (!empty($cont['tong_tien_cuoc_vo']) && (int) $cont['tong_tien_cuoc_vo'] > 0);
+}
+
+function ops_wallet_api_get_field_value($entity, $field_name) {
+  // Ưu tiên đọc trực tiếp property của entity, đặc biệt langcode und.
+  if (isset($entity->{$field_name}) && is_array($entity->{$field_name})) {
+    $field_data = $entity->{$field_name};
+    $language_candidates = array(LANGUAGE_NONE);
+    if (!empty($entity->language)) {
+      $language_candidates[] = $entity->language;
+    }
+    foreach (array_keys($field_data) as $langcode) {
+      if (!in_array($langcode, $language_candidates, TRUE)) {
+        $language_candidates[] = $langcode;
+      }
+    }
+    foreach ($language_candidates as $langcode) {
+      if (!empty($field_data[$langcode][0]['value'])) {
+        return trim((string) $field_data[$langcode][0]['value']);
+      }
+    }
+  }
+
+  if (field_info_field($field_name)) {
+    $items = field_get_items('node', $entity, $field_name, LANGUAGE_NONE);
+    if (empty($items)) {
+      $items = field_get_items('node', $entity, $field_name);
+    }
+    if (!empty($items[0]['value'])) {
+      return trim((string) $items[0]['value']);
+    }
+  }
+  return '';
+}
+
+function ops_wallet_api_decode_json($value) {
+  $value = preg_replace('/^\xEF\xBB\xBF/', '', trim((string) $value));
+  if ($value === '') {
+    return array();
+  }
+  if (function_exists('ops_api_decode_order_json')) {
+    $decoded = ops_api_decode_order_json($value);
+    if (is_array($decoded)) {
+      return $decoded;
+    }
+  }
+  $decoded = drupal_json_decode($value);
+  if (is_array($decoded)) {
+    return $decoded;
+  }
+  $decoded = json_decode(html_entity_decode(stripslashes($value), ENT_QUOTES, 'UTF-8'), TRUE);
+  return is_array($decoded) ? $decoded : array();
+}
+
+function ops_wallet_api_trade_direction($value) {
+  $normalized = ops_wallet_api_normalize_text($value);
+  if (strpos($normalized, 'SEA') === FALSE && strpos($normalized, 'AIR') === FALSE) {
+    return '';
+  }
+  if (strpos($normalized, 'NHAP') !== FALSE) {
+    return 'import';
+  }
+  if (strpos($normalized, 'XUAT') !== FALSE) {
+    return 'export';
+  }
+  return '';
+}
+
+function ops_wallet_api_normalize_text($value) {
+  if (function_exists('ops_api_normalize_vietnamese_text')) {
+    return ops_api_normalize_vietnamese_text($value);
+  }
+  $map = array(
+    'À'=>'A','Á'=>'A','Ạ'=>'A','Ả'=>'A','Ã'=>'A','Â'=>'A','Ầ'=>'A','Ấ'=>'A','Ậ'=>'A','Ẩ'=>'A','Ẫ'=>'A','Ă'=>'A','Ằ'=>'A','Ắ'=>'A','Ặ'=>'A','Ẳ'=>'A','Ẵ'=>'A',
+    'È'=>'E','É'=>'E','Ẹ'=>'E','Ẻ'=>'E','Ẽ'=>'E','Ê'=>'E','Ề'=>'E','Ế'=>'E','Ệ'=>'E','Ể'=>'E','Ễ'=>'E',
+    'Ì'=>'I','Í'=>'I','Ị'=>'I','Ỉ'=>'I','Ĩ'=>'I','Ò'=>'O','Ó'=>'O','Ọ'=>'O','Ỏ'=>'O','Õ'=>'O','Ô'=>'O','Ồ'=>'O','Ố'=>'O','Ộ'=>'O','Ổ'=>'O','Ỗ'=>'O','Ơ'=>'O','Ờ'=>'O','Ớ'=>'O','Ợ'=>'O','Ở'=>'O','Ỡ'=>'O',
+    'Ù'=>'U','Ú'=>'U','Ụ'=>'U','Ủ'=>'U','Ũ'=>'U','Ư'=>'U','Ừ'=>'U','Ứ'=>'U','Ự'=>'U','Ử'=>'U','Ữ'=>'U','Ỳ'=>'Y','Ý'=>'Y','Ỵ'=>'Y','Ỷ'=>'Y','Ỹ'=>'Y','Đ'=>'D',
+    'à'=>'A','á'=>'A','ạ'=>'A','ả'=>'A','ã'=>'A','â'=>'A','ầ'=>'A','ấ'=>'A','ậ'=>'A','ẩ'=>'A','ẫ'=>'A','ă'=>'A','ằ'=>'A','ắ'=>'A','ặ'=>'A','ẳ'=>'A','ẵ'=>'A',
+    'è'=>'E','é'=>'E','ẹ'=>'E','ẻ'=>'E','ẽ'=>'E','ê'=>'E','ề'=>'E','ế'=>'E','ệ'=>'E','ể'=>'E','ễ'=>'E','ì'=>'I','í'=>'I','ị'=>'I','ỉ'=>'I','ĩ'=>'I',
+    'ò'=>'O','ó'=>'O','ọ'=>'O','ỏ'=>'O','õ'=>'O','ô'=>'O','ồ'=>'O','ố'=>'O','ộ'=>'O','ổ'=>'O','ỗ'=>'O','ơ'=>'O','ờ'=>'O','ớ'=>'O','ợ'=>'O','ở'=>'O','ỡ'=>'O',
+    'ù'=>'U','ú'=>'U','ụ'=>'U','ủ'=>'U','ũ'=>'U','ư'=>'U','ừ'=>'U','ứ'=>'U','ự'=>'U','ử'=>'U','ữ'=>'U','ỳ'=>'Y','ý'=>'Y','ỵ'=>'Y','ỷ'=>'Y','ỹ'=>'Y','đ'=>'D',
+  );
+  $value = strtr(trim((string) $value), $map);
+  $value = function_exists('mb_strtoupper') ? mb_strtoupper($value, 'UTF-8') : strtoupper($value);
+  return preg_replace('/\s+/u', ' ', $value);
+}
+
+function ops_wallet_api_user_text($cont, $key) {
+  $text_key = $key . '_text';
+  if (!empty($cont[$text_key])) {
+    return (string) $cont[$text_key];
+  }
+  if (empty($cont[$key])) {
+    return '';
+  }
+  if (is_numeric($cont[$key])) {
+    $account = user_load((int) $cont[$key]);
+    if ($account) {
+      return function_exists('ops_api_get_user_full_name') ? ops_api_get_user_full_name($account) : $account->name;
+    }
+  }
+  return (string) $cont[$key];
+}
+
+function ops_wallet_api_container_type_summary($data) {
+  $parts = array();
+  if (!empty($data['loai_xe']) && is_array($data['loai_xe'])) {
+    foreach ($data['loai_xe'] as $type) {
+      $name = !empty($type['ma']) ? trim((string) $type['ma']) : (!empty($type['loai_xe']) ? trim((string) $type['loai_xe']) : '');
+      $quantity = !empty($type['so_luong']) ? (int) $type['so_luong'] : 0;
+      if ($name !== '') {
+        $parts[] = $quantity > 0 ? $quantity . ' x ' . $name : $name;
+      }
+    }
+  }
+  return implode(', ', $parts);
+}
+
+function ops_wallet_api_first_value($data, $keys) {
+  foreach ($keys as $key) {
+    if (isset($data[$key]) && trim((string) $data[$key]) !== '') {
+      return trim((string) $data[$key]);
+    }
+  }
+  return '';
+}
+
+function ops_wallet_api_item_container_no($item) {
+  return !empty($item['containerNo']) ? $item['containerNo'] : '';
+}
+
+function ops_wallet_api_request_id($prefix = 'request') {
+  return preg_replace('/[^a-z0-9_-]/i', '-', $prefix) . '-' . REQUEST_TIME . '-' . substr(md5(uniqid('', TRUE)), 0, 8);
+}
+
+function ops_wallet_api_get_request_data() {
+  $raw = file_get_contents('php://input');
+  if (is_string($raw) && trim($raw) !== '') {
+    $decoded = drupal_json_decode($raw);
+    if (is_array($decoded)) {
+      return $decoded;
+    }
+  }
+  return !empty($_POST) && is_array($_POST) ? $_POST : array();
+}
+
+
+/**
+ * Chuẩn hóa dữ liệu ngân hàng OPS nhận từ Flutter hoặc từ JSON user.
+ */
+function ops_wallet_api_normalize_bank_info($data) {
+  if (!is_array($data)) {
+    $data = array();
+  }
+  $bank_info = !empty($data['bank_info']) && is_array($data['bank_info']) ? $data['bank_info'] : $data;
+
+  return array(
+    'bank_id' => !empty($bank_info['bank_id']) ? (int) $bank_info['bank_id'] : (!empty($bank_info['id']) ? (int) $bank_info['id'] : 0),
+    'bank_name' => ops_wallet_api_clean_text(ops_wallet_api_first_value($bank_info, array('bank_name', 'bankName', 'name', 'ten_ngan_hang'))),
+    'bank_code' => ops_wallet_api_clean_text(ops_wallet_api_first_value($bank_info, array('bank_code', 'bankCode', 'code', 'ma_ngan_hang'))),
+    'bank_bin' => ops_wallet_api_clean_text(ops_wallet_api_first_value($bank_info, array('bank_bin', 'bankBin', 'bin'))),
+    'bank_short_name' => ops_wallet_api_clean_text(ops_wallet_api_first_value($bank_info, array('bank_short_name', 'bankShortName', 'shortName', 'short_name'))),
+    'bank_logo' => ops_wallet_api_clean_text(ops_wallet_api_first_value($bank_info, array('bank_logo', 'bankLogo', 'logo'))),
+    'bank_account_no' => ops_wallet_api_clean_text(ops_wallet_api_first_value($bank_info, array('bank_account_no', 'bankAccountNo', 'account_no', 'accountNo', 'so_tai_khoan'))),
+    'bank_account_name' => ops_wallet_api_clean_text(ops_wallet_api_first_value($bank_info, array('bank_account_name', 'bankAccountName', 'account_name', 'accountName', 'chu_tai_khoan'))),
+    'updated' => REQUEST_TIME,
+    'updated_text' => format_date(REQUEST_TIME, 'custom', 'd/m/Y H:i:s'),
+  );
+}
+
+function ops_wallet_api_clean_text($value) {
+  return trim(strip_tags((string) $value));
+}
+
+/**
+ * Đảm bảo user có field_thong_tin_json để lưu thông tin ngân hàng OPS.
+ */
+function ops_wallet_api_ensure_user_thong_tin_json_field() {
+  static $done = FALSE;
+  if ($done) {
+    return TRUE;
+  }
+  $done = TRUE;
+
+  if (!module_exists('field') || !module_exists('text')) {
+    return FALSE;
+  }
+
+  try {
+    if (!field_info_field('field_thong_tin_json')) {
+      field_create_field(array(
+        'field_name' => 'field_thong_tin_json',
+        'type' => 'text_long',
+        'cardinality' => 1,
+        'settings' => array(),
+      ));
+    }
+
+    if (!field_info_instance('user', 'field_thong_tin_json', 'user')) {
+      field_create_instance(array(
+        'field_name' => 'field_thong_tin_json',
+        'entity_type' => 'user',
+        'bundle' => 'user',
+        'label' => 'Thông tin JSON',
+        'required' => FALSE,
+        'widget' => array('type' => 'text_textarea'),
+        'settings' => array(),
+        'display' => array(
+          'default' => array('label' => 'hidden', 'type' => 'hidden'),
+        ),
+      ));
+    }
+    field_cache_clear();
+    return TRUE;
+  }
+  catch (Exception $e) {
+    watchdog('ops_wallet_api_bank', 'Không tạo được field_thong_tin_json cho user: @message', array('@message' => $e->getMessage()), WATCHDOG_WARNING);
+    return FALSE;
+  }
+}
+
+function ops_wallet_api_get_user_bank_info($account) {
+  if (!$account || empty($account->uid)) {
+    return array();
+  }
+  $fresh = user_load((int) $account->uid, TRUE);
+  if (!$fresh) {
+    $fresh = $account;
+  }
+
+  $json = ops_wallet_api_decode_json(ops_wallet_api_get_user_field_value($fresh, 'field_thong_tin_json'));
+  $raw = array();
+  if (!empty($json['ops_bank_info']) && is_array($json['ops_bank_info'])) {
+    $raw = $json['ops_bank_info'];
+  }
+  elseif (!empty($json['ngan_hang_ops']) && is_array($json['ngan_hang_ops'])) {
+    $raw = $json['ngan_hang_ops'];
+  }
+  elseif (!empty($json['bank_info']) && is_array($json['bank_info'])) {
+    $raw = $json['bank_info'];
+  }
+
+  $bank_info = ops_wallet_api_normalize_bank_info($raw);
+  if (empty($bank_info['bank_name']) && empty($bank_info['bank_account_no']) && empty($bank_info['bank_account_name'])) {
+    return array();
+  }
+  return $bank_info;
+}
+
+function ops_wallet_api_save_bank_info_to_user($account, array $bank_info) {
+  if (!$account || empty($account->uid)) {
+    return array('success' => FALSE, 'message' => 'Không xác định được người dùng OPS.');
+  }
+  if (!ops_wallet_api_ensure_user_thong_tin_json_field()) {
+    return array(
+      'success' => FALSE,
+      'message' => 'Chưa tạo được field_thong_tin_json cho user.',
+      'diagnostic' => array('field' => 'field_thong_tin_json', 'entity_type' => 'user'),
+    );
+  }
+
+  $bank_info = ops_wallet_api_normalize_bank_info($bank_info);
+  $fresh = user_load((int) $account->uid, TRUE);
+  if (!$fresh) {
+    return array('success' => FALSE, 'message' => 'Không tải được tài khoản OPS để lưu ngân hàng.');
+  }
+
+  $json = ops_wallet_api_decode_json(ops_wallet_api_get_user_field_value($fresh, 'field_thong_tin_json'));
+  $json['ops_bank_info'] = $bank_info;
+  // Alias tiếng Việt để các màn Drupal khác có thể đọc dễ hơn nếu cần.
+  $json['ngan_hang_ops'] = $bank_info;
+
+  try {
+    $edit = array(
+      'field_thong_tin_json' => array(
+        LANGUAGE_NONE => array(
+          0 => array('value' => drupal_json_encode($json)),
+        ),
+      ),
+    );
+    user_save($fresh, $edit);
+    return array('success' => TRUE, 'bank_info' => $bank_info);
+  }
+  catch (Exception $e) {
+    watchdog('ops_wallet_api_bank', 'Không lưu được thông tin ngân hàng cho uid @uid: @message', array(
+      '@uid' => (int) $account->uid,
+      '@message' => $e->getMessage(),
+    ), WATCHDOG_ERROR);
+    return array('success' => FALSE, 'message' => 'Không lưu được thông tin ngân hàng OPS.');
+  }
+}
+
+function ops_wallet_api_get_user_field_value($account, $field_name) {
+  if (!$account || !is_object($account)) {
+    return '';
+  }
+  if (isset($account->{$field_name}) && is_array($account->{$field_name})) {
+    $field_data = $account->{$field_name};
+    $language_candidates = array(LANGUAGE_NONE, 'und');
+    foreach (array_keys($field_data) as $langcode) {
+      if (!in_array($langcode, $language_candidates, TRUE)) {
+        $language_candidates[] = $langcode;
+      }
+    }
+    foreach ($language_candidates as $langcode) {
+      if (!empty($field_data[$langcode][0]['value'])) {
+        return trim((string) $field_data[$langcode][0]['value']);
+      }
+    }
+  }
+  if (field_info_field($field_name)) {
+    $items = field_get_items('user', $account, $field_name, LANGUAGE_NONE);
+    if (empty($items)) {
+      $items = field_get_items('user', $account, $field_name);
+    }
+    if (!empty($items[0]['value'])) {
+      return trim((string) $items[0]['value']);
+    }
+  }
+  return '';
+}
+
+function ops_wallet_api_account_is_ops($account) {
+  if (!$account || empty($account->uid) || empty($account->status)) {
+    return FALSE;
+  }
+  if ((int) $account->uid === 1) {
+    return TRUE;
+  }
+
+  // Quyền OPS được xác định theo RID cố định 15. Tuy nhiên một số luồng token
+  // hoặc debug có thể biến $account->roles từ dạng [rid => role_name] sang mảng
+  // chỉ còn giá trị ["authenticated user", "OPS"]. Vì vậy phải kiểm tra cả key
+  // RID, value RID và tên role đã chuẩn hóa.
+  $roles = !empty($account->roles) && is_array($account->roles) ? $account->roles : array();
+  if (ops_wallet_api_roles_include_ops($roles)) {
+    return TRUE;
+  }
+
+  // Load lại user để tránh object token/session bị giữ cache role cũ hoặc bị
+  // re-index role. Không gọi đệ quy để tránh vòng lặp.
+  $fresh_account = user_load((int) $account->uid, TRUE);
+  if ($fresh_account && !empty($fresh_account->roles) && is_array($fresh_account->roles)) {
+    if (ops_wallet_api_roles_include_ops($fresh_account->roles)) {
+      return TRUE;
+    }
+  }
+
+  // Fallback cuối cùng: kiểm tra trực tiếp bảng users_roles bằng SQL ngắn gọn.
+  try {
+    $has_role = db_query(
+      'SELECT 1 FROM {users_roles} WHERE uid = :uid AND rid = :rid',
+      array(':uid' => (int) $account->uid, ':rid' => (int) OPS_WALLET_API_ROLE_OPS_RID)
+    )->fetchField();
+    return !empty($has_role);
+  }
+  catch (Exception $e) {
+    watchdog('ops_wallet_api', 'Không kiểm tra được role OPS cho uid @uid: @message', array(
+      '@uid' => (int) $account->uid,
+      '@message' => $e->getMessage(),
+    ), WATCHDOG_WARNING);
+  }
+
+  return FALSE;
+}
+
+function ops_wallet_api_roles_include_ops($roles) {
+  if (empty($roles) || !is_array($roles)) {
+    return FALSE;
+  }
+
+  foreach ($roles as $rid => $role_name) {
+    if ((int) $rid === (int) OPS_WALLET_API_ROLE_OPS_RID) {
+      return TRUE;
+    }
+    if (is_numeric($role_name) && (int) $role_name === (int) OPS_WALLET_API_ROLE_OPS_RID) {
+      return TRUE;
+    }
+
+    $name = trim((string) $role_name);
+    $name_lower = function_exists('drupal_strtolower') ? drupal_strtolower($name) : strtolower($name);
+    if ($name_lower === 'ops') {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+function ops_wallet_api_finance_diagnostic($endpoint) {
+  $thu_chi_enabled = module_exists('thu_chi');
+  $ops_wallet_enabled = module_exists('ops_wallet');
+
+  // Thu chi có cơ chế tự bổ sung content type/field khi chạy runtime. Gọi
+  // trước khi kết luận endpoint chưa sẵn sàng để tránh báo lỗi giả chỉ vì
+  // quản trị viên chưa chạy update.php ngay sau khi chép module.
+  if ($thu_chi_enabled && function_exists('thu_chi_ensure_content_type_runtime')) {
+    thu_chi_ensure_content_type_runtime();
+  }
+
+  $content_type_ready = (bool) node_type_get_type('phieu_thu_chi');
+  $related_fields = array(
+    'field_tc_doi_tuong_loai' => (bool) field_info_instance('node', 'field_tc_doi_tuong_loai', 'phieu_thu_chi'),
+    'field_tc_doi_tuong_id' => (bool) field_info_instance('node', 'field_tc_doi_tuong_id', 'phieu_thu_chi'),
+    'field_tc_doi_tuong_ten' => (bool) field_info_instance('node', 'field_tc_doi_tuong_ten', 'phieu_thu_chi'),
+  );
+  $related_fields_ready = !in_array(FALSE, $related_fields, TRUE);
+
+  return array(
+    'endpoint' => $endpoint,
+    'route_exists' => TRUE,
+    'module_ops_wallet_api' => module_exists('ops_wallet_api'),
+    'module_thu_chi' => $thu_chi_enabled,
+    'module_ops_wallet' => $ops_wallet_enabled,
+    'content_type_phieu_thu_chi' => $content_type_ready,
+    'related_object_fields' => $related_fields,
+    'create_function_exists' => function_exists('thu_chi_create_ops_advance_request'),
+    'list_function_exists' => function_exists('thu_chi_load_ops_advance_requests'),
+    'detail_function_exists' => function_exists('thu_chi_load_ops_advance_request_detail'),
+    'update_function_exists' => function_exists('thu_chi_update_ops_advance_request'),
+    'cancel_function_exists' => function_exists('thu_chi_cancel_ops_advance_request'),
+    'wallet_credit_function_exists' => function_exists('ops_api_wallet_create_transaction'),
+    'wallet_table_exists' => db_table_exists('ops_api_wallet_ledger'),
+    'ready' => $thu_chi_enabled
+      && $ops_wallet_enabled
+      && $content_type_ready
+      && $related_fields_ready
+      && function_exists('thu_chi_create_ops_advance_request')
+      && function_exists('ops_api_wallet_create_transaction')
+      && db_table_exists('ops_api_wallet_ledger'),
+  );
+}
+
+function ops_wallet_api_get_account_from_token() {
+  if (function_exists('ops_api_get_account_from_token')) {
+    return ops_api_get_account_from_token();
+  }
+
+  $token = ops_wallet_api_get_bearer_token();
+  if ($token === '') {
+    return FALSE;
+  }
+  $or = db_or()->condition('sid', $token)->condition('ssid', $token);
+  $uid = db_select('sessions', 's')
+    ->fields('s', array('uid'))
+    ->condition($or)
+    ->condition('uid', 0, '>')
+    ->range(0, 1)
+    ->execute()
+    ->fetchField();
+  if (!$uid) {
+    return FALSE;
+  }
+  $account = user_load((int) $uid, TRUE);
+  return $account && !empty($account->status) ? $account : FALSE;
+}
+
+function ops_wallet_api_get_bearer_token() {
+  $header = '';
+  if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+    $header = $_SERVER['HTTP_AUTHORIZATION'];
+  }
+  elseif (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+    $header = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+  }
+  if (preg_match('/Bearer\s+(.*)$/i', $header, $matches)) {
+    return trim($matches[1]);
+  }
+  return '';
+}
+
+
+/**
+ * Trả về cấu hình debug của request hiện tại.
+ *
+ * Bật bằng ?debug=1, có thể giới hạn thêm bằng booking_no hoặc nid.
+ */
+function ops_wallet_api_debug_context($account = NULL) {
+  static $context = NULL;
+  if ($context === NULL) {
+    $debug_value = isset($_GET['debug']) ? strtolower(trim((string) $_GET['debug'])) : '';
+    $enabled = in_array($debug_value, array('1', 'true', 'yes', 'on'), TRUE);
+    $booking_no = '';
+    foreach (array('booking_no', 'booking', 'so_booking') as $key) {
+      if (isset($_GET[$key]) && trim((string) $_GET[$key]) !== '') {
+        $booking_no = trim((string) $_GET[$key]);
+        break;
+      }
+    }
+    $nid = isset($_GET['nid']) ? (int) $_GET['nid'] : 0;
+    $context = array(
+      'enabled' => $enabled,
+      'request_id' => 'deposit-' . REQUEST_TIME . '-' . substr(md5(uniqid('', TRUE)), 0, 8),
+      'booking_no' => $booking_no,
+      'nid' => $nid,
+      'uid' => 0,
+      'raw' => !empty($_GET['debug_raw']),
+    );
+  }
+  if ($account && !empty($account->uid)) {
+    $context['uid'] = (int) $account->uid;
+  }
+  return $context;
+}
+
+/**
+ * Kiểm tra node có khớp bộ lọc nid debug hay không.
+ */
+function ops_wallet_api_debug_matches_nid($node) {
+  $context = ops_wallet_api_debug_context();
+  if (empty($context['enabled'])) {
+    return FALSE;
+  }
+  if (!empty($context['nid'])) {
+    return !empty($node->nid) && (int) $node->nid === (int) $context['nid'];
+  }
+  // Khi lọc theo booking thì phải chờ giải mã JSON mới xác định được.
+  return empty($context['booking_no']);
+}
+
+/**
+ * Kiểm tra đơn hàng có khớp booking/nid debug hay không.
+ */
+function ops_wallet_api_debug_matches_order($node, $booking_no) {
+  $context = ops_wallet_api_debug_context();
+  if (empty($context['enabled'])) {
+    return FALSE;
+  }
+  if (!empty($context['nid']) && (!isset($node->nid) || (int) $node->nid !== (int) $context['nid'])) {
+    return FALSE;
+  }
+  if (!empty($context['booking_no']) && strcasecmp(trim((string) $booking_no), trim((string) $context['booking_no'])) !== 0) {
+    return FALSE;
+  }
+  return TRUE;
+}
+
+/**
+ * Ghi log watchdog theo một channel riêng để dễ lọc.
+ */
+function ops_wallet_api_debug_log($event, array $data = array(), $severity = WATCHDOG_NOTICE) {
+  $context = ops_wallet_api_debug_context();
+  if (empty($context['enabled'])) {
+    return;
+  }
+  $data['request_id'] = $context['request_id'];
+  $data['debug_uid'] = $context['uid'];
+  watchdog(
+    'ops_wallet_api_deposit_debug',
+    '[@request_id] @event: @payload',
+    array(
+      '@request_id' => $context['request_id'],
+      '@event' => $event,
+      '@payload' => drupal_json_encode($data),
+    ),
+    $severity
+  );
+}
+
+/**
+ * Snapshot gọn của loai_xe/conts để tránh ghi toàn bộ JSON lớn vào watchdog.
+ */
+function ops_wallet_api_debug_container_snapshot(array $data) {
+  $snapshot = array();
+  if (empty($data['loai_xe']) || !is_array($data['loai_xe'])) {
+    return $snapshot;
+  }
+  foreach ($data['loai_xe'] as $type_index => $vehicle_type) {
+    $row = array(
+      'loai_xe_index' => (int) $type_index,
+      'ma' => isset($vehicle_type['ma']) ? $vehicle_type['ma'] : '',
+      'loai_xe' => isset($vehicle_type['loai_xe']) ? $vehicle_type['loai_xe'] : '',
+      'so_luong' => isset($vehicle_type['so_luong']) ? (int) $vehicle_type['so_luong'] : 0,
+      'conts_is_array' => isset($vehicle_type['conts']) && is_array($vehicle_type['conts']),
+      'cont_count' => isset($vehicle_type['conts']) && is_array($vehicle_type['conts']) ? count($vehicle_type['conts']) : 0,
+      'conts' => array(),
+    );
+    if (!empty($vehicle_type['conts']) && is_array($vehicle_type['conts'])) {
+      foreach ($vehicle_type['conts'] as $cont_index => $cont) {
+        if (!is_array($cont)) {
+          $row['conts'][] = array('cont_index' => (int) $cont_index, 'invalid_type' => gettype($cont));
+          continue;
+        }
+        $row['conts'][] = array(
+          'cont_index' => (int) $cont_index,
+          'so_cont' => isset($cont['so_cont']) ? $cont['so_cont'] : '',
+          'so_seal' => isset($cont['so_seal']) ? $cont['so_seal'] : '',
+          'cont_nid' => isset($cont['cont_nid']) ? (int) $cont['cont_nid'] : 0,
+          'nguoi_cuoc_vo' => isset($cont['nguoi_cuoc_vo']) ? $cont['nguoi_cuoc_vo'] : '',
+          'ngay_cuoc_vo' => isset($cont['ngay_cuoc_vo']) ? $cont['ngay_cuoc_vo'] : '',
+          'giao_dich_vi_nid' => isset($cont['giao_dich_vi_nid']) ? (int) $cont['giao_dich_vi_nid'] : 0,
+          'ma_giao_dich_vi' => isset($cont['ma_giao_dich_vi']) ? $cont['ma_giao_dich_vi'] : '',
+          'tong_tien_cuoc_vo' => isset($cont['tong_tien_cuoc_vo']) ? (int) $cont['tong_tien_cuoc_vo'] : 0,
+          'is_deposited' => ops_wallet_api_is_deposited($cont),
+        );
+      }
+    }
+    $snapshot[] = $row;
+  }
+  return $snapshot;
+}
+
+/**
+ * Snapshot gọn của danh sách cont sau khi parser xử lý.
+ */
+function ops_wallet_api_debug_selected_items(array $items) {
+  $result = array();
+  foreach ($items as $item) {
+    $result[] = array(
+      'don_hang_nid' => isset($item['don_hang_nid']) ? (int) $item['don_hang_nid'] : 0,
+      'booking_no' => isset($item['booking_no']) ? $item['booking_no'] : '',
+      'container_no' => isset($item['container_no']) ? $item['container_no'] : '',
+      'seal_no' => isset($item['seal_no']) ? $item['seal_no'] : '',
+      'loai_xe_index' => isset($item['loai_xe_index']) ? (int) $item['loai_xe_index'] : NULL,
+      'cont_index' => isset($item['cont_index']) ? (int) $item['cont_index'] : NULL,
+      'cont_nid' => isset($item['cont_nid']) ? (int) $item['cont_nid'] : 0,
+      'is_deposited' => !empty($item['isDeposited']),
+      'deposit_amount' => isset($item['deposit_amount']) ? (int) $item['deposit_amount'] : 0,
+    );
+  }
+  return $result;
+}
+
+/**
+ * Preview JSON chỉ dùng khi debug lỗi decode, giới hạn để tránh phình watchdog.
+ */
+function ops_wallet_api_debug_json_preview($json_value) {
+  $context = ops_wallet_api_debug_context();
+  $limit = !empty($context['raw']) ? 4000 : 800;
+  $value = trim((string) $json_value);
+  if (function_exists('truncate_utf8')) {
+    return truncate_utf8($value, $limit, TRUE, TRUE);
+  }
+  return strlen($value) > $limit ? substr($value, 0, $limit) . '...' : $value;
+}
+
+function ops_wallet_api_send_headers() {
+  drupal_add_http_header('Content-Type', 'application/json; charset=utf-8');
+  drupal_add_http_header('Access-Control-Allow-Origin', '*');
+  drupal_add_http_header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+}
+
+function ops_wallet_api_response($data, $status = 200) {
+  ops_wallet_api_set_status_header($status);
+  if (function_exists('ob_get_length') && ob_get_length()) {
+    @ob_clean();
+  }
+  drupal_add_http_header('Content-Type', 'application/json; charset=utf-8');
+  drupal_json_output($data);
+  drupal_exit();
+}
+
+function ops_wallet_api_set_status_header($status) {
+  $status = intval($status);
+  $messages = array(
+    200 => 'OK',
+    201 => 'Created',
+    400 => 'Bad Request',
+    401 => 'Unauthorized',
+    403 => 'Forbidden',
+    404 => 'Not Found',
+    405 => 'Method Not Allowed',
+    409 => 'Conflict',
+    500 => 'Internal Server Error',
+    503 => 'Service Unavailable',
+  );
+  $message = isset($messages[$status]) ? $messages[$status] : 'OK';
+  drupal_add_http_header('Status', $status . ' ' . $message);
+}
+
+function ops_wallet_api_error($message, $status = 400, array $extra = array()) {
+  $payload = array(
+    'success' => FALSE,
+    'message' => $message,
+    'error' => $message,
+  ) + $extra;
+  ops_wallet_api_response($payload, $status);
+}

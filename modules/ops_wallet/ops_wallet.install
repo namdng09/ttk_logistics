@@ -1,0 +1,23 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function ops_wallet_install() {
+  ops_wallet_ensure_storage();
+  ops_wallet_ensure_content_type();
+}
+
+/**
+ * Bảo đảm bảng/content type tồn tại khi nâng cấp hoặc nhận dữ liệu từ ops_api cũ.
+ */
+function ops_wallet_update_7101(&$sandbox) {
+  return ops_wallet_migrate_transaction_nodes_batch($sandbox);
+}
+
+/**
+ * Không tự xóa sổ cái hoặc node lịch sử khi uninstall để bảo toàn dữ liệu tài chính.
+ */
+function ops_wallet_uninstall() {
+  variable_set('ops_wallet_data_retained_after_uninstall', REQUEST_TIME);
+}
