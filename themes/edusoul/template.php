@@ -280,15 +280,11 @@ function edusoul_preprocess_html(&$variables)
     // --- XÓA TẤT CẢ CSS MẶC ĐỊNH ---
     $css = drupal_add_css();
     $preserved_module_css = array();
-    foreach ($css as $media => $stylesheets) {
-        foreach ($stylesheets as $path => $info) {
-            // Theme reset CSS ben duoi se lam mat file assets/css cua module,
-            // nen can giu lai de add lai sau khi load vendor/theme CSS.
-            if (preg_match('#(^|.*/)modules/[^/]+/assets/css/.*\.css$#', $path)) {
-                $preserved_module_css[$path] = $info;
-            }
-            // Xóa tất cả các CSS
-            unset($css[$media][$path]);
+    foreach ($css as $path => $info) {
+        // Theme reset CSS ben duoi se lam mat file assets/css cua module,
+        // nen can giu lai de add lai sau khi load vendor/theme CSS.
+        if (preg_match('#(^|.*/)modules/[^/]+/assets/css/[^?]+\.css(\?.*)?$#', $path)) {
+            $preserved_module_css[$path] = $info;
         }
     }
     drupal_static_reset('drupal_add_css'); // Reset CSS

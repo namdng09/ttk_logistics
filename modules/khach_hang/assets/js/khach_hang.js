@@ -32,9 +32,11 @@
     customerId: 0,
     customerName: '',
     original: null,
-    data: { locations: [], routes: {} },
+    data: { routes: [] },
     changed: false
   };
+  var tagifyDinhMucFrom = null;
+  var tagifyDinhMucTo = null;
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -263,8 +265,9 @@
         var kCard = t.closest('.kho-card');
         if (kCard) refreshKhoSummary(kCard);
       }
-      if (t && t.classList && t.classList.contains('kh-dm-route-input')) {
-        updateDinhMucRouteInput(t);
+      if (t && t.classList && t.classList.contains('kh-dm-rule-number')) {
+        normalizeDinhMucRuleNumber(t);
+        updateDinhMucRowNumber(t);
       }
     });
 
@@ -275,19 +278,10 @@
       }
     }, true);
 
-    var dmAdd = doc.getElementById('kh-dm-add-location');
-    if (dmAdd) dmAdd.addEventListener('click', addDinhMucLocation);
-    var dmNew = doc.getElementById('kh-dm-new-location');
-    if (dmNew) {
-      dmNew.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          addDinhMucLocation();
-        }
-      });
-    }
-    var dmCopy = doc.getElementById('kh-dm-copy-opposite');
-    if (dmCopy) dmCopy.addEventListener('click', copyDinhMucOpposite);
+    var dmAddRule = doc.getElementById('kh-dm-add-rule');
+    if (dmAddRule) dmAddRule.addEventListener('click', addDinhMucRuleFromForm);
+    var dmResetRule = doc.getElementById('kh-dm-reset-rule');
+    if (dmResetRule) dmResetRule.addEventListener('click', resetDinhMucRuleForm);
     var dmExport = doc.getElementById('kh-dm-export');
     if (dmExport) dmExport.addEventListener('click', exportDinhMucExcel);
     var dmImport = doc.getElementById('kh-dm-import');
@@ -301,10 +295,9 @@
     }
     var dmSave = doc.getElementById('kh-dm-save');
     if (dmSave) dmSave.addEventListener('click', saveDinhMucData);
-    var dmTable = doc.getElementById('kh-dm-matrix-table');
-    if (dmTable) {
-      dmTable.addEventListener('mouseover', handleDinhMucMatrixHover);
-      dmTable.addEventListener('mouseleave', clearDinhMucMatrixHover);
+    var dmRuleBody = doc.getElementById('kh-dm-rule-body');
+    if (dmRuleBody) {
+      dmRuleBody.addEventListener('click', handleDinhMucRuleAction);
     }
 
     // Dropdown hover
@@ -955,8 +948,7 @@
     return {
       bang_gia_cuoc: [],
       dinh_muc: {
-        locations: [],
-        routes: {}
+        routes: []
       }
     };
   }
@@ -1496,18 +1488,13 @@
     return JSON.parse(JSON.stringify(value || {}));
   }
 
-  function routeKey(from, to) {
-    return from + '||' + to;
-  }
-
-  function emptyRoute() {
-    return { km: '', t: '', v: '', h: '' };
-  }
-
   function setDinhMucLoading(show) {
     var loading = document.getElementById('khach-hang-dinh-muc-loading');
     var modal = document.getElementById('khach-hang-dinh-muc-modal');
-    if (loading) loading.style.display = show ? '' : 'none';
+    if (loading) {
+      loading.classList.toggle('is-active', !!show);
+      loading.style.display = show ? 'flex' : 'none';
+    }
     if (modal) {
       modal.querySelectorAll('input, button').forEach(function (el) {
         if (!el.classList.contains('btn-close')) el.disabled = !!show;
@@ -1525,19 +1512,13 @@
 
   function normalizeDinhMucPayload(payload) {
     payload = payload || {};
-    var seen = {};
-    var locations = [];
-    $.each(payload.locations || [], function (_, item) {
-      item = $.trim(String(item || ''));
-      var key = item.toLowerCase();
-      if (item && !seen[key]) {
-        seen[key] = true;
-        locations.push(item);
-      }
+    var routes = [];
+    $.each(payload.routes || [], function (_, route) {
+      route = normalizeDinhMucRule(route);
+      if (route) routes.push(route);
     });
     return {
-      locations: locations,
-      routes: payload.routes || {}
+      routes: routes
     };
   }
 
@@ -1545,16 +1526,16 @@
     id = parseInt(id, 10) || 0;
     if (!id) return;
 
-    ensureDinhMucLocationSelect();
+    ensureDinhMucLocationTags();
     DINH_MUC_STATE.customerId = id;
     DINH_MUC_STATE.customerName = '';
     DINH_MUC_STATE.original = null;
-    DINH_MUC_STATE.data = { locations: [], routes: {} };
+    DINH_MUC_STATE.data = { routes: [] };
     DINH_MUC_STATE.changed = false;
     document.getElementById('kh-dm-customer-name').value = '';
-    setDinhMucLocationValue('');
-    document.getElementById('kh-dm-matrix-head').innerHTML = '';
-    document.getElementById('kh-dm-matrix-body').innerHTML = '';
+    resetDinhMucRuleForm();
+    document.getElementById('kh-dm-rule-body').innerHTML = '';
+    updateDinhMucRuleCount();
     setDinhMucStatus('Đã lưu');
     setDinhMucLoading(true);
     modalShow('khach-hang-dinh-muc-modal');
@@ -1575,7 +1556,7 @@
         DINH_MUC_STATE.changed = false;
         document.getElementById('khach-hang-dinh-muc-title').textContent = 'Định mức - ' + DINH_MUC_STATE.customerName;
         document.getElementById('kh-dm-customer-name').value = DINH_MUC_STATE.customerName;
-        renderDinhMucMatrix();
+        renderDinhMucRules();
         setDinhMucStatus('Đã lưu');
       },
       error: function (jqXHR) {
@@ -1585,80 +1566,35 @@
     });
   }
 
-  function renderDinhMucMatrix() {
-    var locations = DINH_MUC_STATE.data.locations || [];
-    var head = '<tr><th><div class="kh-dm-corner">ĐI → ĐẾN</div></th>';
-    for (var i = 0; i < locations.length; i++) {
-      head += '<th data-col="' + i + '"><div class="kh-dm-place-head"><span>' + escapeHtml(locations[i]) + '</span>' +
-        '<button class="kh-dm-remove-location" type="button" data-location="' + escapeHtml(locations[i]) + '" title="Xóa">×</button>' +
-        '</div></th>';
-    }
-    head += '</tr>';
-    document.getElementById('kh-dm-matrix-head').innerHTML = head;
+  function initDinhMucLocationTags() {
+    initDinhMucTagify('kh-dm-from-tags', 'from');
+    initDinhMucTagify('kh-dm-to-tags', 'to');
+  }
 
-    var body = '';
-    for (var r = 0; r < locations.length; r++) {
-      var from = locations[r];
-      body += '<tr data-row="' + r + '"><th data-row="' + r + '"><div class="kh-dm-place-row"><span>' + escapeHtml(from) + '</span></div></th>';
-      for (var c = 0; c < locations.length; c++) {
-        body += renderDinhMucRouteCell(from, locations[c], r, c);
+  function initDinhMucTagify(id, type) {
+    var el = document.getElementById(id);
+    if (!el || typeof Tagify === 'undefined') return;
+    var current = type === 'from' ? tagifyDinhMucFrom : tagifyDinhMucTo;
+    if (current) {
+      current.settings.whitelist = DINH_MUC_LOCATION_LIST;
+      return;
+    }
+    var instance = new Tagify(el, {
+      whitelist: DINH_MUC_LOCATION_LIST,
+      enforceWhitelist: false,
+      dropdown: {
+        enabled: 0,
+        maxItems: 100,
+        closeOnSelect: false
       }
-      body += '</tr>';
-    }
-    document.getElementById('kh-dm-matrix-body').innerHTML = body || '<tr><td class="text-center text-muted py-5">Thêm địa điểm để cấu hình</td></tr>';
+    });
+    if (type === 'from') tagifyDinhMucFrom = instance;
+    else tagifyDinhMucTo = instance;
   }
 
-  function renderDinhMucRouteCell(from, to, rowIndex, colIndex) {
-    if (from === to) {
-      return '<td class="kh-dm-diagonal" data-row="' + rowIndex + '" data-col="' + colIndex + '"></td>';
-    }
-    var route = DINH_MUC_STATE.data.routes[routeKey(from, to)] || emptyRoute();
-    return '<td data-row="' + rowIndex + '" data-col="' + colIndex + '"><div class="kh-dm-route-cell" data-from="' + escapeHtml(from) + '" data-to="' + escapeHtml(to) + '">' +
-      renderDinhMucMini('km', 'KM', route.km, '0.1', '') +
-      renderDinhMucMini('t', 'T', route.t, '1', ' allowance') +
-      renderDinhMucMini('v', 'V', route.v, '1', ' allowance') +
-      renderDinhMucMini('h', 'H', route.h, '1', ' allowance') +
-      '</div></td>';
-  }
-
-  function renderDinhMucMini(field, label, value, step, extraClass) {
-    var mode = field === 'km' ? 'decimal' : 'numeric';
-    var displayValue = field === 'km' ? value : formatMoneyValue(value);
-    return '<div class="kh-dm-mini' + extraClass + '">' +
-      '<input class="kh-dm-route-input" data-field="' + field + '" type="text" inputmode="' + mode + '" pattern="[0-9]*" value="' + escapeHtml(displayValue) + '" placeholder="0" autocomplete="off">' +
-      '<span>' + label + '</span>' +
-      '</div>';
-  }
-
-  function initDinhMucLocationSelect() {
-    var selEl = document.getElementById('kh-dm-new-location');
-    if (!selEl) return;
-
-    selEl.innerHTML = '<option></option>';
-    for (var i = 0; i < DINH_MUC_LOCATION_LIST.length; i++) {
-      var opt = document.createElement('option');
-      opt.value = DINH_MUC_LOCATION_LIST[i];
-      opt.textContent = DINH_MUC_LOCATION_LIST[i];
-      selEl.appendChild(opt);
-    }
-
-    var $jq = _jqSelect2();
-    if ($jq) {
-      var $sel = $jq(selEl);
-      if ($sel.data('select2')) $sel.select2('destroy');
-      $sel.select2({
-        dropdownParent: $jq('#khach-hang-dinh-muc-modal'),
-        placeholder: 'Thêm địa điểm',
-        allowClear: true,
-        tags: true,
-        width: '100%'
-      });
-    }
-  }
-
-  function ensureDinhMucLocationSelect() {
+  function ensureDinhMucLocationTags() {
     if (DINH_MUC_LOCATION_LIST_LOADED) {
-      initDinhMucLocationSelect();
+      initDinhMucLocationTags();
       return;
     }
 
@@ -1687,63 +1623,55 @@
       complete: function () {
         DINH_MUC_LOCATION_LIST = names;
         DINH_MUC_LOCATION_LIST_LOADED = true;
-        initDinhMucLocationSelect();
+        initDinhMucLocationTags();
+        refreshDinhMucTagWhitelists();
       }
     });
   }
 
-  function getDinhMucLocationValue() {
-    var selEl = document.getElementById('kh-dm-new-location');
-    if (!selEl) return '';
-    var $jq = _jqSelect2();
-    if ($jq && $jq(selEl).data('select2')) {
-      return $jq.trim($jq(selEl).val() || '');
-    }
-    return $.trim(selEl.value || '');
+  function getDinhMucTagValues(instance) {
+    if (!instance) return [];
+    var values = [];
+    $.each(instance.value || [], function (_, item) {
+      var value = $.trim(item.value || '');
+      if (value && values.indexOf(value) === -1) values.push(value);
+    });
+    return values;
   }
 
-  function setDinhMucLocationValue(value) {
-    var selEl = document.getElementById('kh-dm-new-location');
-    if (!selEl) return;
-    var $jq = _jqSelect2();
-    if ($jq && $jq(selEl).data('select2')) {
-      $jq(selEl).val(value || null).trigger('change');
-      return;
-    }
-    selEl.value = value || '';
-  }
-
-  function clearDinhMucMatrixHover() {
-    var table = document.getElementById('kh-dm-matrix-table');
-    if (!table) return;
-    table.querySelectorAll('.kh-dm-highlight-row, .kh-dm-highlight-col, .kh-dm-highlight-cell').forEach(function (el) {
-      el.classList.remove('kh-dm-highlight-row', 'kh-dm-highlight-col', 'kh-dm-highlight-cell');
+  function resetDinhMucRuleForm() {
+    if (tagifyDinhMucFrom) tagifyDinhMucFrom.removeAllTags();
+    if (tagifyDinhMucTo) tagifyDinhMucTo.removeAllTags();
+    ['kh-dm-from-tags', 'kh-dm-to-tags', 'kh-dm-rule-km', 'kh-dm-rule-t', 'kh-dm-rule-v', 'kh-dm-rule-h'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
     });
   }
 
-  function handleDinhMucMatrixHover(e) {
-    var table = document.getElementById('kh-dm-matrix-table');
-    var target = e.target && e.target.closest ? e.target.closest('[data-row], [data-col]') : null;
-    if (!table || !target || !table.contains(target)) return;
+  function normalizeDinhMucRuleNumber(input) {
+    if (!input || !input.classList || !input.classList.contains('kh-dm-rule-number')) return;
+    var field = input.getAttribute('data-field') || '';
+    var isKm = input.id === 'kh-dm-rule-km' || field === 'km';
+    var value = String(input.value || '').replace(',', '.').replace(isKm ? /[^0-9.]/g : /[^0-9]/g, '');
+    if (isKm) {
+      var dot = value.indexOf('.');
+      if (dot !== -1) value = value.slice(0, dot + 1) + value.slice(dot + 1).replace(/\./g, '');
+      input.value = value;
+    }
+    else {
+      input.value = value ? moneyFormatter.format(Number(value)) : '';
+    }
+  }
 
-    clearDinhMucMatrixHover();
-
-    var row = target.getAttribute('data-row');
-    var col = target.getAttribute('data-col');
-    if (row !== null) {
-      table.querySelectorAll('[data-row="' + row + '"]').forEach(function (el) {
-        el.classList.add('kh-dm-highlight-row');
-      });
-    }
-    if (col !== null) {
-      table.querySelectorAll('[data-col="' + col + '"]').forEach(function (el) {
-        el.classList.add('kh-dm-highlight-col');
-      });
-    }
-    if (row !== null && col !== null) {
-      var cell = target.closest('td, th');
-      if (cell) cell.classList.add('kh-dm-highlight-cell');
-    }
+  function getDinhMucRuleFormData() {
+    return normalizeDinhMucRule({
+      from: getDinhMucTagValues(tagifyDinhMucFrom),
+      to: getDinhMucTagValues(tagifyDinhMucTo),
+      km: parseDistanceValue(document.getElementById('kh-dm-rule-km').value),
+      t: parseMoney(document.getElementById('kh-dm-rule-t').value),
+      v: parseMoney(document.getElementById('kh-dm-rule-v').value),
+      h: parseMoney(document.getElementById('kh-dm-rule-h').value)
+    });
   }
 
   function markDinhMucChanged(cell) {
@@ -1752,94 +1680,86 @@
     if (cell) cell.classList.add('is-changed');
   }
 
-  function updateDinhMucRouteInput(input) {
-    var cell = input.closest('.kh-dm-route-cell');
-    if (!cell) return;
-    var from = cell.getAttribute('data-from');
-    var to = cell.getAttribute('data-to');
-    var field = input.getAttribute('data-field');
-    var rawValue = String(input.value || '');
-    var cleaned = rawValue.replace(',', '.').replace(field === 'km' ? /[^0-9.]/g : /[^0-9]/g, '');
-    if (field === 'km') {
-      var dotIndex = cleaned.indexOf('.');
-      if (dotIndex !== -1) {
-        cleaned = cleaned.slice(0, dotIndex + 1) + cleaned.slice(dotIndex + 1).replace(/\./g, '');
-      }
-      if (input.value !== cleaned) {
-        input.value = cleaned;
-      }
-    }
-    else {
-      input.value = cleaned ? moneyFormatter.format(Number(cleaned)) : '';
-    }
-    var key = routeKey(from, to);
-    if (!DINH_MUC_STATE.data.routes[key]) {
-      DINH_MUC_STATE.data.routes[key] = emptyRoute();
-    }
-    DINH_MUC_STATE.data.routes[key][field] = cleaned === '' ? '' : Number(cleaned);
-    var route = DINH_MUC_STATE.data.routes[key];
-    if (route.km === '' && route.t === '' && route.v === '' && route.h === '') {
-      delete DINH_MUC_STATE.data.routes[key];
-    }
-    markDinhMucChanged(cell);
+  function normalizeDinhMucRule(route) {
+    if (!route || !$.isArray(route.from) || !$.isArray(route.to)) return null;
+    var from = uniqueStringList(route.from);
+    var to = uniqueStringList(route.to);
+    if (!from.length || !to.length) return null;
+    var km = parseDistanceValue(route.km);
+    var t = parseMoney(route.t);
+    var v = parseMoney(route.v);
+    var h = parseMoney(route.h);
+    if (km === '' && !t && !v && !h) return null;
+    return { from: from, to: to, km: km, t: t, v: v, h: h };
   }
 
-  function collectDinhMucRoutesFromDom() {
-    var routes = {};
-    var cells = document.querySelectorAll('#kh-dm-matrix-table .kh-dm-route-cell');
-    for (var i = 0; i < cells.length; i++) {
-      var cell = cells[i];
-      var from = cell.getAttribute('data-from');
-      var to = cell.getAttribute('data-to');
-      if (!from || !to || from === to) continue;
-
-      var route = emptyRoute();
-      var inputs = cell.querySelectorAll('.kh-dm-route-input');
-      for (var j = 0; j < inputs.length; j++) {
-        var input = inputs[j];
-        var field = input.getAttribute('data-field');
-        var rawValue = String(input.value || '');
-        var cleaned = rawValue.replace(',', '.').replace(field === 'km' ? /[^0-9.]/g : /[^0-9]/g, '');
-        if (field === 'km') {
-          var dotIndex = cleaned.indexOf('.');
-          if (dotIndex !== -1) {
-            cleaned = cleaned.slice(0, dotIndex + 1) + cleaned.slice(dotIndex + 1).replace(/\./g, '');
-          }
-        }
-        route[field] = cleaned === '' ? '' : Number(cleaned);
-      }
-
-      if (route.km !== '' || route.t !== '' || route.v !== '' || route.h !== '') {
-        routes[routeKey(from, to)] = route;
-      }
-    }
-    DINH_MUC_STATE.data.routes = routes;
-  }
-
-  function addDinhMucLocation() {
-    var name = getDinhMucLocationValue();
-    if (!name) return;
-    var exists = false;
-    $.each(DINH_MUC_STATE.data.locations, function (_, item) {
-      if (String(item).toLowerCase() === name.toLowerCase()) exists = true;
+  function uniqueStringList(items) {
+    var result = [];
+    $.each(items || [], function (_, item) {
+      item = $.trim(String(item || ''));
+      if (item && result.indexOf(item) === -1) result.push(item);
     });
-    if (exists) {
-      setDinhMucStatus('Địa điểm đã tồn tại', 'error');
+    return result;
+  }
+
+  function addDinhMucRuleFromForm() {
+    var route = getDinhMucRuleFormData();
+    if (!route) {
+      setDinhMucStatus('Thiếu dữ liệu định mức', 'error');
       return;
     }
-    DINH_MUC_STATE.data.locations.push(name);
-    setDinhMucLocationValue('');
+    if (hasDinhMucRouteConflict(route)) {
+      setDinhMucStatus('Trùng tuyến đã có', 'error');
+      if (notyf) notyf.error('Định mức bị trùng điểm đi - điểm đến');
+      return;
+    }
+    DINH_MUC_STATE.data.routes.push(route);
+    resetDinhMucRuleForm();
     markDinhMucChanged();
-    renderDinhMucMatrix();
+    renderDinhMucRules();
   }
 
-  function removeDinhMucLocation(name) {
-    if (!name) return;
+  function hasDinhMucRouteConflict(route) {
+    var existing = {};
+    $.each(DINH_MUC_STATE.data.routes || [], function (_, item) {
+      addDinhMucRouteKeys(existing, item);
+    });
+    var duplicate = false;
+    $.each(route.from || [], function (_, from) {
+      $.each(route.to || [], function (_, to) {
+        if (existing[dinhMucRoutePairKey(from, to)]) duplicate = true;
+      });
+    });
+    return duplicate;
+  }
 
+  function addDinhMucRouteKeys(map, route) {
+    $.each(route.from || [], function (_, from) {
+      $.each(route.to || [], function (_, to) {
+        map[dinhMucRoutePairKey(from, to)] = true;
+      });
+    });
+  }
+
+  function dinhMucRoutePairKey(from, to) {
+    return $.trim(String(from || '')).toLowerCase() + '=>' + $.trim(String(to || '')).toLowerCase();
+  }
+
+  function duplicateDinhMucRule(index) {
+    index = parseInt(index, 10);
+    if (isNaN(index) || index < 0 || index >= DINH_MUC_STATE.data.routes.length) return;
+    var route = DINH_MUC_STATE.data.routes[index];
+    DINH_MUC_STATE.data.routes.splice(index + 1, 0, cloneData(route));
+    markDinhMucChanged();
+    renderDinhMucRules();
+  }
+
+  function removeDinhMucRule(index) {
+    index = parseInt(index, 10);
+    if (isNaN(index) || index < 0 || index >= DINH_MUC_STATE.data.routes.length) return;
     if (typeof Swal !== 'undefined') {
       Swal.fire({
         title: 'Xác nhận xoá',
-        text: 'Bạn có chắc chắn muốn xoá địa điểm "' + name + '"?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Xoá',
@@ -1849,55 +1769,170 @@
         buttonsStyling: false
       }).then(function (result) {
         if (result.isConfirmed) {
-          doRemoveDinhMucLocation(name);
+          doRemoveDinhMucRule(index);
         }
       });
       return;
     }
-
-    if (window.confirm('Xóa địa điểm "' + name + '"?')) {
-      doRemoveDinhMucLocation(name);
+    if (window.confirm('Xóa định mức này?')) {
+      doRemoveDinhMucRule(index);
     }
   }
 
-  function doRemoveDinhMucLocation(name) {
-    DINH_MUC_STATE.data.locations = $.grep(DINH_MUC_STATE.data.locations, function (item) {
-      return item !== name;
-    });
-    var nextRoutes = {};
-    $.each(DINH_MUC_STATE.data.routes, function (key, route) {
-      var parts = key.split('||');
-      if (parts[0] !== name && parts[1] !== name) {
-        nextRoutes[key] = route;
-      }
-    });
-    DINH_MUC_STATE.data.routes = nextRoutes;
+  function doRemoveDinhMucRule(index) {
+    DINH_MUC_STATE.data.routes.splice(index, 1);
     markDinhMucChanged();
-    renderDinhMucMatrix();
+    renderDinhMucRules();
   }
 
-  function copyDinhMucOpposite() {
-    var copied = 0;
-    var locations = DINH_MUC_STATE.data.locations || [];
-    for (var i = 0; i < locations.length; i++) {
-      for (var j = 0; j < locations.length; j++) {
-        if (i === j) continue;
-        var sourceKey = routeKey(locations[i], locations[j]);
-        var targetKey = routeKey(locations[j], locations[i]);
-        var source = DINH_MUC_STATE.data.routes[sourceKey];
-        var target = DINH_MUC_STATE.data.routes[targetKey];
-        if (source && (!target || (target.km === '' && target.t === '' && target.v === '' && target.h === ''))) {
-          DINH_MUC_STATE.data.routes[targetKey] = cloneData(source);
-          copied++;
-        }
-      }
+  function handleDinhMucRuleAction(e) {
+    var btn = e.target.closest ? e.target.closest('[data-dm-action]') : null;
+    if (!btn) return;
+    var index = btn.getAttribute('data-index');
+    if (btn.getAttribute('data-dm-action') === 'duplicate') {
+      duplicateDinhMucRule(index);
     }
-    if (!copied) {
-      setDinhMucStatus('Không có ô trống để sao chép', 'error');
+    else if (btn.getAttribute('data-dm-action') === 'delete') {
+      removeDinhMucRule(index);
+    }
+  }
+
+  function renderDinhMucRules() {
+    var body = document.getElementById('kh-dm-rule-body');
+    if (!body) return;
+    var routes = DINH_MUC_STATE.data.routes || [];
+    if (!routes.length) {
+      body.innerHTML = '<tr><td colspan="8" class="kh-dm-rule-empty">Chưa có định mức</td></tr>';
+      updateDinhMucRuleCount();
       return;
     }
-    markDinhMucChanged();
-    renderDinhMucMatrix();
+    var html = '';
+    $.each(routes, function (index, route) {
+      html += '<tr>' +
+        '<td class="text-center"><span class="kh-dm-stt">' + (index + 1) + '</span></td>' +
+        '<td><input type="text" class="form-control kh-dm-row-tags kh-dm-row-from" data-index="' + index + '" data-field="from" placeholder="Điểm đi"></td>' +
+        '<td><input type="text" class="form-control kh-dm-row-tags kh-dm-row-to" data-index="' + index + '" data-field="to" placeholder="Điểm đến"></td>' +
+        '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number" data-index="' + index + '" data-field="km" inputmode="decimal" value="' + escapeHtml(route.km === '' ? '' : route.km) + '"></td>' +
+        '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number money-input" data-index="' + index + '" data-field="t" inputmode="numeric" value="' + escapeHtml(formatMoneyValue(route.t)) + '"></td>' +
+        '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number money-input" data-index="' + index + '" data-field="v" inputmode="numeric" value="' + escapeHtml(formatMoneyValue(route.v)) + '"></td>' +
+        '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number money-input" data-index="' + index + '" data-field="h" inputmode="numeric" value="' + escapeHtml(formatMoneyValue(route.h)) + '"></td>' +
+        '<td class="text-center"><div class="kh-dm-row-actions">' +
+          '<button type="button" class="btn btn-sm btn-icon btn-label-primary" data-dm-action="duplicate" data-index="' + index + '" title="Nhân bản"><i class="ti tabler-copy"></i></button>' +
+          '<button type="button" class="btn btn-sm btn-icon btn-label-danger" data-dm-action="delete" data-index="' + index + '"><i class="ti tabler-trash"></i></button>' +
+        '</div></td>' +
+        '</tr>';
+    });
+    body.innerHTML = html;
+    initDinhMucRowTags();
+    updateDinhMucRuleCount();
+  }
+
+  function initDinhMucRowTags() {
+    var inputs = document.querySelectorAll('#kh-dm-rule-body .kh-dm-row-tags');
+    for (var i = 0; i < inputs.length; i++) {
+      initDinhMucRowTagify(inputs[i]);
+    }
+  }
+
+  function initDinhMucRowTagify(el) {
+    if (!el || typeof Tagify === 'undefined') return;
+    var index = parseInt(el.getAttribute('data-index'), 10);
+    var field = el.getAttribute('data-field');
+    var route = DINH_MUC_STATE.data.routes[index];
+    if (!route || (field !== 'from' && field !== 'to')) return;
+    if (el.__tagify) {
+      el.__tagify.settings.whitelist = DINH_MUC_LOCATION_LIST;
+      return;
+    }
+
+    var instance = new Tagify(el, {
+      whitelist: DINH_MUC_LOCATION_LIST,
+      enforceWhitelist: false,
+      dropdown: {
+        enabled: 0,
+        maxItems: 100,
+        closeOnSelect: false
+      }
+    });
+    instance.addTags(route[field] || []);
+    instance.on('change', function () {
+      var next = getDinhMucTagValues(instance);
+      DINH_MUC_STATE.data.routes[index][field] = next;
+      markDinhMucChanged(el.closest('tr'));
+      updateDinhMucRuleCount();
+    });
+  }
+
+  function updateDinhMucRowNumber(input) {
+    if (!input || !input.classList || !input.classList.contains('kh-dm-row-number')) return;
+    var index = parseInt(input.getAttribute('data-index'), 10);
+    var field = input.getAttribute('data-field');
+    if (isNaN(index) || !DINH_MUC_STATE.data.routes[index] || ['km', 't', 'v', 'h'].indexOf(field) === -1) return;
+    DINH_MUC_STATE.data.routes[index][field] = field === 'km' ? parseDistanceValue(input.value) : parseMoney(input.value);
+    markDinhMucChanged(input.closest('tr'));
+  }
+
+  function updateDinhMucRuleCount() {
+    var el = document.getElementById('kh-dm-rule-count');
+    if (!el) return;
+    var routes = DINH_MUC_STATE.data.routes || [];
+    var totalRoutes = 0;
+    $.each(routes, function (_, route) {
+      totalRoutes += (route.from || []).length * (route.to || []).length;
+    });
+    el.textContent = routes.length + ' rule · ' + totalRoutes + ' tuyến';
+  }
+
+  function refreshDinhMucTagWhitelists() {
+    initDinhMucLocationTags();
+    var inputs = document.querySelectorAll('#kh-dm-rule-body .kh-dm-row-tags');
+    for (var i = 0; i < inputs.length; i++) {
+      if (inputs[i].__tagify) {
+        inputs[i].__tagify.settings.whitelist = DINH_MUC_LOCATION_LIST;
+      }
+    }
+  }
+
+  function validateDinhMucRulesBeforeSave() {
+    var seen = {};
+    var message = '';
+    var rows = document.querySelectorAll('#kh-dm-rule-body tr');
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].classList.remove('is-error');
+    }
+    $.each(DINH_MUC_STATE.data.routes || [], function (index, route) {
+      route = normalizeDinhMucRule(route);
+      if (!route) {
+        message = 'Thiếu dữ liệu định mức';
+      }
+      if (!message) {
+        $.each(route.from || [], function (_, from) {
+          $.each(route.to || [], function (_, to) {
+            if ($.trim(String(from || '')).toLowerCase() === $.trim(String(to || '')).toLowerCase()) {
+              message = 'Điểm đi và điểm đến bị trùng';
+              return false;
+            }
+            var key = dinhMucRoutePairKey(from, to);
+            if (seen[key]) {
+              message = 'Trùng tuyến định mức';
+              return false;
+            }
+            seen[key] = true;
+          });
+          if (message) return false;
+        });
+      }
+      if (message) {
+        if (rows[index]) rows[index].classList.add('is-error');
+        return false;
+      }
+    });
+    if (message) {
+      setDinhMucStatus(message, 'error');
+      if (notyf) notyf.error(message);
+      return false;
+    }
+    return true;
   }
 
   function exportDinhMucExcel() {
@@ -1905,7 +1940,6 @@
       if (notyf) notyf.error('Chưa tải được thư viện Excel');
       return;
     }
-    collectDinhMucRoutesFromDom();
     var rows = buildDinhMucExportRows();
     var aoa = [['STT', 'Điểm đi', 'Điểm đến', 'KM', 'Trống', 'Vỏ', 'Hàng']];
     for (var i = 0; i < rows.length; i++) {
@@ -1936,24 +1970,16 @@
 
   function buildDinhMucExportRows() {
     var rows = [];
-    var locations = DINH_MUC_STATE.data.locations || [];
-    for (var i = 0; i < locations.length; i++) {
-      for (var j = 0; j < locations.length; j++) {
-        if (i === j) continue;
-        var key = routeKey(locations[i], locations[j]);
-        var route = DINH_MUC_STATE.data.routes[key];
-        if (!route) continue;
-        if (route.km === '' && route.t === '' && route.v === '' && route.h === '') continue;
-        rows.push({
-          from: locations[i],
-          to: locations[j],
-          km: route.km === '' ? '' : route.km,
-          t: route.t || '',
-          v: route.v || '',
-          h: route.h || ''
-        });
-      }
-    }
+    $.each(DINH_MUC_STATE.data.routes || [], function (_, route) {
+      rows.push({
+        from: (route.from || []).join('; '),
+        to: (route.to || []).join('; '),
+        km: route.km === '' ? '' : route.km,
+        t: route.t || '',
+        v: route.v || '',
+        h: route.h || ''
+      });
+    });
     return rows;
   }
 
@@ -2019,9 +2045,9 @@
     var stats = { total: Math.max(0, rawRows.length - start), valid: 0, invalid: 0, duplicate: 0, applied: 0 };
     for (var r = start; r < rawRows.length; r++) {
       var row = rawRows[r];
-      var from = $.trim(row[map.diemdi] || '');
-      var to = $.trim(row[map.diemden] || '');
-      if (!from || !to || from === to) {
+      var from = splitDinhMucPlaces(row[map.diemdi]);
+      var to = splitDinhMucPlaces(row[map.diemden]);
+      if (!from.length || !to.length) {
         stats.invalid++;
         continue;
       }
@@ -2033,18 +2059,12 @@
         v: parseMoney(row[map.vo]),
         h: parseMoney(row[map.hang])
       };
-      if (route.km === '' && !route.t && !route.v && !route.h) {
+      route = normalizeDinhMucRule(route);
+      if (!route) {
         stats.invalid++;
         continue;
       }
-      result.push({
-        from: route.from,
-        to: route.to,
-        km: route.km,
-        t: route.t,
-        v: route.v,
-        h: route.h
-      });
+      result.push(route);
       stats.valid++;
     }
     result._stats = stats;
@@ -2053,34 +2073,31 @@
 
   function applyDinhMucImportRows(rows, stats) {
     stats = stats || { total: rows.length, valid: rows.length, invalid: 0, duplicate: 0, applied: 0 };
-    var locations = [];
+    var routes = [];
     var seen = {};
-    var routes = {};
     for (var i = 0; i < rows.length; i++) {
-      addImportedLocation(rows[i].from, locations, seen);
-      addImportedLocation(rows[i].to, locations, seen);
-      var key = routeKey(rows[i].from, rows[i].to);
-      if (routes[key]) stats.duplicate++;
-      routes[key] = {
-        km: rows[i].km,
-        t: rows[i].t,
-        v: rows[i].v,
-        h: rows[i].h
-      };
+      var duplicated = false;
+      $.each(rows[i].from || [], function (_, from) {
+        $.each(rows[i].to || [], function (_, to) {
+          if (seen[dinhMucRoutePairKey(from, to)]) duplicated = true;
+        });
+      });
+      if (duplicated) {
+        stats.duplicate++;
+        continue;
+      }
+      addDinhMucRouteKeys(seen, rows[i]);
+      routes.push(rows[i]);
     }
-    DINH_MUC_STATE.data.locations = locations;
     DINH_MUC_STATE.data.routes = routes;
     markDinhMucChanged();
-    renderDinhMucMatrix();
-    stats.applied = Object.keys(routes).length;
+    renderDinhMucRules();
+    stats.applied = routes.length;
     return stats;
   }
 
-  function addImportedLocation(name, locations, seen) {
-    var key = String(name || '').toLowerCase();
-    if (!key || seen[key]) return;
-    seen[key] = true;
-    locations.push(name);
+  function splitDinhMucPlaces(value) {
+    return uniqueStringList(String(value || '').split(';'));
   }
 
   function normalizeExcelHeader(value) {
@@ -2123,7 +2140,7 @@
 
   function saveDinhMucData() {
     if (!DINH_MUC_STATE.customerId) return;
-    collectDinhMucRoutesFromDom();
+    if (!validateDinhMucRulesBeforeSave()) return;
     setDinhMucLoading(true);
     $.ajax({
       url: '/api/khach-hang/' + DINH_MUC_STATE.customerId + '/dinh-muc',
@@ -2140,7 +2157,7 @@
         DINH_MUC_STATE.data = normalizeDinhMucPayload(res.data);
         DINH_MUC_STATE.original = cloneData(DINH_MUC_STATE.data);
         DINH_MUC_STATE.changed = false;
-        renderDinhMucMatrix();
+        renderDinhMucRules();
         setDinhMucStatus('Đã lưu');
         if (notyf) notyf.success('Đã lưu định mức');
       },
@@ -2165,7 +2182,7 @@
   }
 
   function escapeHtml(str) {
-    if (!str) return '';
+    if (str === null || typeof str === 'undefined') return '';
     return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')

@@ -142,7 +142,7 @@ function _khach_hang_int_value($value) {
 
 function _khach_hang_bang_gia_decode($json) {
   if (empty($json)) {
-    return array('bang_gia_cuoc' => array(), 'dinh_muc' => array('locations' => array(), 'routes' => array()));
+    return array('bang_gia_cuoc' => array(), 'dinh_muc' => array('routes' => array()));
   }
   $decoded = json_decode($json, TRUE);
   if (!is_array($decoded)) {
@@ -151,9 +151,8 @@ function _khach_hang_bang_gia_decode($json) {
   return array(
     'bang_gia_cuoc' => !empty($decoded['bang_gia_cuoc']) && is_array($decoded['bang_gia_cuoc']) ? $decoded['bang_gia_cuoc'] : array(),
     'dinh_muc' => !empty($decoded['dinh_muc']) && is_array($decoded['dinh_muc']) ? array(
-      'locations' => !empty($decoded['dinh_muc']['locations']) && is_array($decoded['dinh_muc']['locations']) ? $decoded['dinh_muc']['locations'] : array(),
       'routes' => !empty($decoded['dinh_muc']['routes']) && is_array($decoded['dinh_muc']['routes']) ? $decoded['dinh_muc']['routes'] : array(),
-    ) : array('locations' => array(), 'routes' => array()),
+    ) : array('routes' => array()),
   );
 }
 
@@ -161,7 +160,6 @@ function _khach_hang_bang_gia_encode(array $bang_gia_cuoc = array(), array $dinh
   return array(
     'bang_gia_cuoc' => $bang_gia_cuoc,
     'dinh_muc' => array(
-      'locations' => !empty($dinh_muc['locations']) && is_array($dinh_muc['locations']) ? $dinh_muc['locations'] : array(),
       'routes' => !empty($dinh_muc['routes']) && is_array($dinh_muc['routes']) ? $dinh_muc['routes'] : array(),
     ),
   );
@@ -664,28 +662,13 @@ function _khach_hang_dinh_muc_customer($id) {
   return db_query("SELECT nid, ten, ma_kh FROM {khach_hang} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
 }
 
-function _khach_hang_dinh_muc_default_locations(array $bang_gia_cuoc) {
-  $locations = array();
-  foreach ($bang_gia_cuoc['bang_gia_cuoc'] as $item) {
-    if (is_array($item) && !empty($item['dia_chi'])) {
-      $locations[] = trim($item['dia_chi']);
-    }
-  }
-  return array_values(array_unique(array_filter($locations)));
-}
-
 function _khach_hang_dinh_muc_load($id) {
   $json = db_query("SELECT bang_gia_cuoc FROM {khach_hang} WHERE nid = :id", array(':id' => $id))->fetchField();
   $bang_gia_cuoc = _khach_hang_bang_gia_decode($json);
   $data = $bang_gia_cuoc['dinh_muc'];
-  $locations = !empty($data['locations']) && is_array($data['locations']) ? $data['locations'] : array();
-  if (!$locations) {
-    $locations = _khach_hang_dinh_muc_default_locations($bang_gia_cuoc);
-  }
   $routes = !empty($data['routes']) && is_array($data['routes']) ? $data['routes'] : array();
 
   return array(
-    'locations' => array_values(array_unique(array_filter($locations))),
     'routes' => $routes,
   );
 }
@@ -707,7 +690,6 @@ function _khach_hang_dinh_muc_rest_get($id) {
       'ten' => $customer->ten,
       'ma_kh' => $customer->ma_kh ? $customer->ma_kh : '',
     ),
-    'locations' => $data['locations'],
     'routes' => $data['routes'],
   ));
 }
@@ -723,35 +705,61 @@ function _khach_hang_dinh_muc_rest_update($id) {
   }
 
   $input = _khach_hang_input();
-  $locations = !empty($input['locations']) && is_array($input['locations']) ? $input['locations'] : array();
   $routes = !empty($input['routes']) && is_array($input['routes']) ? $input['routes'] : array();
-
-  $clean_locations = array();
-  foreach ($locations as $location) {
-    $location = trim((string) $location);
-    if ($location !== '' && !in_array($location, $clean_locations, TRUE)) {
-      $clean_locations[] = $location;
-    }
-  }
 
   $transaction = db_transaction();
   try {
     $now = _khach_hang_now();
     $clean_routes = array();
-    foreach ($routes as $route_key => $route) {
+    $seen_pairs = array();
+    foreach ($routes as $route) {
       if (!is_array($route)) continue;
-      $parts = explode('||', (string) $route_key);
-      if (count($parts) !== 2) continue;
-      $diem_di = trim($parts[0]);
-      $diem_den = trim($parts[1]);
-      if ($diem_di === '' || $diem_den === '' || $diem_di === $diem_den) continue;
+      $from = !empty($route['from']) && is_array($route['from']) ? $route['from'] : array();
+      $to = !empty($route['to']) && is_array($route['to']) ? $route['to'] : array();
+      $clean_from = array();
+      $clean_to = array();
+
+      foreach ($from as $name) {
+        $name = trim((string) $name);
+        if ($name !== '' && !in_array($name, $clean_from, TRUE)) {
+          $clean_from[] = $name;
+        }
+      }
+      foreach ($to as $name) {
+        $name = trim((string) $name);
+        if ($name !== '' && !in_array($name, $clean_to, TRUE)) {
+          $clean_to[] = $name;
+        }
+      }
+      if (empty($clean_from) || empty($clean_to)) continue;
 
       $km = _khach_hang_num_or_null(isset($route['km']) ? $route['km'] : NULL);
       $t = _khach_hang_int_value(isset($route['t']) ? $route['t'] : 0);
       $v = _khach_hang_int_value(isset($route['v']) ? $route['v'] : 0);
       $h = _khach_hang_int_value(isset($route['h']) ? $route['h'] : 0);
       if ($km === NULL && !$t && !$v && !$h) continue;
-      $clean_routes[$diem_di . '||' . $diem_den] = array(
+
+      $has_duplicate_pair = FALSE;
+      foreach ($clean_from as $from_name) {
+        foreach ($clean_to as $to_name) {
+          $pair_key = drupal_strtolower($from_name) . '=>' . drupal_strtolower($to_name);
+          if (!empty($seen_pairs[$pair_key])) {
+            $has_duplicate_pair = TRUE;
+            break 2;
+          }
+        }
+      }
+      if ($has_duplicate_pair) continue;
+
+      foreach ($clean_from as $from_name) {
+        foreach ($clean_to as $to_name) {
+          $seen_pairs[drupal_strtolower($from_name) . '=>' . drupal_strtolower($to_name)] = TRUE;
+        }
+      }
+
+      $clean_routes[] = array(
+        'from' => $clean_from,
+        'to' => $clean_to,
         'km' => $km === NULL ? '' : (float) $km,
         't' => $t,
         'v' => $v,
@@ -760,10 +768,7 @@ function _khach_hang_dinh_muc_rest_update($id) {
     }
 
     $current_config = _khach_hang_bang_gia_decode(db_query("SELECT bang_gia_cuoc FROM {khach_hang} WHERE nid = :id", array(':id' => $id))->fetchField());
-    $next_config = _khach_hang_bang_gia_encode($current_config['bang_gia_cuoc'], array(
-      'locations' => $clean_locations,
-      'routes' => $clean_routes,
-    ));
+    $next_config = _khach_hang_bang_gia_encode($current_config['bang_gia_cuoc'], array('routes' => $clean_routes));
     db_update('khach_hang')
       ->fields(array(
         'bang_gia_cuoc' => json_encode($next_config),
@@ -780,7 +785,6 @@ function _khach_hang_dinh_muc_rest_update($id) {
         'ten' => $customer->ten,
         'ma_kh' => $customer->ma_kh ? $customer->ma_kh : '',
       ),
-      'locations' => $data['locations'],
       'routes' => $data['routes'],
     ));
   }

@@ -74,6 +74,281 @@
   line-height: 1.5;
   align-items: center;
 }
+
+/* Customer allowance rules */
+#khach-hang-dinh-muc-modal .modal-content {
+  overflow: hidden;
+  background: #f4f6f9;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-loading.is-active {
+  display: flex;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-symbol-note {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-app,
+#khach-hang-dinh-muc-modal .kh-dm-rule-app * {
+  box-sizing: border-box;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-app {
+  height: calc(100vh - 8.75rem);
+  min-height: calc(100vh - 8.75rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f4f6f9;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(140px, .7fr)
+    minmax(220px, 1.45fr)
+    minmax(220px, 1.45fr)
+    74px 128px 128px 128px auto auto;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #d8e0e9;
+  background: #f8fafc;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-customer {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-number,
+#khach-hang-dinh-muc-modal .kh-dm-row-number {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-number:focus,
+#khach-hang-dinh-muc-modal .kh-dm-row-number:focus {
+  border-color: #0b6bcb;
+  box-shadow: 0 0 0 2px rgba(11, 107, 203, .1);
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-number::-webkit-outer-spin-button,
+#khach-hang-dinh-muc-modal .kh-dm-rule-number::-webkit-inner-spin-button,
+#khach-hang-dinh-muc-modal .kh-dm-row-number::-webkit-outer-spin-button,
+#khach-hang-dinh-muc-modal .kh-dm-row-number::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-card {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  border: 1px solid #d8e0e9;
+  border-width: 0 0 1px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(20, 37, 63, .07);
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-table-wrap {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-table {
+  width: 100%;
+  min-width: 1060px;
+  margin: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-table th,
+#khach-hang-dinh-muc-modal .kh-dm-rule-table td {
+  border-right: 1px solid #e9edf2;
+  border-bottom: 1px solid #e9edf2;
+  vertical-align: middle;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-table th:last-child,
+#khach-hang-dinh-muc-modal .kh-dm-rule-table td:last-child {
+  border-right: 0;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  height: 34px;
+  padding: 0 7px;
+  background: #eef3f8;
+  color: #536075;
+  font-size: 11px;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-table tbody td {
+  height: 44px;
+  padding: 5px;
+  background: #fff;
+  font-size: 12px;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-table tbody tr:hover td {
+  background: #fbfdff;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-table tbody tr.is-dirty td {
+  background: #fffaf0;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-table tbody tr.is-error td {
+  background: #fff1f0;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-col-stt {
+  width: 48px;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-col-place {
+  width: 270px;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-col-number {
+  width: 92px;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-col-actions {
+  width: 86px;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-stt {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-empty {
+  height: 180px;
+  color: #98a2b3;
+  font-size: 28px;
+  font-weight: 800;
+  text-align: center;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-footer {
+  display: none;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-status {
+  font-weight: 800;
+  color: #16834a;
+  white-space: nowrap;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-status.is-unsaved {
+  color: #b26a00;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-status.is-error {
+  color: #d92d20;
+}
+
+#khach-hang-dinh-muc-modal .tagify {
+  min-height: 34px;
+  max-height: 66px;
+  overflow-y: auto;
+  border-color: #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 12px;
+}
+
+#khach-hang-dinh-muc-modal .tagify__tag {
+  margin: 3px 0 0 3px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+#khach-hang-dinh-muc-modal .tagify__tag > div {
+  border-radius: 5px;
+  background: #edf5ff;
+  color: #164f84;
+}
+
+#khach-hang-dinh-muc-modal .tagify--focus {
+  border-color: #0b6bcb;
+  box-shadow: 0 0 0 2px rgba(11, 107, 203, .1);
+}
+
+#khach-hang-dinh-muc-modal .tagify__input {
+  margin: 3px;
+  padding: 0;
+  font-size: 11px;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-table .tagify {
+  min-height: 31px;
+  max-height: 58px;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+@media (max-width: 1100px) {
+  #khach-hang-dinh-muc-modal .kh-dm-rule-toolbar {
+    grid-template-columns: repeat(4, minmax(90px, 1fr));
+  }
+
+  #khach-hang-dinh-muc-modal .kh-dm-customer,
+  #khach-hang-dinh-muc-modal #kh-dm-from-tags,
+  #khach-hang-dinh-muc-modal #kh-dm-to-tags {
+    grid-column: span 2;
+  }
+}
 #khach-hang-modal .tagify.tagify--focus {
   border-color: #86b7fe;
 }

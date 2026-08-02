@@ -5,6 +5,8 @@
 - Cac man hinh module nhu `khach_hang`, `ke_hoach_xep_xe`, `lai_xe`, `phuong_tien` dang attach CSS rieng bang `drupal_add_css(drupal_get_path('module', '<module_name>') . '/assets/css/<file>.css')`.
 - Theme `themes/edusoul/template.php` co logic reset toan bo CSS trong `edusoul_preprocess_html()`. Neu reset ma khong preserve lai CSS module thi screen se vao trang binh thuong nhung khong nhan style rieng cua module.
 - Da co fix preserve va add lai cac file theo pattern `modules/*/assets/css/*.css`. Khi debug screen nao mat CSS rieng, kiem tra logic nay truoc.
+- Luu y Drupal 7 `drupal_add_css()` tra ve mang flat `$css[$path] = $info`, khong phai mang long theo media. Preserve CSS module phai dung `foreach ($css as $path => $info)`, neu dung sai cau truc thi `$preserved_module_css` se rong va CSS module bi reset mat.
+- Khong attach CSS module noi bo bang `type => external` voi URL co query neu khong can thiet; nen dung `type => file`, `preprocess => FALSE`, `version => filemtime/filesize`.
 
 ## Loading animation
 
