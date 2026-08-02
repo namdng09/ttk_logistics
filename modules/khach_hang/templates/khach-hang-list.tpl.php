@@ -106,8 +106,8 @@
         <div class="kh-dm-rule-app">
           <div class="kh-dm-rule-toolbar">
             <input type="text" class="form-control kh-dm-customer" id="kh-dm-customer-name" readonly>
-            <input type="text" class="form-control kh-dm-tag-input" id="kh-dm-from-tags" placeholder="Điểm đi">
-            <input type="text" class="form-control kh-dm-tag-input" id="kh-dm-to-tags" placeholder="Điểm đến">
+            <input type="text" class="form-control kh-dm-tag-input" id="kh-dm-from-tags" placeholder="Địa điểm 1">
+            <input type="text" class="form-control kh-dm-tag-input" id="kh-dm-to-tags" placeholder="Địa điểm 2">
             <input type="text" class="form-control kh-dm-rule-number" id="kh-dm-rule-km" placeholder="KM" inputmode="decimal">
             <input type="text" class="form-control kh-dm-rule-number money-input" id="kh-dm-rule-t" placeholder="Trống" inputmode="numeric">
             <input type="text" class="form-control kh-dm-rule-number money-input" id="kh-dm-rule-v" placeholder="Vỏ" inputmode="numeric">
@@ -119,14 +119,20 @@
               <i class="ti tabler-reload me-1"></i>Reset
             </button>
           </div>
+          <div class="kh-dm-table-topbar">
+            <div class="kh-dm-rule-search input-group input-group-sm">
+              <span class="input-group-text"><i class="ti tabler-search"></i></span>
+              <input type="text" class="form-control" id="kh-dm-rule-search" placeholder="Tìm định mức">
+            </div>
+          </div>
           <div class="kh-dm-rule-card">
             <div class="kh-dm-rule-table-wrap">
               <table class="kh-dm-rule-table" id="kh-dm-rule-table">
                 <thead>
                   <tr>
                     <th class="kh-dm-col-stt">STT</th>
-                    <th class="kh-dm-col-place">Điểm đi</th>
-                    <th class="kh-dm-col-place">Điểm đến</th>
+                    <th class="kh-dm-col-place">Địa điểm 1</th>
+                    <th class="kh-dm-col-place">Địa điểm 2</th>
                     <th class="kh-dm-col-number">KM</th>
                     <th class="kh-dm-col-number">Trống</th>
                     <th class="kh-dm-col-number">Vỏ</th>

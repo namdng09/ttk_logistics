@@ -24,6 +24,7 @@
   var DIADIEM_LIST_LOADED = false;
   var DINH_MUC_LOCATION_LIST = [];
   var DINH_MUC_LOCATION_LIST_LOADED = false;
+  var DINH_MUC_RULE_FILTER = '';
   var FORM_SUPPORT_DATA_LOADED = false;
   var FORM_SUPPORT_DATA_LOADING = false;
   var FORM_SUPPORT_DATA_CALLBACKS = [];
@@ -282,6 +283,13 @@
     if (dmAddRule) dmAddRule.addEventListener('click', addDinhMucRuleFromForm);
     var dmResetRule = doc.getElementById('kh-dm-reset-rule');
     if (dmResetRule) dmResetRule.addEventListener('click', resetDinhMucRuleForm);
+    var dmRuleSearch = doc.getElementById('kh-dm-rule-search');
+    if (dmRuleSearch) {
+      dmRuleSearch.addEventListener('input', function () {
+        DINH_MUC_RULE_FILTER = $.trim(dmRuleSearch.value || '');
+        renderDinhMucRules();
+      });
+    }
     var dmExport = doc.getElementById('kh-dm-export');
     if (dmExport) dmExport.addEventListener('click', exportDinhMucExcel);
     var dmImport = doc.getElementById('kh-dm-import');
@@ -1532,7 +1540,10 @@
     DINH_MUC_STATE.original = null;
     DINH_MUC_STATE.data = { routes: [] };
     DINH_MUC_STATE.changed = false;
+    DINH_MUC_RULE_FILTER = '';
     document.getElementById('kh-dm-customer-name').value = '';
+    var searchInput = document.getElementById('kh-dm-rule-search');
+    if (searchInput) searchInput.value = '';
     resetDinhMucRuleForm();
     document.getElementById('kh-dm-rule-body').innerHTML = '';
     updateDinhMucRuleCount();
@@ -1590,6 +1601,8 @@
     });
     if (type === 'from') tagifyDinhMucFrom = instance;
     else tagifyDinhMucTo = instance;
+    instance.on('change', updateDinhMucAddTagWhitelists);
+    updateDinhMucAddTagWhitelists();
   }
 
   function ensureDinhMucLocationTags() {
@@ -1639,6 +1652,28 @@
     return values;
   }
 
+  function filterDinhMucLocationWhitelist(excludedItems) {
+    var excluded = {};
+    $.each(excludedItems || [], function (_, item) {
+      excluded[normalizeDinhMucLocationKey(item)] = true;
+    });
+    var result = [];
+    $.each(DINH_MUC_LOCATION_LIST || [], function (_, item) {
+      if (!excluded[normalizeDinhMucLocationKey(item)]) result.push(item);
+    });
+    return result;
+  }
+
+  function updateTagifyWhitelist(instance, excludedItems) {
+    if (!instance) return;
+    instance.settings.whitelist = filterDinhMucLocationWhitelist(excludedItems);
+  }
+
+  function updateDinhMucAddTagWhitelists() {
+    updateTagifyWhitelist(tagifyDinhMucFrom, getDinhMucTagValues(tagifyDinhMucTo));
+    updateTagifyWhitelist(tagifyDinhMucTo, getDinhMucTagValues(tagifyDinhMucFrom));
+  }
+
   function resetDinhMucRuleForm() {
     if (tagifyDinhMucFrom) tagifyDinhMucFrom.removeAllTags();
     if (tagifyDinhMucTo) tagifyDinhMucTo.removeAllTags();
@@ -1646,6 +1681,7 @@
       var el = document.getElementById(id);
       if (el) el.value = '';
     });
+    updateDinhMucAddTagWhitelists();
   }
 
   function normalizeDinhMucRuleNumber(input) {
@@ -1708,9 +1744,14 @@
       setDinhMucStatus('Thiếu dữ liệu định mức', 'error');
       return;
     }
+    if (hasDinhMucSameLocation(route)) {
+      setDinhMucStatus('Hai nhóm địa điểm không được trùng', 'error');
+      if (notyf) notyf.error('Hai nhóm địa điểm không được trùng nhau');
+      return;
+    }
     if (hasDinhMucRouteConflict(route)) {
       setDinhMucStatus('Trùng tuyến đã có', 'error');
-      if (notyf) notyf.error('Định mức bị trùng điểm đi - điểm đến');
+      if (notyf) notyf.error('Định mức bị trùng cặp địa điểm');
       return;
     }
     DINH_MUC_STATE.data.routes.push(route);
@@ -1733,6 +1774,18 @@
     return duplicate;
   }
 
+  function hasDinhMucSameLocation(route) {
+    var seen = {};
+    var duplicate = false;
+    $.each(route.from || [], function (_, item) {
+      seen[normalizeDinhMucLocationKey(item)] = true;
+    });
+    $.each(route.to || [], function (_, item) {
+      if (seen[normalizeDinhMucLocationKey(item)]) duplicate = true;
+    });
+    return duplicate;
+  }
+
   function addDinhMucRouteKeys(map, route) {
     $.each(route.from || [], function (_, from) {
       $.each(route.to || [], function (_, to) {
@@ -1742,7 +1795,11 @@
   }
 
   function dinhMucRoutePairKey(from, to) {
-    return $.trim(String(from || '')).toLowerCase() + '=>' + $.trim(String(to || '')).toLowerCase();
+    return normalizeDinhMucLocationKey(from) + '=>' + normalizeDinhMucLocationKey(to);
+  }
+
+  function normalizeDinhMucLocationKey(value) {
+    return $.trim(String(value || '')).toLowerCase();
   }
 
   function duplicateDinhMucRule(index) {
@@ -1806,12 +1863,20 @@
       updateDinhMucRuleCount();
       return;
     }
+    var filtered = getFilteredDinhMucRoutes(routes);
+    if (!filtered.length) {
+      body.innerHTML = '<tr><td colspan="8" class="kh-dm-rule-empty">Không có kết quả</td></tr>';
+      updateDinhMucRuleCount();
+      return;
+    }
     var html = '';
-    $.each(routes, function (index, route) {
+    $.each(filtered, function (visibleIndex, item) {
+      var index = item.index;
+      var route = item.route;
       html += '<tr>' +
-        '<td class="text-center"><span class="kh-dm-stt">' + (index + 1) + '</span></td>' +
-        '<td><input type="text" class="form-control kh-dm-row-tags kh-dm-row-from" data-index="' + index + '" data-field="from" placeholder="Điểm đi"></td>' +
-        '<td><input type="text" class="form-control kh-dm-row-tags kh-dm-row-to" data-index="' + index + '" data-field="to" placeholder="Điểm đến"></td>' +
+        '<td class="text-center"><span class="kh-dm-stt">' + (visibleIndex + 1) + '</span></td>' +
+        '<td><input type="text" class="form-control kh-dm-row-tags kh-dm-row-from" data-index="' + index + '" data-field="from" placeholder="Địa điểm 1"></td>' +
+        '<td><input type="text" class="form-control kh-dm-row-tags kh-dm-row-to" data-index="' + index + '" data-field="to" placeholder="Địa điểm 2"></td>' +
         '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number" data-index="' + index + '" data-field="km" inputmode="decimal" value="' + escapeHtml(route.km === '' ? '' : route.km) + '"></td>' +
         '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number money-input" data-index="' + index + '" data-field="t" inputmode="numeric" value="' + escapeHtml(formatMoneyValue(route.t)) + '"></td>' +
         '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number money-input" data-index="' + index + '" data-field="v" inputmode="numeric" value="' + escapeHtml(formatMoneyValue(route.v)) + '"></td>' +
@@ -1825,6 +1890,28 @@
     body.innerHTML = html;
     initDinhMucRowTags();
     updateDinhMucRuleCount();
+  }
+
+  function getFilteredDinhMucRoutes(routes) {
+    var keyword = normalizeDinhMucSearchText(DINH_MUC_RULE_FILTER);
+    var result = [];
+    $.each(routes || [], function (index, route) {
+      if (!keyword || normalizeDinhMucSearchText([
+        (route.from || []).join(' '),
+        (route.to || []).join(' '),
+        route.km,
+        route.t,
+        route.v,
+        route.h
+      ].join(' ')).indexOf(keyword) !== -1) {
+        result.push({ index: index, route: route });
+      }
+    });
+    return result;
+  }
+
+  function normalizeDinhMucSearchText(value) {
+    return removeVietnameseMarks(String(value || '').toLowerCase()).replace(/\s+/g, ' ').trim();
   }
 
   function initDinhMucRowTags() {
@@ -1841,12 +1928,12 @@
     var route = DINH_MUC_STATE.data.routes[index];
     if (!route || (field !== 'from' && field !== 'to')) return;
     if (el.__tagify) {
-      el.__tagify.settings.whitelist = DINH_MUC_LOCATION_LIST;
+      updateDinhMucRowTagWhitelists(index);
       return;
     }
 
     var instance = new Tagify(el, {
-      whitelist: DINH_MUC_LOCATION_LIST,
+      whitelist: filterDinhMucLocationWhitelist(field === 'from' ? route.to : route.from),
       enforceWhitelist: false,
       dropdown: {
         enabled: 0,
@@ -1858,9 +1945,19 @@
     instance.on('change', function () {
       var next = getDinhMucTagValues(instance);
       DINH_MUC_STATE.data.routes[index][field] = next;
+      updateDinhMucRowTagWhitelists(index);
       markDinhMucChanged(el.closest('tr'));
       updateDinhMucRuleCount();
     });
+  }
+
+  function updateDinhMucRowTagWhitelists(index) {
+    var route = DINH_MUC_STATE.data.routes[index];
+    if (!route) return;
+    var fromEl = document.querySelector('#kh-dm-rule-body .kh-dm-row-tags[data-index="' + index + '"][data-field="from"]');
+    var toEl = document.querySelector('#kh-dm-rule-body .kh-dm-row-tags[data-index="' + index + '"][data-field="to"]');
+    if (fromEl && fromEl.__tagify) updateTagifyWhitelist(fromEl.__tagify, route.to);
+    if (toEl && toEl.__tagify) updateTagifyWhitelist(toEl.__tagify, route.from);
   }
 
   function updateDinhMucRowNumber(input) {
@@ -1887,9 +1984,7 @@
     initDinhMucLocationTags();
     var inputs = document.querySelectorAll('#kh-dm-rule-body .kh-dm-row-tags');
     for (var i = 0; i < inputs.length; i++) {
-      if (inputs[i].__tagify) {
-        inputs[i].__tagify.settings.whitelist = DINH_MUC_LOCATION_LIST;
-      }
+      if (inputs[i].__tagify) updateDinhMucRowTagWhitelists(parseInt(inputs[i].getAttribute('data-index'), 10));
     }
   }
 
@@ -1909,7 +2004,7 @@
         $.each(route.from || [], function (_, from) {
           $.each(route.to || [], function (_, to) {
             if ($.trim(String(from || '')).toLowerCase() === $.trim(String(to || '')).toLowerCase()) {
-              message = 'Điểm đi và điểm đến bị trùng';
+              message = 'Hai nhóm địa điểm không được trùng';
               return false;
             }
             var key = dinhMucRoutePairKey(from, to);
@@ -1941,7 +2036,7 @@
       return;
     }
     var rows = buildDinhMucExportRows();
-    var aoa = [['STT', 'Điểm đi', 'Điểm đến', 'KM', 'Trống', 'Vỏ', 'Hàng']];
+    var aoa = [['STT', 'Địa điểm 1', 'Địa điểm 2', 'KM', 'Trống', 'Vỏ', 'Hàng']];
     for (var i = 0; i < rows.length; i++) {
       aoa.push([
         i + 1,
@@ -2029,15 +2124,19 @@
   function normalizeDinhMucImportRows(rawRows) {
     if (!rawRows.length) return [];
     var header = rawRows[0].map(normalizeExcelHeader);
-    var hasHeader = header.indexOf('diemdi') !== -1 && header.indexOf('diemden') !== -1;
+    var fromHeader = header.indexOf('diadiem1') !== -1 ? 'diadiem1' : 'diemdi';
+    var toHeader = header.indexOf('diadiem2') !== -1 ? 'diadiem2' : 'diemden';
+    var hasHeader = header.indexOf(fromHeader) !== -1 && header.indexOf(toHeader) !== -1;
     var map = {};
     if (hasHeader) {
       for (var i = 0; i < header.length; i++) {
         map[header[i]] = i;
       }
+      map.from = map[fromHeader];
+      map.to = map[toHeader];
     }
     else {
-      map = { diemdi: 1, diemden: 2, km: 3, trong: 4, vo: 5, hang: 6 };
+      map = { from: 1, to: 2, km: 3, trong: 4, vo: 5, hang: 6 };
     }
 
     var result = [];
@@ -2045,8 +2144,8 @@
     var stats = { total: Math.max(0, rawRows.length - start), valid: 0, invalid: 0, duplicate: 0, applied: 0 };
     for (var r = start; r < rawRows.length; r++) {
       var row = rawRows[r];
-      var from = splitDinhMucPlaces(row[map.diemdi]);
-      var to = splitDinhMucPlaces(row[map.diemden]);
+      var from = splitDinhMucPlaces(row[map.from]);
+      var to = splitDinhMucPlaces(row[map.to]);
       if (!from.length || !to.length) {
         stats.invalid++;
         continue;
