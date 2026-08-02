@@ -737,7 +737,6 @@ function _khach_hang_dinh_muc_rest_update($id) {
       $t = _khach_hang_int_value(isset($route['t']) ? $route['t'] : 0);
       $v = _khach_hang_int_value(isset($route['v']) ? $route['v'] : 0);
       $h = _khach_hang_int_value(isset($route['h']) ? $route['h'] : 0);
-      if ($km === NULL && !$t && !$v && !$h) continue;
 
       $has_duplicate_pair = FALSE;
       foreach ($clean_from as $from_name) {
@@ -760,7 +759,7 @@ function _khach_hang_dinh_muc_rest_update($id) {
       $clean_routes[] = array(
         'from' => $clean_from,
         'to' => $clean_to,
-        'km' => $km === NULL ? '' : (float) $km,
+        'km' => $km === NULL ? 0 : (float) $km,
         't' => $t,
         'v' => $v,
         'h' => $h,

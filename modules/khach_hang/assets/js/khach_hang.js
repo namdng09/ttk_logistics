@@ -25,6 +25,7 @@
   var DINH_MUC_LOCATION_LIST = [];
   var DINH_MUC_LOCATION_LIST_LOADED = false;
   var DINH_MUC_RULE_FILTER = '';
+  var DINH_MUC_RENDERING = false;
   var FORM_SUPPORT_DATA_LOADED = false;
   var FORM_SUPPORT_DATA_LOADING = false;
   var FORM_SUPPORT_DATA_CALLBACKS = [];
@@ -1711,9 +1712,15 @@
   }
 
   function markDinhMucChanged(cell) {
+    if (DINH_MUC_RENDERING) return;
     DINH_MUC_STATE.changed = true;
     setDinhMucStatus('Chưa lưu', 'unsaved');
     if (cell) cell.classList.add('is-changed');
+  }
+
+  function markDinhMucSaved() {
+    DINH_MUC_STATE.changed = false;
+    setDinhMucStatus('Đã lưu');
   }
 
   function normalizeDinhMucRule(route) {
@@ -1725,8 +1732,7 @@
     var t = parseMoney(route.t);
     var v = parseMoney(route.v);
     var h = parseMoney(route.h);
-    if (km === '' && !t && !v && !h) return null;
-    return { from: from, to: to, km: km, t: t, v: v, h: h };
+    return { from: from, to: to, km: km === '' ? 0 : km, t: t, v: v, h: h };
   }
 
   function uniqueStringList(items) {
@@ -1749,7 +1755,9 @@
       if (notyf) notyf.error('Hai nhóm địa điểm không được trùng nhau');
       return;
     }
-    if (hasDinhMucRouteConflict(route)) {
+    var conflictIndexes = getDinhMucConflictIndexes(route);
+    if (conflictIndexes.length) {
+      highlightDinhMucRows(conflictIndexes);
       setDinhMucStatus('Trùng tuyến đã có', 'error');
       if (notyf) notyf.error('Định mức bị trùng cặp địa điểm');
       return;
@@ -1760,18 +1768,22 @@
     renderDinhMucRules();
   }
 
-  function hasDinhMucRouteConflict(route) {
+  function getDinhMucConflictIndexes(route, ignoreIndex) {
     var existing = {};
-    $.each(DINH_MUC_STATE.data.routes || [], function (_, item) {
-      addDinhMucRouteKeys(existing, item);
+    $.each(DINH_MUC_STATE.data.routes || [], function (index, item) {
+      if (index === ignoreIndex) return;
+      addDinhMucRouteKeys(existing, item, index);
     });
-    var duplicate = false;
+    var indexes = [];
     $.each(route.from || [], function (_, from) {
       $.each(route.to || [], function (_, to) {
-        if (existing[dinhMucRoutePairKey(from, to)]) duplicate = true;
+        var pairIndexes = existing[dinhMucRoutePairKey(from, to)] || [];
+        $.each(pairIndexes, function (_, index) {
+          if (indexes.indexOf(index) === -1) indexes.push(index);
+        });
       });
     });
-    return duplicate;
+    return indexes;
   }
 
   function hasDinhMucSameLocation(route) {
@@ -1786,10 +1798,14 @@
     return duplicate;
   }
 
-  function addDinhMucRouteKeys(map, route) {
+  function addDinhMucRouteKeys(map, route, index) {
     $.each(route.from || [], function (_, from) {
       $.each(route.to || [], function (_, to) {
-        map[dinhMucRoutePairKey(from, to)] = true;
+        var key = dinhMucRoutePairKey(from, to);
+        if (!map[key]) map[key] = [];
+        if (typeof index !== 'undefined' && map[key].indexOf(index) === -1) {
+          map[key].push(index);
+        }
       });
     });
   }
@@ -1809,6 +1825,7 @@
     DINH_MUC_STATE.data.routes.splice(index + 1, 0, cloneData(route));
     markDinhMucChanged();
     renderDinhMucRules();
+    window.setTimeout(highlightDinhMucDuplicateRows, 0);
   }
 
   function removeDinhMucRule(index) {
@@ -1857,23 +1874,30 @@
   function renderDinhMucRules() {
     var body = document.getElementById('kh-dm-rule-body');
     if (!body) return;
+    DINH_MUC_RENDERING = true;
     var routes = DINH_MUC_STATE.data.routes || [];
     if (!routes.length) {
       body.innerHTML = '<tr><td colspan="8" class="kh-dm-rule-empty">Chưa có định mức</td></tr>';
       updateDinhMucRuleCount();
+      window.setTimeout(function () {
+        DINH_MUC_RENDERING = false;
+      }, 250);
       return;
     }
     var filtered = getFilteredDinhMucRoutes(routes);
     if (!filtered.length) {
       body.innerHTML = '<tr><td colspan="8" class="kh-dm-rule-empty">Không có kết quả</td></tr>';
       updateDinhMucRuleCount();
+      window.setTimeout(function () {
+        DINH_MUC_RENDERING = false;
+      }, 250);
       return;
     }
     var html = '';
     $.each(filtered, function (visibleIndex, item) {
       var index = item.index;
       var route = item.route;
-      html += '<tr>' +
+      html += '<tr data-index="' + index + '">' +
         '<td class="text-center"><span class="kh-dm-stt">' + (visibleIndex + 1) + '</span></td>' +
         '<td><input type="text" class="form-control kh-dm-row-tags kh-dm-row-from" data-index="' + index + '" data-field="from" placeholder="Địa điểm 1"></td>' +
         '<td><input type="text" class="form-control kh-dm-row-tags kh-dm-row-to" data-index="' + index + '" data-field="to" placeholder="Địa điểm 2"></td>' +
@@ -1889,6 +1913,9 @@
     });
     body.innerHTML = html;
     initDinhMucRowTags();
+    window.setTimeout(function () {
+      DINH_MUC_RENDERING = false;
+    }, 250);
     updateDinhMucRuleCount();
   }
 
@@ -1947,6 +1974,7 @@
       DINH_MUC_STATE.data.routes[index][field] = next;
       updateDinhMucRowTagWhitelists(index);
       markDinhMucChanged(el.closest('tr'));
+      highlightDinhMucDuplicateRows();
       updateDinhMucRuleCount();
     });
   }
@@ -1967,6 +1995,51 @@
     if (isNaN(index) || !DINH_MUC_STATE.data.routes[index] || ['km', 't', 'v', 'h'].indexOf(field) === -1) return;
     DINH_MUC_STATE.data.routes[index][field] = field === 'km' ? parseDistanceValue(input.value) : parseMoney(input.value);
     markDinhMucChanged(input.closest('tr'));
+    highlightDinhMucDuplicateRows();
+  }
+
+  function clearDinhMucRowHighlights() {
+    var rows = document.querySelectorAll('#kh-dm-rule-body tr');
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].classList.remove('is-error');
+    }
+  }
+
+  function highlightDinhMucRows(indexes) {
+    clearDinhMucRowHighlights();
+    $.each(indexes || [], function (_, index) {
+      var row = document.querySelector('#kh-dm-rule-body tr[data-index="' + index + '"]');
+      if (row) row.classList.add('is-error');
+    });
+  }
+
+  function highlightDinhMucDuplicateRows() {
+    var seen = {};
+    var duplicateIndexes = [];
+    $.each(DINH_MUC_STATE.data.routes || [], function (index, route) {
+      route = normalizeDinhMucRule(route);
+      if (!route) {
+        if (duplicateIndexes.indexOf(index) === -1) duplicateIndexes.push(index);
+        return;
+      }
+      if (hasDinhMucSameLocation(route) && duplicateIndexes.indexOf(index) === -1) {
+        duplicateIndexes.push(index);
+      }
+      $.each(route.from || [], function (_, from) {
+        $.each(route.to || [], function (_, to) {
+          var key = dinhMucRoutePairKey(from, to);
+          if (typeof seen[key] !== 'undefined') {
+            if (duplicateIndexes.indexOf(seen[key]) === -1) duplicateIndexes.push(seen[key]);
+            if (duplicateIndexes.indexOf(index) === -1) duplicateIndexes.push(index);
+          }
+          else {
+            seen[key] = index;
+          }
+        });
+      });
+    });
+    highlightDinhMucRows(duplicateIndexes);
+    return duplicateIndexes;
   }
 
   function updateDinhMucRuleCount() {
@@ -1991,42 +2064,44 @@
   function validateDinhMucRulesBeforeSave() {
     var seen = {};
     var message = '';
-    var rows = document.querySelectorAll('#kh-dm-rule-body tr');
-    for (var i = 0; i < rows.length; i++) {
-      rows[i].classList.remove('is-error');
-    }
+    var errorIndexes = [];
     $.each(DINH_MUC_STATE.data.routes || [], function (index, route) {
       route = normalizeDinhMucRule(route);
       if (!route) {
         message = 'Thiếu dữ liệu định mức';
+        errorIndexes.push(index);
       }
       if (!message) {
         $.each(route.from || [], function (_, from) {
           $.each(route.to || [], function (_, to) {
             if ($.trim(String(from || '')).toLowerCase() === $.trim(String(to || '')).toLowerCase()) {
               message = 'Hai nhóm địa điểm không được trùng';
+              errorIndexes.push(index);
               return false;
             }
             var key = dinhMucRoutePairKey(from, to);
-            if (seen[key]) {
+            if (typeof seen[key] !== 'undefined') {
               message = 'Trùng tuyến định mức';
+              errorIndexes.push(seen[key]);
+              errorIndexes.push(index);
               return false;
             }
-            seen[key] = true;
+            seen[key] = index;
           });
           if (message) return false;
         });
       }
       if (message) {
-        if (rows[index]) rows[index].classList.add('is-error');
         return false;
       }
     });
     if (message) {
+      highlightDinhMucRows(errorIndexes);
       setDinhMucStatus(message, 'error');
       if (notyf) notyf.error(message);
       return false;
     }
+    clearDinhMucRowHighlights();
     return true;
   }
 
@@ -2255,9 +2330,9 @@
         }
         DINH_MUC_STATE.data = normalizeDinhMucPayload(res.data);
         DINH_MUC_STATE.original = cloneData(DINH_MUC_STATE.data);
-        DINH_MUC_STATE.changed = false;
+        markDinhMucSaved();
         renderDinhMucRules();
-        setDinhMucStatus('Đã lưu');
+        window.setTimeout(markDinhMucSaved, 300);
         if (notyf) notyf.success('Đã lưu định mức');
       },
       error: function (jqXHR) {
