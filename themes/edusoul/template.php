@@ -138,7 +138,13 @@ function getMainMenuSoft()
                     <li class="menu-item' . ((strpos(current_path(), 'giao-dich-ops') === 0) ? ' active' : '') . '">
                         <a href="/giao-dich-ops" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-wallet"></i>
-                            <div data-i18n="Giao dịch OPS">Giao dịch OPS</div>
+                            <div data-i18n="Sổ chi phí lái xe">Sổ chi phí lái xe</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'duyet-de-nghi-ung-ops') === 0) ? ' active' : '') . '">
+                        <a href="/duyet-de-nghi-ung-ops" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-clipboard-check"></i>
+                            <div data-i18n="Duyệt chi phí lái xe">Duyệt chi phí lái xe</div>
                         </a>
                     </li>
 

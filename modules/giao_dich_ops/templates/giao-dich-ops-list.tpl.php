@@ -1,7 +1,7 @@
 <div id="giao-dich-ops-app">
   <div class="card">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-      <h4 class="card-title mb-0">Giao dịch ứng - hoàn ứng OPS</h4>
+      <h4 class="card-title mb-0">Sổ chi phí lái xe</h4>
       <div class="d-flex gap-2">
         <button type="button" class="btn btn-label-secondary" id="btn-open-filter-giao-dich-ops">
           <i class="ti tabler-filter me-1"></i>Tìm kiếm
@@ -19,7 +19,7 @@
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between gap-3">
                 <div>
-                  <div class="text-muted small mb-1">Tổng giao dịch</div>
+                  <div class="text-muted small mb-1">Tổng dòng chi phí</div>
                   <div class="h5 mb-0 fw-bold" data-kpi="total">0</div>
                 </div>
                 <span class="ops-wallet-kpi-icon">
@@ -64,7 +64,7 @@
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between gap-3">
                 <div>
-                  <div class="text-muted small mb-1">Số dư sau cùng</div>
+                  <div class="text-muted small mb-1">Số dư tạm ứng</div>
                   <div class="h5 mb-0 fw-bold" data-kpi="balance">0 đ</div>
                 </div>
                 <span class="ops-wallet-kpi-icon">
@@ -84,7 +84,7 @@
               <th style="width:50px">#</th>
               <th style="width:145px">Thời gian</th>
               <th style="width:145px">Mã GD</th>
-              <th style="width:160px">OPS / Lái xe</th>
+              <th style="width:160px">N.Viên / L.Xe</th>
               <th style="width:90px">Hướng</th>
               <th style="width:130px">Loại</th>
               <th style="width:130px" class="text-end">Số tiền</th>
@@ -127,7 +127,7 @@
     <div class="modal-content">
       <form id="form-filter-giao-dich-ops">
         <div class="modal-header">
-          <h5 class="modal-title">Tìm kiếm giao dịch OPS</h5>
+          <h5 class="modal-title">Tìm kiếm chi phí lái xe</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
@@ -156,8 +156,8 @@
               <label class="form-label">Nghiệp vụ</label>
               <select class="form-select" name="loai_giao_dich">
                 <option value="">Tất cả</option>
-                <option value="ung_tien">Ứng tiền</option>
-                <option value="bo_sung_ung">Bổ sung ứng</option>
+                <option value="ung_tien">Công ty chi trả</option>
+                <option value="bo_sung_ung">Bổ sung chi trả</option>
                 <option value="quyet_toan_chi_phi">Quyết toán chi phí</option>
                 <option value="hoan_tien_thua">Hoàn tiền thừa</option>
                 <option value="cong_ty_hoan_them">Công ty hoàn thêm</option>
@@ -192,7 +192,7 @@
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Chi tiết giao dịch OPS</h5>
+        <h5 class="modal-title">Chi tiết chi phí lái xe</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body position-relative">

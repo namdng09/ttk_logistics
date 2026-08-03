@@ -1,51 +1,62 @@
 #giao-dich-ops-app .table th,
-#giao-dich-ops-app .table td {
+#giao-dich-ops-app .table td,
+#giao-dich-ops-approve-app .table th,
+#giao-dich-ops-approve-app .table td {
   white-space: nowrap;
   font-size: 0.85rem;
   vertical-align: middle;
 }
 
-#giao-dich-ops-app .ops-desc-cell {
+#giao-dich-ops-app .ops-desc-cell,
+#giao-dich-ops-approve-app .ops-desc-cell {
   min-width: 220px;
   white-space: normal;
 }
 
-#giao-dich-ops-app .ops-code {
+#giao-dich-ops-app .ops-code,
+#giao-dich-ops-approve-app .ops-code {
   font-family: monospace;
   font-size: 0.8rem;
 }
 
-#giao-dich-ops-app .ops-person-main {
+#giao-dich-ops-app .ops-person-main,
+#giao-dich-ops-approve-app .ops-person-main {
   font-weight: 600;
   color: #4b465c;
 }
 
-#giao-dich-ops-app .ops-person-sub {
+#giao-dich-ops-app .ops-person-sub,
+#giao-dich-ops-approve-app .ops-person-sub {
   color: #6d6b77;
   font-size: 0.78rem;
 }
 
-#giao-dich-ops-app .ops-wallet-kpi {
+#giao-dich-ops-app .ops-wallet-kpi,
+#giao-dich-ops-approve-app .ops-wallet-kpi {
   border: 0;
   border-radius: 12px;
   box-shadow: 0 .125rem .375rem rgba(67, 89, 113, .08);
 }
 
-#giao-dich-ops-app .ops-wallet-kpi .card-body {
+#giao-dich-ops-app .ops-wallet-kpi .card-body,
+#giao-dich-ops-approve-app .ops-wallet-kpi .card-body {
   padding: .55rem .8rem;
 }
 
-#giao-dich-ops-app .ops-wallet-kpi .text-muted.small {
+#giao-dich-ops-app .ops-wallet-kpi .text-muted.small,
+#giao-dich-ops-approve-app .ops-wallet-kpi .text-muted.small {
   font-size: .76rem;
   line-height: 1.1;
 }
 
-#giao-dich-ops-app .ops-wallet-kpi .h5 {
+#giao-dich-ops-app .ops-wallet-kpi .h5,
+#giao-dich-ops-approve-app .ops-wallet-kpi .h5 {
   font-size: 1rem;
   line-height: 1.15;
 }
 
-#giao-dich-ops-app .ops-wallet-kpi-icon {
+#giao-dich-ops-app .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-icon {
   width: 32px !important;
   min-width: 32px !important;
   height: 32px !important;
@@ -57,29 +68,40 @@
   line-height: 1;
 }
 
-#giao-dich-ops-app .ops-wallet-kpi-icon i {
+#giao-dich-ops-app .ops-wallet-kpi-icon i,
+#giao-dich-ops-approve-app .ops-wallet-kpi-icon i {
   font-size: 17px;
   line-height: 1;
 }
 
-#giao-dich-ops-app .ops-wallet-kpi-primary .ops-wallet-kpi-icon {
+#giao-dich-ops-app .ops-wallet-kpi-primary .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-primary .ops-wallet-kpi-icon {
   background: #f4efff !important;
   color: #7367f0 !important;
 }
 
-#giao-dich-ops-app .ops-wallet-kpi-success .ops-wallet-kpi-icon {
+#giao-dich-ops-app .ops-wallet-kpi-success .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-success .ops-wallet-kpi-icon {
   background: #e8fadf !important;
   color: #28c76f !important;
 }
 
-#giao-dich-ops-app .ops-wallet-kpi-danger .ops-wallet-kpi-icon {
+#giao-dich-ops-app .ops-wallet-kpi-danger .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-danger .ops-wallet-kpi-icon {
   background: #ffe2e3 !important;
   color: #ea5455 !important;
 }
 
-#giao-dich-ops-app .ops-wallet-kpi-info .ops-wallet-kpi-icon {
+#giao-dich-ops-app .ops-wallet-kpi-info .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-info .ops-wallet-kpi-icon {
   background: #d9f8fc !important;
   color: #00bad1 !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-warning .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-warning .ops-wallet-kpi-icon {
+  background: #fff1de !important;
+  color: #ff9f43 !important;
 }
 
 #giao-dich-ops-app .ops-wallet-kpi-success [data-kpi="credit"],
@@ -125,7 +147,8 @@
   font-size: .82rem;
 }
 
-#giao-dich-ops-app .ops-money-pill {
+#giao-dich-ops-app .ops-money-pill,
+#giao-dich-ops-approve-app .ops-money-pill {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
@@ -134,11 +157,13 @@
   font-size: .88rem;
 }
 
-#giao-dich-ops-app .ops-money-pill-credit {
+#giao-dich-ops-app .ops-money-pill-credit,
+#giao-dich-ops-approve-app .ops-money-pill-credit {
   color: #28c76f !important;
 }
 
-#giao-dich-ops-app .ops-money-pill-debit {
+#giao-dich-ops-app .ops-money-pill-debit,
+#giao-dich-ops-approve-app .ops-money-pill-debit {
   color: #ea5455 !important;
 }
 

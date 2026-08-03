@@ -208,7 +208,7 @@
       ['Số tiền', formatMoney(item.so_tien)],
       ['Số dư trước', formatMoney(item.so_du_truoc)],
       ['Số dư sau', formatMoney(item.so_du_sau)],
-      ['OPS', item.ops_ten || item.uid_ops],
+      ['Nhân sự', item.ops_ten || item.uid_ops],
       ['Lái xe', item.lai_xe_ten || item.nid_lai_xe],
       ['Booking', item.so_bkg],
       ['Tham chiếu', (item.tham_chieu_loai || '') + (item.tham_chieu_id ? ' #' + item.tham_chieu_id : '')],

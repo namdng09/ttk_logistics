@@ -65,8 +65,14 @@ function giao_dich_ops_menu() {
   );
 
   $items['giao-dich-ops'] = array(
-    'title' => 'Giao dịch OPS',
+    'title' => 'Sổ chi phí lái xe',
     'page callback' => 'giao_dich_ops_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['duyet-de-nghi-ung-ops'] = array(
+    'title' => 'Duyệt chi phí lái xe',
+    'page callback' => 'giao_dich_ops_approve_page',
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
   );
@@ -79,6 +85,10 @@ function giao_dich_ops_theme() {
   return array(
     'giao_dich_ops_list_page' => array(
       'template' => 'giao-dich-ops-list',
+      'path' => $path,
+    ),
+    'giao_dich_ops_approve_page' => array(
+      'template' => 'giao-dich-ops-approve',
       'path' => $path,
     ),
   );
@@ -210,8 +220,8 @@ function giao_dich_ops_direction_label($huong) {
 
 function giao_dich_ops_type_label($type) {
   $labels = array(
-    'ung_tien' => 'Ứng tiền',
-    'bo_sung_ung' => 'Bổ sung ứng',
+    'ung_tien' => 'Công ty chi trả',
+    'bo_sung_ung' => 'Bổ sung chi trả',
     'quyet_toan_chi_phi' => 'Quyết toán chi phí',
     'hoan_tien_thua' => 'Hoàn tiền thừa',
     'cong_ty_hoan_them' => 'Công ty hoàn thêm',
@@ -227,7 +237,7 @@ function giao_dich_ops_status_label($status) {
     'cho_duyet' => 'Chờ duyệt',
     'da_duyet' => 'Đã duyệt',
     'tu_choi' => 'Từ chối',
-    'da_thanh_toan' => 'Đã thanh toán',
+    'da_thanh_toan' => 'Đã chi trả',
     'huy' => 'Hủy',
   );
   return isset($labels[$status]) ? $labels[$status] : $status;
@@ -484,6 +494,18 @@ function _giao_dich_ops_advance_list() {
   if (!empty($_GET['ops_uid'])) $query->condition('dn.uid_ops', (int) $_GET['ops_uid']);
   if (!empty($_GET['nid_lai_xe'])) $query->condition('dn.nid_lai_xe', (int) $_GET['nid_lai_xe']);
   if (!empty($_GET['lai_xe_id'])) $query->condition('dn.nid_lai_xe', (int) $_GET['lai_xe_id']);
+  if (!empty($_GET['date_from'])) $query->condition('dn.created', trim($_GET['date_from']) . ' 00:00:00', '>=');
+  if (!empty($_GET['date_to'])) $query->condition('dn.created', trim($_GET['date_to']) . ' 23:59:59', '<=');
+  if (isset($_GET['amount_min']) && $_GET['amount_min'] !== '') $query->condition('dn.so_tien', _giao_dich_ops_money($_GET['amount_min']), '>=');
+  if (isset($_GET['amount_max']) && $_GET['amount_max'] !== '') $query->condition('dn.so_tien', _giao_dich_ops_money($_GET['amount_max']), '<=');
+  if (!empty($_GET['ledger_status'])) {
+    if ($_GET['ledger_status'] === 'da_ghi') {
+      $query->condition('dn.nid_ledger', 0, '>');
+    }
+    elseif ($_GET['ledger_status'] === 'chua_ghi') {
+      $query->condition('dn.nid_ledger', 0);
+    }
+  }
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like(trim($_GET['keyword'])) . '%';
     $query->condition(db_or()
@@ -673,4 +695,27 @@ function giao_dich_ops_page_list() {
   )), 'setting');
 
   return theme('giao_dich_ops_list_page');
+}
+
+function giao_dich_ops_approve_page() {
+  $path = drupal_get_path('module', 'giao_dich_ops');
+  drupal_add_css($path . '/assets/css/giao_dich_ops.css', array(
+    'preprocess' => FALSE,
+    'weight' => 100,
+    'version' => REQUEST_TIME,
+  ));
+  drupal_add_js($path . '/assets/js/giao_dich_ops_approve.js', array(
+    'preprocess' => FALSE,
+    'weight' => 100,
+    'version' => REQUEST_TIME,
+  ));
+  drupal_add_js(array('giao_dich_ops_approve' => array(
+    'permissions' => array(
+      'giao_dich_ops_view' => user_access('giao_dich_ops_view'),
+      'giao_dich_ops_approve' => user_access('giao_dich_ops_approve') || user_access('administer permissions'),
+      'giao_dich_ops_delete' => user_access('giao_dich_ops_delete'),
+    ),
+  )), 'setting');
+
+  return theme('giao_dich_ops_approve_page');
 }
