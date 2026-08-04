@@ -221,26 +221,40 @@ function ke_hoach_xep_xe_schema() {
     ),
   );
 
-  $schema['ke_hoach_tuyen_xa_chi_phi'] = array(
-    'description' => 'Chi phí của kế hoạch tuyến xa.',
+  $schema['ke_hoach_chi_phi'] = array(
+    'description' => 'Chi phí chung của kế hoạch xếp xe.',
     'fields' => array(
-      'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
-      'ke_hoach_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
-      'chang_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
-      'loai_chi_phi' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
-      'ten_chi_phi' => array('type' => 'varchar', 'length' => 255, 'not null' => FALSE),
-      'so_tien' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
-      'ngay' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
-      'is_co_dinh' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
-      'thong_tin_json' => array('type' => 'text', 'not null' => FALSE),
+      'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'nid_ke_hoach' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'loai_ke_hoach' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'thuong'),
+      'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'loai_chi_phi' => array('type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''),
+      'ten_chi_phi' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'don_gia' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'so_luong' => array('type' => 'numeric', 'precision' => 12, 'scale' => 2, 'not null' => TRUE, 'default' => 1),
+      'tong_truoc_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'vat_percent' => array('type' => 'numeric', 'precision' => 5, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'tong_sau_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'trang_thai_duyet' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'khong_can_duyet'),
+      'nid_de_nghi_chi_phi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_ledger' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+      'thong_tin_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
       'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
       'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
       'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
     ),
-    'primary key' => array('id'),
+    'primary key' => array('nid'),
     'indexes' => array(
-      'ke_hoach_id' => array('ke_hoach_id'),
+      'nid_ke_hoach' => array('nid_ke_hoach'),
+      'loai_ke_hoach' => array('loai_ke_hoach'),
+      'nid_lai_xe' => array('nid_lai_xe'),
+      'loai_chi_phi' => array('loai_chi_phi'),
+      'trang_thai_duyet' => array('trang_thai_duyet'),
+      'nid_de_nghi_chi_phi' => array('nid_de_nghi_chi_phi'),
+      'nid_ledger' => array('nid_ledger'),
       'hoat_dong' => array('hoat_dong'),
+      'created' => array('created'),
     ),
   );
 
@@ -374,7 +388,7 @@ function ke_hoach_xep_xe_update_7008() {
 
 function ke_hoach_xep_xe_update_7009() {
   $schema = ke_hoach_xep_xe_schema();
-  $tables = array('ke_hoach_tuyen_xa_chang', 'ke_hoach_tuyen_xa_chi_phi', 'ke_hoach_tuyen_xa_dau');
+  $tables = array('ke_hoach_tuyen_xa_chang', 'ke_hoach_tuyen_xa_dau');
   foreach ($tables as $table) {
     if (!db_table_exists($table)) {
       db_create_table($table, $schema[$table]);
@@ -488,4 +502,74 @@ function ke_hoach_xep_xe_update_7015() {
   }
 
   return 'Đã thêm field bai_lay_thuc_te cho kế hoạch xếp xe.';
+}
+
+function ke_hoach_xep_xe_update_7016() {
+  $schema = ke_hoach_xep_xe_schema();
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    db_create_table('ke_hoach_chi_phi', $schema['ke_hoach_chi_phi']);
+  }
+
+  if (!db_table_exists('ke_hoach_tuyen_xa_chi_phi')) {
+    return 'Đã tạo bảng ke_hoach_chi_phi. Không có bảng chi phí tuyến xa cũ để migrate.';
+  }
+
+  $count_new = db_query("SELECT COUNT(*) FROM {ke_hoach_chi_phi}")->fetchField();
+  if ((int) $count_new > 0) {
+    db_drop_table('ke_hoach_tuyen_xa_chi_phi');
+    return 'Đã tạo bảng ke_hoach_chi_phi. Bỏ qua migrate vì bảng mới đã có dữ liệu.';
+  }
+
+  $rows = db_query("
+    SELECT c.*, kh.loai_ke_hoach, kh.nid_lai_xe
+    FROM {ke_hoach_tuyen_xa_chi_phi} c
+    LEFT JOIN {ke_hoach_xep_xe} kh ON kh.nid = c.ke_hoach_id
+    WHERE c.hoat_dong = 1
+    ORDER BY c.id ASC
+  ")->fetchAll();
+
+  $now = date('Y-m-d H:i:s', REQUEST_TIME);
+  $migrated = 0;
+  foreach ($rows as $row) {
+    $amount = !empty($row->so_tien) ? (int) $row->so_tien : 0;
+    $legacy_json = array(
+      'legacy_table' => 'ke_hoach_tuyen_xa_chi_phi',
+      'legacy_id' => !empty($row->id) ? (int) $row->id : 0,
+      'legacy_chang_id' => !empty($row->chang_id) ? (int) $row->chang_id : 0,
+      'ngay' => !empty($row->ngay) ? (string) $row->ngay : '',
+      'is_co_dinh' => !empty($row->is_co_dinh) ? 1 : 0,
+    );
+    if (!empty($row->thong_tin_json)) {
+      $decoded = json_decode((string) $row->thong_tin_json, TRUE);
+      $legacy_json['legacy_thong_tin_json'] = is_array($decoded) ? $decoded : (string) $row->thong_tin_json;
+    }
+
+    db_insert('ke_hoach_chi_phi')
+      ->fields(array(
+        'nid_ke_hoach' => !empty($row->ke_hoach_id) ? (int) $row->ke_hoach_id : 0,
+        'loai_ke_hoach' => !empty($row->loai_ke_hoach) ? (string) $row->loai_ke_hoach : 'tuyen_xa',
+        'nid_lai_xe' => !empty($row->nid_lai_xe) ? (int) $row->nid_lai_xe : 0,
+        'loai_chi_phi' => !empty($row->loai_chi_phi) ? (string) $row->loai_chi_phi : '',
+        'ten_chi_phi' => !empty($row->ten_chi_phi) ? (string) $row->ten_chi_phi : '',
+        'don_gia' => $amount,
+        'so_luong' => 1,
+        'tong_truoc_vat' => $amount,
+        'vat_percent' => 0,
+        'tong_sau_vat' => $amount,
+        'trang_thai_duyet' => 'khong_can_duyet',
+        'nid_de_nghi_chi_phi' => 0,
+        'nid_ledger' => 0,
+        'ghi_chu' => '',
+        'thong_tin_json' => json_encode($legacy_json),
+        'created' => !empty($row->created) ? (string) $row->created : $now,
+        'changed' => !empty($row->changed) ? (string) $row->changed : $now,
+        'hoat_dong' => 1,
+      ))
+      ->execute();
+    $migrated++;
+  }
+
+  db_drop_table('ke_hoach_tuyen_xa_chi_phi');
+
+  return 'Đã tạo bảng ke_hoach_chi_phi, migrate ' . $migrated . ' chi phí tuyến xa cũ và xoá bảng ke_hoach_tuyen_xa_chi_phi.';
 }

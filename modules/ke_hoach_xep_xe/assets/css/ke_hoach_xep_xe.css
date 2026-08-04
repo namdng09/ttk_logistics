@@ -763,3 +763,423 @@ body .flatpickr-calendar {
 #vehicle-picker-modal .table th {
   font-size: 0.85rem;
 }
+
+.ke-hoach-chi-phi-layout {
+  padding: 1rem;
+  min-height: calc(100vh - 142px);
+  background: #f8f9fa;
+}
+
+.ke-hoach-chi-phi-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ke-hoach-chi-phi-summary-item {
+  background: #fff;
+  border: 1px solid #e6e8ec;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  min-height: 72px;
+}
+
+.ke-hoach-chi-phi-summary-item span {
+  display: block;
+  color: #667085;
+  font-size: 0.82rem;
+  margin-bottom: 0.25rem;
+}
+
+.ke-hoach-chi-phi-summary-item strong {
+  color: #1d2939;
+  font-size: 1.05rem;
+}
+
+.ke-hoach-chi-phi-table-wrap {
+  background: #fff;
+  border: 1px solid #e6e8ec;
+  border-radius: 8px;
+  overflow: auto;
+}
+
+.ke-hoach-chi-phi-table {
+  min-width: 1380px;
+}
+
+.ke-hoach-chi-phi-table th,
+.ke-hoach-chi-phi-table td {
+  font-size: 0.84rem;
+  vertical-align: middle;
+}
+
+.ke-hoach-chi-phi-table .form-control,
+.ke-hoach-chi-phi-table .form-select {
+  font-size: 0.84rem;
+}
+
+@media (max-width: 991.98px) {
+  .ke-hoach-chi-phi-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 575.98px) {
+  .ke-hoach-chi-phi-layout {
+    padding: 0.75rem;
+  }
+
+  .ke-hoach-chi-phi-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+#ke-hoach-chi-phi-modal {
+  --khcp-border: #e7e9ee;
+  --khcp-muted: #6c757d;
+  --khcp-bg: #f6f7f9;
+  --khcp-input-h: 34px;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+#ke-hoach-chi-phi-modal .modal-content {
+  background: var(--khcp-bg);
+}
+
+.khcp-modal-header,
+.khcp-modal-footer {
+  min-height: 58px;
+  padding: 10px 16px;
+  background: #fff;
+  border-color: var(--khcp-border);
+}
+
+.khcp-modal-body {
+  position: relative;
+  overflow: hidden;
+  padding: 14px;
+}
+
+.khcp-plan-card {
+  margin-bottom: 12px;
+  border: 1px solid var(--khcp-border);
+  box-shadow: none;
+}
+
+.khcp-plan-card .card-body {
+  padding: 10px 12px;
+}
+
+.khcp-plan-info-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.khcp-plan-info-grid span {
+  display: block;
+  margin-bottom: 3px;
+  color: #6c757d;
+  font-size: 12px;
+}
+
+.khcp-plan-info-grid strong {
+  display: block;
+  min-width: 0;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.khcp-main-card,
+.khcp-summary-card {
+  border: 1px solid var(--khcp-border);
+  box-shadow: none;
+}
+
+.khcp-main-card {
+  overflow: hidden;
+}
+
+.khcp-section + .khcp-section {
+  border-top: 8px solid var(--khcp-bg);
+}
+
+.khcp-section-header {
+  min-height: 48px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--khcp-border);
+  background: #fff;
+}
+
+.khcp-section-title {
+  font-weight: 650;
+  color: #212529;
+}
+
+.khcp-table-wrap {
+  max-height: calc(50vh - 78px);
+  background: #fff;
+  overflow-x: hidden;
+}
+
+.khcp-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  --bs-table-bg: #fff;
+}
+
+#ke-hoach-chi-phi-modal .khcp-table > thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 3px 5px !important;
+  line-height: 1.2 !important;
+  vertical-align: middle !important;
+  border-bottom: 1px solid var(--khcp-border) !important;
+  background: #f8f9fb !important;
+  color: #4f5660 !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.khcp-table tbody td {
+  padding: 5px;
+  border-color: #eef0f3;
+}
+
+.khcp-table tbody tr:hover td {
+  background: #fbfcfd;
+}
+
+.khcp-table tbody tr.is-invalid-row td {
+  background: #fff7f7;
+}
+
+.khcp-table .form-control,
+.khcp-table .form-select {
+  min-height: var(--khcp-input-h);
+  height: var(--khcp-input-h);
+  padding: 4px 7px;
+  border-color: #dfe2e7;
+  border-radius: 5px;
+  font-size: 13px;
+  font-family: inherit;
+  box-shadow: none;
+}
+
+.khcp-table .form-control:focus,
+.khcp-table .form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, .08);
+}
+
+.khcp-table .money-input,
+.khcp-table .decimal-input,
+.khcp-table .qty-input {
+  text-align: right;
+  font-family: inherit;
+}
+
+.khcp-table .calculated-input {
+  background: #f9fafb;
+}
+
+.khcp-table .calculated-input[disabled],
+.khcp-table .calculated-input[readonly] {
+  color: #667085;
+  background: #f9fafb;
+  opacity: 1;
+}
+
+.khcp-table .is-overridden {
+  background: #fff9e8;
+}
+
+.khcp-col-index {
+  width: 36px;
+  text-align: center;
+}
+
+.khcp-col-type {
+  width: 124px;
+}
+
+.khcp-col-name {
+  width: 18%;
+}
+
+.khcp-col-money {
+  width: 118px;
+}
+
+.khcp-col-qty,
+.khcp-col-vat {
+  width: 79px;
+}
+
+.khcp-col-note {
+  width: 150px;
+}
+
+.khcp-col-action {
+  width: 75px;
+  text-align: right;
+}
+
+.khcp-row-actions {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.khcp-row-actions .btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.khcp-row-number {
+  color: var(--khcp-muted);
+  font-size: 12px;
+}
+
+.khcp-summary-card {
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+}
+
+.khcp-summary-card .card-header {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--khcp-border);
+  background: #fff;
+  font-weight: 650;
+}
+
+.khcp-summary-card .card-body {
+  padding: 8px 14px 14px;
+}
+
+.khcp-summary-block,
+.khcp-summary-total {
+  padding: 13px 0;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.khcp-summary-label {
+  margin-bottom: 3px;
+  color: var(--khcp-muted);
+  font-size: 12px;
+}
+
+.khcp-summary-value {
+  color: #212529;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.khcp-summary-total {
+  margin-top: 4px;
+  border-bottom: 0;
+}
+
+.khcp-summary-total .khcp-summary-value {
+  font-size: 27px;
+}
+
+.khcp-summary-meta {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: #f7f8fa;
+}
+
+.khcp-summary-meta > div {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #5d6570;
+  font-size: 13px;
+}
+
+.khcp-summary-meta strong {
+  color: #212529;
+}
+
+.khcp-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(246, 247, 249, .76);
+  backdrop-filter: blur(1px);
+}
+
+.khcp-loading.is-visible {
+  display: flex;
+}
+
+@media (max-width: 1199.98px) {
+  .khcp-modal-body {
+    overflow-y: auto;
+  }
+
+  .khcp-summary-card {
+    position: static;
+  }
+
+  .khcp-table-wrap {
+    max-height: 420px;
+    overflow-x: auto;
+  }
+
+  .khcp-table {
+    min-width: 1040px;
+  }
+
+  .khcp-plan-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .khcp-modal-header {
+    padding: 8px 10px;
+  }
+
+  .khcp-modal-body {
+    padding: 10px;
+  }
+
+  .khcp-modal-footer {
+    display: none;
+  }
+}

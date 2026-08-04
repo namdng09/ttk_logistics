@@ -144,6 +144,170 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
   </div>
 </div>
 
+<div class="modal fade" id="ke-hoach-chi-phi-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen" role="document">
+    <div class="modal-content">
+      <div class="modal-header khcp-modal-header">
+        <div class="d-flex align-items-center gap-2 min-w-0">
+          <h5 class="modal-title text-truncate mb-0">Chi phí kế hoạch</h5>
+          <span class="badge bg-label-secondary border" id="khcp-plan-code">#--</span>
+          <span class="text-muted small text-truncate" id="khcp-header-meta"></span>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 ms-auto">
+          <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+      </div>
+
+      <div class="modal-body khcp-modal-body">
+        <div class="khcp-loading" id="khcp-loading">
+          <div class="spinner-border text-primary" role="status"></div>
+        </div>
+
+        <div class="row g-3 h-100">
+          <div class="col-12 col-xl-9">
+            <div class="card khcp-plan-card">
+              <div class="card-body">
+                <div class="khcp-plan-info-grid">
+                  <div>
+                    <span>Khách hàng</span>
+                    <strong id="khcp-info-customer">-</strong>
+                  </div>
+                  <div>
+                    <span>BKG / Container</span>
+                    <strong id="khcp-info-bkg-cont">-</strong>
+                  </div>
+                  <div>
+                    <span>Phương tiện / Lái xe</span>
+                    <strong id="khcp-info-vehicle-driver">-</strong>
+                  </div>
+                  <div>
+                    <span>Kho / Bãi hạ</span>
+                    <strong id="khcp-info-route">-</strong>
+                  </div>
+                  <div>
+                    <span>Trạng thái</span>
+                    <strong id="khcp-info-status">-</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card khcp-main-card h-100">
+              <div class="card-body p-0">
+                <section class="khcp-section" data-source="ke_hoach">
+                  <div class="khcp-section-header">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="khcp-section-title">Chi phí kế hoạch</span>
+                      <span class="badge rounded-pill bg-label-secondary border" id="khcp-plan-count">0</span>
+                    </div>
+                  </div>
+
+                  <div class="table-responsive khcp-table-wrap">
+                    <table class="table table-bordered table-sm align-middle mb-0 khcp-table">
+                      <thead>
+                        <tr>
+                          <th class="khcp-col-index">#</th>
+                          <th class="khcp-col-type">Loại CP</th>
+                          <th class="khcp-col-name">Tên chi phí</th>
+                          <th class="khcp-col-money">Đơn giá</th>
+                          <th class="khcp-col-qty">SL</th>
+                          <th class="khcp-col-money">Trước VAT</th>
+                          <th class="khcp-col-vat">VAT (%)</th>
+                          <th class="khcp-col-money">Sau VAT</th>
+                          <th class="khcp-col-note">Ghi chú</th>
+                          <th class="khcp-col-action"></th>
+                        </tr>
+                      </thead>
+                      <tbody id="khcp-plan-table-body"></tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section class="khcp-section khcp-section-driver" data-source="lai_xe">
+                  <div class="khcp-section-header">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="khcp-section-title">Chi phí lái xe nhập</span>
+                      <span class="badge rounded-pill bg-label-secondary border" id="khcp-driver-count">0</span>
+                    </div>
+                  </div>
+
+                  <div class="table-responsive khcp-table-wrap">
+                    <table class="table table-bordered table-sm align-middle mb-0 khcp-table">
+                      <thead>
+                        <tr>
+                          <th class="khcp-col-index">#</th>
+                          <th class="khcp-col-name">Tên chi phí</th>
+                          <th class="khcp-col-money">Đơn giá</th>
+                          <th class="khcp-col-qty">SL</th>
+                          <th class="khcp-col-money">Trước VAT</th>
+                          <th class="khcp-col-vat">VAT (%)</th>
+                          <th class="khcp-col-money">Sau VAT</th>
+                          <th class="khcp-col-note">Ghi chú</th>
+                          <th class="khcp-col-action"></th>
+                        </tr>
+                      </thead>
+                      <tbody id="khcp-driver-table-body"></tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-xl-3">
+            <div class="card khcp-summary-card">
+              <div class="card-header">Tổng quan</div>
+              <div class="card-body">
+                <div class="khcp-summary-block">
+                  <div class="khcp-summary-label">Tính cho khách</div>
+                  <div class="khcp-summary-value" id="khcp-total-customer">0</div>
+                </div>
+
+                <div class="khcp-summary-block">
+                  <div class="khcp-summary-label">Công ty chi trả</div>
+                  <div class="khcp-summary-value" id="khcp-total-company">0</div>
+                </div>
+
+                <div class="khcp-summary-block">
+                  <div class="khcp-summary-label">Lái xe tự chịu</div>
+                  <div class="khcp-summary-value" id="khcp-total-driver-self">0</div>
+                </div>
+
+                <div class="khcp-summary-total">
+                  <div class="khcp-summary-label">Tổng chi phí</div>
+                  <div class="khcp-summary-value" id="khcp-total-all">0</div>
+                </div>
+
+                <div class="khcp-summary-meta">
+                  <div>
+                    <span>Kế hoạch</span>
+                    <strong id="khcp-total-plan-source">0</strong>
+                  </div>
+                  <div>
+                    <span>Lái xe nhập</span>
+                    <strong id="khcp-total-driver-source">0</strong>
+                  </div>
+                  <div>
+                    <span>Số dòng</span>
+                    <strong id="khcp-total-rows">0</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer khcp-modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng lại</button>
+        <button type="button" class="btn btn-primary" id="khcp-save-all-footer">
+          <i class="ti tabler-circle-check me-1"></i>Lưu tất cả
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="ke-hoach-edit-fullscreen-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen" role="document">
     <div class="modal-content">

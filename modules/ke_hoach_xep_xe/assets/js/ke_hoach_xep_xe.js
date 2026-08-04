@@ -375,12 +375,16 @@
     });
   }
 
-  function buildActions(nid) {
+  function buildActions(row) {
+    var nid = typeof row === 'object' ? row.nid : row;
+    var nidLaiXe = typeof row === 'object' ? (row.nid_lai_xe || 0) : 0;
+    var loaiKeHoach = typeof row === 'object' ? (row.loai_ke_hoach || currentPlanType()) : currentPlanType();
     return '<div class="dropdown">' +
       '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill"><i class="ti tabler-dots-vertical"></i></button>' +
       '<ul class="dropdown-menu">' +
       '<li><button type="button" class="dropdown-item btn-view-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-eye me-2"></i>Xem</button></li>' +
       '<li><button type="button" class="dropdown-item btn-edit-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-truck-delivery me-2"></i>Xếp xe</button></li>' +
+      '<li><button type="button" class="dropdown-item btn-open-ke-hoach-chi-phi" data-id="' + nid + '" data-nid-lai-xe="' + nidLaiXe + '" data-loai-ke-hoach="' + escHtml(loaiKeHoach) + '"><i class="ti tabler-receipt-2 me-2"></i>Chi phí</button></li>' +
       '<li><hr class="dropdown-divider"></li>' +
       '<li><button type="button" class="dropdown-item text-danger btn-delete-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-trash me-2"></i>Xoá</button></li>' +
       '</ul></div>';
@@ -936,7 +940,7 @@
           var row = items[i];
           var daDuHang = parseInt(row.da_du_hang, 10) === 1;
           var stt = (resp.current_page - 1) * pageSize + i + 1;
-          var actions = buildActions(row.nid);
+          var actions = buildActions(row);
           var khName = (row.khach_hang && row.khach_hang.ten) || '';
           var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + (HINH_THUC_COLOR[row.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</span>' : '';
           var hinhThucStatus = '';
