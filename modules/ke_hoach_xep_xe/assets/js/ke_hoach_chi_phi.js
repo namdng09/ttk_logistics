@@ -3,7 +3,7 @@
 
   var API_BASE = '/api/ke-hoach-chi-phi';
   var PLAN_COST_TYPES = [
-    { value: 'cong_ty_chi_tra', label: 'Công ty chi trả' },
+    { value: 'cong_ty_chi_tra', label: 'Cty chi trả' },
     { value: 'tinh_cho_khach', label: 'Tính cho khách' }
   ];
   var DRIVER_COST_TYPE = 'lai_xe_tu_chiu';
@@ -14,6 +14,8 @@
     nidLaiXe: 0,
     loaiKeHoach: 'thuong',
     plan: null,
+    expenseNames: [],
+    expenseCatalogNames: [],
     rows: [],
     busy: false,
     tempIndex: 0
@@ -111,6 +113,70 @@
     }
   }
 
+  function hasExpenseName(name) {
+    name = String(name || '').trim().toLowerCase();
+    if (!name) return true;
+    for (var i = 0; i < state.expenseNames.length; i++) {
+      if (String(state.expenseNames[i] || '').trim().toLowerCase() === name) return true;
+    }
+    return false;
+  }
+
+  function hasExpenseCatalogName(name) {
+    name = String(name || '').trim().toLowerCase();
+    if (!name) return true;
+    for (var i = 0; i < state.expenseCatalogNames.length; i++) {
+      if (String(state.expenseCatalogNames[i] || '').trim().toLowerCase() === name) return true;
+    }
+    return false;
+  }
+
+  function addExpenseName(name) {
+    name = String(name || '').trim();
+    if (!name || hasExpenseName(name)) return;
+    state.expenseNames.push(name);
+    state.expenseNames.sort(function (a, b) {
+      return String(a).localeCompare(String(b), 'vi');
+    });
+  }
+
+  function loadExpenseNames() {
+    return $.getJSON('/api/danh-muc', { phan_loai: 'Chi phí', limit: 500 })
+      .done(function (response) {
+        var items = response && response.data && response.data.items ? response.data.items : [];
+        state.expenseNames = [];
+        state.expenseCatalogNames = [];
+        $.each(items, function (_, item) {
+          if (item && item.ten) {
+            state.expenseCatalogNames.push(item.ten);
+            addExpenseName(item.ten);
+          }
+        });
+      });
+  }
+
+  function ensureExpenseNameInCatalog(name) {
+    name = String(name || '').trim();
+    if (!name || hasExpenseCatalogName(name)) return $.Deferred().resolve().promise();
+    var done = $.Deferred();
+    $.ajax({
+      url: '/api/danh-muc',
+      method: 'POST',
+      contentType: 'application/json; charset=utf-8',
+      dataType: 'json',
+      data: JSON.stringify({
+        ten: name,
+        phan_loai: 'Chi phí',
+        hoat_dong: 1
+      })
+    }).always(function () {
+      if (!hasExpenseCatalogName(name)) state.expenseCatalogNames.push(name);
+      addExpenseName(name);
+      done.resolve();
+    });
+    return done.promise();
+  }
+
   function resolveSource(item) {
     var json = parseJson(item.thong_tin_json);
     return json.nguon_nhap === 'lai_xe' ? 'lai_xe' : 'ke_hoach';
@@ -186,13 +252,49 @@
     return html;
   }
 
+  function expenseNameOptions(selectedValue) {
+    var selected = String(selectedValue || '').trim();
+    var html = '<option value=""></option>';
+    var hasSelected = !selected;
+    for (var i = 0; i < state.expenseNames.length; i++) {
+      var name = String(state.expenseNames[i] || '').trim();
+      if (!name) continue;
+      if (selected && name.toLowerCase() === selected.toLowerCase()) hasSelected = true;
+      html += '<option value="' + escHtml(name) + '"' + (name === selected ? ' selected' : '') + '>' + escHtml(name) + '</option>';
+    }
+    if (selected && !hasSelected) {
+      html += '<option value="' + escHtml(selected) + '" selected>' + escHtml(selected) + '</option>';
+    }
+    return html;
+  }
+
+  function initExpenseSelect2(scope) {
+    if (!$.fn || !$.fn.select2) return;
+    $(scope).find('.cost-name-select').each(function () {
+      var $select = $(this);
+      if ($select.data('select2')) $select.select2('destroy');
+      $select.select2({
+        tags: true,
+        placeholder: 'Tên chi phí',
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#ke-hoach-chi-phi-modal'),
+        createTag: function (params) {
+          var term = $.trim(params.term || '');
+          if (!term) return null;
+          return { id: term, text: term, newTag: true };
+        }
+      });
+    });
+  }
+
   function rowTemplate(row, index) {
     var typeCell = row.source === 'lai_xe' ? '' : '<td><select class="form-select form-select-sm row-field" data-field="loai_chi_phi">' + optionHtml(row.loai_chi_phi) + '</select></td>';
     return '' +
       '<tr data-row-key="' + escHtml(row.key) + '">' +
         '<td class="khcp-col-index"><span class="khcp-row-number">' + (index + 1) + '</span></td>' +
         typeCell +
-        '<td><input type="text" class="form-control form-control-sm row-field cost-name" data-field="ten_chi_phi" value="' + escHtml(row.ten_chi_phi) + '" placeholder="Tên chi phí"></td>' +
+        '<td><select class="form-select form-select-sm row-field cost-name cost-name-select" data-field="ten_chi_phi">' + expenseNameOptions(row.ten_chi_phi) + '</select></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field money-input" data-field="don_gia" value="' + formatMoney(row.don_gia) + '"></td>' +
         '<td><input type="number" min="1" step="1" class="form-control form-control-sm row-field qty-input" data-field="so_luong" value="' + Math.max(1, parseInt(row.so_luong, 10) || 1) + '"></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm money-input calculated-input ' + (row.override_before ? 'is-overridden' : '') + '" data-field="tong_truoc_vat" value="' + formatMoney(row.tong_truoc_vat) + '" readonly disabled></td>' +
@@ -212,7 +314,9 @@
     for (var i = 0; i < rows.length; i++) {
       html += rowTemplate(rows[i], i);
     }
-    $(source === 'ke_hoach' ? '#khcp-plan-table-body' : '#khcp-driver-table-body').html(html);
+    var target = source === 'ke_hoach' ? '#khcp-plan-table-body' : '#khcp-driver-table-body';
+    $(target).html(html);
+    initExpenseSelect2(target);
   }
 
   function updateSummary() {
@@ -374,19 +478,23 @@
     if (isBlankRow(row)) return $.Deferred().resolve({ skipped: true }).promise();
     if (!validateRow(row, true)) return $.Deferred().reject({ message: 'Vui lòng nhập tên chi phí.' }).promise();
     var isUpdate = row.nid > 0;
-    return $.ajax({
-      url: isUpdate ? API_BASE + '/' + row.nid : API_BASE,
-      method: isUpdate ? 'PUT' : 'POST',
-      contentType: 'application/json; charset=utf-8',
-      dataType: 'json',
-      data: JSON.stringify(payloadFromRow(row))
-    }).done(function (response) {
-      if (response && response.data && response.data.nid) {
-        row.nid = Number(response.data.nid) || row.nid;
-        row.key = 'nid_' + row.nid;
-      }
-      if (!silent) notify('Đã lưu chi phí.', 'success');
-    });
+    return ensureExpenseNameInCatalog(row.ten_chi_phi)
+      .then(function () {
+        return $.ajax({
+          url: isUpdate ? API_BASE + '/' + row.nid : API_BASE,
+          method: isUpdate ? 'PUT' : 'POST',
+          contentType: 'application/json; charset=utf-8',
+          dataType: 'json',
+          data: JSON.stringify(payloadFromRow(row))
+        });
+      })
+      .done(function (response) {
+        if (response && response.data && response.data.nid) {
+          row.nid = Number(response.data.nid) || row.nid;
+          row.key = 'nid_' + row.nid;
+        }
+        if (!silent) notify('Đã lưu chi phí.', 'success');
+      });
   }
 
   function saveAllRows() {
@@ -450,7 +558,7 @@
     modal.show();
     clearPlanInfo();
     loadPlanInfo();
-    loadRows();
+    loadExpenseNames().always(loadRows);
   }
 
   function bindEvents() {
@@ -476,6 +584,7 @@
       var field = $input.data('field');
       if (!row || !field) return;
       row[field] = ($input.hasClass('money-input') || $input.hasClass('decimal-input') || $input.hasClass('qty-input')) ? toNumber($input.val()) : $input.val();
+      if (field === 'ten_chi_phi') addExpenseName(row[field]);
       if (field === 'so_luong') row[field] = Math.max(1, parseInt(row[field], 10) || 1);
       if (field === 'vat_percent') row[field] = clampPercent(row[field]);
       if ($input.hasClass('money-input') && !$input.prop('readonly')) {
