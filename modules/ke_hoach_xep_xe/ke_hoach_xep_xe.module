@@ -181,6 +181,23 @@ function _ke_hoach_xep_xe_now() {
   return date('Y-m-d H:i:s', REQUEST_TIME);
 }
 
+function _ke_hoach_xep_xe_money_value($value) {
+  if (is_numeric($value)) {
+    return (float) $value;
+  }
+  $value = trim((string) $value);
+  if ($value === '') return 0;
+  $value = str_replace(' ', '', $value);
+  if (strpos($value, ',') !== FALSE) {
+    $value = str_replace('.', '', $value);
+    $value = str_replace(',', '.', $value);
+  }
+  else {
+    $value = str_replace('.', '', $value);
+  }
+  return is_numeric($value) ? (float) $value : 0;
+}
+
 function _ke_hoach_xep_xe_success($data = NULL) {
   $response = array('status' => 'success');
   if ($data !== NULL) {
@@ -1002,6 +1019,11 @@ function _ke_hoach_cont_rest_list() {
   if (!empty($_GET['exclude_nid'])) {
     $query->condition('kh.nid', (int) $_GET['exclude_nid'], '<>');
   }
+  if (!empty($_GET['available_keo_ve_for'])) {
+    $current_ref_nid = (int) $_GET['available_keo_ve_for'];
+    $query->leftJoin('ke_hoach_xep_xe', 'kh_ref', 'kh_ref.ke_hoach_cont_ref_nid = kh.nid AND kh_ref.hoat_dong = 1 AND kh_ref.nid <> :current_ref_nid', array(':current_ref_nid' => $current_ref_nid));
+    $query->isNull('kh_ref.nid');
+  }
   if (isset($_GET['da_du_hang']) && $_GET['da_du_hang'] !== '') {
     $query->condition('kh.da_du_hang', (int) $_GET['da_du_hang']);
   }
@@ -1045,6 +1067,38 @@ function _ke_hoach_cont_rest_update($id) {
     $json = _ke_hoach_xep_xe_json_decode($existing);
     $json['ghi_chu'] = trim((string) $input['ghi_chu']);
     $update['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($json);
+  }
+  if (array_key_exists('dinh_muc_khoan_lai_xe', $input)) {
+    $existing_json = isset($json) ? $json : _ke_hoach_xep_xe_json_decode(db_query("SELECT thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetchField());
+    $dm = is_array($input['dinh_muc_khoan_lai_xe']) ? $input['dinh_muc_khoan_lai_xe'] : array();
+    $items = !empty($dm['items']) && is_array($dm['items']) ? $dm['items'] : array();
+    $clean_items = array();
+    $total = 0;
+    foreach ($items as $index => $item) {
+      if (!is_array($item)) continue;
+      $diem_dau = isset($item['diem_dau']) ? trim((string) $item['diem_dau']) : '';
+      $diem_cuoi = isset($item['diem_cuoi']) ? trim((string) $item['diem_cuoi']) : '';
+      $trang_thai_xe = isset($item['trang_thai_xe']) ? trim((string) $item['trang_thai_xe']) : '';
+      if (!in_array($trang_thai_xe, array('v', 'h', 't'), TRUE)) {
+        $trang_thai_xe = 'v';
+      }
+      $dinh_muc = _ke_hoach_xep_xe_money_value(isset($item['dinh_muc']) ? $item['dinh_muc'] : 0);
+      $total += $dinh_muc;
+      $clean_items[] = array(
+        'ten_chang' => isset($item['ten_chang']) ? trim((string) $item['ten_chang']) : 'Chặng ' . (count($clean_items) + 1),
+        'trang_thai_xe' => $trang_thai_xe,
+        'diem_dau' => $diem_dau,
+        'diem_cuoi' => $diem_cuoi,
+        'dinh_muc' => $dinh_muc,
+        'manual' => !empty($item['manual']) ? 1 : 0,
+      );
+    }
+    $existing_json['dinh_muc_khoan_lai_xe'] = array(
+      'items' => $clean_items,
+      'tong_khoan' => $total,
+      'changed' => _ke_hoach_xep_xe_now(),
+    );
+    $update['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($existing_json);
   }
   if (count($update) === 1) {
     return _ke_hoach_xep_xe_fail('Không có dữ liệu cập nhật');

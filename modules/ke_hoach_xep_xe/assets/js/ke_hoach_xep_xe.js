@@ -1799,7 +1799,8 @@
       }
       var requestData = {
         da_cat_mooc: 1,
-        loai_ke_hoach: currentPlanType()
+        loai_ke_hoach: currentPlanType(),
+        available_keo_ve_for: currentNid
       };
       if (currentNid) {
         requestData.exclude_nid = currentNid;
@@ -1860,6 +1861,7 @@
       var fKho = ($picker.find('.line-cont-filter-kho').val() || '').toLowerCase();
       var fDuHang = $picker.find('.line-cont-filter-du-hang').val();
       var rows = [];
+      var candidates = [];
       var currentNid = parseInt($form('#nid-input').val(), 10) || 0;
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
@@ -1872,6 +1874,19 @@
         if (fKho && String(item.dia_chi_kho || '').toLowerCase().indexOf(fKho) === -1) continue;
         if (fDuHang !== '' && parseInt(item.da_du_hang, 10) !== parseInt(fDuHang, 10)) continue;
         var selected = parseInt(line.ke_hoach_cont_ref_nid, 10) === parseInt(item.nid, 10);
+        var usedBy = item.cont_keo_ve_by || null;
+        var usedByNid = usedBy && usedBy.nid ? (parseInt(usedBy.nid, 10) || 0) : 0;
+        if (!selected && usedByNid && usedByNid !== currentNid) continue;
+        candidates.push({ item: item, selected: selected });
+      }
+      candidates.sort(function (a, b) {
+        if (a.selected && !b.selected) return -1;
+        if (!a.selected && b.selected) return 1;
+        return (parseInt(b.item.nid, 10) || 0) - (parseInt(a.item.nid, 10) || 0);
+      });
+      for (var c = 0; c < candidates.length; c++) {
+        var item = candidates[c].item;
+        var selected = candidates[c].selected;
         var plannedBaiHa = item.bai_ha_cont || '';
         var actualBaiHa = normalizeBaiHaThucTe(item.bai_ha_thuc_te || '', plannedBaiHa);
         var destinationValue = actualBaiHa || plannedBaiHa;
@@ -1935,7 +1950,11 @@
       if (!contId) return;
       state.pendingContDestinationUpdates[String(contId)] = value || '';
       updateContCandidateItem($card, contId, { bai_ha_thuc_te: value || '' });
-      renderContCandidateRows(syncLine($card), $card);
+      var $picker = getContPicker($card);
+      var $select = $picker.find('.line-bai-ha-thuc-te-select[data-id="' + contId + '"]');
+      var planned = ($select.attr('data-planned') || '').trim();
+      var actual = normalizeBaiHaThucTe(value || '', planned);
+      $select.closest('td').find('.line-bai-ha-theo-ke-hoach-checkbox').prop('checked', !actual);
     }
 
     function flushPendingContDestinationUpdates() {

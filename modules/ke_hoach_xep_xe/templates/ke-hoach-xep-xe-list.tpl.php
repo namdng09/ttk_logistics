@@ -186,13 +186,67 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
                     <strong id="khcp-info-route">-</strong>
                   </div>
                   <div>
-                    <span>Trạng thái</span>
+                    <span>Hình thức vận tải</span>
                     <strong id="khcp-info-status">-</strong>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="card khcp-main-card h-100">
+            <div class="card khcp-dm-card">
+              <div class="card-body p-0">
+                <section class="khcp-dm-section">
+                  <div class="khcp-dm-header">
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                      <span class="khcp-section-title">Định mức khoán lái xe</span>
+                      <span class="badge rounded-pill bg-label-secondary border" id="khcp-dm-count">0 chặng</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                      <button type="button" class="btn btn-sm btn-label-secondary" id="khcp-dm-rebuild">
+                        <i class="ti tabler-refresh me-1"></i>Tính lại định mức
+                      </button>
+                      <button type="button" class="btn btn-sm btn-label-primary" id="khcp-dm-add-row">
+                        <i class="ti tabler-plus me-1"></i>Thêm chặng
+                      </button>
+                      <button type="button" class="btn btn-sm btn-primary" id="khcp-dm-save">
+                        <i class="ti tabler-device-floppy me-1"></i>Lưu định mức
+                      </button>
+                    </div>
+                  </div>
+                  <div class="khcp-dm-summary">
+                    <div>
+                      <span>Tổng khoán lái xe</span>
+                      <strong id="khcp-dm-total">0</strong>
+                    </div>
+                    <div>
+                      <span>Có định mức</span>
+                      <strong id="khcp-dm-matched">0</strong>
+                    </div>
+                    <div>
+                      <span>Chưa có định mức</span>
+                      <strong id="khcp-dm-missing">0</strong>
+                    </div>
+                  </div>
+                  <div class="table-responsive khcp-dm-table-wrap">
+                    <table class="table table-bordered table-sm align-middle mb-0 khcp-table khcp-dm-table">
+                      <thead>
+                        <tr>
+                          <th class="khcp-col-index">#</th>
+                          <th class="khcp-dm-col-leg">Chặng</th>
+                          <th class="khcp-dm-col-status">Trạng thái xe</th>
+                          <th class="khcp-dm-col-place">Điểm đầu</th>
+                          <th class="khcp-dm-col-place">Điểm cuối</th>
+                          <th class="khcp-col-money">Định mức</th>
+                          <th class="khcp-col-action"></th>
+                        </tr>
+                      </thead>
+                      <tbody id="khcp-dm-table-body"></tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div class="card khcp-main-card">
               <div class="card-body p-0">
                 <div class="table-responsive khcp-table-wrap">
                   <table class="table table-bordered table-sm align-middle mb-0 khcp-table">

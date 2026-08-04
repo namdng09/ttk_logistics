@@ -17,6 +17,9 @@
     plan: null,
     expenseNames: [],
     expenseCatalogNames: [],
+    locationNames: [],
+    dinhMucRoutes: [],
+    dinhMucRows: [],
     rows: [],
     busy: false,
     tempIndex: 0
@@ -105,6 +108,19 @@
     return value || '-';
   }
 
+  function hinhThucLabel(value) {
+    var map = {
+      cat_keo: 'Cắt kéo',
+      cat_keo_cheo: 'Cắt kéo chéo',
+      tha_mooc: 'Thả mooc',
+      rut_mooc: 'Rút mooc',
+      dong_hang_trong_ngay: 'Đóng hàng trong ngày',
+      roi_cont: 'Rời cont'
+    };
+    value = String(value || '').trim();
+    return map[value] || value;
+  }
+
   function parseJson(value) {
     if ($.isPlainObject(value)) return value;
     try {
@@ -145,6 +161,215 @@
           }
         });
       });
+  }
+
+  function normalizeKey(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function addLocationName(name) {
+    name = String(name || '').trim();
+    if (!name) return;
+    for (var i = 0; i < state.locationNames.length; i++) {
+      if (normalizeKey(state.locationNames[i]) === normalizeKey(name)) return;
+    }
+    state.locationNames.push(name);
+    state.locationNames.sort(function (a, b) {
+      return String(a).localeCompare(String(b), 'vi');
+    });
+  }
+
+  function loadLocations() {
+    return $.getJSON('/api/danh-muc-dinh-muc-dia-diem', { limit: 500 })
+      .done(function (response) {
+        var items = response && response.data && response.data.items ? response.data.items : [];
+        state.locationNames = [];
+        $.each(items, function (_, item) {
+          if (item && item.ten) addLocationName(item.ten);
+        });
+      });
+  }
+
+  function loadCustomerDinhMuc() {
+    state.dinhMucRoutes = [];
+    var nidKhachHang = state.plan && state.plan.khach_hang && state.plan.khach_hang.nid ? Number(state.plan.khach_hang.nid) : 0;
+    if (!nidKhachHang) return $.Deferred().resolve().promise();
+    return $.getJSON('/api/khach-hang/' + nidKhachHang + '/dinh-muc')
+      .done(function (response) {
+        state.dinhMucRoutes = response && response.data && response.data.routes ? response.data.routes : [];
+      });
+  }
+
+  function locationOptions(selectedValue) {
+    var selected = String(selectedValue || '').trim();
+    var html = '<option value=""></option>';
+    var hasSelected = !selected;
+    for (var i = 0; i < state.locationNames.length; i++) {
+      var name = String(state.locationNames[i] || '').trim();
+      if (!name) continue;
+      if (selected && normalizeKey(name) === normalizeKey(selected)) hasSelected = true;
+      html += '<option value="' + escHtml(name) + '"' + (name === selected ? ' selected' : '') + '>' + escHtml(name) + '</option>';
+    }
+    if (selected && !hasSelected) {
+      html += '<option value="' + escHtml(selected) + '" selected>' + escHtml(selected) + '</option>';
+    }
+    return html;
+  }
+
+  function initDinhMucSelect2(scope) {
+    if (!$.fn || !$.fn.select2) return;
+    $(scope).find('.khcp-dm-place-select').each(function () {
+      var $select = $(this);
+      if ($select.data('select2')) $select.select2('destroy');
+      $select.select2({
+        placeholder: 'Chọn địa điểm',
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#ke-hoach-chi-phi-modal')
+      });
+    });
+  }
+
+  function statusOptions(selectedValue) {
+    var options = [
+      { value: 'v', label: 'Vỏ' },
+      { value: 'h', label: 'Hàng' },
+      { value: 't', label: 'Trống' }
+    ];
+    var html = '';
+    for (var i = 0; i < options.length; i++) {
+      html += '<option value="' + options[i].value + '"' + (options[i].value === selectedValue ? ' selected' : '') + '>' + options[i].label + '</option>';
+    }
+    return html;
+  }
+
+  function routeHasLocation(list, key) {
+    var found = false;
+    $.each(list || [], function (_, item) {
+      if (normalizeKey(item) === key) found = true;
+    });
+    return found;
+  }
+
+  function findDinhMucAmount(from, to, status) {
+    var fromKey = normalizeKey(from);
+    var toKey = normalizeKey(to);
+    if (!fromKey || !toKey) return 0;
+    var matched = 0;
+    $.each(state.dinhMucRoutes || [], function (_, route) {
+      var fromList = route && $.isArray(route.from) ? route.from : [];
+      var toList = route && $.isArray(route.to) ? route.to : [];
+      var forward = routeHasLocation(fromList, fromKey) && routeHasLocation(toList, toKey);
+      var reverse = routeHasLocation(fromList, toKey) && routeHasLocation(toList, fromKey);
+      if (forward || reverse) {
+        matched = toNumber(route[status] || 0);
+        return false;
+      }
+    });
+    return matched;
+  }
+
+  function normalizeDinhMucRow(item, index) {
+    item = item || {};
+    var status = item.trang_thai_xe || 'v';
+    if ($.inArray(status, ['v', 'h', 't']) === -1) status = 'v';
+    return {
+      key: item.key || uid(),
+      ten_chang: item.ten_chang || ('Chặng ' + (index + 1)),
+      trang_thai_xe: status,
+      diem_dau: item.diem_dau || '',
+      diem_cuoi: item.diem_cuoi || '',
+      dinh_muc: toNumber(item.dinh_muc),
+      manual: !!item.manual
+    };
+  }
+
+  function applyDinhMuc(row, force) {
+    var amount = findDinhMucAmount(row.diem_dau, row.diem_cuoi, row.trang_thai_xe);
+    if (force || !row.manual) {
+      row.dinh_muc = amount;
+      row.manual = false;
+    }
+    return amount;
+  }
+
+  function actualStart() {
+    return (state.plan && (state.plan.bai_lay_thuc_te || state.plan.bai_lay_cont)) || '';
+  }
+
+  function actualEnd() {
+    return (state.plan && (state.plan.bai_ha_thuc_te || state.plan.bai_ha_cont || state.plan.diem_den)) || '';
+  }
+
+  function khoPoint(plan) {
+    plan = plan || state.plan || {};
+    return plan.dia_chi_kho || plan.diem_den || '';
+  }
+
+  function relatedContPlan() {
+    if (!state.plan) return null;
+    return state.plan.cont_keo_ve_by || state.plan.cont_ref || null;
+  }
+
+  function buildDefaultDinhMucRows() {
+    var plan = state.plan || {};
+    var start = actualStart();
+    var end = actualEnd();
+    var kho = khoPoint(plan);
+    var hinhThuc = plan.hinh_thuc_van_tai || 'cat_keo';
+    var rows = [];
+
+    function push(name, status, from, to) {
+      var row = normalizeDinhMucRow({
+        ten_chang: name,
+        trang_thai_xe: status,
+        diem_dau: from || '',
+        diem_cuoi: to || ''
+      }, rows.length);
+      applyDinhMuc(row, true);
+      rows.push(row);
+    }
+
+    if (hinhThuc === 'cat_keo_cheo') {
+      var related = relatedContPlan() || {};
+      var kho2 = khoPoint(related) || '';
+      var end2 = related.bai_ha_thuc_te || related.bai_ha_cont || end;
+      push('Chặng 1', 'v', start, kho);
+      push('Chặng 2', 't', kho, kho2);
+      push('Chặng 3', 'h', kho2, end2);
+    }
+    else if (hinhThuc === 'rut_mooc') {
+      push('Chặng 1', 'h', kho || start, end);
+    }
+    else if (hinhThuc === 'roi_cont') {
+      if (start && kho) push('Chặng 1', 'v', start, kho);
+      push('Chặng ' + (rows.length + 1), 'h', kho, end);
+    }
+    else {
+      push('Chặng 1', 'v', start, kho);
+      push('Chặng 2', 'h', kho, end);
+    }
+
+    return rows;
+  }
+
+  function getSavedDinhMucRows() {
+    var json = parseJson(state.plan && state.plan.thong_tin_json);
+    var saved = json && json.dinh_muc_khoan_lai_xe && $.isArray(json.dinh_muc_khoan_lai_xe.items) ? json.dinh_muc_khoan_lai_xe.items : [];
+    return $.map(saved, function (item, index) { return normalizeDinhMucRow(item, index); });
+  }
+
+  function rebuildDinhMucRows(useSaved) {
+    state.dinhMucRows = useSaved ? getSavedDinhMucRows() : [];
+    if (!state.dinhMucRows.length) {
+      state.dinhMucRows = buildDefaultDinhMucRows();
+    }
+    $.each(state.dinhMucRows, function (_, row) {
+      addLocationName(row.diem_dau);
+      addLocationName(row.diem_cuoi);
+      applyDinhMuc(row, false);
+    });
+    renderDinhMucTable();
   }
 
   function resolveSource(item) {
@@ -205,6 +430,13 @@
   function getRow(key) {
     for (var i = 0; i < state.rows.length; i++) {
       if (state.rows[i].key === key) return state.rows[i];
+    }
+    return null;
+  }
+
+  function getDinhMucRow(key) {
+    for (var i = 0; i < state.dinhMucRows.length; i++) {
+      if (state.dinhMucRows[i].key === key) return state.dinhMucRows[i];
     }
     return null;
   }
@@ -299,6 +531,53 @@
     initExpenseSelect2('#khcp-cost-table-body');
   }
 
+  function dinhMucRowTemplate(row, index) {
+    return '' +
+      '<tr data-dm-key="' + escHtml(row.key) + '">' +
+        '<td class="khcp-col-index"><span class="khcp-row-number">' + (index + 1) + '</span></td>' +
+        '<td><input type="text" class="form-control form-control-sm khcp-dm-field" data-field="ten_chang" value="' + escHtml(row.ten_chang) + '"></td>' +
+        '<td><select class="form-select form-select-sm khcp-dm-field" data-field="trang_thai_xe">' + statusOptions(row.trang_thai_xe) + '</select></td>' +
+        '<td><select class="form-select form-select-sm khcp-dm-field khcp-dm-place-select" data-field="diem_dau">' + locationOptions(row.diem_dau) + '</select></td>' +
+        '<td><select class="form-select form-select-sm khcp-dm-field khcp-dm-place-select" data-field="diem_cuoi">' + locationOptions(row.diem_cuoi) + '</select></td>' +
+        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-dm-field money-input" data-field="dinh_muc" value="' + formatMoney(row.dinh_muc) + '"></td>' +
+        '<td><div class="khcp-row-actions">' +
+          '<button type="button" class="btn btn-label-primary btn-sm btn-dm-recalc-row" title="Tính lại định mức"><i class="ti tabler-refresh"></i></button>' +
+          '<button type="button" class="btn btn-label-danger btn-sm btn-dm-delete-row" title="Xoá chặng"><i class="ti tabler-trash"></i></button>' +
+        '</div></td>' +
+      '</tr>';
+  }
+
+  function updateDinhMucSummary() {
+    var total = 0;
+    var matched = 0;
+    var missing = 0;
+    $.each(state.dinhMucRows || [], function (_, row) {
+      total += toNumber(row.dinh_muc);
+      if (toNumber(row.dinh_muc) > 0) matched += 1;
+      else missing += 1;
+    });
+    $('#khcp-dm-total').text(formatMoney(total));
+    $('#khcp-dm-matched').text(matched);
+    $('#khcp-dm-missing').text(missing);
+    $('#khcp-dm-count').text((state.dinhMucRows || []).length + ' chặng');
+  }
+
+  function renderDinhMucTable() {
+    var rows = state.dinhMucRows || [];
+    var html = '';
+    if (!rows.length) {
+      html = '<tr><td colspan="7" class="text-center text-muted py-3">Chưa có chặng định mức</td></tr>';
+    }
+    else {
+      for (var i = 0; i < rows.length; i++) {
+        html += dinhMucRowTemplate(rows[i], i);
+      }
+    }
+    $('#khcp-dm-table-body').html(html);
+    initDinhMucSelect2('#khcp-dm-table-body');
+    updateDinhMucSummary();
+  }
+
   function updateSummary() {
     var company = 0;
     var driverSelf = 0;
@@ -339,7 +618,7 @@
     var bkgCont = [state.plan.so_bkg, cont].filter(Boolean).join(' / ');
     var vehicleDriver = [vehicle, mooc, driver].filter(Boolean).join(' / ');
     var route = [state.plan.dia_chi_kho, state.plan.bai_ha_thuc_te || state.plan.bai_ha_cont || state.plan.diem_den].filter(Boolean).join(' / ');
-    var status = state.plan.trang_thai_van_chuyen || state.plan.hinh_thuc_status_text || '';
+    var status = hinhThucLabel(state.plan.hinh_thuc_van_tai || '');
     $('#khcp-header-meta').text([customer, bkgCont, driver].filter(Boolean).join(' - '));
     $('#khcp-info-customer').text(textOrDash(customer));
     $('#khcp-info-bkg-cont').text(textOrDash(bkgCont));
@@ -353,6 +632,7 @@
 
   function renderAll() {
     ensureEmptyRows();
+    renderDinhMucTable();
     renderTable();
     updateSummary();
     setBusy(state.busy);
@@ -422,9 +702,17 @@
   }
 
   function loadRows() {
-    if (!state.nidKeHoach) return;
+    if (!state.nidKeHoach) return $.Deferred().resolve().promise();
     setBusy(true);
-    $.getJSON(API_BASE, { nid_ke_hoach: state.nidKeHoach, limit: 100 })
+    return fetchRows()
+      .always(function () {
+        setBusy(false);
+      });
+  }
+
+  function fetchRows() {
+    if (!state.nidKeHoach) return $.Deferred().resolve().promise();
+    return $.getJSON(API_BASE, { nid_ke_hoach: state.nidKeHoach, limit: 100 })
       .done(function (response) {
         var items = response && response.data && response.data.items ? response.data.items : [];
         state.rows = $.map(items, function (item) { return normalizeRow(item); });
@@ -434,21 +722,58 @@
         state.rows = [];
         renderAll();
         notify(apiMsg(jqXHR), 'error');
-      })
-      .always(function () {
-        setBusy(false);
       });
   }
 
   function loadPlanInfo() {
-    if (!state.nidKeHoach) return;
+    if (!state.nidKeHoach) return $.Deferred().resolve().promise();
     clearPlanInfo();
-    $.getJSON('/api/ke-hoach-xep-xe/' + state.nidKeHoach)
+    return $.getJSON('/api/ke-hoach-xep-xe/' + state.nidKeHoach)
       .done(function (response) {
         if (response && response.status === 'success' && response.data) {
           fillPlanInfo(response.data);
         }
       });
+  }
+
+  function dinhMucPayload() {
+    var items = $.map(state.dinhMucRows || [], function (row, index) {
+      return {
+        ten_chang: row.ten_chang || ('Chặng ' + (index + 1)),
+        trang_thai_xe: row.trang_thai_xe || 'v',
+        diem_dau: row.diem_dau || '',
+        diem_cuoi: row.diem_cuoi || '',
+        dinh_muc: toNumber(row.dinh_muc),
+        manual: row.manual ? 1 : 0
+      };
+    });
+    var total = 0;
+    $.each(items, function (_, item) { total += toNumber(item.dinh_muc); });
+    return {
+      items: items,
+      tong_khoan: total
+    };
+  }
+
+  function saveDinhMucRows() {
+    if (!state.nidKeHoach) return;
+    setBusy(true);
+    $.ajax({
+      url: '/api/quan-ly-cont/' + state.nidKeHoach,
+      method: 'PUT',
+      contentType: 'application/json; charset=utf-8',
+      dataType: 'json',
+      data: JSON.stringify({ dinh_muc_khoan_lai_xe: dinhMucPayload() })
+    }).done(function (response) {
+      if (response && response.status === 'success' && response.data) {
+        fillPlanInfo(response.data);
+      }
+      notify('Đã lưu định mức khoán lái xe.', 'success');
+    }).fail(function (jqXHR) {
+      notify(apiMsg(jqXHR), 'error');
+    }).always(function () {
+      setBusy(false);
+    });
   }
 
   function saveRow(row, silent) {
@@ -525,6 +850,8 @@
     state.nidLaiXe = Number($button.data('nid-lai-xe')) || 0;
     state.loaiKeHoach = String($button.data('loai-ke-hoach') || 'thuong');
     state.rows = [];
+    state.dinhMucRows = [];
+    state.dinhMucRoutes = [];
     $('#khcp-plan-code').text('#' + state.nidKeHoach);
     clearPlanInfo();
     setBusy(true);
@@ -533,8 +860,18 @@
       modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(document.getElementById('ke-hoach-chi-phi-modal'), { backdrop: 'static', keyboard: false }) : new bootstrap.Modal(document.getElementById('ke-hoach-chi-phi-modal'));
     }
     modal.show();
-    loadPlanInfo();
-    loadExpenseNames().always(loadRows);
+    var planChain = loadPlanInfo().then(loadCustomerDinhMuc);
+    $.when(loadExpenseNames(), loadLocations(), planChain, fetchRows())
+      .done(function () {
+        rebuildDinhMucRows(true);
+      })
+      .fail(function (jqXHR) {
+        notify(jqXHR && jqXHR.responseText ? apiMsg(jqXHR) : 'Không tải được dữ liệu modal chi phí', 'error');
+      })
+      .always(function () {
+        renderAll();
+        setBusy(false);
+      });
   }
 
   function bindEvents() {
@@ -552,6 +889,43 @@
       renderTable();
       updateSummary();
       $('tr[data-row-key="' + row.key + '"] .cost-name').trigger('focus');
+    });
+    $(document).on('click', '#khcp-dm-add-row', function () {
+      var row = normalizeDinhMucRow({ manual: true }, state.dinhMucRows.length);
+      state.dinhMucRows.push(row);
+      renderDinhMucTable();
+      $('tr[data-dm-key="' + row.key + '"] .khcp-dm-place-select').first().trigger('focus');
+    });
+    $(document).on('click', '#khcp-dm-rebuild', function () {
+      state.dinhMucRows = buildDefaultDinhMucRows();
+      renderDinhMucTable();
+    });
+    $(document).on('click', '#khcp-dm-save', saveDinhMucRows);
+    $(document).on('click', '.btn-dm-recalc-row', function () {
+      var row = getDinhMucRow($(this).closest('tr').data('dm-key'));
+      if (!row) return;
+      applyDinhMuc(row, true);
+      renderDinhMucTable();
+    });
+    $(document).on('click', '.btn-dm-delete-row', function () {
+      var key = $(this).closest('tr').data('dm-key');
+      state.dinhMucRows = $.grep(state.dinhMucRows, function (row) { return row.key !== key; });
+      renderDinhMucTable();
+    });
+    $(document).on('input change', '.khcp-dm-field', function () {
+      var $input = $(this);
+      var row = getDinhMucRow($input.closest('tr').data('dm-key'));
+      var field = $input.data('field');
+      if (!row || !field) return;
+      row[field] = $input.hasClass('money-input') ? toNumber($input.val()) : $input.val();
+      if (field === 'dinh_muc') row.manual = true;
+      if ($.inArray(field, ['diem_dau', 'diem_cuoi', 'trang_thai_xe']) !== -1) applyDinhMuc(row, false);
+      if ($input.hasClass('money-input')) $input.val(formatMoney(row[field]));
+      updateDinhMucSummary();
+      if ($.inArray(field, ['diem_dau', 'diem_cuoi', 'trang_thai_xe']) !== -1) {
+        var $tr = $input.closest('tr');
+        $tr.find('[data-field="dinh_muc"]').val(formatMoney(row.dinh_muc));
+      }
     });
     $(document).on('input change', '.row-field', function () {
       var $input = $(this);

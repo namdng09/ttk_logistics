@@ -898,14 +898,79 @@ body .flatpickr-calendar {
   text-overflow: ellipsis;
 }
 
+.khcp-dm-card,
 .khcp-main-card,
 .khcp-summary-card {
   border: 1px solid var(--khcp-border);
   box-shadow: none;
 }
 
+.khcp-dm-card {
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
 .khcp-main-card {
   overflow: hidden;
+}
+
+.khcp-dm-section {
+  background: #fff;
+}
+
+.khcp-dm-header {
+  min-height: 46px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--khcp-border);
+  background: #fff;
+}
+
+.khcp-dm-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--khcp-border);
+  background: #f8fafc;
+}
+
+.khcp-dm-summary > div {
+  min-height: 52px;
+  padding: 8px 12px;
+  border-right: 1px solid var(--khcp-border);
+}
+
+.khcp-dm-summary > div:last-child {
+  border-right: 0;
+}
+
+.khcp-dm-summary span {
+  display: block;
+  color: var(--khcp-muted);
+  font-size: 12px;
+}
+
+.khcp-dm-summary strong {
+  display: block;
+  margin-top: 2px;
+  color: #212529;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.khcp-dm-table-wrap {
+  max-height: 260px;
+  background: #fff;
+  overflow-x: hidden;
+}
+
+.khcp-dm-table .form-control,
+.khcp-dm-table .form-select {
+  min-height: 32px;
+  height: 32px;
 }
 
 .khcp-section + .khcp-section {
@@ -1092,6 +1157,18 @@ body .flatpickr-calendar {
 .khcp-col-action {
   width: 75px;
   text-align: right;
+}
+
+.khcp-dm-col-leg {
+  width: 96px;
+}
+
+.khcp-dm-col-status {
+  width: 106px;
+}
+
+.khcp-dm-col-place {
+  width: 22%;
 }
 
 .khcp-row-actions {
