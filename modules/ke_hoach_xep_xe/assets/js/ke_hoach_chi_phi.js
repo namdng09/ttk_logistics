@@ -3,7 +3,7 @@
 
   var API_BASE = '/api/ke-hoach-chi-phi';
   var COST_SECTIONS = [
-    { value: 'tinh_cho_khach', label: 'Chi hộ Khách hàng', source: 'ke_hoach' },
+    { value: 'tinh_cho_khach', label: 'Chi hộ khách hàng', source: 'ke_hoach' },
     { value: 'cong_ty_chi_tra', label: 'Công ty chi trả', source: 'ke_hoach' },
     { value: 'lai_xe_tu_chiu', label: 'Lái xe chi trả', source: 'lai_xe' }
   ];

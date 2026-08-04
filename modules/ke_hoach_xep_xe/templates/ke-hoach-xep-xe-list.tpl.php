@@ -221,7 +221,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
               <div class="card-header">Tổng quan</div>
               <div class="card-body">
                 <div class="khcp-summary-block">
-                  <div class="khcp-summary-label">Tính cho khách</div>
+                  <div class="khcp-summary-label">Chi hộ khách hàng</div>
                   <div class="khcp-summary-value" id="khcp-total-customer">0</div>
                 </div>
 
