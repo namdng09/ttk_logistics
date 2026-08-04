@@ -929,7 +929,7 @@ body .flatpickr-calendar {
 }
 
 .khcp-table-wrap {
-  max-height: calc(50vh - 78px);
+  max-height: calc(100vh - 228px);
   background: #fff;
   overflow-x: hidden;
 }
@@ -950,9 +950,9 @@ body .flatpickr-calendar {
   padding: 3px 5px !important;
   line-height: 1.2 !important;
   vertical-align: middle !important;
-  border-bottom: 1px solid var(--khcp-border) !important;
-  background: #f8f9fb !important;
-  color: #4f5660 !important;
+  border-bottom: 1px solid #d9e2ec !important;
+  background: #eef3f8 !important;
+  color: #344054 !important;
   font-size: 12px !important;
   font-weight: 650 !important;
   white-space: nowrap;
@@ -967,6 +967,23 @@ body .flatpickr-calendar {
 
 .khcp-table tbody tr:hover td {
   background: #fbfcfd;
+}
+
+.khcp-table tbody tr.khcp-type-divider td {
+  padding: 6px 8px;
+  border-color: #d9e2ec;
+  background: #eef3f8;
+  color: #243447;
+  vertical-align: middle;
+}
+
+.khcp-table tbody tr.khcp-type-divider .btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .khcp-table tbody tr.is-invalid-row td {
@@ -1053,10 +1070,6 @@ body .flatpickr-calendar {
 .khcp-col-index {
   width: 36px;
   text-align: center;
-}
-
-.khcp-col-type {
-  width: 124px;
 }
 
 .khcp-col-name {

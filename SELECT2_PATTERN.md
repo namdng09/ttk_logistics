@@ -110,3 +110,15 @@ initSelect2(document.querySelector('.cost-name-select'), 'Tên chi phí', {
 
 Khi dùng `tags: true`, Select2 chỉ thêm option ở phía frontend. Nếu cần lưu item mới vào danh mục, phải gọi thêm API tạo danh mục trước hoặc trong lúc lưu form.
 
+## Danh mục cần đồng nhất
+
+Với các dữ liệu cần chuẩn hóa để xuất chứng từ/hóa đơn, không dùng `tags: true`. Ví dụ tên chi phí kế hoạch phải chọn từ danh mục `Chi phí`:
+
+```javascript
+initSelect2(document.querySelector('.cost-name-select'), 'Tên chi phí', {
+  allowClear: true,
+  dropdownParent: $('#ke-hoach-chi-phi-modal')
+});
+```
+
+Khi lưu, validate giá trị đã chọn có trong danh sách option/danh mục. Không tự tạo danh mục mới từ text người dùng nhập.

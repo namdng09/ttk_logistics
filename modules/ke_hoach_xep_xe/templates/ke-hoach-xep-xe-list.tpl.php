@@ -194,62 +194,24 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
             </div>
             <div class="card khcp-main-card h-100">
               <div class="card-body p-0">
-                <section class="khcp-section" data-source="ke_hoach">
-                  <div class="khcp-section-header">
-                    <div class="d-flex align-items-center gap-2">
-                      <span class="khcp-section-title">Chi phí kế hoạch</span>
-                      <span class="badge rounded-pill bg-label-secondary border" id="khcp-plan-count">0</span>
-                    </div>
-                  </div>
-
-                  <div class="table-responsive khcp-table-wrap">
-                    <table class="table table-bordered table-sm align-middle mb-0 khcp-table">
-                      <thead>
-                        <tr>
-                          <th class="khcp-col-index">#</th>
-                          <th class="khcp-col-type">Loại CP</th>
-                          <th class="khcp-col-name">Tên chi phí</th>
-                          <th class="khcp-col-money">Đơn giá</th>
-                          <th class="khcp-col-qty">SL</th>
-                          <th class="khcp-col-money">Trước VAT</th>
-                          <th class="khcp-col-vat">VAT (%)</th>
-                          <th class="khcp-col-money">Sau VAT</th>
-                          <th class="khcp-col-note">Ghi chú</th>
-                          <th class="khcp-col-action"></th>
-                        </tr>
-                      </thead>
-                      <tbody id="khcp-plan-table-body"></tbody>
-                    </table>
-                  </div>
-                </section>
-
-                <section class="khcp-section khcp-section-driver" data-source="lai_xe">
-                  <div class="khcp-section-header">
-                    <div class="d-flex align-items-center gap-2">
-                      <span class="khcp-section-title">Chi phí lái xe nhập</span>
-                      <span class="badge rounded-pill bg-label-secondary border" id="khcp-driver-count">0</span>
-                    </div>
-                  </div>
-
-                  <div class="table-responsive khcp-table-wrap">
-                    <table class="table table-bordered table-sm align-middle mb-0 khcp-table">
-                      <thead>
-                        <tr>
-                          <th class="khcp-col-index">#</th>
-                          <th class="khcp-col-name">Tên chi phí</th>
-                          <th class="khcp-col-money">Đơn giá</th>
-                          <th class="khcp-col-qty">SL</th>
-                          <th class="khcp-col-money">Trước VAT</th>
-                          <th class="khcp-col-vat">VAT (%)</th>
-                          <th class="khcp-col-money">Sau VAT</th>
-                          <th class="khcp-col-note">Ghi chú</th>
-                          <th class="khcp-col-action"></th>
-                        </tr>
-                      </thead>
-                      <tbody id="khcp-driver-table-body"></tbody>
-                    </table>
-                  </div>
-                </section>
+                <div class="table-responsive khcp-table-wrap">
+                  <table class="table table-bordered table-sm align-middle mb-0 khcp-table">
+                    <thead>
+                      <tr>
+                        <th class="khcp-col-index">#</th>
+                        <th class="khcp-col-name">Tên chi phí</th>
+                        <th class="khcp-col-money">Đơn giá</th>
+                        <th class="khcp-col-qty">SL</th>
+                        <th class="khcp-col-money">Trước VAT</th>
+                        <th class="khcp-col-vat">VAT (%)</th>
+                        <th class="khcp-col-money">Sau VAT</th>
+                        <th class="khcp-col-note">Ghi chú</th>
+                        <th class="khcp-col-action"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="khcp-cost-table-body"></tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -280,11 +242,11 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
 
                 <div class="khcp-summary-meta">
                   <div>
-                    <span>Kế hoạch</span>
+                    <span>Chi phí kế hoạch</span>
                     <strong id="khcp-total-plan-source">0</strong>
                   </div>
                   <div>
-                    <span>Lái xe nhập</span>
+                    <span>Lái xe chi trả</span>
                     <strong id="khcp-total-driver-source">0</strong>
                   </div>
                   <div>

@@ -2,9 +2,10 @@
   'use strict';
 
   var API_BASE = '/api/ke-hoach-chi-phi';
-  var PLAN_COST_TYPES = [
-    { value: 'cong_ty_chi_tra', label: 'Cty chi trả' },
-    { value: 'tinh_cho_khach', label: 'Tính cho khách' }
+  var COST_SECTIONS = [
+    { value: 'tinh_cho_khach', label: 'Chi hộ Khách hàng', source: 'ke_hoach' },
+    { value: 'cong_ty_chi_tra', label: 'Công ty chi trả', source: 'ke_hoach' },
+    { value: 'lai_xe_tu_chiu', label: 'Lái xe chi trả', source: 'lai_xe' }
   ];
   var DRIVER_COST_TYPE = 'lai_xe_tu_chiu';
   var notyf;
@@ -122,15 +123,6 @@
     return false;
   }
 
-  function hasExpenseCatalogName(name) {
-    name = String(name || '').trim().toLowerCase();
-    if (!name) return true;
-    for (var i = 0; i < state.expenseCatalogNames.length; i++) {
-      if (String(state.expenseCatalogNames[i] || '').trim().toLowerCase() === name) return true;
-    }
-    return false;
-  }
-
   function addExpenseName(name) {
     name = String(name || '').trim();
     if (!name || hasExpenseName(name)) return;
@@ -155,31 +147,17 @@
       });
   }
 
-  function ensureExpenseNameInCatalog(name) {
-    name = String(name || '').trim();
-    if (!name || hasExpenseCatalogName(name)) return $.Deferred().resolve().promise();
-    var done = $.Deferred();
-    $.ajax({
-      url: '/api/danh-muc',
-      method: 'POST',
-      contentType: 'application/json; charset=utf-8',
-      dataType: 'json',
-      data: JSON.stringify({
-        ten: name,
-        phan_loai: 'Chi phí',
-        hoat_dong: 1
-      })
-    }).always(function () {
-      if (!hasExpenseCatalogName(name)) state.expenseCatalogNames.push(name);
-      addExpenseName(name);
-      done.resolve();
-    });
-    return done.promise();
-  }
-
   function resolveSource(item) {
     var json = parseJson(item.thong_tin_json);
+    if (item.loai_chi_phi === DRIVER_COST_TYPE) return 'lai_xe';
     return json.nguon_nhap === 'lai_xe' ? 'lai_xe' : 'ke_hoach';
+  }
+
+  function getSection(type) {
+    for (var i = 0; i < COST_SECTIONS.length; i++) {
+      if (COST_SECTIONS[i].value === type) return COST_SECTIONS[i];
+    }
+    return COST_SECTIONS[1];
   }
 
   function normalizeRow(item, fallbackSource) {
@@ -189,8 +167,12 @@
     var unitPrice = toNumber(item.don_gia);
     var quantity = toNumber(item.so_luong || 1) || 1;
     var vat = clampPercent(item.vat_percent);
-    var source = item.source || fallbackSource || resolveSource(item);
-    var type = source === 'lai_xe' ? DRIVER_COST_TYPE : (item.loai_chi_phi === DRIVER_COST_TYPE ? 'cong_ty_chi_tra' : (item.loai_chi_phi || 'cong_ty_chi_tra'));
+    var rawType = item.loai_chi_phi || '';
+    var type = rawType === DRIVER_COST_TYPE ? DRIVER_COST_TYPE : (rawType || (fallbackSource === 'lai_xe' ? DRIVER_COST_TYPE : 'cong_ty_chi_tra'));
+    if (type !== 'tinh_cho_khach' && type !== 'cong_ty_chi_tra' && type !== DRIVER_COST_TYPE) type = 'cong_ty_chi_tra';
+    var source = item.source || fallbackSource || resolveSource($.extend({}, item, { loai_chi_phi: type }));
+    if (type === DRIVER_COST_TYPE) source = 'lai_xe';
+    else source = 'ke_hoach';
     return {
       key: item.key || (item.nid ? 'nid_' + item.nid : uid()),
       nid: Number(item.nid) || 0,
@@ -211,12 +193,13 @@
     };
   }
 
-  function createEmptyRow(source) {
+  function createEmptyRow(type) {
+    var section = getSection(type);
     return normalizeRow({
-      source: source,
-      loai_chi_phi: source === 'lai_xe' ? DRIVER_COST_TYPE : 'cong_ty_chi_tra',
+      source: section.source,
+      loai_chi_phi: section.value,
       so_luong: 1
-    }, source);
+    }, section.source);
   }
 
   function getRow(key) {
@@ -226,9 +209,9 @@
     return null;
   }
 
-  function getRowsBySource(source) {
+  function getRowsByType(type) {
     return $.grep(state.rows, function (row) {
-      return row.source === source;
+      return row.loai_chi_phi === type;
     });
   }
 
@@ -240,16 +223,7 @@
   }
 
   function ensureEmptyRows() {
-    if (!getRowsBySource('ke_hoach').length) state.rows.push(createEmptyRow('ke_hoach'));
-    if (!getRowsBySource('lai_xe').length) state.rows.push(createEmptyRow('lai_xe'));
-  }
-
-  function optionHtml(selectedValue) {
-    var html = '';
-    for (var i = 0; i < PLAN_COST_TYPES.length; i++) {
-      html += '<option value="' + escHtml(PLAN_COST_TYPES[i].value) + '"' + (PLAN_COST_TYPES[i].value === selectedValue ? ' selected' : '') + '>' + escHtml(PLAN_COST_TYPES[i].label) + '</option>';
-    }
-    return html;
+    return;
   }
 
   function expenseNameOptions(selectedValue) {
@@ -274,26 +248,18 @@
       var $select = $(this);
       if ($select.data('select2')) $select.select2('destroy');
       $select.select2({
-        tags: true,
         placeholder: 'Tên chi phí',
         allowClear: true,
         width: '100%',
-        dropdownParent: $('#ke-hoach-chi-phi-modal'),
-        createTag: function (params) {
-          var term = $.trim(params.term || '');
-          if (!term) return null;
-          return { id: term, text: term, newTag: true };
-        }
+        dropdownParent: $('#ke-hoach-chi-phi-modal')
       });
     });
   }
 
   function rowTemplate(row, index) {
-    var typeCell = row.source === 'lai_xe' ? '' : '<td><select class="form-select form-select-sm row-field" data-field="loai_chi_phi">' + optionHtml(row.loai_chi_phi) + '</select></td>';
     return '' +
       '<tr data-row-key="' + escHtml(row.key) + '">' +
         '<td class="khcp-col-index"><span class="khcp-row-number">' + (index + 1) + '</span></td>' +
-        typeCell +
         '<td><select class="form-select form-select-sm row-field cost-name cost-name-select" data-field="ten_chi_phi">' + expenseNameOptions(row.ten_chi_phi) + '</select></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field money-input" data-field="don_gia" value="' + formatMoney(row.don_gia) + '"></td>' +
         '<td><input type="number" min="1" step="1" class="form-control form-control-sm row-field qty-input" data-field="so_luong" value="' + Math.max(1, parseInt(row.so_luong, 10) || 1) + '"></td>' +
@@ -302,21 +268,35 @@
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm money-input calculated-input ' + (row.override_after ? 'is-overridden' : '') + '" data-field="tong_sau_vat" value="' + formatMoney(row.tong_sau_vat) + '" readonly disabled></td>' +
         '<td><input type="text" class="form-control form-control-sm row-field" data-field="ghi_chu" value="' + escHtml(row.ghi_chu) + '" placeholder="Ghi chú"></td>' +
         '<td><div class="khcp-row-actions">' +
-          '<button type="button" class="btn btn-label-primary btn-sm btn-add-row" title="Thêm dòng"><i class="ti tabler-plus"></i></button>' +
           '<button type="button" class="btn btn-label-danger btn-sm btn-delete-row" title="Xoá dòng"><i class="ti tabler-trash"></i></button>' +
         '</div></td>' +
       '</tr>';
   }
 
-  function renderTable(source) {
-    var rows = getRowsBySource(source);
+  function sectionTemplate(section) {
+    return '' +
+      '<tr class="khcp-type-divider" data-cost-type="' + escHtml(section.value) + '">' +
+        '<td class="text-center py-1">' +
+          '<button type="button" class="btn btn-sm btn-icon btn-primary btn-add-row text-white" data-cost-type="' + escHtml(section.value) + '" title="Thêm dòng">' +
+            '<i class="ti tabler-plus"></i>' +
+          '</button>' +
+        '</td>' +
+        '<td colspan="8" class="py-2 px-3"><strong class="small">' + escHtml(section.label) + '</strong></td>' +
+      '</tr>';
+  }
+
+  function renderTable() {
     var html = '';
-    for (var i = 0; i < rows.length; i++) {
-      html += rowTemplate(rows[i], i);
+    for (var s = 0; s < COST_SECTIONS.length; s++) {
+      var section = COST_SECTIONS[s];
+      var rows = getRowsByType(section.value);
+      html += sectionTemplate(section);
+      for (var i = 0; i < rows.length; i++) {
+        html += rowTemplate(rows[i], i);
+      }
     }
-    var target = source === 'ke_hoach' ? '#khcp-plan-table-body' : '#khcp-driver-table-body';
-    $(target).html(html);
-    initExpenseSelect2(target);
+    $('#khcp-cost-table-body').html(html);
+    initExpenseSelect2('#khcp-cost-table-body');
   }
 
   function updateSummary() {
@@ -341,8 +321,6 @@
     $('#khcp-total-plan-source').text(formatMoney(planSource));
     $('#khcp-total-driver-source').text(formatMoney(driverSource));
     $('#khcp-total-rows').text(rows.length);
-    $('#khcp-plan-count').text($.grep(getRowsBySource('ke_hoach'), function (row) { return !isBlankRow(row); }).length);
-    $('#khcp-driver-count').text($.grep(getRowsBySource('lai_xe'), function (row) { return !isBlankRow(row); }).length);
   }
 
   function clearPlanInfo() {
@@ -375,8 +353,7 @@
 
   function renderAll() {
     ensureEmptyRows();
-    renderTable('ke_hoach');
-    renderTable('lai_xe');
+    renderTable();
     updateSummary();
     setBusy(state.busy);
   }
@@ -409,7 +386,7 @@
   function validateRow(row, mark) {
     var hasMoney = toNumber(row.don_gia) > 0 || toNumber(row.tong_truoc_vat) > 0 || toNumber(row.tong_sau_vat) > 0;
     var hasName = String(row.ten_chi_phi || '').trim().length > 0;
-    var valid = !hasMoney || hasName;
+    var valid = !hasMoney || (hasName && hasExpenseName(row.ten_chi_phi));
     if (mark) {
       var $tr = $('tr[data-row-key="' + row.key + '"]');
       $tr.toggleClass('is-invalid-row', !valid);
@@ -476,18 +453,15 @@
 
   function saveRow(row, silent) {
     if (isBlankRow(row)) return $.Deferred().resolve({ skipped: true }).promise();
-    if (!validateRow(row, true)) return $.Deferred().reject({ message: 'Vui lòng nhập tên chi phí.' }).promise();
+    if (!validateRow(row, true)) return $.Deferred().reject({ message: 'Vui lòng chọn tên chi phí từ danh mục.' }).promise();
     var isUpdate = row.nid > 0;
-    return ensureExpenseNameInCatalog(row.ten_chi_phi)
-      .then(function () {
-        return $.ajax({
-          url: isUpdate ? API_BASE + '/' + row.nid : API_BASE,
-          method: isUpdate ? 'PUT' : 'POST',
-          contentType: 'application/json; charset=utf-8',
-          dataType: 'json',
-          data: JSON.stringify(payloadFromRow(row))
-        });
-      })
+    return $.ajax({
+      url: isUpdate ? API_BASE + '/' + row.nid : API_BASE,
+      method: isUpdate ? 'PUT' : 'POST',
+      contentType: 'application/json; charset=utf-8',
+      dataType: 'json',
+      data: JSON.stringify(payloadFromRow(row))
+    })
       .done(function (response) {
         if (response && response.data && response.data.nid) {
           row.nid = Number(response.data.nid) || row.nid;
@@ -501,7 +475,7 @@
     var rows = $.grep(state.rows, function (row) { return !isBlankRow(row); });
     var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
     if (invalidRows.length) {
-      notify('Vui lòng nhập tên cho các dòng có số tiền.', 'error');
+      notify('Vui lòng chọn tên chi phí từ danh mục cho các dòng có số tiền.', 'error');
       $('tr[data-row-key="' + invalidRows[0].key + '"] .cost-name').trigger('focus');
       return;
     }
@@ -552,11 +526,13 @@
     state.loaiKeHoach = String($button.data('loai-ke-hoach') || 'thuong');
     state.rows = [];
     $('#khcp-plan-code').text('#' + state.nidKeHoach);
+    clearPlanInfo();
+    setBusy(true);
+    renderAll();
     if (!modal) {
       modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(document.getElementById('ke-hoach-chi-phi-modal'), { backdrop: 'static', keyboard: false }) : new bootstrap.Modal(document.getElementById('ke-hoach-chi-phi-modal'));
     }
     modal.show();
-    clearPlanInfo();
     loadPlanInfo();
     loadExpenseNames().always(loadRows);
   }
@@ -570,13 +546,12 @@
       openModal($(this));
     });
     $(document).on('click', '.btn-add-row', function () {
-      var currentRow = getRow($(this).closest('tr').data('row-key'));
-      var source = currentRow && currentRow.source === 'lai_xe' ? 'lai_xe' : 'ke_hoach';
-      state.rows.push(createEmptyRow(source));
-      renderTable(source);
+      var type = String($(this).data('cost-type') || 'cong_ty_chi_tra');
+      var row = createEmptyRow(type);
+      state.rows.push(row);
+      renderTable();
       updateSummary();
-      var rows = getRowsBySource(source);
-      $('tr[data-row-key="' + rows[rows.length - 1].key + '"] .cost-name').trigger('focus');
+      $('tr[data-row-key="' + row.key + '"] .cost-name').trigger('focus');
     });
     $(document).on('input change', '.row-field', function () {
       var $input = $(this);
@@ -584,7 +559,6 @@
       var field = $input.data('field');
       if (!row || !field) return;
       row[field] = ($input.hasClass('money-input') || $input.hasClass('decimal-input') || $input.hasClass('qty-input')) ? toNumber($input.val()) : $input.val();
-      if (field === 'ten_chi_phi') addExpenseName(row[field]);
       if (field === 'so_luong') row[field] = Math.max(1, parseInt(row[field], 10) || 1);
       if (field === 'vat_percent') row[field] = clampPercent(row[field]);
       if ($input.hasClass('money-input') && !$input.prop('readonly')) {
