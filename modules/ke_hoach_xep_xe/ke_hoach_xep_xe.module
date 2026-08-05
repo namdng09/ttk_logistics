@@ -1052,6 +1052,13 @@ function _ke_hoach_cont_rest_update($id) {
       $update[$field] = !empty($input[$field]) ? 1 : 0;
     }
   }
+  if (array_key_exists('trang_thai_van_chuyen', $input)) {
+    $status = trim((string) $input['trang_thai_van_chuyen']);
+    if (!in_array($status, _ke_hoach_xep_xe_statuses(), TRUE)) {
+      return _ke_hoach_xep_xe_fail('Trạng thái vận chuyển không hợp lệ');
+    }
+    $update['trang_thai_van_chuyen'] = $status;
+  }
   if (array_key_exists('bai_lay_thuc_te', $input)) {
     $bai_lay_thuc_te = trim((string) $input['bai_lay_thuc_te']);
     $bai_lay_cont = db_query("SELECT bai_lay_cont FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetchField();

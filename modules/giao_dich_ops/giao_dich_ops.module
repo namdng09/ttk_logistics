@@ -201,7 +201,7 @@ function _giao_dich_ops_money($value) {
 function _giao_dich_ops_code($prefix) {
   $map = array(
     'GDOPS' => array('code' => 'GD', 'table' => 'giao_dich_ops_ledger', 'field' => 'ma_giao_dich'),
-    'DNU' => array('code' => 'DU', 'table' => 'giao_dich_ops_de_nghi_ung', 'field' => 'ma_de_nghi'),
+    'DNU' => array('code' => 'DNCP', 'table' => 'giao_dich_ops_de_nghi_ung', 'field' => 'ma_de_nghi'),
     'HU' => array('code' => 'HU', 'table' => 'giao_dich_ops_ledger', 'field' => 'ma_giao_dich'),
     'DC' => array('code' => 'DC', 'table' => 'giao_dich_ops_ledger', 'field' => 'ma_giao_dich'),
   );
@@ -252,6 +252,8 @@ function giao_dich_ops_type_label($type) {
     'quyet_toan_chi_phi' => 'Quyết toán chi phí',
     'hoan_tien_thua' => 'Hoàn tiền thừa',
     'cong_ty_hoan_them' => 'Công ty hoàn thêm',
+    'tam_ung_luong' => 'Tạm ứng lương',
+    'thanh_toan_luong' => 'Thanh toán lương',
     'dieu_chinh_tang' => 'Điều chỉnh tăng',
     'dieu_chinh_giam' => 'Điều chỉnh giảm',
     'huy_dao_giao_dich' => 'Hủy/đảo giao dịch',
@@ -310,9 +312,6 @@ function giao_dich_ops_create_ledger_transaction(array $params) {
   try {
     $before = giao_dich_ops_current_balance($uid_ops, $nid_lai_xe);
     $after = $huong === 'debit' ? $before - $amount : $before + $amount;
-    if ($after < 0) {
-      throw new Exception('Số dư sổ chi phí không đủ.');
-    }
 
     if (empty($params['ma_giao_dich'])) {
       $code_lock_name = 'giao_dich_ops_code_GDOPS';
@@ -602,6 +601,7 @@ function _giao_dich_ops_advance_create() {
       }
       $ma_de_nghi = _giao_dich_ops_code('DNU');
     }
+    $thong_tin_json = !empty($input['thong_tin_json']) && is_array($input['thong_tin_json']) ? $input['thong_tin_json'] : array();
     $nid = db_insert('giao_dich_ops_de_nghi_ung')->fields(array(
       'ma_de_nghi' => $ma_de_nghi,
       'uid_ops' => !empty($input['uid_ops']) ? (int) $input['uid_ops'] : (!empty($input['ops_uid']) ? (int) $input['ops_uid'] : (int) $account->uid),
@@ -614,11 +614,17 @@ function _giao_dich_ops_advance_create() {
       'trang_thai' => 'cho_duyet',
       'nid_ledger' => 0,
       'chung_tu_json' => _giao_dich_ops_json_encode(!empty($input['chung_tu_json']) && is_array($input['chung_tu_json']) ? $input['chung_tu_json'] : array()),
-      'thong_tin_json' => _giao_dich_ops_json_encode(!empty($input['thong_tin_json']) && is_array($input['thong_tin_json']) ? $input['thong_tin_json'] : array()),
+      'thong_tin_json' => _giao_dich_ops_json_encode($thong_tin_json),
       'hoat_dong' => 1,
       'created' => $now,
       'changed' => $now,
     ))->execute();
+    _giao_dich_ops_sync_plan_cost_from_advance(array(
+      'nid' => (int) $nid,
+      'nid_ledger' => 0,
+      'trang_thai' => 'cho_duyet',
+      'thong_tin_json' => $thong_tin_json,
+    ));
     return _giao_dich_ops_success(giao_dich_ops_load_advance($nid));
   }
   catch (Exception $e) {
@@ -685,7 +691,7 @@ function _giao_dich_ops_advance_update($id) {
       $ledger = giao_dich_ops_create_ledger_transaction(array(
         'uid_ops' => !empty($nhan_su['uid']) ? (int) $nhan_su['uid'] : 0,
         'nid_lai_xe' => !empty($lai_xe['nid']) ? (int) $lai_xe['nid'] : 0,
-        'huong' => 'credit',
+        'huong' => 'debit',
         'loai_giao_dich' => 'ung_tien',
         'so_tien' => (int) $row['so_tien'],
         'tham_chieu_loai' => 'de_nghi_ung_ops',
@@ -699,7 +705,9 @@ function _giao_dich_ops_advance_update($id) {
     }
 
     db_update('giao_dich_ops_de_nghi_ung')->fields($update)->condition('nid', (int) $id)->execute();
-    return _giao_dich_ops_success(giao_dich_ops_load_advance($id));
+    $updated = giao_dich_ops_load_advance($id);
+    _giao_dich_ops_sync_plan_cost_from_advance($updated);
+    return _giao_dich_ops_success($updated);
   }
   catch (Exception $e) {
     $transaction->rollback();
@@ -714,7 +722,65 @@ function _giao_dich_ops_advance_delete($id) {
   if (!$row) return _giao_dich_ops_not_found('Đề nghị ứng không tồn tại');
   if (!empty($row['ledger']['nid'])) return _giao_dich_ops_fail('Đề nghị đã sinh giao dịch ví, không thể xoá');
   db_update('giao_dich_ops_de_nghi_ung')->fields(array('hoat_dong' => 0, 'changed' => _giao_dich_ops_now()))->condition('nid', (int) $id)->execute();
+  _giao_dich_ops_reset_plan_cost_advance_link($row);
   return _giao_dich_ops_success(array('nid' => (int) $id, 'deleted' => TRUE));
+}
+
+function _giao_dich_ops_advance_cost_ref(array $advance) {
+  $json = !empty($advance['thong_tin_json']) ? _giao_dich_ops_json_decode($advance['thong_tin_json']) : array();
+  $source = !empty($json['nguon']) ? (string) $json['nguon'] : (!empty($json['source']) ? (string) $json['source'] : '');
+  $nid_chi_phi = !empty($json['nid_chi_phi']) ? (int) $json['nid_chi_phi'] : (!empty($json['nid_ke_hoach_chi_phi']) ? (int) $json['nid_ke_hoach_chi_phi'] : 0);
+  if ($source !== 'ke_hoach_chi_phi' || !$nid_chi_phi) {
+    return 0;
+  }
+  return $nid_chi_phi;
+}
+
+function _giao_dich_ops_sync_plan_cost_from_advance(array $advance) {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return;
+  }
+  $nid_chi_phi = _giao_dich_ops_advance_cost_ref($advance);
+  if (!$nid_chi_phi) {
+    return;
+  }
+  $status_map = array(
+    'cho_duyet' => 'cho_duyet',
+    'da_duyet' => 'da_duyet',
+    'da_thanh_toan' => 'da_thanh_toan',
+    'tu_choi' => 'tu_choi',
+    'huy' => 'huy',
+  );
+  $trang_thai = !empty($advance['trang_thai']) && isset($status_map[$advance['trang_thai']]) ? $status_map[$advance['trang_thai']] : 'cho_duyet';
+  db_update('ke_hoach_chi_phi')
+    ->fields(array(
+      'trang_thai_duyet' => $trang_thai,
+      'nid_de_nghi_chi_phi' => !empty($advance['nid']) ? (int) $advance['nid'] : 0,
+      'nid_ledger' => !empty($advance['nid_ledger']) ? (int) $advance['nid_ledger'] : (!empty($advance['ledger']['nid']) ? (int) $advance['ledger']['nid'] : 0),
+      'changed' => _giao_dich_ops_now(),
+    ))
+    ->condition('nid', $nid_chi_phi)
+    ->execute();
+}
+
+function _giao_dich_ops_reset_plan_cost_advance_link(array $advance) {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return;
+  }
+  $nid_chi_phi = _giao_dich_ops_advance_cost_ref($advance);
+  if (!$nid_chi_phi) {
+    return;
+  }
+  db_update('ke_hoach_chi_phi')
+    ->fields(array(
+      'trang_thai_duyet' => 'khong_can_duyet',
+      'nid_de_nghi_chi_phi' => 0,
+      'nid_ledger' => 0,
+      'changed' => _giao_dich_ops_now(),
+    ))
+    ->condition('nid', $nid_chi_phi)
+    ->condition('nid_de_nghi_chi_phi', !empty($advance['nid']) ? (int) $advance['nid'] : 0)
+    ->execute();
 }
 
 function giao_dich_ops_load_advance($id) {

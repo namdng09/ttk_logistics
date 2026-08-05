@@ -5,6 +5,9 @@
       <h4 class="card-title mb-0" id="form-title">Xếp xe tuyến xa</h4>
     </div>
     <div class="d-flex gap-2">
+      <button type="button" class="btn btn-success waves-effect d-none" id="complete-plan-btn">
+        <i class="icon-base ti tabler-circle-check me-1"></i>Hoàn thành
+      </button>
       <button type="button" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu xếp xe</button>
     </div>
   </div>

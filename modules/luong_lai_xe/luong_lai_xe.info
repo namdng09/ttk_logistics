@@ -1,0 +1,6 @@
+name = Lương Lái Xe
+description = Báo cáo lương lái xe từ kế hoạch xếp xe, định mức khoán và chi phí kế hoạch.
+core = 7.x
+package = ANDIN JSC API
+version = 7.x-1.0
+files[] = luong_lai_xe.module

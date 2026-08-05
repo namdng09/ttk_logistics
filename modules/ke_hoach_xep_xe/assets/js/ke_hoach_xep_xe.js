@@ -752,6 +752,55 @@
       });
     }
 
+    function completePlan(id, options) {
+      options = options || {};
+      var doUpdate = function () {
+        if (options.$button && options.$button.length) {
+          options.$button.prop('disabled', true);
+        }
+        $.ajax({
+          url: '/api/quan-ly-cont/' + id,
+          type: 'PUT',
+          contentType: 'application/json; charset=utf-8',
+          dataType: 'json',
+          data: JSON.stringify({ trang_thai_van_chuyen: 'Hoàn thành' }),
+          success: function (res) {
+            if (res.status === 'success') {
+              if (notyf) notyf.success('Đã chuyển kế hoạch sang Hoàn thành');
+              if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
+              if (typeof options.onSuccess === 'function') options.onSuccess(res);
+            } else if (notyf) {
+              notyf.error(res.message || 'Cập nhật trạng thái thất bại');
+            }
+          },
+          error: function (jqXHR) {
+            if (notyf) notyf.error(apiMsg(jqXHR));
+          },
+          complete: function () {
+            if (options.$button && options.$button.length) {
+              options.$button.prop('disabled', false);
+            }
+          }
+        });
+      };
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: 'Chuyển hoàn thành?',
+          text: 'Kế hoạch hoàn thành sẽ được đưa vào kỳ tính lương lái xe.',
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'Hoàn thành',
+          cancelButtonText: 'Huỷ',
+          customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-label-secondary ms-1' },
+          buttonsStyling: false
+        }).then(function (result) {
+          if (result.isConfirmed) doUpdate();
+        });
+      } else if (confirm('Chuyển kế hoạch sang Hoàn thành?')) {
+        doUpdate();
+      }
+    }
+
     $('#search-btn').on('click', function () {
       currentFilters = collectListFilters();
       currentStatus = $('#status-filter').val() || '';
@@ -1133,7 +1182,7 @@
 
     function showLoading(show) {
       $form('#form-loading').toggle(show);
-      $form('#save-btn, #add-line-btn, #reset-lines-btn').prop('disabled', show);
+      $form('#save-btn, #add-line-btn, #reset-lines-btn, #complete-plan-btn').prop('disabled', show);
       if (useTableLayout) {
         $form('#ke-hoach-fullscreen-modal').find('input, select, button').not('.btn-close').prop('disabled', show);
       }
@@ -2155,10 +2204,23 @@
       $form('#form-title').text(parts.join(' - '));
     }
 
+    function updateCompleteButton(row) {
+      var $btn = $form('#complete-plan-btn');
+      if (!$btn.length) return;
+      var nid = row && row.nid ? parseInt(row.nid, 10) : parseInt($form('#nid-input').val(), 10);
+      var status = row && row.trang_thai_van_chuyen ? String(row.trang_thai_van_chuyen) : '';
+      if (!nid || status === 'Hoàn thành') {
+        $btn.addClass('d-none').removeAttr('data-id');
+        return;
+      }
+      $btn.removeClass('d-none').attr('data-id', nid);
+    }
+
     function populateEdit(row) {
       var khachHangId = (row.khach_hang && row.khach_hang.nid) || 0;
       updateEditTitle(row);
       $form('#nid-input').val(row.nid || '');
+      updateCompleteButton(row);
       state.pendingContDestinationUpdates = {};
       state.lines = [];
       addLine({
@@ -2336,7 +2398,7 @@
     $(document).on('change', '#nid_khach_hang-input', function () {
       loadCauHinh(parseInt($(this).val(), 10) || 0);
     });
-    $form('#add-line-btn, #reset-lines-btn, #save-btn, #vehicle-picker-search, #ke-hoach-form').off();
+    $form('#add-line-btn, #reset-lines-btn, #save-btn, #complete-plan-btn, #vehicle-picker-search, #ke-hoach-form').off();
     $form('#add-line-btn').on('click', function () {
       syncAllLines();
       addLine({});
@@ -2362,6 +2424,18 @@
     });
     $form('#vehicle-picker-search').on('input', function () {
       renderVehicleTable($(this).val());
+    });
+    $form('#complete-plan-btn').on('click', function () {
+      var $btn = $(this);
+      var id = parseInt($btn.attr('data-id') || $form('#nid-input').val(), 10) || 0;
+      if (!id) return;
+      completePlan(id, {
+        $button: $btn,
+        onSuccess: function () {
+          if (editData) editData.trang_thai_van_chuyen = 'Hoàn thành';
+          updateCompleteButton($.extend({}, editData || {}, { nid: id, trang_thai_van_chuyen: 'Hoàn thành' }));
+        }
+      });
     });
     $form('#ke-hoach-form').on('keydown', function (e) {
       if (e.which === 13 && !$(e.target).is('textarea')) {

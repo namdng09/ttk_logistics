@@ -147,6 +147,12 @@ function getMainMenuSoft()
                             <div data-i18n="Duyệt đề nghị chi phí">Duyệt đề nghị chi phí</div>
                         </a>
                     </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'luong-lai-xe') === 0) ? ' active' : '') . '">
+                        <a href="/luong-lai-xe" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-report-money"></i>
+                            <div data-i18n="Lương lái xe">Lương lái xe</div>
+                        </a>
+                    </li>
 
                     <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
