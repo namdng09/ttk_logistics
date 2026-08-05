@@ -135,16 +135,16 @@ function getMainMenuSoft()
                             <div data-i18n="Thu chi">Thu chi</div>
                         </a>
                     </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'giao-dich-ops') === 0) ? ' active' : '') . '">
-                        <a href="/giao-dich-ops" class="menu-link">
+                    <li class="menu-item' . ((strpos(current_path(), 'so-chi-phi-van-hanh') === 0 || strpos(current_path(), 'giao-dich-ops') === 0) ? ' active' : '') . '">
+                        <a href="/so-chi-phi-van-hanh" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-wallet"></i>
-                            <div data-i18n="Sổ chi phí lái xe">Sổ chi phí lái xe</div>
+                            <div data-i18n="Sổ chi phí vận hành">Sổ chi phí vận hành</div>
                         </a>
                     </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'duyet-de-nghi-ung-ops') === 0) ? ' active' : '') . '">
-                        <a href="/duyet-de-nghi-ung-ops" class="menu-link">
+                    <li class="menu-item' . ((strpos(current_path(), 'duyet-de-nghi-chi-phi') === 0 || strpos(current_path(), 'duyet-de-nghi-ung-ops') === 0) ? ' active' : '') . '">
+                        <a href="/duyet-de-nghi-chi-phi" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-clipboard-check"></i>
-                            <div data-i18n="Duyệt chi phí lái xe">Duyệt chi phí lái xe</div>
+                            <div data-i18n="Duyệt đề nghị chi phí">Duyệt đề nghị chi phí</div>
                         </a>
                     </li>
 

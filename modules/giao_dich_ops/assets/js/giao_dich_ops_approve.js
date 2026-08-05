@@ -8,6 +8,8 @@
   var filters = {};
   var currentAction = null;
   var supportLoaded = false;
+  var supportLoading = false;
+  var supportLoadingTimer = null;
 
   var statusMap = {
     cho_duyet: { text: 'Chờ duyệt', cls: 'bg-label-warning' },
@@ -23,7 +25,6 @@
       bound = true;
       if (typeof Notyf !== 'undefined') notyf = new Notyf();
       bindEvents();
-      loadFilterOptions();
       loadList();
     }
   };
@@ -35,8 +36,11 @@
     });
 
     bind('btn-open-filter-de-nghi-ops', 'click', function () {
-      loadFilterOptions();
       modalShow('de-nghi-ops-filter-modal');
+    });
+
+    bind('de-nghi-ops-filter-modal', 'shown.bs.modal', function () {
+      loadFilterOptions();
     });
 
     bind('btn-reset-filter-de-nghi-ops', 'click', function () {
@@ -138,15 +142,47 @@
   }
 
   function loadFilterOptions() {
-    if (supportLoaded) return;
-    supportLoaded = true;
-    loadNhanSuOptions();
-    loadLaiXeOptions();
+    if (supportLoaded || supportLoading) return;
+    supportLoading = true;
+    setFilterLoading(true);
+    var pending = 2;
+    if (supportLoadingTimer) window.clearTimeout(supportLoadingTimer);
+    supportLoadingTimer = window.setTimeout(function () {
+      if (supportLoading) {
+        supportLoading = false;
+        setFilterLoading(false);
+      }
+    }, 15000);
+    function done() {
+      pending -= 1;
+      if (pending <= 0) {
+        if (supportLoadingTimer) window.clearTimeout(supportLoadingTimer);
+        supportLoadingTimer = null;
+        supportLoaded = true;
+        supportLoading = false;
+        setFilterLoading(false);
+      }
+    }
+    if (!loadNhanSuOptions(done)) done();
+    if (!loadLaiXeOptions(done)) done();
   }
 
-  function loadNhanSuOptions() {
+  function setFilterLoading(show) {
+    $('#de-nghi-ops-filter-loading').toggle(!!show);
+    var form = document.getElementById('form-filter-de-nghi-ops');
+    if (!form) return;
+    var controls = form.querySelectorAll('input, select, button');
+    for (var i = 0; i < controls.length; i++) {
+      if (hasClass(controls[i], 'btn-close')) continue;
+      controls[i].disabled = !!show;
+    }
+  }
+
+  function loadNhanSuOptions(done) {
     var sel = document.getElementById('filter-de-nghi-ops-nhan-su');
-    if (!sel) return;
+    if (!sel) {
+      return false;
+    }
     $.ajax({
       url: '/api/nhan-vien',
       type: 'GET',
@@ -166,13 +202,20 @@
       },
       error: function () {
         sel.innerHTML = '<option value="">Tất cả nhân sự</option>';
+        initSelect2(sel);
+      },
+      complete: function () {
+        if (typeof done === 'function') done();
       }
     });
+    return true;
   }
 
-  function loadLaiXeOptions() {
+  function loadLaiXeOptions(done) {
     var sel = document.getElementById('filter-de-nghi-ops-lai-xe');
-    if (!sel) return;
+    if (!sel) {
+      return false;
+    }
     $.ajax({
       url: '/api/lai-xe',
       type: 'GET',
@@ -193,8 +236,13 @@
       },
       error: function () {
         sel.innerHTML = '<option value="">Tất cả lái xe</option>';
+        initSelect2(sel);
+      },
+      complete: function () {
+        if (typeof done === 'function') done();
       }
     });
+    return true;
   }
 
   function loadList() {
@@ -236,8 +284,14 @@
     for (var idx = 0; idx < items.length; idx++) {
       var item = items[idx];
       var stt = (currentPage - 1) * currentLimit + idx + 1;
-      var personMain = item.lai_xe_ten || item.ops_ten || '';
-      var personSub = item.lai_xe_ten && item.ops_ten ? item.ops_ten : (item.nid_lai_xe ? 'Lái xe #' + item.nid_lai_xe : (item.uid_ops ? 'UID #' + item.uid_ops : ''));
+      var nhanSu = item.nhan_su || {};
+      var laiXe = item.lai_xe || {};
+      var ledger = item.ledger || null;
+      var personMain = nhanSu.ten || laiXe.ten || '';
+      var personSub = laiXe.ten ? ('Lái xe: ' + laiXe.ten) : (laiXe.nid ? 'Lái xe #' + laiXe.nid : (nhanSu.uid ? 'UID #' + nhanSu.uid : ''));
+      var ledgerHtml = ledger && ledger.ma_giao_dich
+        ? '<span class="badge bg-label-success">' + esc(ledger.ma_giao_dich) + '</span>'
+        : (ledger && ledger.nid ? '<span class="badge bg-label-success">#' + ledger.nid + '</span>' : '<span class="badge bg-label-secondary">Chưa ghi</span>');
       rows.push('<tr>'
         + '<td class="text-center">' + renderActions(item) + '</td>'
         + '<td>' + stt + '</td>'
@@ -247,7 +301,7 @@
         + '<td class="text-end"><span class="ops-money-pill ops-money-pill-credit">' + formatMoney(item.so_tien) + '</span></td>'
         + '<td>' + esc(item.so_bkg || '') + '</td>'
         + '<td>' + statusBadge(item.trang_thai, item.trang_thai_label) + '</td>'
-        + '<td>' + (item.nid_ledger ? '<span class="badge bg-label-success">#' + item.nid_ledger + '</span>' : '<span class="badge bg-label-secondary">Chưa ghi</span>') + '</td>'
+        + '<td>' + ledgerHtml + '</td>'
         + '<td class="ops-desc-cell">' + esc(item.muc_dich || '') + '</td>'
         + '</tr>');
     }
@@ -330,16 +384,21 @@
   }
 
   function renderDetail(item) {
+    var nhanSu = item.nhan_su || {};
+    var laiXe = item.lai_xe || {};
+    var ledger = item.ledger || null;
     var rows = [
       ['Mã đề nghị', item.ma_de_nghi],
       ['Ngày tạo', formatDateTime(item.created)],
       ['Trạng thái', item.trang_thai_label],
       ['Số tiền', formatMoney(item.so_tien)],
-      ['Nhân sự', item.ops_ten || item.uid_ops],
-      ['Lái xe', item.lai_xe_ten || item.nid_lai_xe],
+      ['Nhân sự', nhanSu.ten || nhanSu.uid],
+      ['Lái xe', laiXe.ten || laiXe.nid],
       ['Booking', item.so_bkg],
       ['Kế hoạch', item.nid_ke_hoach ? '#' + item.nid_ke_hoach : ''],
-      ['Ghi sổ', item.nid_ledger ? '#' + item.nid_ledger : 'Chưa ghi'],
+      ['Ghi sổ', ledger && ledger.ma_giao_dich ? ledger.ma_giao_dich : (ledger && ledger.nid ? '#' + ledger.nid : 'Chưa ghi')],
+      ['Số tiền ghi sổ', ledger ? formatMoney(ledger.so_tien) : ''],
+      ['Ngày ghi sổ', ledger ? formatDateTime(ledger.created) : ''],
       ['Người duyệt', item.nguoi_duyet_uid ? '#' + item.nguoi_duyet_uid : ''],
       ['Ngày duyệt', formatDateTime(item.ngay_duyet)],
       ['Lý do từ chối', item.ly_do_tu_choi],

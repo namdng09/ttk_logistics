@@ -1,7 +1,7 @@
 <div id="giao-dich-ops-app">
   <div class="card">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-      <h4 class="card-title mb-0">Sổ chi phí lái xe</h4>
+      <h4 class="card-title mb-0">Sổ chi phí vận hành</h4>
       <div class="d-flex gap-2">
         <button type="button" class="btn btn-label-secondary" id="btn-open-filter-giao-dich-ops">
           <i class="ti tabler-filter me-1"></i>Tìm kiếm
@@ -84,7 +84,7 @@
               <th style="width:50px">#</th>
               <th style="width:145px">Thời gian</th>
               <th style="width:145px">Mã GD</th>
-              <th style="width:160px">N.Viên / L.Xe</th>
+              <th style="width:160px">Người liên quan</th>
               <th style="width:90px">Hướng</th>
               <th style="width:130px">Loại</th>
               <th style="width:130px" class="text-end">Số tiền</th>
@@ -95,7 +95,7 @@
           </thead>
           <tbody id="table-giao-dich-ops-tbody">
             <tr>
-              <td colspan="10" class="text-center py-4">
+              <td colspan="11" class="text-center py-4">
                 <div class="spinner-border text-primary" role="status">
                   <span class="visually-hidden">Đang tải...</span>
                 </div>
@@ -127,7 +127,7 @@
     <div class="modal-content">
       <form id="form-filter-giao-dich-ops">
         <div class="modal-header">
-          <h5 class="modal-title">Tìm kiếm chi phí lái xe</h5>
+          <h5 class="modal-title">Tìm kiếm chi phí vận hành</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
@@ -192,7 +192,7 @@
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Chi tiết chi phí lái xe</h5>
+        <h5 class="modal-title">Chi tiết chi phí vận hành</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body position-relative">

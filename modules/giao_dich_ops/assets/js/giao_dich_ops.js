@@ -103,16 +103,16 @@
   }
 
   function renderLoading() {
-    $('#table-giao-dich-ops-tbody').html('<tr><td colspan="10" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>');
+    $('#table-giao-dich-ops-tbody').html('<tr><td colspan="11" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>');
   }
 
   function renderError(message) {
-    $('#table-giao-dich-ops-tbody').html('<tr><td colspan="10" class="text-center text-danger py-4">' + esc(message) + '</td></tr>');
+    $('#table-giao-dich-ops-tbody').html('<tr><td colspan="11" class="text-center text-danger py-4">' + esc(message) + '</td></tr>');
   }
 
   function renderRows(items) {
     if (!items.length) {
-      $('#table-giao-dich-ops-tbody').html('<tr><td colspan="10" class="text-center text-muted py-4">Không có dữ liệu</td></tr>');
+      $('#table-giao-dich-ops-tbody').html('<tr><td colspan="11" class="text-center text-muted py-4">Không có dữ liệu</td></tr>');
       return;
     }
 

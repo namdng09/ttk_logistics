@@ -7,6 +7,99 @@
   vertical-align: middle;
 }
 
+#giao-dich-ops-approve-app .ops-approve-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1120px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table th,
+#giao-dich-ops-approve-app .ops-approve-table td {
+  padding-left: .45rem;
+  padding-right: .45rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-actions {
+  width: 44px;
+  text-align: center !important;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-stt {
+  width: 36px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-date {
+  width: 125px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-code {
+  width: 108px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-person {
+  width: 100px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-money {
+  width: 110px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-booking {
+  width: 130px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-status {
+  width: 90px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-ledger {
+  width: 110px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-purpose {
+  min-width: 220px;
+  width: 220px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table .ops-desc-cell {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table .ops-person-main {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table .ops-person-sub {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-actions,
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-stt,
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-code,
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-money,
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-status,
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-ledger,
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(1),
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(2),
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(4),
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(6),
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(8),
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(9) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
+}
+
 #giao-dich-ops-app .ops-desc-cell,
 #giao-dich-ops-approve-app .ops-desc-cell {
   min-width: 220px;
@@ -152,7 +245,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 110px;
+  min-width: 100px;
   font-weight: 700;
   font-size: .88rem;
 }

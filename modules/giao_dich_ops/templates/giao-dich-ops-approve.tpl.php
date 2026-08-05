@@ -1,7 +1,7 @@
 <div id="giao-dich-ops-approve-app">
   <div class="card">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-      <h4 class="card-title mb-0">Duyệt chi phí lái xe</h4>
+      <h4 class="card-title mb-0">Duyệt đề nghị chi phí</h4>
       <div class="d-flex gap-2">
         <button type="button" class="btn btn-label-secondary" id="btn-open-filter-de-nghi-ops">
           <i class="ti tabler-filter me-1"></i>Tìm kiếm
@@ -69,19 +69,19 @@
       </div>
 
       <div class="table-responsive">
-        <table class="table table-bordered table-hover align-middle" id="table-de-nghi-ops">
+        <table class="table table-bordered table-hover align-middle ops-approve-table" id="table-de-nghi-ops">
           <thead class="table-light">
             <tr>
-              <th style="width:70px;text-align:center !important"></th>
-              <th style="width:50px">#</th>
-              <th style="width:145px">Ngày tạo</th>
-              <th style="width:145px">Mã đề nghị</th>
-              <th style="width:160px">N.Viên / L.Xe</th>
-              <th style="width:135px" class="text-end">Số tiền</th>
-              <th style="width:130px">Booking</th>
-              <th style="width:130px">Trạng thái</th>
-              <th style="width:120px">Ghi sổ</th>
-              <th>Mục đích</th>
+              <th class="ops-approve-col-actions">CN</th>
+              <th class="ops-approve-col-stt">#</th>
+              <th class="ops-approve-col-date">Ngày tạo</th>
+              <th class="ops-approve-col-code">Mã đề nghị</th>
+              <th class="ops-approve-col-person">Ng đề nghị</th>
+              <th class="ops-approve-col-money text-end">Số tiền</th>
+              <th class="ops-approve-col-booking">Booking</th>
+              <th class="ops-approve-col-status">T.Thái</th>
+              <th class="ops-approve-col-ledger">Ghi sổ</th>
+              <th class="ops-approve-col-purpose">Mục đích</th>
             </tr>
           </thead>
           <tbody id="table-de-nghi-ops-tbody">
@@ -121,7 +121,12 @@
           <h5 class="modal-title">Tìm kiếm đề nghị chi phí</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body position-relative">
+          <div id="de-nghi-ops-filter-loading" class="ops-modal-loading" style="display:none;">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Đang tải...</span>
+            </div>
+          </div>
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Từ khóa</label>
