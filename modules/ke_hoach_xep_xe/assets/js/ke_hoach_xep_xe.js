@@ -87,6 +87,56 @@
     }
   }
 
+  function setPlanStatus(id, status, options) {
+    options = options || {};
+    status = status || 'Hoàn thành';
+    var isComplete = status === 'Hoàn thành';
+    var doUpdate = function () {
+      if (options.$button && options.$button.length) {
+        options.$button.prop('disabled', true);
+      }
+      $.ajax({
+        url: '/api/quan-ly-cont/' + id,
+        type: 'PUT',
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'json',
+        data: JSON.stringify({ trang_thai_van_chuyen: status }),
+        success: function (res) {
+          if (res.status === 'success') {
+            if (notyf) notyf.success(isComplete ? 'Chuyến này đã hoàn thành' : 'Đã chuyển kế hoạch về Chưa xếp xe');
+            if (typeof options.onSuccess === 'function') options.onSuccess(res);
+          } else if (notyf) {
+            notyf.error(res.message || 'Cập nhật trạng thái thất bại');
+          }
+        },
+        error: function (jqXHR) {
+          if (notyf) notyf.error(apiMsg(jqXHR));
+        },
+        complete: function () {
+          if (options.$button && options.$button.length) {
+            options.$button.prop('disabled', false);
+          }
+        }
+      });
+    };
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: isComplete ? 'Chuyển hoàn thành?' : 'Chuyển về Chưa xếp xe?',
+        text: isComplete ? 'Kế hoạch hoàn thành sẽ được đưa vào kỳ tính lương lái xe.' : 'Kế hoạch sẽ quay về trạng thái Chưa xếp xe.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: isComplete ? 'Hoàn thành' : 'Chuyển về',
+        cancelButtonText: 'Huỷ',
+        customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-label-secondary ms-1' },
+        buttonsStyling: false
+      }).then(function (result) {
+        if (result.isConfirmed) doUpdate();
+      });
+    } else if (confirm(isComplete ? 'Chuyển kế hoạch sang Hoàn thành?' : 'Chuyển kế hoạch về Chưa xếp xe?')) {
+      doUpdate();
+    }
+  }
+
   function escHtml(str) {
     if (str === null || typeof str === 'undefined') return '';
     return String(str)
@@ -750,55 +800,6 @@
           if (notyf) notyf.error(apiMsg(jqXHR));
         }
       });
-    }
-
-    function completePlan(id, options) {
-      options = options || {};
-      var doUpdate = function () {
-        if (options.$button && options.$button.length) {
-          options.$button.prop('disabled', true);
-        }
-        $.ajax({
-          url: '/api/quan-ly-cont/' + id,
-          type: 'PUT',
-          contentType: 'application/json; charset=utf-8',
-          dataType: 'json',
-          data: JSON.stringify({ trang_thai_van_chuyen: 'Hoàn thành' }),
-          success: function (res) {
-            if (res.status === 'success') {
-              if (notyf) notyf.success('Đã chuyển kế hoạch sang Hoàn thành');
-              if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
-              if (typeof options.onSuccess === 'function') options.onSuccess(res);
-            } else if (notyf) {
-              notyf.error(res.message || 'Cập nhật trạng thái thất bại');
-            }
-          },
-          error: function (jqXHR) {
-            if (notyf) notyf.error(apiMsg(jqXHR));
-          },
-          complete: function () {
-            if (options.$button && options.$button.length) {
-              options.$button.prop('disabled', false);
-            }
-          }
-        });
-      };
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          title: 'Chuyển hoàn thành?',
-          text: 'Kế hoạch hoàn thành sẽ được đưa vào kỳ tính lương lái xe.',
-          icon: 'question',
-          showCancelButton: true,
-          confirmButtonText: 'Hoàn thành',
-          cancelButtonText: 'Huỷ',
-          customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-label-secondary ms-1' },
-          buttonsStyling: false
-        }).then(function (result) {
-          if (result.isConfirmed) doUpdate();
-        });
-      } else if (confirm('Chuyển kế hoạch sang Hoàn thành?')) {
-        doUpdate();
-      }
     }
 
     $('#search-btn').on('click', function () {
@@ -2209,11 +2210,18 @@
       if (!$btn.length) return;
       var nid = row && row.nid ? parseInt(row.nid, 10) : parseInt($form('#nid-input').val(), 10);
       var status = row && row.trang_thai_van_chuyen ? String(row.trang_thai_van_chuyen) : '';
-      if (!nid || status === 'Hoàn thành') {
+      if (!nid) {
         $btn.addClass('d-none').removeAttr('data-id');
         return;
       }
+      var isComplete = status === 'Hoàn thành';
       $btn.removeClass('d-none').attr('data-id', nid);
+      $btn
+        .toggleClass('btn-success', !isComplete)
+        .toggleClass('btn-outline-success', isComplete)
+        .html(isComplete
+          ? '<i class="icon-base ti tabler-circle-check me-1"></i>Đã hoàn thành'
+          : '<i class="icon-base ti tabler-circle-check me-1"></i>Hoàn thành');
     }
 
     function populateEdit(row) {
@@ -2429,11 +2437,14 @@
       var $btn = $(this);
       var id = parseInt($btn.attr('data-id') || $form('#nid-input').val(), 10) || 0;
       if (!id) return;
-      completePlan(id, {
+      var isComplete = editData && String(editData.trang_thai_van_chuyen || '') === 'Hoàn thành';
+      var nextStatus = isComplete ? 'Chưa xếp xe' : 'Hoàn thành';
+      setPlanStatus(id, nextStatus, {
         $button: $btn,
         onSuccess: function () {
-          if (editData) editData.trang_thai_van_chuyen = 'Hoàn thành';
-          updateCompleteButton($.extend({}, editData || {}, { nid: id, trang_thai_van_chuyen: 'Hoàn thành' }));
+          markForceReloadList();
+          if (editData) editData.trang_thai_van_chuyen = nextStatus;
+          updateCompleteButton($.extend({}, editData || {}, { nid: id, trang_thai_van_chuyen: nextStatus }));
         }
       });
     });

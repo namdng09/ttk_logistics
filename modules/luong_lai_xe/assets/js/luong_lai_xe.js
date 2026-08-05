@@ -327,7 +327,7 @@
 
   function money(value) {
     value = parseInt(value, 10) || 0;
-    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' đ';
   }
 
   function number(value) {

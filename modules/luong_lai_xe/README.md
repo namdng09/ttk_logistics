@@ -22,7 +22,9 @@ Module `luong_lai_xe` là bản convert theo format mới của dự án: custom
 ## Công thức hiện tại
 
 - Hình thức `khoan`: `lương tạm tính = tổng khoán - chi phí lái xe tự chịu`
-- Hình thức `chuyen`: `lương tạm tính = lương theo chuyến`
+- Hình thức `chuyen`: `lương tạm tính = lương theo chuyến` (chi phí dầu/phát sinh do công ty chịu, không điền vào chi phí lái xe tự chịu)
+- Quy kết kỳ lương: 1 kỳ = 1 tháng, tính theo **ngày kết thúc** của kế hoạch (`ngay_ket_thuc`). Chuyến kết thúc 01/08 dù khởi hành 31/07 vẫn tính vào tháng 8.
+- `ngay_ket_thuc` được tự ghi khi kế hoạch chuyển sang trạng thái `Hoàn thành` (PUT `/api/quan-ly-cont/{id}`): mặc định là ngày hoàn thành hiện tại, có thể truyền `ngay_ket_thuc` trong body để backdate. Khi revert về `Chưa xếp xe`, field này bị xoá.
 - Chi phí `cong_ty_chi_tra` và chi hộ khách hàng không aggregate vào bảng lương vì không phải thu nhập của lái xe.
 - `hoan_chi_phi_da_thanh_toan` là khoản công ty đã hoàn/chi trả cho lái xe qua đề nghị chi phí đã thanh toán; khoản này hiển thị để đối chiếu dòng tiền, không tự cộng vào công thức lương.
 - Đề nghị chi phí chỉ được tính vào `hoan_chi_phi_da_thanh_toan` khi có `thong_tin_json.nguon = "ke_hoach_chi_phi"` và `thong_tin_json.nid_chi_phi`.

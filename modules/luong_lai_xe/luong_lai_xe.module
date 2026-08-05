@@ -802,7 +802,7 @@ function _luong_lai_xe_driver_object($nid_lai_xe) {
 }
 
 function _luong_lai_xe_plan_date($row) {
-  foreach (array('ngay_bat_dau', 'cut_off', 'ngay_ket_thuc', 'created') as $field) {
+  foreach (array('ngay_ket_thuc', 'cut_off', 'ngay_bat_dau', 'created') as $field) {
     if (!empty($row->{$field})) {
       return substr((string) $row->{$field}, 0, 10);
     }
