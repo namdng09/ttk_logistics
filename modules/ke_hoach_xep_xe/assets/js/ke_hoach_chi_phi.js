@@ -95,6 +95,33 @@
     return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(roundMoney(value));
   }
 
+  function formatMoneyInputKeepingCaret(input) {
+    if (!input || input.readOnly || input.disabled) return;
+    var raw = String(input.value || '');
+    var caret = typeof input.selectionStart === 'number' ? input.selectionStart : raw.length;
+    var digitsBeforeCaret = raw.slice(0, caret).replace(/\D/g, '').length;
+    var digits = raw.replace(/\D/g, '');
+    if (!digits) {
+      input.value = '';
+      return;
+    }
+    input.value = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(Number(digits));
+    var nextCaret = input.value.length;
+    var seen = 0;
+    for (var i = 0; i < input.value.length; i++) {
+      if (/\d/.test(input.value.charAt(i))) {
+        seen += 1;
+        if (seen >= digitsBeforeCaret) {
+          nextCaret = i + 1;
+          break;
+        }
+      }
+    }
+    try {
+      input.setSelectionRange(nextCaret, nextCaret);
+    } catch (e) {}
+  }
+
   function formatDecimal(value) {
     var number = Number(value) || 0;
     if (Math.round(number) === number) {
@@ -370,6 +397,47 @@
       applyDinhMuc(row, false);
     });
     renderDinhMucTable();
+  }
+
+  function recalcAllDinhMucRows(rebuildFromPlan) {
+    if (rebuildFromPlan) {
+      state.dinhMucRows = buildDefaultDinhMucRows();
+    }
+    else {
+      $.each(state.dinhMucRows || [], function (_, row) {
+        applyDinhMuc(row, true);
+      });
+    }
+    renderDinhMucTable();
+  }
+
+  function countDinhMucMatchedRows() {
+    var matched = 0;
+    $.each(state.dinhMucRows || [], function (_, row) {
+      if (toNumber(row.dinh_muc) > 0) matched += 1;
+    });
+    return matched;
+  }
+
+  function reloadAndRecalcDinhMuc(rebuildFromPlan, targetRow) {
+    setBusy(true);
+    return loadCustomerDinhMuc()
+      .done(function () {
+        if (targetRow) {
+          applyDinhMuc(targetRow, true);
+          renderDinhMucTable();
+        }
+        else {
+          recalcAllDinhMucRows(!!rebuildFromPlan);
+        }
+        notify('Đã tính lại định mức. Khớp ' + countDinhMucMatchedRows() + '/' + (state.dinhMucRows || []).length + ' chặng.', 'success');
+      })
+      .fail(function (jqXHR) {
+        notify(apiMsg(jqXHR), 'error');
+      })
+      .always(function () {
+        setBusy(false);
+      });
   }
 
   function resolveSource(item) {
@@ -896,16 +964,16 @@
       renderDinhMucTable();
       $('tr[data-dm-key="' + row.key + '"] .khcp-dm-place-select').first().trigger('focus');
     });
-    $(document).on('click', '#khcp-dm-rebuild', function () {
-      state.dinhMucRows = buildDefaultDinhMucRows();
-      renderDinhMucTable();
+    $(document).on('click', '#khcp-dm-rebuild', function (e) {
+      e.preventDefault();
+      reloadAndRecalcDinhMuc(true);
     });
     $(document).on('click', '#khcp-dm-save', saveDinhMucRows);
-    $(document).on('click', '.btn-dm-recalc-row', function () {
+    $(document).on('click', '.btn-dm-recalc-row', function (e) {
+      e.preventDefault();
       var row = getDinhMucRow($(this).closest('tr').data('dm-key'));
       if (!row) return;
-      applyDinhMuc(row, true);
-      renderDinhMucTable();
+      reloadAndRecalcDinhMuc(false, row);
     });
     $(document).on('click', '.btn-dm-delete-row', function () {
       var key = $(this).closest('tr').data('dm-key');
@@ -917,10 +985,10 @@
       var row = getDinhMucRow($input.closest('tr').data('dm-key'));
       var field = $input.data('field');
       if (!row || !field) return;
+      if ($input.hasClass('money-input')) formatMoneyInputKeepingCaret(this);
       row[field] = $input.hasClass('money-input') ? toNumber($input.val()) : $input.val();
       if (field === 'dinh_muc') row.manual = true;
       if ($.inArray(field, ['diem_dau', 'diem_cuoi', 'trang_thai_xe']) !== -1) applyDinhMuc(row, false);
-      if ($input.hasClass('money-input')) $input.val(formatMoney(row[field]));
       updateDinhMucSummary();
       if ($.inArray(field, ['diem_dau', 'diem_cuoi', 'trang_thai_xe']) !== -1) {
         var $tr = $input.closest('tr');
@@ -932,18 +1000,16 @@
       var row = getRow($input.closest('tr').data('row-key'));
       var field = $input.data('field');
       if (!row || !field) return;
+      if ($input.hasClass('money-input')) formatMoneyInputKeepingCaret(this);
       row[field] = ($input.hasClass('money-input') || $input.hasClass('decimal-input') || $input.hasClass('qty-input')) ? toNumber($input.val()) : $input.val();
       if (field === 'so_luong') row[field] = Math.max(1, parseInt(row[field], 10) || 1);
       if (field === 'vat_percent') row[field] = clampPercent(row[field]);
-      if ($input.hasClass('money-input') && !$input.prop('readonly')) {
-        $input.val(formatMoney(row[field]));
-      }
       calculateRow(row, field);
       validateRow(row, false);
       if ($.inArray(field, ['don_gia', 'so_luong', 'tong_truoc_vat', 'vat_percent', 'tong_sau_vat']) !== -1) updateRowDom(row, field);
       updateSummary();
     });
-    $(document).on('focus', '.money-input, .decimal-input, .qty-input', function () {
+    $(document).on('focus', '.decimal-input, .qty-input', function () {
       this.select();
     });
     $(document).on('blur', '.money-input', function () {

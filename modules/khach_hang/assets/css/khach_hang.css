@@ -367,6 +367,12 @@
   margin: 3px;
   padding: 0;
   font-size: 11px;
+  pointer-events: auto;
+  user-select: text;
+}
+
+#khach-hang-dinh-muc-modal .kh-dm-rule-toolbar .tagify {
+  cursor: text;
 }
 
 #khach-hang-dinh-muc-modal .kh-dm-rule-table .tagify {

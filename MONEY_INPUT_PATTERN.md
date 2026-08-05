@@ -1,6 +1,12 @@
-# Money Mask Pattern
+# Money Input Pattern
 
-Mẫu chuẩn hiện tại cho input nhập số tiền. Bản này dùng cho các ô tiền cần vừa format dấu `.` khi đang nhập, vừa giữ đúng vị trí con trỏ khi người dùng sửa số ở giữa chuỗi.
+Bản mẫu chuẩn nhất cho input nhập số tiền trong dự án TTK Logistics.
+
+Mục tiêu:
+
+- Khi người dùng nhập, số vẫn hiển thị dấu `.` phân tách hàng nghìn, ví dụ `1.000.000`.
+- Khi sửa/xóa/thêm số ở giữa chuỗi, con trỏ không bị nhảy xuống cuối input.
+- Khi submit API, chỉ gửi số thô, không gửi dấu phân tách.
 
 ## Nguồn chuẩn
 
@@ -12,7 +18,12 @@ Mẫu chuẩn hiện tại cho input nhập số tiền. Bản này dùng cho c�
 ```html
 <div class="input-group">
   <span class="input-group-text">đ</span>
-  <input type="text" class="form-control money-mask" name="gia_mua" placeholder="1.000.000">
+  <input
+    type="text"
+    class="form-control money-mask"
+    name="so_tien"
+    inputmode="numeric"
+    placeholder="0">
 </div>
 ```
 
@@ -69,18 +80,10 @@ $('.money-mask').each(function () {
 });
 ```
 
-## Quy ước sử dụng lại
+## Quy ước
 
-- Input tiền luôn dùng class `money-mask`.
-- Chỉ lưu số thô lên API/DB: bỏ toàn bộ dấu `.` trước khi submit.
-- Khi populate dữ liệu edit modal, luôn format lại bằng `toLocaleString('vi-VN')` hoặc helper `formatMoney()`.
-- Nếu có field tính toán phụ thuộc như `Lương ngày`, luôn dùng `parseMoney()` để lấy số nguyên từ input đã format.
-- Không dùng cách tính `diff = formatted.length - oldValue.length` để đặt lại con trỏ. Cách đó dễ sai khi sửa/xóa số ở giữa chuỗi.
-- Chuẩn mới là đếm số chữ số trước con trỏ, format lại chuỗi, rồi đặt con trỏ về sau đúng chữ số tương ứng.
-- Mặc định tiền là số nguyên VND. Nếu sau này cần số thập phân, tạo helper riêng có xử lý phần thập phân, không sửa trực tiếp helper chuẩn này.
-
-## Áp dụng tại module lái xe
-
-- `Lương cơ bản`: `input[name="luong_co_ban"]`
-- `Lương tháng`: `input[name="luong_thang"]`
-- `Lương ngày`: field readonly, format hiển thị theo cùng chuẩn `vi-VN`
+- Dùng `type="text"` và `inputmode="numeric"` cho input tiền, không dùng `type="number"` nếu cần dấu `.` khi nhập.
+- Dùng `parseMoney()` trước khi tính toán hoặc gửi API.
+- Dùng `formatMoney()` khi populate dữ liệu từ API vào form.
+- Không dùng cách đặt lại con trỏ bằng chênh lệch độ dài chuỗi cũ/mới. Cách chuẩn là đếm số chữ số trước con trỏ, format lại, rồi đặt con trỏ về đúng vị trí theo số chữ số đó.
+- Mặc định helper này xử lý tiền nguyên VND. Nếu cần số thập phân, tạo helper riêng.

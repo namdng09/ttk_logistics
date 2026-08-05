@@ -276,7 +276,7 @@
     doc.addEventListener('blur', function (e) {
       var t = e.target;
       if (t && t.classList && t.classList.contains('money-input')) {
-        formatMoneyInput(t);
+        formatMoneyInputKeepingCaret(t);
       }
     }, true);
 
@@ -362,8 +362,34 @@
   }
 
   function formatMoneyInput(input) {
-    var number = parseMoney(input.value);
-    input.value = number ? moneyFormatter.format(number) : '';
+    formatMoneyInputKeepingCaret(input);
+  }
+
+  function formatMoneyInputKeepingCaret(input) {
+    if (!input || input.readOnly || input.disabled) return;
+    var raw = String(input.value || '');
+    var caret = typeof input.selectionStart === 'number' ? input.selectionStart : raw.length;
+    var digitsBeforeCaret = raw.slice(0, caret).replace(/\D/g, '').length;
+    var digits = raw.replace(/\D/g, '');
+    if (!digits) {
+      input.value = '';
+      return;
+    }
+    input.value = moneyFormatter.format(Number(digits));
+    var nextCaret = input.value.length;
+    var seen = 0;
+    for (var i = 0; i < input.value.length; i++) {
+      if (/\d/.test(input.value.charAt(i))) {
+        seen += 1;
+        if (seen >= digitsBeforeCaret) {
+          nextCaret = i + 1;
+          break;
+        }
+      }
+    }
+    try {
+      input.setSelectionRange(nextCaret, nextCaret);
+    } catch (e) {}
   }
 
   function formatMoneyValue(n) {
@@ -1506,8 +1532,19 @@
     }
     if (modal) {
       modal.querySelectorAll('input, button').forEach(function (el) {
+        if (el.id === 'kh-dm-from-tags' || el.id === 'kh-dm-to-tags') return;
         if (!el.classList.contains('btn-close')) el.disabled = !!show;
       });
+    }
+    if (!show) {
+      if (tagifyDinhMucFrom) {
+        tagifyDinhMucFrom.setReadonly(false);
+        tagifyDinhMucFrom.settings.whitelist = DINH_MUC_LOCATION_LIST;
+      }
+      if (tagifyDinhMucTo) {
+        tagifyDinhMucTo.setReadonly(false);
+        tagifyDinhMucTo.settings.whitelist = DINH_MUC_LOCATION_LIST;
+      }
     }
   }
 
@@ -1696,7 +1733,7 @@
       input.value = value;
     }
     else {
-      input.value = value ? moneyFormatter.format(Number(value)) : '';
+      formatMoneyInputKeepingCaret(input);
     }
   }
 
