@@ -37,12 +37,6 @@ function luong_lai_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
-  $items['api/luong-lai-xe/options'] = array(
-    'page callback' => 'luong_lai_xe_options_api',
-    'access callback' => TRUE,
-    'type' => MENU_CALLBACK,
-    'delivery callback' => 'drupal_json_output',
-  );
   $items['api/luong-lai-xe/%'] = array(
     'page callback' => 'luong_lai_xe_rest_item',
     'page arguments' => array(2),
@@ -123,75 +117,6 @@ function luong_lai_xe_thanh_toan_api($nid_lai_xe) {
     return _luong_lai_xe_method_not_allowed('POST');
   }
   return _luong_lai_xe_thanh_toan_luong($nid_lai_xe);
-}
-
-function luong_lai_xe_options_api() {
-  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    return _luong_lai_xe_method_not_allowed('GET');
-  }
-  $account = _luong_lai_xe_require_permission('luong_lai_xe_view');
-  if (is_array($account)) {
-    return $account;
-  }
-  $now = REQUEST_TIME;
-  $year = (int) date('Y', $now);
-  return _luong_lai_xe_success(array(
-    'quy_options' => _luong_lai_xe_quy_options(),
-    'hinh_thuc_chi' => array(
-      'tien_mat' => 'Tiền mặt',
-      'chuyen_khoan' => 'Chuyển khoản',
-      'khac' => 'Khác',
-    ),
-    'months' => array('01' => 'Tháng 1', '02' => 'Tháng 2', '03' => 'Tháng 3', '04' => 'Tháng 4', '05' => 'Tháng 5', '06' => 'Tháng 6', '07' => 'Tháng 7', '08' => 'Tháng 8', '09' => 'Tháng 9', '10' => 'Tháng 10', '11' => 'Tháng 11', '12' => 'Tháng 12'),
-    'years' => array($year - 1, $year, $year + 1),
-    'current_month' => (int) date('m', $now),
-    'current_year' => $year,
-  ));
-}
-
-function _luong_lai_xe_quy_options() {
-  $options = array();
-  if (function_exists('thu_chi_quy_node_options')) {
-    foreach (thu_chi_quy_node_options(TRUE) as $qid => $label) {
-      $options[(string) $qid] = $label;
-    }
-  }
-  if (!empty($options)) {
-    return $options;
-  }
-  if (!module_exists('node')) {
-    return $options;
-  }
-  $query = new EntityFieldQuery();
-  $query->entityCondition('entity_type', 'node')
-    ->entityCondition('bundle', 'quy_tai_chinh')
-    ->propertyOrderBy('title', 'ASC')
-    ->range(0, 500);
-  if (field_info_field('field_hoat_dong')) {
-    $query->fieldCondition('field_hoat_dong', 'value', 1, '=');
-  }
-  $result = $query->execute();
-  if (empty($result['node'])) {
-    return $options;
-  }
-  foreach (node_load_multiple(array_keys($result['node'])) as $node) {
-    if (!$node || !is_object($node) || $node->type !== 'quy_tai_chinh') {
-      continue;
-    }
-    $label = (string) $node->title;
-    $so_du = '';
-    if (field_info_field('field_so_du_hien_tai')) {
-      $items = field_get_items('node', $node, 'field_so_du_hien_tai');
-      if (!empty($items[0]['value'])) {
-        $so_du = (string) $items[0]['value'];
-      }
-    }
-    if ($so_du !== '') {
-      $label .= ' (Số dư: ' . _luong_lai_xe_format_money($so_du) . ')';
-    }
-    $options[(string) $node->nid] = $label;
-  }
-  return $options;
 }
 
 function _luong_lai_xe_input() {

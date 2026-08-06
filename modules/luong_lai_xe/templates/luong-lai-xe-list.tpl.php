@@ -185,14 +185,9 @@
               <div class="invalid-feedback">Vui lòng nhập ngày ứng tiền.</div>
             </div>
             <div class="col-6 col-md-4">
-              <label class="form-label" for="llx-adv-thang">Tháng lương <span class="text-danger">*</span></label>
-              <select class="form-select" id="llx-adv-thang" required></select>
-              <div class="invalid-feedback">Vui lòng chọn tháng lương.</div>
-            </div>
-            <div class="col-6 col-md-4">
-              <label class="form-label" for="llx-adv-nam">Năm <span class="text-danger">*</span></label>
-              <select class="form-select" id="llx-adv-nam" required></select>
-              <div class="invalid-feedback">Vui lòng chọn năm.</div>
+              <label class="form-label" for="llx-adv-ky-luong">Kỳ lương <span class="text-danger">*</span></label>
+              <input type="text" class="form-control flatpickr-month" id="llx-adv-ky-luong" placeholder="MM/yyyy" required>
+              <div class="invalid-feedback">Vui lòng chọn kỳ lương.</div>
             </div>
             <div class="col-6 col-md-4">
               <label class="form-label" for="llx-adv-hinh-thuc">Hình thức chi</label>

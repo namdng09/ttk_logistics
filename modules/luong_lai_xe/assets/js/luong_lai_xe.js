@@ -8,6 +8,7 @@
     date_to: '',
     keyword: ''
   };
+  var driverCache = {};
   var currentDetail = null;
   var notyf;
 
@@ -112,7 +113,8 @@
 
     $(document).on('click.llx', '.llx-act-advance', function (e) {
       e.preventDefault();
-      openAdvanceModal($(this).attr('data-id'), $(this).attr('data-ky-luong'));
+      var nid = $(this).attr('data-id');
+      openAdvanceModal(nid, $(this).attr('data-ky-luong'), driverCache[nid] || {});
     });
 
     $(document).on('mouseover.llx', '#llx-table-body .dropdown', function () {
@@ -208,6 +210,7 @@
     var html = '';
     $.each(items, function (index, item) {
       var driver = item.lai_xe || {};
+      if (driver.nid) driverCache[driver.nid] = driver;
       var stt = (((currentPage - 1) * 20) + index + 1);
       var driverName = [String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || '-';
       var driverSub = driverBankLine(driver);
@@ -373,87 +376,79 @@
 
   function createAdvance() {
     if (!currentDetail || !currentDetail.lai_xe || !currentDetail.lai_xe.nid) return;
-    openAdvanceModal(currentDetail.lai_xe.nid, currentDetail.filters && currentDetail.filters.ky_luong);
+    openAdvanceModal(currentDetail.lai_xe.nid, currentDetail.filters && currentDetail.filters.ky_luong, currentDetail.lai_xe);
   }
 
-  function openAdvanceModal(nid, kyLuong) {
+  function openAdvanceModal(nid, kyLuong, driver) {
     if (!nid) return;
+    driver = driver || {};
     var modalEl = document.getElementById('llx-advance-modal');
     var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     $('#llx-advance-loading').addClass('is-visible');
-    $('#llx-advance-driver').text('');
     $('#llx-advance-form').removeClass('was-validated');
     $('#llx-adv-so-tien').val('');
     $('#llx-adv-ghi-chu').val('');
     $('#llx-adv-quy').html('<option value="">-- Chọn quỹ chi --</option>');
+    renderAdvanceDriver(nid, driver);
+    initAdvancePeriod(kyLuong);
+    initAdvanceDatePicker();
     modal.show();
 
-    $.getJSON(API + '/options')
+    $.getJSON('/api/quan-ly-quy')
       .done(function (res) {
-        populateAdvanceOptions(res.data || {});
-        setAdvanceDriver(nid);
-        setAdvancePeriod(kyLuong);
-        initAdvanceDatePicker();
+        populateAdvanceQuy((res.data && res.data.items) || []);
       })
       .fail(function (xhr) {
         notify(apiMsg(xhr), 'error');
-        modal.hide();
       })
       .always(function () {
         $('#llx-advance-loading').removeClass('is-visible');
       });
   }
 
-  function populateAdvanceOptions(data) {
-    var months = data.months || {};
-    var years = data.years || [];
-    var quyOptions = data.quy_options || {};
-
-    var monthHtml = '';
-    $.each(months, function (key, label) {
-      monthHtml += '<option value="' + esc(key) + '">' + esc(label) + '</option>';
-    });
-    $('#llx-adv-thang').html(monthHtml);
-
-    var yearHtml = '';
-    $.each(years, function (_, year) {
-      yearHtml += '<option value="' + esc(year) + '">' + esc(year) + '</option>';
-    });
-    $('#llx-adv-nam').html(yearHtml);
-
-    var quyHtml = '<option value="">-- Chọn quỹ chi --</option>';
-    $.each(quyOptions, function (qid, label) {
-      quyHtml += '<option value="' + esc(qid) + '">' + esc(label) + '</option>';
-    });
-    $('#llx-adv-quy').html(quyHtml);
-
-    $('#llx-adv-thang').val(String(data.current_month || '').padStart(2, '0'));
-    $('#llx-adv-nam').val(String(data.current_year || ''));
-  }
-
-  function setAdvanceDriver(nid) {
-    var driver = currentDetail && currentDetail.lai_xe && currentDetail.lai_xe.nid == nid
-      ? currentDetail.lai_xe
-      : {};
-    if (driver.ten || driver.ma_nhan_vien) {
-      $('#llx-advance-title').text('Ứng tiền - ' + [driver.ten, driver.ma_nhan_vien].filter(Boolean).join(' - '));
-      $('#llx-advance-driver').text([driver.ma_nhan_vien, driver.sdt].filter(Boolean).join(' / '));
-    } else {
-      $.getJSON(API + '/' + nid).done(function (res) {
-        var d = (res.data || {}).lai_xe || {};
-        $('#llx-advance-title').text('Ứng tiền - ' + (d.ten || 'Lái xe'));
-        $('#llx-advance-driver').text([d.ma_nhan_vien, d.sdt].filter(Boolean).join(' / '));
-      });
-    }
+  function renderAdvanceDriver(nid, driver) {
+    driver = driver || {};
+    var name = [String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || 'Lái xe';
+    $('#llx-advance-title').text('Ứng tiền - ' + name);
+    $('#llx-advance-driver').text([driver.ma_nhan_vien, driver.sdt].filter(Boolean).join(' / '));
     $('#llx-advance-form').attr('data-driver-id', nid);
   }
 
-  function setAdvancePeriod(kyLuong) {
-    if (!kyLuong) return;
-    var m = String(kyLuong).match(/^(\d{4})(\d{2})$/);
-    if (!m) return;
-    $('#llx-adv-nam').val(m[1]);
-    $('#llx-adv-thang').val(m[2]);
+  function populateAdvanceQuy(items) {
+    var quyHtml = '<option value="">-- Chọn quỹ chi --</option>';
+    $.each(items, function (_, quy) {
+      var label = String(quy.ten_quy || '');
+      if (quy.ma_quy) label += ' (' + quy.ma_quy + ')';
+      if (parseInt(quy.so_du_hien_tai, 10) > 0) label += ' - Số dư: ' + money(quy.so_du_hien_tai);
+      quyHtml += '<option value="' + esc(quy.nid) + '">' + esc(label) + '</option>';
+    });
+    $('#llx-adv-quy').html(quyHtml);
+  }
+
+  function initAdvancePeriod(kyLuong) {
+    var input = document.getElementById('llx-adv-ky-luong');
+    input.value = kyToMonthDisplay(kyLuong);
+    if (typeof flatpickr === 'undefined') return;
+    try { input._flatpickr && input._flatpickr.destroy(); } catch (e) {}
+    var options = {
+      dateFormat: 'm/Y',
+      allowInput: true,
+      static: true
+    };
+    if (typeof monthSelectPlugin !== 'undefined') {
+      options.plugins = [new monthSelectPlugin({
+        shorthand: true,
+        dateFormat: 'm/Y',
+        altFormat: 'm/Y'
+      })];
+    }
+    flatpickr(input, options);
+  }
+
+  function kyToMonthDisplay(kyLuong) {
+    var m = String(kyLuong || '').match(/^(\d{4})(\d{2})$/);
+    if (m) return m[2] + '/' + m[1];
+    return toMonthDisplay(new Date());
   }
 
   function initAdvanceDatePicker() {
@@ -484,8 +479,13 @@
       notify('Không xác định được lái xe', 'error');
       return;
     }
-    var thang = $('#llx-adv-thang').val();
-    var nam = $('#llx-adv-nam').val();
+    var thang = '';
+    var nam = '';
+    var kyParts = monthDisplayToParts($('#llx-adv-ky-luong').val());
+    if (kyParts) {
+      nam = kyParts.year;
+      thang = kyParts.month;
+    }
     var quy = $('#llx-adv-quy').val();
     var ngay = $('#llx-adv-ngay-ung').val().trim();
     var amount = parseMoney($('#llx-adv-so-tien').val());
