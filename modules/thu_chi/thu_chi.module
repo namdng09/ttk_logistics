@@ -1049,7 +1049,7 @@ function thu_chi_sync_bcllx_tam_ung_status_from_phieu($node, $duyet_status) {
   if (empty($json) && !empty($node->json) && is_array($node->json)) {
     $json = $node->json;
   }
-  $ref_type = !empty($json['ref_type']) ? trim((string) $json['ref_type']) : '';
+  $ref_type = !empty($json['ref_type']) ? trim((string) $json['ref_type']) : (isset($node->ref_type) ? trim((string) $node->ref_type) : '');
   $has_advance_json = !empty($json['tam_ung_lai_xe']) && is_array($json['tam_ung_lai_xe']);
 
   if ($ref_type !== 'bcllx_tam_ung_lai_xe' && !$has_advance_json) {
@@ -1784,7 +1784,7 @@ function thu_chi_node_to_item($node) {
   if (!$item->uid_nguoi_de_xuat) {
     $item->uid_nguoi_de_xuat = intval($node->uid);
   }
-  $item->ref_type = isset($json['ref_type']) ? $json['ref_type'] : '';
+  $item->ref_type = !empty($json['ref_type']) ? $json['ref_type'] : (isset($node->ref_type) ? trim((string) $node->ref_type) : '');
   $item->nid_ref = isset($json['nid_ref']) ? intval($json['nid_ref']) : 0;
   $item->chi_tiet = isset($node->chi_tiet_json) ? thu_chi_json_decode($node->chi_tiet_json) : (isset($json['chi_tiet']) && is_array($json['chi_tiet']) ? $json['chi_tiet'] : array());
   // Không dùng diễn giải trong JSON nữa. Biến này chỉ giữ tương thích dữ liệu cũ.
@@ -1797,6 +1797,10 @@ function thu_chi_node_to_item($node) {
   $item->created = intval($node->created);
   $item->changed = intval($node->changed);
   $item->json = $json;
+  // Giữ bản thô thong_tin_json để các hàm khác (approve, adjustment, save)
+  // đọc lại được. Object item KHÔNG có field Drupal, nên nếu thiếu thuộc tính
+  // này thì $json bị rỗng và db_update() ghi đè làm mất ref_type/nhom_giao_dich.
+  $item->thong_tin_json = isset($node->thong_tin_json) ? (string) $node->thong_tin_json : json_encode($json);
 
   return $item;
 }
