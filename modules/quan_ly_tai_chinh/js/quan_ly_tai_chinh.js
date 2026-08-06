@@ -130,6 +130,13 @@
       });
 
     $(document)
+      .off('click' + NS, '.qltc-btn-reload')
+      .on('click' + NS, '.qltc-btn-reload', function (e) {
+        e.preventDefault();
+        refreshQuyList();
+      });
+
+    $(document)
       .off('submit' + NS, '.qltc-ajax-filter')
       .on('submit' + NS, '.qltc-ajax-filter', function (e) {
         e.preventDefault();
@@ -438,10 +445,21 @@
     }
 
     var url = $wrapper.attr('data-api-url') || QUY_API_BASE;
+    var params = {};
+    var fromDate = $('.qltc-page-quy form input[name="from_date"]').first().val();
+    var toDate = $('.qltc-page-quy form input[name="to_date"]').first().val();
+    if (fromDate) {
+      params.from_date = fromDate;
+    }
+    if (toDate) {
+      params.to_date = toDate;
+    }
+    setQuyTableLoading();
     $.ajax({
       url: url,
       type: 'GET',
       dataType: 'json',
+      data: params,
       beforeSend: function () {
         block('#qltc-quy-list-wrapper');
       },
@@ -455,14 +473,32 @@
           notify(response, 4000);
         }
         notify(response, 4000);
+        setQuyTableEmpty();
       },
       error: function (xhr) {
         notify({ success: false, message: getAjaxErrorMessage(xhr, 'Không tải được danh sách quỹ.') }, 5000);
+        setQuyTableEmpty();
       },
       complete: function () {
         unblock('#qltc-quy-list-wrapper');
       }
     });
+  }
+
+  function setQuyTableLoading() {
+    var $tbody = $('#qltc-quy-table-body');
+    if (!$tbody.length) {
+      return;
+    }
+    $tbody.html('<tr><td colspan="11" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>');
+  }
+
+  function setQuyTableEmpty() {
+    var $tbody = $('#qltc-quy-table-body');
+    if (!$tbody.length) {
+      return;
+    }
+    $tbody.html('<tr><td colspan="11" class="text-center">Không tải được dữ liệu quỹ.</td></tr>');
   }
 
   function openGenericModal(url, title) {

@@ -132,6 +132,23 @@
       });
 
     $(document)
+      .off('click' + NS, '.tc-btn-reload')
+      .on('click' + NS, '.tc-btn-reload', function (e) {
+        e.preventDefault();
+        var $region = $('.tc-ajax-region[data-refresh-type="thu-chi"]').first();
+        if (!$region.length) {
+          $region = $('.tc-ajax-region').first();
+        }
+        var $form = $region.find('.tc-ajax-filter').first();
+        var url = ($form.attr('action') || window.location.pathname) + '?' + $form.serialize();
+
+        if (window.history && window.history.pushState) {
+          window.history.pushState({}, '', url);
+        }
+        refreshThuChiRegion(url, $region);
+      });
+
+    $(document)
       .off('click' + NS, '.tc-ajax-region .pager a')
       .on('click' + NS, '.tc-ajax-region .pager a', function (e) {
         e.preventDefault();

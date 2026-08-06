@@ -59,6 +59,9 @@
             <h4 class="mb-1">Quản lý quỹ</h4>
           </div>
           <div class="qltc-toolbar qltc-actions">
+            <button type="button" class="btn btn-label-secondary btn-sm qltc-btn-reload" title="Làm mới">
+              <i class="ti tabler-refresh me-1"></i> Làm mới
+            </button>
             <a href="<?php print url('quan-ly-quy/them'); ?>" class="btn btn-primary btn-sm waves-effect waves-light qltc-quy-open-modal" data-url="<?php print url('quan-ly-quy/ajax-form'); ?>" data-title="Thêm quỹ"><i class="icon-base ti tabler-circle-plus me-1"></i> Thêm quỹ</a>
             <a href="<?php print url('quan-ly-quy/chuyen-tien'); ?>" class="btn btn-label-primary btn-sm waves-effect qltc-ajax-modal" data-title="Chuyển tiền nội bộ"><i class="icon-base ti tabler-arrows-exchange me-1"></i> Chuyển tiền nội bộ</a>
           </div>

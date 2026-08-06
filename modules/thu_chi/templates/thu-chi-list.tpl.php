@@ -8,6 +8,9 @@
           <h4 class="mb-1">Thu - chi</h4>
         </div>
         <div class="tc-toolbar tc-actions">
+          <button type="button" class="btn btn-label-secondary btn-sm tc-btn-reload" title="Làm mới">
+            <i class="ti tabler-refresh me-1"></i> Làm mới
+          </button>
           <a href="<?php print url('thu-chi/them'); ?>" class="btn btn-primary btn-sm waves-effect waves-light tc-thu-chi-open-modal" data-url="<?php print url('thu-chi/ajax-form'); ?>" data-title="Tạo phiếu thu/chi">
             <i class="icon-base ti tabler-circle-plus me-1"></i> Tạo phiếu
           </a>

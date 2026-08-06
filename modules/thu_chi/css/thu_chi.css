@@ -122,17 +122,43 @@
 .tc-block-fallback {
   position: relative;
   pointer-events: none;
-  opacity: .78;
 }
 
-.tc-block-fallback:after,
-.tc-region-loading:after {
+.tc-block-fallback::before,
+.tc-region-loading::before {
   content: '';
+  position: absolute;
+  top: 50%;
+  left: calc(50% - 2.2rem);
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: -.7rem;
+  border: .2rem solid #d0d5dd;
+  border-top-color: #0d6efd;
+  border-radius: 50%;
+  animation: tc-spin .8s linear infinite;
+  z-index: 21;
+}
+
+.tc-block-fallback::after,
+.tc-region-loading::after {
+  content: 'Đang tải...';
   position: absolute;
   inset: 0;
   z-index: 20;
-  background: rgba(255, 255, 255, .55);
-  border-radius: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 2rem;
+  background: rgba(255, 255, 255, .72);
+  color: #0d6efd;
+  font-weight: 700;
+}
+
+@keyframes tc-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .tc-modal-actions {
