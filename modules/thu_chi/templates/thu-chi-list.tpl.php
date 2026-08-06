@@ -6,7 +6,6 @@
       <div class="tc-title-row tc-thu-chi-title-row">
         <div>
           <h4 class="mb-1">Thu - chi</h4>
-          <div class="text-muted small">Quản lý phiếu thu, phiếu chi và theo dõi các phát sinh tài chính theo quỹ.</div>
         </div>
         <div class="tc-toolbar tc-actions">
           <a href="<?php print url('thu-chi/them'); ?>" class="btn btn-primary btn-sm waves-effect waves-light tc-thu-chi-open-modal" data-url="<?php print url('thu-chi/ajax-form'); ?>" data-title="Tạo phiếu thu/chi">
