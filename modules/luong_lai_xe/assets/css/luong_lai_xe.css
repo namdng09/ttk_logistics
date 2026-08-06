@@ -71,3 +71,10 @@
   color: #2f3349;
   font-size: 18px;
 }
+
+.llx-summary-label {
+  display: block;
+  color: #6d7280;
+  font-size: 12px;
+  margin-bottom: 2px;
+}

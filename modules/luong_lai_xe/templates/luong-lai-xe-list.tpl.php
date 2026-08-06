@@ -225,3 +225,122 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="llx-deduct-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0" id="llx-deduct-title">Khấu trừ tạm ứng lương</h5>
+          <div class="small text-muted" id="llx-deduct-driver"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body position-relative">
+        <div id="llx-deduct-loading" class="llx-loading-overlay">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Đang tải...</span>
+          </div>
+        </div>
+        <div id="llx-deduct-info" class="card border-0 bg-light mb-3">
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-md-4"><span class="llx-summary-label">Lái xe</span><div class="fw-bold" id="llx-deduct-info-driver">-</div></div>
+              <div class="col-md-2"><span class="llx-summary-label">Kỳ lương</span><div class="fw-bold" id="llx-deduct-info-ky">-</div></div>
+              <div class="col-md-3"><span class="llx-summary-label">Tổng lương</span><div class="fw-bold text-primary" id="llx-deduct-info-tong-luong">-</div></div>
+              <div class="col-md-3"><span class="llx-summary-label">Tạm ứng có thể trừ</span><div class="fw-bold text-danger" id="llx-deduct-info-du-tru">-</div></div>
+            </div>
+          </div>
+        </div>
+        <form id="llx-deduct-form" class="needs-validation" novalidate>
+          <div class="row g-3">
+            <div class="col-6 col-md-4">
+              <label class="form-label" for="llx-deduct-ky-luong">Kỳ lương <span class="text-danger">*</span></label>
+              <input type="text" class="form-control flatpickr-month" id="llx-deduct-ky-luong" placeholder="MM/yyyy" required>
+              <div class="invalid-feedback">Vui lòng chọn kỳ lương.</div>
+            </div>
+            <div class="col-6 col-md-8">
+              <label class="form-label" for="llx-deduct-so-tien">Số tiền khấu trừ tạm ứng <span class="text-danger">*</span></label>
+              <input type="text" class="form-control money-mask" id="llx-deduct-so-tien" placeholder="0" inputmode="numeric" required>
+              <div class="invalid-feedback">Vui lòng nhập số tiền khấu trừ.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="llx-deduct-ghi-chu">Ghi chú</label>
+              <textarea class="form-control" id="llx-deduct-ghi-chu" rows="3"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary" id="llx-deduct-save">
+          <i class="ti tabler-device-floppy me-1"></i>Lưu khấu trừ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="llx-history-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0" id="llx-history-title">Lịch sử tạm ứng</h5>
+          <div class="small text-muted" id="llx-history-driver"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body position-relative">
+        <div id="llx-history-loading" class="llx-loading-overlay">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Đang tải...</span>
+          </div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-lg-3"><div class="llx-summary-box"><span>Tạm ứng đầu kỳ</span><strong id="llx-history-dau-ky">0</strong></div></div>
+          <div class="col-6 col-lg-3"><div class="llx-summary-box"><span>Ứng trong kỳ</span><strong id="llx-history-ung-ky">0</strong></div></div>
+          <div class="col-6 col-lg-3"><div class="llx-summary-box"><span>Đã khấu trừ</span><strong id="llx-history-khau-tru">0</strong></div></div>
+          <div class="col-6 col-lg-3"><div class="llx-summary-box"><span>Dư cuối kỳ</span><strong id="llx-history-cuoi-ky">0</strong></div></div>
+        </div>
+        <div class="mb-3">
+          <h6 class="mb-2">Phiếu ứng tiền trong kỳ</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover llx-advance-table">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:150px">Mã phiếu</th>
+                  <th style="width:110px">Ngày</th>
+                  <th class="text-end" style="width:150px">Số tiền</th>
+                  <th>Quỹ chi</th>
+                  <th>Hình thức</th>
+                  <th class="text-center" style="width:110px">Trạng thái</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody id="llx-history-advance-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h6 class="mb-2">Khấu trừ tạm ứng trong kỳ</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover llx-khau-tru-table">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:110px">Ngày</th>
+                  <th class="text-end" style="width:150px">Số tiền</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody id="llx-history-khau-tru-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
