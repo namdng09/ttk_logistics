@@ -327,7 +327,8 @@ notyf.error('Lỗi');
 - `nid` là primary key, auto-increment (serial).
 - `created` / `changed`: varchar(19), format `YYYY-MM-DD HH:MM:SS`.
 - `hoat_dong`: int tiny, default 1 (soft-delete: 0 = deleted, 1 = active).
-- FK trong bảng hướng đến entity khác: `<entity>_<entity>_id` (VD: `phuong_tien_lai_xe_id` cho junction n-n).
+- FK trỏ đến node/record khác: đưa key lên đầu — `nid_<entity>` (VD: `nid_lai_xe`, `nid_quy`, `nid_phieu_thu_chi`), không dùng `<entity>_nid` hay `<entity>_id`. Với entity không có `nid` thì dùng `id_<entity>` / `uid_<entity>` tương ứng.
+- Junction n-n vẫn dùng `<entity>_<entity>_id` (VD: `phuong_tien_lai_xe_id`).
 
 ### Select2 (searchable dropdown)
 - **Select2** — thư viện jQuery, biến `<select>` thành ô vừa search vừa chọn.

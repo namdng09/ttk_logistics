@@ -18,17 +18,17 @@ function thu_chi_schema() {
       'ma_giao_dich' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
       'loai_phieu' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'thu'),
       'nhom_giao_dich' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => 'khac'),
-      'quy_id' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
-      'quy_nhan_id' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid_quy' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid_quy_nhan' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
       'so_tien' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
       'ngay_giao_dich' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
       'thang_luong' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
-      'khach_hang_nid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
-      'nha_cung_cap_nid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
-      'chuyen_xe_nid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
-      'nguoi_de_xuat_uid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid_khach_hang' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid_nha_cung_cap' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid_chuyen_xe' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'uid_nguoi_de_xuat' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
       'ref_type' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
-      'ref_id' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid_ref' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
       'loai_giao_dich_json' => array('type' => 'text', 'not null' => FALSE),
       'chi_tiet_json' => array('type' => 'text', 'not null' => FALSE),
       'thong_tin_json' => array('type' => 'text', 'not null' => FALSE),
@@ -47,8 +47,8 @@ function thu_chi_schema() {
     'indexes' => array(
       'loai_phieu' => array('loai_phieu'),
       'duyet_status' => array('duyet_status'),
-      'quy_id' => array('quy_id'),
-      'quy_nhan_id' => array('quy_nhan_id'),
+      'nid_quy' => array('nid_quy'),
+      'nid_quy_nhan' => array('nid_quy_nhan'),
       'ngay_giao_dich' => array('ngay_giao_dich'),
       'hoat_dong' => array('hoat_dong'),
     ),
@@ -371,7 +371,7 @@ function thu_chi_set_default_nguoi_de_xuat_values() {
         $json = array();
       }
     }
-    $json['nguoi_de_xuat_uid'] = $uid;
+    $json['uid_nguoi_de_xuat'] = $uid;
     $node->field_thong_tin_json[LANGUAGE_NONE][0]['value'] = json_encode($json);
     $node->status = 0;
     $node->changed = REQUEST_TIME;
@@ -598,22 +598,22 @@ function thu_chi_migrate_table_to_nodes() {
       )),
       'chi_tiet' => array(),
       'ref_type' => isset($row->ref_type) ? $row->ref_type : '',
-      'ref_id' => isset($row->ref_id) ? intval($row->ref_id) : 0,
-      'nguoi_de_xuat_uid' => !empty($row->uid) ? intval($row->uid) : 1,
+      'nid_ref' => isset($row->nid_ref) ? intval($row->nid_ref) : 0,
+      'uid_nguoi_de_xuat' => !empty($row->uid) ? intval($row->uid) : 1,
       'source_table' => 'qltc_giao_dich',
       'source_gd_id' => intval($row->gd_id),
     );
 
-    thu_chi_install_set_target($node, 'field_tc_quy', isset($row->quy_id) ? intval($row->quy_id) : 0);
-    thu_chi_install_set_target($node, 'field_tc_quy_nhan', isset($row->quy_nhan_id) ? intval($row->quy_nhan_id) : 0);
+    thu_chi_install_set_target($node, 'field_tc_quy', isset($row->nid_quy) ? intval($row->nid_quy) : 0);
+    thu_chi_install_set_target($node, 'field_tc_quy_nhan', isset($row->nid_quy_nhan) ? intval($row->nid_quy_nhan) : 0);
     thu_chi_install_set_value($node, 'field_tc_so_tien', isset($row->so_tien) ? $row->so_tien : 0);
     thu_chi_install_set_value($node, 'field_tc_ngay_phieu', isset($row->ngay_giao_dich) ? intval($row->ngay_giao_dich) : REQUEST_TIME);
     thu_chi_install_set_value($node, 'field_tc_thang_hach_toan', !empty($row->thang_luong) ? intval($row->thang_luong) : intval(date('Ym')));
     thu_chi_install_set_value($node, 'field_duyet', 'cho_duyet');
     thu_chi_install_set_value($node, 'field_dong_phieu', 0);
-    thu_chi_install_set_target($node, 'field_tc_khach_hang', isset($row->khach_hang_nid) ? intval($row->khach_hang_nid) : 0);
-    thu_chi_install_set_target($node, 'field_tc_nha_cung_cap', isset($row->nha_cung_cap_nid) ? intval($row->nha_cung_cap_nid) : 0);
-    thu_chi_install_set_target($node, 'field_tc_chuyen_xe', isset($row->chuyen_xe_nid) ? intval($row->chuyen_xe_nid) : 0);
+    thu_chi_install_set_target($node, 'field_tc_khach_hang', isset($row->nid_khach_hang) ? intval($row->nid_khach_hang) : 0);
+    thu_chi_install_set_target($node, 'field_tc_nha_cung_cap', isset($row->nid_nha_cung_cap) ? intval($row->nid_nha_cung_cap) : 0);
+    thu_chi_install_set_target($node, 'field_tc_chuyen_xe', isset($row->nid_chuyen_xe) ? intval($row->nid_chuyen_xe) : 0);
     thu_chi_install_set_target($node, 'field_tc_nguoi_de_xuat', !empty($row->uid) ? intval($row->uid) : 1);
     thu_chi_install_set_value($node, 'field_hoat_dong', !empty($row->status) ? 1 : 0);
     thu_chi_install_set_value($node, 'field_thong_tin_json', json_encode($json));
@@ -736,7 +736,7 @@ function thu_chi_update_7210() {
   $rebuilt = 0;
   if (function_exists('quan_ly_tai_chinh_quy_get_all') && function_exists('quan_ly_tai_chinh_rebuild_quy_balance')) {
     foreach (quan_ly_tai_chinh_quy_get_all(FALSE) as $quy) {
-      quan_ly_tai_chinh_rebuild_quy_balance($quy->quy_id, FALSE);
+      quan_ly_tai_chinh_rebuild_quy_balance($quy->nid_quy, FALSE);
       $rebuilt++;
     }
   }
@@ -752,4 +752,56 @@ function thu_chi_update_7211() {
   $count = thu_chi_set_default_dong_phieu_values();
   menu_rebuild();
   return 'Đã bổ sung field_dong_phieu và gán mặc định 0 cho ' . intval($count) . ' phiếu thu chi.';
+}
+
+/**
+ * Đổi tên field khoá ngoại theo quy tắc nid_<entity> (VD: quy_id -> nid_quy, ref_id -> nid_ref).
+ */
+function thu_chi_update_7212() {
+  $spec = array('type' => 'int', 'not null' => TRUE, 'default' => 0);
+
+  $renames = array(
+    'qltc_phieu_thu_chi' => array(
+      'quy_id' => 'nid_quy',
+      'quy_nhan_id' => 'nid_quy_nhan',
+      'khach_hang_nid' => 'nid_khach_hang',
+      'nha_cung_cap_nid' => 'nid_nha_cung_cap',
+      'chuyen_xe_nid' => 'nid_chuyen_xe',
+      'nguoi_de_xuat_uid' => 'uid_nguoi_de_xuat',
+      'ref_id' => 'nid_ref',
+    ),
+  );
+
+  $indexes = array(
+    'qltc_phieu_thu_chi' => array(
+      'nid_quy' => array('nid_quy'),
+      'nid_quy_nhan' => array('nid_quy_nhan'),
+    ),
+  );
+
+  $renamed = 0;
+  foreach ($renames as $table => $fields) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    foreach ($fields as $old => $new) {
+      if (db_field_exists($table, $old) && !db_field_exists($table, $new)) {
+        db_change_field($table, $old, $new, $spec);
+        $renamed++;
+      }
+    }
+  }
+
+  foreach ($indexes as $table => $defs) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    foreach ($defs as $name => $columns) {
+      if (!db_index_exists($table, $name)) {
+        db_add_index($table, $name, $columns);
+      }
+    }
+  }
+
+  return 'Đã đổi tên ' . intval($renamed) . ' cột của bảng qltc_phieu_thu_chi theo quy tắc nid_<entity>.';
 }

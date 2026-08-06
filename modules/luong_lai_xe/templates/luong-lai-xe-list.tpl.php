@@ -1,11 +1,6 @@
 <div class="card luong-lai-xe-page">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h4 class="card-title mb-0">Lương lái xe</h4>
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-label-secondary btn-icon" id="llx-btn-reload">
-        <i class="ti tabler-refresh"></i>
-      </button>
-    </div>
   </div>
 
   <div class="card-body">
@@ -18,12 +13,18 @@
         <label class="form-label" for="llx-ky-luong-to">Đến kỳ</label>
         <input type="text" class="form-control flatpickr-month" id="llx-ky-luong-to" placeholder="MM/yyyy">
       </div>
-      <div class="col-12 col-md-6 col-xl-8">
+      <div class="col-12 col-md-6 col-xl-7">
         <label class="form-label" for="llx-keyword">Tìm lái xe</label>
         <div class="input-group">
           <input type="text" class="form-control" id="llx-keyword" placeholder="Tên, mã nhân viên, SĐT, số tài khoản ngân hàng...">
           <button type="button" class="btn btn-label-primary" id="llx-search-btn" title="Tìm kiếm"><i class="ti tabler-search"></i></button>
         </div>
+      </div>
+      <div class="col-auto col-xl-1 text-end">
+        <label class="form-label d-none d-xl-block">&nbsp;</label>
+        <button type="button" class="btn btn-label-secondary btn-icon" id="llx-btn-reload" title="Làm mới">
+          <i class="ti tabler-refresh"></i>
+        </button>
       </div>
     </div>
 
@@ -35,7 +36,7 @@
             <th class="llx-col-stt">#</th>
             <th class="llx-col-driver">Lái xe</th>
             <th class="llx-col-period">Thời gian</th>
-            <th class="llx-col-count text-center">Số kế hoạch</th>
+            <th class="llx-col-count text-center">Số chuyến</th>
             <th class="llx-col-money text-end">Tổng lương</th>
             <th class="llx-col-money text-end">Hoàn chi phí</th>
             <th class="llx-col-money text-end">Tạm ứng</th>
@@ -116,13 +117,30 @@
               <thead class="table-light">
                 <tr>
                   <th style="width:60px">#</th>
-                  <th style="width:160px">Ngày</th>
+                  <th style="width:110px">Ngày</th>
                   <th style="width:150px">Mã giao dịch</th>
+                  <th>Nội dung</th>
+                  <th class="text-end" style="width:150px">Số tiền</th>
+                  <th class="text-center" style="width:110px">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody id="llx-advance-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="mt-4">
+          <h6 class="mb-2">Lịch sử khấu trừ tạm ứng</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover llx-khau-tru-table">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:60px">#</th>
+                  <th style="width:110px">Ngày</th>
                   <th>Nội dung</th>
                   <th class="text-end" style="width:150px">Số tiền</th>
                 </tr>
               </thead>
-              <tbody id="llx-advance-body"></tbody>
+              <tbody id="llx-khau-tru-body"></tbody>
             </table>
           </div>
         </div>
@@ -138,6 +156,76 @@
           <i class="ti tabler-printer me-1"></i>In phiếu lương
         </a>
         <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="llx-advance-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0" id="llx-advance-title">Ứng tiền lái xe</h5>
+          <div class="small text-muted" id="llx-advance-driver"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body position-relative">
+        <div id="llx-advance-loading" class="llx-loading-overlay">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Đang tải...</span>
+          </div>
+        </div>
+        <form id="llx-advance-form" class="needs-validation" novalidate>
+          <div class="row g-3">
+            <div class="col-6 col-md-4">
+              <label class="form-label" for="llx-adv-ngay-ung">Ngày ứng tiền <span class="text-danger">*</span></label>
+              <input type="text" class="form-control flatpickr-date" id="llx-adv-ngay-ung" placeholder="dd/mm/yyyy" required>
+              <div class="invalid-feedback">Vui lòng nhập ngày ứng tiền.</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label" for="llx-adv-thang">Tháng lương <span class="text-danger">*</span></label>
+              <select class="form-select" id="llx-adv-thang" required></select>
+              <div class="invalid-feedback">Vui lòng chọn tháng lương.</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label" for="llx-adv-nam">Năm <span class="text-danger">*</span></label>
+              <select class="form-select" id="llx-adv-nam" required></select>
+              <div class="invalid-feedback">Vui lòng chọn năm.</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label" for="llx-adv-hinh-thuc">Hình thức chi</label>
+              <select class="form-select" id="llx-adv-hinh-thuc">
+                <option value="tien_mat" selected>Tiền mặt</option>
+                <option value="chuyen_khoan">Chuyển khoản</option>
+                <option value="khac">Khác</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label" for="llx-adv-quy">Quỹ chi <span class="text-danger">*</span></label>
+              <select class="form-select" id="llx-adv-quy" required>
+                <option value="">-- Chọn quỹ chi --</option>
+              </select>
+              <div class="invalid-feedback">Vui lòng chọn quỹ chi.</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label" for="llx-adv-so-tien">Số tiền <span class="text-danger">*</span></label>
+              <input type="text" class="form-control money-mask" id="llx-adv-so-tien" placeholder="0" inputmode="numeric" required>
+              <div class="invalid-feedback">Vui lòng nhập số tiền lớn hơn 0.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="llx-adv-ghi-chu">Ghi chú chung</label>
+              <textarea class="form-control" id="llx-adv-ghi-chu" rows="2"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-primary" id="llx-advance-save">
+          <i class="ti tabler-device-floppy me-1"></i>Lưu
+        </button>
       </div>
     </div>
   </div>

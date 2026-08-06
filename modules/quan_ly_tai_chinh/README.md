@@ -27,7 +27,7 @@ Quỹ được lưu bằng content type `quy_tai_chinh`, không lưu trực ti�
 - `field_hoat_dong`: 1 là đang tồn tại, 0 là đã xóa mềm.
 - `status`: luôn lưu bằng 0 theo yêu cầu nghiệp vụ.
 
-Bảng `qltc_giao_dich` vẫn dùng `quy_id` và `quy_nhan_id`, nhưng giá trị là `nid` của node quỹ.
+Bảng `qltc_giao_dich` vẫn dùng `nid_quy` và `nid_quy_nhan`, nhưng giá trị là `nid` của node quỹ.
 
 ## Bài toán tạm ứng lái xe
 

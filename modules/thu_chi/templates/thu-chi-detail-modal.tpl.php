@@ -4,7 +4,7 @@
     <?php print thu_chi_detail_info_col('Trạng thái', strip_tags(thu_chi_duyet_badge($gd->duyet_status)), 'col-md-3'); ?>
     <?php print thu_chi_detail_info_col('Loại phiếu', thu_chi_loai_label($gd->loai_phieu), 'col-md-3'); ?>
     <?php print thu_chi_detail_info_col('Ngày phiếu', format_date($gd->ngay_giao_dich, 'custom', 'd/m/Y'), 'col-md-3'); ?>
-    <?php print thu_chi_detail_info_col('Người đề xuất', thu_chi_user_label_by_uid($gd->nguoi_de_xuat_uid) ?: '-', 'col-md-6'); ?>
+    <?php print thu_chi_detail_info_col('Người đề xuất', thu_chi_user_label_by_uid($gd->uid_nguoi_de_xuat) ?: '-', 'col-md-6'); ?>
     <?php print thu_chi_detail_info_col('Phân loại', $phan_loai ?: '-', 'col-md-6'); ?>
     <?php print thu_chi_detail_info_col('Quỹ', $quy_text, 'col-md-6'); ?>
     <?php print thu_chi_detail_info_col('Đối tượng', $object_text ?: '-', 'col-md-12'); ?>

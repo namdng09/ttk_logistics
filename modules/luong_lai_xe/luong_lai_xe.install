@@ -156,3 +156,126 @@ function luong_lai_xe_update_7006() {
 
   return 'Đã gom schema lương lái xe về lương tháng, không tách khoán/chuyến/tuyến xa.';
 }
+
+function luong_lai_xe_update_7007() {
+  $schema = array(
+    'bcllx_tam_ung_lai_xe' => array(
+      'description' => 'Phiếu ứng tiền lái xe phát sinh từ module lương lái xe.',
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'ma_phieu' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => ''),
+        'line_index' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+        'nid_phieu_thu_chi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'nid_luong_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'thang_luong' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
+        'so_tien' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+        'ngay_ung' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+        'quy_chi' => array('type' => 'varchar', 'length' => 255, 'not null' => FALSE),
+        'hinh_thuc_chi' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'tien_mat'),
+        'trang_thai' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'cho_duyet'),
+        'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+        'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+        'updated' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      ),
+      'primary key' => array('id'),
+      'indexes' => array(
+        'ma_phieu' => array('ma_phieu'),
+        'phieu_thu_chi' => array('nid_phieu_thu_chi'),
+        'lai_xe_thang' => array('nid_lai_xe', 'thang_luong'),
+        'luong_lai_xe' => array('nid_luong_lai_xe'),
+        'trang_thai' => array('trang_thai'),
+      ),
+    ),
+    'bcllx_tam_ung_khau_tru' => array(
+      'description' => 'Khoản khấu trừ tạm ứng vào lương lái xe theo kỳ.',
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'nid_luong_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'thang_luong' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
+        'so_tien' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+        'nid_phieu_thu_khau_tru' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'ngay_khau_tru' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+        'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+        'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+        'updated' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      ),
+      'primary key' => array('id'),
+      'indexes' => array(
+        'lai_xe_thang' => array('nid_lai_xe', 'thang_luong'),
+        'luong_lai_xe' => array('nid_luong_lai_xe'),
+        'phieu_thu_khau_tru' => array('nid_phieu_thu_khau_tru'),
+      ),
+    ),
+  );
+
+  foreach ($schema as $table => $definition) {
+    if (!db_table_exists($table)) {
+      db_create_table($table, $definition);
+    }
+  }
+
+  return 'Đã tạo bảng bcllx_tam_ung_lai_xe và bcllx_tam_ung_khau_tru nếu chưa tồn tại.';
+}
+
+/**
+ * Đổi tên field khoá ngoại theo quy tắc nid_<entity> (VD: lai_xe_nid -> nid_lai_xe).
+ */
+function luong_lai_xe_update_7008() {
+  $spec = array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0);
+
+  $renames = array(
+    'bcllx_tam_ung_lai_xe' => array(
+      'phieu_thu_chi_nid' => 'nid_phieu_thu_chi',
+      'lai_xe_nid' => 'nid_lai_xe',
+      'luong_lai_xe_nid' => 'nid_luong_lai_xe',
+    ),
+    'bcllx_tam_ung_khau_tru' => array(
+      'lai_xe_nid' => 'nid_lai_xe',
+      'luong_lai_xe_nid' => 'nid_luong_lai_xe',
+      'phieu_thu_khau_tru_nid' => 'nid_phieu_thu_khau_tru',
+    ),
+  );
+
+  $indexes = array(
+    'bcllx_tam_ung_lai_xe' => array(
+      'phieu_thu_chi' => array('nid_phieu_thu_chi'),
+      'lai_xe_thang' => array('nid_lai_xe', 'thang_luong'),
+      'luong_lai_xe' => array('nid_luong_lai_xe'),
+    ),
+    'bcllx_tam_ung_khau_tru' => array(
+      'lai_xe_thang' => array('nid_lai_xe', 'thang_luong'),
+      'luong_lai_xe' => array('nid_luong_lai_xe'),
+      'phieu_thu_khau_tru' => array('nid_phieu_thu_khau_tru'),
+    ),
+  );
+
+  $renamed = 0;
+  foreach ($renames as $table => $fields) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    foreach ($fields as $old => $new) {
+      if (db_field_exists($table, $old) && !db_field_exists($table, $new)) {
+        db_change_field($table, $old, $new, $spec);
+        $renamed++;
+      }
+    }
+  }
+
+  foreach ($indexes as $table => $defs) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    foreach ($defs as $name => $columns) {
+      if (!db_index_exists($table, $name)) {
+        db_add_index($table, $name, $columns);
+      }
+    }
+  }
+
+  return 'Đã đổi tên ' . intval($renamed) . ' cột của bảng bcllx_tam_ung_lai_xe / bcllx_tam_ung_khau_tru theo quy tắc nid_<entity>.';
+}

@@ -504,9 +504,9 @@ function thu_chi_render_table(array $items, array $quy_map) {
 
   $rows = array();
   foreach ($items as $item) {
-    $quy_text = isset($quy_map[$item->quy_id]) ? $quy_map[$item->quy_id] : '';
+    $quy_text = isset($quy_map[$item->nid_quy]) ? $quy_map[$item->nid_quy] : '';
     if ($item->loai_phieu === 'chuyen_quy') {
-      $quy_nhan = isset($quy_map[$item->quy_nhan_id]) ? $quy_map[$item->quy_nhan_id] : '';
+      $quy_nhan = isset($quy_map[$item->nid_quy_nhan]) ? $quy_map[$item->nid_quy_nhan] : '';
       $quy_text .= ' → ' . $quy_nhan;
     }
 
@@ -514,7 +514,7 @@ function thu_chi_render_table(array $items, array $quy_map) {
 
     $phan_loai_text = thu_chi_category_labels($item->loai_giao_dich_ids);
     $phan_loai_cell = thu_chi_render_truncated_text($phan_loai_text, 38);
-    $nguoi_de_xuat_text = thu_chi_user_label_by_uid($item->nguoi_de_xuat_uid);
+    $nguoi_de_xuat_text = thu_chi_user_label_by_uid($item->uid_nguoi_de_xuat);
     $is_final_amount_status = in_array($item->duyet_status, array('da_duyet', 'khong_duyet'), TRUE);
     $thu_class = $is_final_amount_status ? 'text-success' : 'text-muted';
     $chi_class = $is_final_amount_status ? 'text-danger' : 'text-muted';
@@ -673,7 +673,7 @@ function thu_chi_render_modal_form($gd = NULL, $default_loai = 'thu') {
   $ngay = $gd ? format_date($gd->ngay_giao_dich, 'custom', 'd/m/Y') : date('d/m/Y');
   $thang = $gd ? $gd->thang_luong : date('Ym');
   $chi_tiet = ($gd && !empty($gd->chi_tiet) && is_array($gd->chi_tiet)) ? $gd->chi_tiet : array(array());
-  $nguoi_de_xuat_value = $gd ? intval($gd->nguoi_de_xuat_uid) : (isset($GLOBALS['user']->uid) ? intval($GLOBALS['user']->uid) : 0);
+  $nguoi_de_xuat_value = $gd ? intval($gd->uid_nguoi_de_xuat) : (isset($GLOBALS['user']->uid) ? intval($GLOBALS['user']->uid) : 0);
 
   return theme('thu_chi_form_modal', array(
     'gd' => $gd,
@@ -754,8 +754,8 @@ function thu_chi_ajax_delete($gd_id) {
     ->execute();
 
   thu_chi_sync_so_cai_quy_from_item($gd, 'khong_duyet');
-  thu_chi_rebuild_quy_balance($gd->quy_id);
-  thu_chi_rebuild_quy_balance($gd->quy_nhan_id);
+  thu_chi_rebuild_quy_balance($gd->nid_quy);
+  thu_chi_rebuild_quy_balance($gd->nid_quy_nhan);
   return array('success' => TRUE, 'message' => 'Đã xóa phiếu ' . $gd->ma_giao_dich . '.');
 }
 
@@ -862,7 +862,7 @@ function thu_chi_request_adjustment($gd_id) {
   // được duyệt điều chỉnh, nên phải đồng bộ sổ cái theo trạng thái này.
   $after_gd = thu_chi_giao_dich_load(intval($gd_id), TRUE);
   thu_chi_sync_so_cai_quy_from_item($after_gd, $new_status);
-  foreach (array_unique(array_filter(array_map('intval', array($gd->quy_id, $gd->quy_nhan_id)))) as $qid) {
+  foreach (array_unique(array_filter(array_map('intval', array($gd->nid_quy, $gd->nid_quy_nhan)))) as $qid) {
     thu_chi_rebuild_quy_balance($qid);
   }
 
@@ -911,7 +911,7 @@ function thu_chi_approve_adjustment($gd_id, $decision) {
 
   $after_gd = thu_chi_giao_dich_load(intval($gd_id), TRUE);
   thu_chi_sync_so_cai_quy_from_item($after_gd, $new_status);
-  foreach (array_unique(array_filter(array_map('intval', array($gd->quy_id, $gd->quy_nhan_id)))) as $qid) {
+  foreach (array_unique(array_filter(array_map('intval', array($gd->nid_quy, $gd->nid_quy_nhan)))) as $qid) {
     thu_chi_rebuild_quy_balance($qid);
   }
 
@@ -952,7 +952,7 @@ function thu_chi_approve_giao_dich($gd_id, $decision) {
   }
 
   $node = $gd;
-  if ($new_status === 'da_duyet' && !thu_chi_is_quy_node($gd->quy_id)) {
+  if ($new_status === 'da_duyet' && !thu_chi_is_quy_node($gd->nid_quy)) {
     return array('success' => FALSE, 'message' => 'Quỹ của phiếu không hợp lệ nên chưa thể duyệt. Vui lòng sửa phiếu và chọn lại quỹ từ danh sách Quỹ tài chính.');
   }
 
@@ -963,14 +963,14 @@ function thu_chi_approve_giao_dich($gd_id, $decision) {
     thu_chi_sync_so_cai_quy_from_item($gd, $new_status);
     thu_chi_sync_bcllx_tam_ung_status_from_phieu($node, $new_status);
     thu_chi_sync_bcllx_thanh_toan_luong_status_from_phieu($node, $new_status);
-    foreach (array_unique(array_filter(array_map('intval', array($gd->quy_id, $gd->quy_nhan_id)))) as $qid) {
+    foreach (array_unique(array_filter(array_map('intval', array($gd->nid_quy, $gd->nid_quy_nhan)))) as $qid) {
       thu_chi_rebuild_quy_balance($qid);
     }
     return array('success' => TRUE, 'message' => 'Phiếu ' . $gd->ma_giao_dich . ' đã ở trạng thái ' . thu_chi_duyet_label($new_status) . '. Đã đồng bộ lại số dư quỹ.');
   }
 
   $delta_map = thu_chi_quy_delta_map_for_approval($gd, $old_status, $new_status);
-  $quy_ids = array_unique(array_filter(array_map('intval', array_merge(array($gd->quy_id, $gd->quy_nhan_id), array_keys($delta_map)))));
+  $quy_ids = array_unique(array_filter(array_map('intval', array_merge(array($gd->nid_quy, $gd->nid_quy_nhan), array_keys($delta_map)))));
   $before_balances = array();
   foreach ($quy_ids as $qid) {
     $before_balances[$qid] = thu_chi_get_quy_current_balance($qid);
@@ -1009,6 +1009,10 @@ function thu_chi_approve_giao_dich($gd_id, $decision) {
   // chỉ cập nhật field_so_du_hien_tai trực tiếp thì sau đó rất dễ bị rebuild ngược.
   thu_chi_sync_so_cai_quy_from_item($after_gd, $new_status);
 
+  // Đồng bộ trạng thái nghiệp vụ lương lái xe khi phiếu chi được duyệt/không duyệt.
+  thu_chi_sync_bcllx_tam_ung_status_from_phieu($after_gd, $new_status);
+  thu_chi_sync_bcllx_thanh_toan_luong_status_from_phieu($after_gd, $new_status);
+
   foreach ($quy_ids as $qid) {
     thu_chi_rebuild_quy_balance($qid);
   }
@@ -1039,6 +1043,12 @@ function thu_chi_sync_bcllx_tam_ung_status_from_phieu($node, $duyet_status) {
   }
 
   $json = thu_chi_json_decode(thu_chi_get_field_value($node, 'field_thong_tin_json', '{}'));
+  // Khi $node là item object (bảng qltc_phieu_thu_chi) không có field, dùng
+  // thong_tin_json đã giải mã trong ->json làm fallback để vẫn nhận diện được
+  // phiếu ứng tiền lái xe.
+  if (empty($json) && !empty($node->json) && is_array($node->json)) {
+    $json = $node->json;
+  }
   $ref_type = !empty($json['ref_type']) ? trim((string) $json['ref_type']) : '';
   $has_advance_json = !empty($json['tam_ung_lai_xe']) && is_array($json['tam_ung_lai_xe']);
 
@@ -1057,10 +1067,10 @@ function thu_chi_sync_bcllx_tam_ung_status_from_phieu($node, $duyet_status) {
   }
 
   $ids = array();
-  if (db_field_exists('bcllx_tam_ung_lai_xe', 'phieu_thu_chi_nid')) {
+  if (db_field_exists('bcllx_tam_ung_lai_xe', 'nid_phieu_thu_chi')) {
     $ids_by_nid = db_select('bcllx_tam_ung_lai_xe', 'tu')
       ->fields('tu', array('id'))
-      ->condition('phieu_thu_chi_nid', intval($node->nid))
+      ->condition('nid_phieu_thu_chi', intval($node->nid))
       ->execute()
       ->fetchCol();
     $ids = array_merge($ids, $ids_by_nid);
@@ -1087,15 +1097,15 @@ function thu_chi_sync_bcllx_tam_ung_status_from_phieu($node, $duyet_status) {
 
   // Đồng bộ lại JSON lương để cột tạm ứng cập nhật ngay sau khi duyệt phiếu.
   $rows = db_select('bcllx_tam_ung_lai_xe', 'tu')
-    ->fields('tu', array('lai_xe_nid', 'luong_lai_xe_nid', 'thang_luong'))
+    ->fields('tu', array('nid_lai_xe', 'nid_luong_lai_xe', 'thang_luong'))
     ->condition('id', $ids, 'IN')
     ->execute();
   foreach ($rows as $row) {
-    if (!empty($row->luong_lai_xe_nid) && function_exists('bao_cao_luong_lai_xe_sync_salary_tam_ung')) {
-      bao_cao_luong_lai_xe_sync_salary_tam_ung(intval($row->luong_lai_xe_nid));
+    if (!empty($row->nid_luong_lai_xe) && function_exists('bao_cao_luong_lai_xe_sync_salary_tam_ung')) {
+      bao_cao_luong_lai_xe_sync_salary_tam_ung(intval($row->nid_luong_lai_xe));
     }
-    elseif (!empty($row->lai_xe_nid) && !empty($row->thang_luong) && function_exists('bao_cao_luong_lai_xe_sync_salary_by_driver_month')) {
-      bao_cao_luong_lai_xe_sync_salary_by_driver_month(intval($row->lai_xe_nid), trim((string) $row->thang_luong));
+    elseif (!empty($row->nid_lai_xe) && !empty($row->thang_luong) && function_exists('bao_cao_luong_lai_xe_sync_salary_by_driver_month')) {
+      bao_cao_luong_lai_xe_sync_salary_by_driver_month(intval($row->nid_lai_xe), trim((string) $row->thang_luong));
     }
   }
 
@@ -1111,6 +1121,9 @@ function thu_chi_sync_bcllx_thanh_toan_luong_status_from_phieu($node, $duyet_sta
   }
 
   $json = thu_chi_json_decode(thu_chi_get_field_value($node, 'field_thong_tin_json', '{}'));
+  if (empty($json) && !empty($node->json) && is_array($node->json)) {
+    $json = $node->json;
+  }
   $ref_type = !empty($json['ref_type']) ? trim((string) $json['ref_type']) : '';
   $has_payment_json = !empty($json['thanh_toan_luong_lai_xe']) && is_array($json['thanh_toan_luong_lai_xe']);
 
@@ -1129,10 +1142,10 @@ function thu_chi_sync_bcllx_thanh_toan_luong_status_from_phieu($node, $duyet_sta
   }
 
   $ids = array();
-  if (db_field_exists('bcllx_thanh_toan_luong_lai_xe', 'phieu_thu_chi_nid')) {
+  if (db_field_exists('bcllx_thanh_toan_luong_lai_xe', 'nid_phieu_thu_chi')) {
     $ids_by_nid = db_select('bcllx_thanh_toan_luong_lai_xe', 'tt')
       ->fields('tt', array('id'))
-      ->condition('phieu_thu_chi_nid', intval($node->nid))
+      ->condition('nid_phieu_thu_chi', intval($node->nid))
       ->execute()
       ->fetchCol();
     $ids = array_merge($ids, $ids_by_nid);
@@ -1160,15 +1173,15 @@ function thu_chi_sync_bcllx_thanh_toan_luong_status_from_phieu($node, $duyet_sta
   // Đồng bộ lại JSON lương để số dư tạm ứng/thực lĩnh cập nhật ngay khi phiếu
   // thanh toán lương được duyệt hoặc không duyệt.
   $rows = db_select('bcllx_thanh_toan_luong_lai_xe', 'tt')
-    ->fields('tt', array('lai_xe_nid', 'luong_lai_xe_nid', 'thang_luong'))
+    ->fields('tt', array('nid_lai_xe', 'nid_luong_lai_xe', 'thang_luong'))
     ->condition('id', $ids, 'IN')
     ->execute();
   foreach ($rows as $row) {
-    if (!empty($row->luong_lai_xe_nid) && function_exists('bao_cao_luong_lai_xe_sync_salary_tam_ung')) {
-      bao_cao_luong_lai_xe_sync_salary_tam_ung(intval($row->luong_lai_xe_nid));
+    if (!empty($row->nid_luong_lai_xe) && function_exists('bao_cao_luong_lai_xe_sync_salary_tam_ung')) {
+      bao_cao_luong_lai_xe_sync_salary_tam_ung(intval($row->nid_luong_lai_xe));
     }
-    elseif (!empty($row->lai_xe_nid) && !empty($row->thang_luong) && function_exists('bao_cao_luong_lai_xe_sync_salary_by_driver_month')) {
-      bao_cao_luong_lai_xe_sync_salary_by_driver_month(intval($row->lai_xe_nid), trim((string) $row->thang_luong));
+    elseif (!empty($row->nid_lai_xe) && !empty($row->thang_luong) && function_exists('bao_cao_luong_lai_xe_sync_salary_by_driver_month')) {
+      bao_cao_luong_lai_xe_sync_salary_by_driver_month(intval($row->nid_lai_xe), trim((string) $row->thang_luong));
     }
   }
 
@@ -1247,8 +1260,8 @@ function thu_chi_bcllx_salary_payment_rows_for_detail($gd) {
     $query->fields('tt');
     $or = db_or();
     $has_condition = FALSE;
-    if ($gd_id > 0 && db_field_exists('bcllx_thanh_toan_luong_lai_xe', 'phieu_thu_chi_nid')) {
-      $or->condition('tt.phieu_thu_chi_nid', $gd_id);
+    if ($gd_id > 0 && db_field_exists('bcllx_thanh_toan_luong_lai_xe', 'nid_phieu_thu_chi')) {
+      $or->condition('tt.nid_phieu_thu_chi', $gd_id);
       $has_condition = TRUE;
     }
     if ($ma_phieu !== '' && db_field_exists('bcllx_thanh_toan_luong_lai_xe', 'ma_phieu')) {
@@ -1259,10 +1272,10 @@ function thu_chi_bcllx_salary_payment_rows_for_detail($gd) {
       $query->condition($or);
       $query->orderBy('tt.line_index', 'ASC');
       foreach ($query->execute() as $row) {
-        $lai_xe_nid = !empty($row->lai_xe_nid) ? intval($row->lai_xe_nid) : 0;
+        $nid_lai_xe = !empty($row->nid_lai_xe) ? intval($row->nid_lai_xe) : 0;
         $rows[] = array(
-          'lai_xe_nid' => $lai_xe_nid,
-          'lai_xe' => thu_chi_driver_label($lai_xe_nid),
+          'nid_lai_xe' => $nid_lai_xe,
+          'lai_xe' => thu_chi_driver_label($nid_lai_xe),
           'thang_luong' => !empty($row->thang_luong) ? $row->thang_luong : '',
           'luong_phai_tra' => isset($row->luong_phai_tra) ? $row->luong_phai_tra : (isset($row->so_tien) ? $row->so_tien : 0),
           'tam_ung_con_lai' => isset($row->tam_ung_con_lai) ? $row->tam_ung_con_lai : 0,
@@ -1271,7 +1284,7 @@ function thu_chi_bcllx_salary_payment_rows_for_detail($gd) {
           'thuc_chi' => isset($row->thuc_chi) ? $row->thuc_chi : (isset($row->so_tien) ? $row->so_tien : 0),
           'trang_thai' => !empty($row->trang_thai) ? $row->trang_thai : '',
           'ghi_chu' => !empty($row->ghi_chu) ? $row->ghi_chu : '',
-          'luong_lai_xe_nid' => !empty($row->luong_lai_xe_nid) ? intval($row->luong_lai_xe_nid) : 0,
+          'nid_luong_lai_xe' => !empty($row->nid_luong_lai_xe) ? intval($row->nid_luong_lai_xe) : 0,
         );
       }
     }
@@ -1284,10 +1297,10 @@ function thu_chi_bcllx_salary_payment_rows_for_detail($gd) {
   $json = !empty($gd->json) && is_array($gd->json) ? $gd->json : array();
   $items = !empty($json['thanh_toan_luong_lai_xe']) && is_array($json['thanh_toan_luong_lai_xe']) ? $json['thanh_toan_luong_lai_xe'] : array();
   foreach ($items as $item) {
-    $lai_xe_nid = !empty($item['lai_xe_nid']) ? intval($item['lai_xe_nid']) : 0;
+    $nid_lai_xe = !empty($item['nid_lai_xe']) ? intval($item['nid_lai_xe']) : 0;
     $rows[] = array(
-      'lai_xe_nid' => $lai_xe_nid,
-      'lai_xe' => !empty($item['lai_xe']) ? $item['lai_xe'] : thu_chi_driver_label($lai_xe_nid),
+      'nid_lai_xe' => $nid_lai_xe,
+      'lai_xe' => !empty($item['lai_xe']) ? $item['lai_xe'] : thu_chi_driver_label($nid_lai_xe),
       'thang_luong' => !empty($item['thang_luong']) ? $item['thang_luong'] : '',
       'luong_phai_tra' => isset($item['luong_phai_tra']) ? $item['luong_phai_tra'] : (isset($item['so_tien']) ? $item['so_tien'] : 0),
       'tam_ung_con_lai' => isset($item['tam_ung_con_lai']) ? $item['tam_ung_con_lai'] : 0,
@@ -1296,7 +1309,7 @@ function thu_chi_bcllx_salary_payment_rows_for_detail($gd) {
       'thuc_chi' => isset($item['thuc_chi']) ? $item['thuc_chi'] : (isset($item['so_tien']) ? $item['so_tien'] : 0),
       'trang_thai' => thu_chi_duyet_status_to_advance_status(!empty($gd->duyet_status) ? $gd->duyet_status : ''),
       'ghi_chu' => !empty($item['ghi_chu']) ? $item['ghi_chu'] : '',
-      'luong_lai_xe_nid' => !empty($item['luong_lai_xe_nid']) ? intval($item['luong_lai_xe_nid']) : 0,
+      'nid_luong_lai_xe' => !empty($item['nid_luong_lai_xe']) ? intval($item['nid_luong_lai_xe']) : 0,
     );
   }
 
@@ -1308,7 +1321,7 @@ function thu_chi_bcllx_salary_payment_rows_for_detail($gd) {
  */
 function thu_chi_render_detail_html($gd) {
   $quy_map = thu_chi_quy_options(FALSE);
-  $quy_text = isset($quy_map[$gd->quy_id]) ? $quy_map[$gd->quy_id] : ('#' . intval($gd->quy_id));
+  $quy_text = isset($quy_map[$gd->nid_quy]) ? $quy_map[$gd->nid_quy] : ('#' . intval($gd->nid_quy));
   $object_text = thu_chi_object_text($gd);
   $phan_loai = thu_chi_category_labels($gd->loai_giao_dich_ids);
 
@@ -1432,8 +1445,8 @@ function thu_chi_bcllx_advance_rows_for_detail($gd) {
     $query->fields('tu');
     $or = db_or();
     $has_condition = FALSE;
-    if ($gd_id > 0 && db_field_exists('bcllx_tam_ung_lai_xe', 'phieu_thu_chi_nid')) {
-      $or->condition('tu.phieu_thu_chi_nid', $gd_id);
+    if ($gd_id > 0 && db_field_exists('bcllx_tam_ung_lai_xe', 'nid_phieu_thu_chi')) {
+      $or->condition('tu.nid_phieu_thu_chi', $gd_id);
       $has_condition = TRUE;
     }
     if ($ma_phieu !== '' && db_field_exists('bcllx_tam_ung_lai_xe', 'ma_phieu')) {
@@ -1449,10 +1462,10 @@ function thu_chi_bcllx_advance_rows_for_detail($gd) {
         $query->orderBy('tu.id', 'ASC');
       }
       foreach ($query->execute() as $row) {
-        $lai_xe_nid = !empty($row->lai_xe_nid) ? intval($row->lai_xe_nid) : 0;
+        $nid_lai_xe = !empty($row->nid_lai_xe) ? intval($row->nid_lai_xe) : 0;
         $rows[] = array(
-          'lai_xe_nid' => $lai_xe_nid,
-          'lai_xe' => thu_chi_driver_label($lai_xe_nid),
+          'nid_lai_xe' => $nid_lai_xe,
+          'lai_xe' => thu_chi_driver_label($nid_lai_xe),
           'thang_luong' => !empty($row->thang_luong) ? $row->thang_luong : '',
           'luong_phai_tra' => isset($row->luong_phai_tra) ? $row->luong_phai_tra : (isset($row->so_tien) ? $row->so_tien : 0),
           'tam_ung_con_lai' => isset($row->tam_ung_con_lai) ? $row->tam_ung_con_lai : 0,
@@ -1461,7 +1474,7 @@ function thu_chi_bcllx_advance_rows_for_detail($gd) {
           'thuc_chi' => isset($row->thuc_chi) ? $row->thuc_chi : (isset($row->so_tien) ? $row->so_tien : 0),
           'trang_thai' => !empty($row->trang_thai) ? $row->trang_thai : '',
           'ghi_chu' => !empty($row->ghi_chu) ? $row->ghi_chu : '',
-          'luong_lai_xe_nid' => !empty($row->luong_lai_xe_nid) ? intval($row->luong_lai_xe_nid) : 0,
+          'nid_luong_lai_xe' => !empty($row->nid_luong_lai_xe) ? intval($row->nid_luong_lai_xe) : 0,
         );
       }
     }
@@ -1475,35 +1488,35 @@ function thu_chi_bcllx_advance_rows_for_detail($gd) {
   $items = !empty($json['tam_ung_lai_xe']) && is_array($json['tam_ung_lai_xe']) ? $json['tam_ung_lai_xe'] : array();
   $thang_luong = !empty($json['bcllx_thang_luong']) ? $json['bcllx_thang_luong'] : (!empty($gd->thang_luong) ? $gd->thang_luong : '');
   foreach ($items as $item) {
-    $lai_xe_nid = !empty($item['lai_xe_nid']) ? intval($item['lai_xe_nid']) : 0;
+    $nid_lai_xe = !empty($item['nid_lai_xe']) ? intval($item['nid_lai_xe']) : 0;
     $rows[] = array(
-      'lai_xe_nid' => $lai_xe_nid,
-      'lai_xe' => !empty($item['lai_xe']) ? $item['lai_xe'] : thu_chi_driver_label($lai_xe_nid),
+      'nid_lai_xe' => $nid_lai_xe,
+      'lai_xe' => !empty($item['lai_xe']) ? $item['lai_xe'] : thu_chi_driver_label($nid_lai_xe),
       'thang_luong' => !empty($item['thang_luong']) ? $item['thang_luong'] : $thang_luong,
       'so_tien' => isset($item['so_tien']) ? $item['so_tien'] : 0,
       'trang_thai' => thu_chi_duyet_status_to_advance_status(!empty($gd->duyet_status) ? $gd->duyet_status : ''),
       'ghi_chu' => !empty($item['ghi_chu']) ? $item['ghi_chu'] : '',
-      'luong_lai_xe_nid' => !empty($item['luong_lai_xe_nid']) ? intval($item['luong_lai_xe_nid']) : 0,
+      'nid_luong_lai_xe' => !empty($item['nid_luong_lai_xe']) ? intval($item['nid_luong_lai_xe']) : 0,
     );
   }
 
   return $rows;
 }
 
-function thu_chi_driver_label($lai_xe_nid) {
-  $lai_xe_nid = intval($lai_xe_nid);
-  if ($lai_xe_nid <= 0) {
+function thu_chi_driver_label($nid_lai_xe) {
+  $nid_lai_xe = intval($nid_lai_xe);
+  if ($nid_lai_xe <= 0) {
     return '';
   }
   if (function_exists('bao_cao_luong_lai_xe_driver_label')) {
-    $label = bao_cao_luong_lai_xe_driver_label($lai_xe_nid);
+    $label = bao_cao_luong_lai_xe_driver_label($nid_lai_xe);
     if ($label !== '') {
       return $label;
     }
   }
-  $node = node_load($lai_xe_nid);
+  $node = node_load($nid_lai_xe);
   if (!$node || !is_object($node)) {
-    return '#' . $lai_xe_nid;
+    return '#' . $nid_lai_xe;
   }
   $name = thu_chi_get_field_value($node, 'field_ten_lai_xe', '');
   return $name !== '' ? $name : $node->title;
@@ -1581,12 +1594,12 @@ function thu_chi_giao_dich_save_values(array $values, $gd_id = 0) {
     return array('success' => FALSE, 'message' => 'Tổng tiền phiếu phải lớn hơn 0.');
   }
 
-  $quy_id = intval(isset($values['quy_id']) ? $values['quy_id'] : 0);
-  if ($quy_id <= 0) {
+  $nid_quy = intval(isset($values['nid_quy']) ? $values['nid_quy'] : 0);
+  if ($nid_quy <= 0) {
     return array('success' => FALSE, 'message' => 'Vui lòng chọn quỹ.');
   }
-  $quy_id = thu_chi_resolve_quy_node_id($quy_id);
-  if (!thu_chi_is_quy_node($quy_id)) {
+  $nid_quy = thu_chi_resolve_quy_node_id($nid_quy);
+  if (!thu_chi_is_quy_node($nid_quy)) {
     return array('success' => FALSE, 'message' => 'Quỹ đã chọn không hợp lệ hoặc chưa được migrate sang content type Quỹ tài chính.');
   }
 
@@ -1601,8 +1614,8 @@ function thu_chi_giao_dich_save_values(array $values, $gd_id = 0) {
 
   $ngay = thu_chi_parse_date(isset($values['ngay_giao_dich']) ? $values['ngay_giao_dich'] : date('d/m/Y'));
   $prefix = $loai === 'thu' ? 'T' : 'C';
-  $nguoi_de_xuat_uid = intval(isset($values['nguoi_de_xuat_uid']) ? $values['nguoi_de_xuat_uid'] : 0);
-  if ($nguoi_de_xuat_uid <= 0) {
+  $uid_nguoi_de_xuat = intval(isset($values['uid_nguoi_de_xuat']) ? $values['uid_nguoi_de_xuat'] : 0);
+  if ($uid_nguoi_de_xuat <= 0) {
     return array('success' => FALSE, 'message' => 'Vui lòng chọn người đề xuất.');
   }
 
@@ -1616,9 +1629,9 @@ function thu_chi_giao_dich_save_values(array $values, $gd_id = 0) {
   unset($json['dien_giai']);
   $json['nhom_giao_dich'] = isset($values['nhom_giao_dich']) ? trim($values['nhom_giao_dich']) : 'khac';
   $json['ref_type'] = isset($values['ref_type']) ? trim($values['ref_type']) : '';
-  $json['ref_id'] = isset($values['ref_id']) ? intval($values['ref_id']) : 0;
-  $json['nguoi_de_xuat_uid'] = $nguoi_de_xuat_uid;
-  $json['nguoi_de_xuat'] = thu_chi_user_label_by_uid($nguoi_de_xuat_uid);
+  $json['nid_ref'] = isset($values['nid_ref']) ? intval($values['nid_ref']) : 0;
+  $json['uid_nguoi_de_xuat'] = $uid_nguoi_de_xuat;
+  $json['nguoi_de_xuat'] = thu_chi_user_label_by_uid($uid_nguoi_de_xuat);
   $json['updated_uid'] = isset($user->uid) ? intval($user->uid) : 0;
   $json['updated_time'] = $now;
 
@@ -1645,17 +1658,17 @@ function thu_chi_giao_dich_save_values(array $values, $gd_id = 0) {
     'ma_giao_dich' => $ma_giao_dich,
     'loai_phieu' => $loai,
     'nhom_giao_dich' => isset($values['nhom_giao_dich']) ? trim($values['nhom_giao_dich']) : 'khac',
-    'quy_id' => $quy_id,
-    'quy_nhan_id' => intval(isset($values['quy_nhan_id']) ? $values['quy_nhan_id'] : 0),
+    'nid_quy' => $nid_quy,
+    'nid_quy_nhan' => intval(isset($values['nid_quy_nhan']) ? $values['nid_quy_nhan'] : 0),
     'so_tien' => $so_tien,
     'ngay_giao_dich' => $ngay,
     'thang_luong' => $thang_luong,
-    'khach_hang_nid' => intval(isset($values['khach_hang_nid']) ? $values['khach_hang_nid'] : 0),
-    'nha_cung_cap_nid' => intval(isset($values['nha_cung_cap_nid']) ? $values['nha_cung_cap_nid'] : 0),
-    'chuyen_xe_nid' => intval(isset($values['chuyen_xe_nid']) ? $values['chuyen_xe_nid'] : 0),
-    'nguoi_de_xuat_uid' => $nguoi_de_xuat_uid,
+    'nid_khach_hang' => intval(isset($values['nid_khach_hang']) ? $values['nid_khach_hang'] : 0),
+    'nid_nha_cung_cap' => intval(isset($values['nid_nha_cung_cap']) ? $values['nid_nha_cung_cap'] : 0),
+    'nid_chuyen_xe' => intval(isset($values['nid_chuyen_xe']) ? $values['nid_chuyen_xe'] : 0),
+    'uid_nguoi_de_xuat' => $uid_nguoi_de_xuat,
     'ref_type' => $json['ref_type'],
-    'ref_id' => $json['ref_id'],
+    'nid_ref' => $json['nid_ref'],
     'loai_giao_dich_json' => json_encode(array_values($loai_giao_dich_ids)),
     'chi_tiet_json' => json_encode($chi_tiet),
     'thong_tin_json' => json_encode($json),
@@ -1680,10 +1693,10 @@ function thu_chi_giao_dich_save_values(array $values, $gd_id = 0) {
     thu_chi_sync_so_cai_quy_from_item($saved_gd, $new_duyet_status);
   }
 
-  $rebuild_ids = array($quy_id, intval(isset($save_fields['quy_nhan_id']) ? $save_fields['quy_nhan_id'] : 0));
+  $rebuild_ids = array($nid_quy, intval(isset($save_fields['nid_quy_nhan']) ? $save_fields['nid_quy_nhan'] : 0));
   if ($old) {
-    $rebuild_ids[] = $old->quy_id;
-    $rebuild_ids[] = $old->quy_nhan_id;
+    $rebuild_ids[] = $old->nid_quy;
+    $rebuild_ids[] = $old->nid_quy_nhan;
   }
   foreach (array_unique(array_filter($rebuild_ids)) as $qid) {
     thu_chi_rebuild_quy_balance($qid);
@@ -1756,23 +1769,23 @@ function thu_chi_node_to_item($node) {
   // Giữ thuộc tính cũ để các hàm cũ không lỗi; loại phiếu mới nằm ở loai_phieu.
   $item->loai_giao_dich = $item->loai_phieu;
   $item->nhom_giao_dich = isset($node->nhom_giao_dich) ? $node->nhom_giao_dich : (isset($json['nhom_giao_dich']) ? $json['nhom_giao_dich'] : 'khac');
-  $item->quy_id = isset($node->quy_id) ? intval($node->quy_id) : thu_chi_get_target_id($node, 'field_tc_quy');
-  $item->quy_nhan_id = isset($node->quy_nhan_id) ? intval($node->quy_nhan_id) : thu_chi_get_target_id($node, 'field_tc_quy_nhan');
+  $item->nid_quy = isset($node->nid_quy) ? intval($node->nid_quy) : thu_chi_get_target_id($node, 'field_tc_quy');
+  $item->nid_quy_nhan = isset($node->nid_quy_nhan) ? intval($node->nid_quy_nhan) : thu_chi_get_target_id($node, 'field_tc_quy_nhan');
   $item->so_tien = isset($node->so_tien) ? $node->so_tien : thu_chi_get_field_value($node, 'field_tc_so_tien', 0);
   $item->ngay_giao_dich = isset($node->ngay_giao_dich) ? intval($node->ngay_giao_dich) : intval(thu_chi_get_field_value($node, 'field_tc_ngay_phieu', $node->created));
   $item->thang_luong = isset($node->thang_luong) ? (string) $node->thang_luong : (string) thu_chi_get_field_value($node, 'field_tc_thang_hach_toan', date('Ym', $item->ngay_giao_dich));
-  $item->khach_hang_nid = isset($node->khach_hang_nid) ? intval($node->khach_hang_nid) : thu_chi_get_target_id($node, 'field_tc_khach_hang');
-  $item->nha_cung_cap_nid = isset($node->nha_cung_cap_nid) ? intval($node->nha_cung_cap_nid) : thu_chi_get_target_id($node, 'field_tc_nha_cung_cap');
-  $item->chuyen_xe_nid = isset($node->chuyen_xe_nid) ? intval($node->chuyen_xe_nid) : thu_chi_get_target_id($node, 'field_tc_chuyen_xe');
-  $item->nguoi_de_xuat_uid = isset($node->nguoi_de_xuat_uid) ? intval($node->nguoi_de_xuat_uid) : thu_chi_get_target_id($node, 'field_tc_nguoi_de_xuat');
-  if (!$item->nguoi_de_xuat_uid && !empty($json['nguoi_de_xuat_uid'])) {
-    $item->nguoi_de_xuat_uid = intval($json['nguoi_de_xuat_uid']);
+  $item->nid_khach_hang = isset($node->nid_khach_hang) ? intval($node->nid_khach_hang) : thu_chi_get_target_id($node, 'field_tc_khach_hang');
+  $item->nid_nha_cung_cap = isset($node->nid_nha_cung_cap) ? intval($node->nid_nha_cung_cap) : thu_chi_get_target_id($node, 'field_tc_nha_cung_cap');
+  $item->nid_chuyen_xe = isset($node->nid_chuyen_xe) ? intval($node->nid_chuyen_xe) : thu_chi_get_target_id($node, 'field_tc_chuyen_xe');
+  $item->uid_nguoi_de_xuat = isset($node->uid_nguoi_de_xuat) ? intval($node->uid_nguoi_de_xuat) : thu_chi_get_target_id($node, 'field_tc_nguoi_de_xuat');
+  if (!$item->uid_nguoi_de_xuat && !empty($json['uid_nguoi_de_xuat'])) {
+    $item->uid_nguoi_de_xuat = intval($json['uid_nguoi_de_xuat']);
   }
-  if (!$item->nguoi_de_xuat_uid) {
-    $item->nguoi_de_xuat_uid = intval($node->uid);
+  if (!$item->uid_nguoi_de_xuat) {
+    $item->uid_nguoi_de_xuat = intval($node->uid);
   }
   $item->ref_type = isset($json['ref_type']) ? $json['ref_type'] : '';
-  $item->ref_id = isset($json['ref_id']) ? intval($json['ref_id']) : 0;
+  $item->nid_ref = isset($json['nid_ref']) ? intval($json['nid_ref']) : 0;
   $item->chi_tiet = isset($node->chi_tiet_json) ? thu_chi_json_decode($node->chi_tiet_json) : (isset($json['chi_tiet']) && is_array($json['chi_tiet']) ? $json['chi_tiet'] : array());
   // Không dùng diễn giải trong JSON nữa. Biến này chỉ giữ tương thích dữ liệu cũ.
   $item->dien_giai = '';
@@ -2551,7 +2564,7 @@ function thu_chi_quy_node_options($active_only = TRUE) {
   $options = array();
   if (function_exists('quan_ly_tai_chinh_quy_get_all')) {
     foreach (quan_ly_tai_chinh_quy_get_all($active_only) as $quy) {
-      $options[intval($quy->quy_id)] = $quy->ma_quy . ' - ' . $quy->ten_quy;
+      $options[intval($quy->nid_quy)] = $quy->ma_quy . ' - ' . $quy->ten_quy;
     }
   }
   return $options;
@@ -2800,19 +2813,19 @@ function thu_chi_route_name_from_cung_duong(array $route) {
 function thu_chi_object_text($gd) {
   $parts = array();
 
-  if (!empty($gd->khach_hang_nid)) {
-    $node = node_load(intval($gd->khach_hang_nid));
-    $parts[] = 'KH: ' . ($node ? thu_chi_khach_hang_label($node) : ('#' . intval($gd->khach_hang_nid)));
+  if (!empty($gd->nid_khach_hang)) {
+    $node = node_load(intval($gd->nid_khach_hang));
+    $parts[] = 'KH: ' . ($node ? thu_chi_khach_hang_label($node) : ('#' . intval($gd->nid_khach_hang)));
   }
 
-  if (!empty($gd->nha_cung_cap_nid)) {
-    $node = node_load(intval($gd->nha_cung_cap_nid));
-    $parts[] = 'NCC: ' . ($node ? $node->title : ('#' . intval($gd->nha_cung_cap_nid)));
+  if (!empty($gd->nid_nha_cung_cap)) {
+    $node = node_load(intval($gd->nid_nha_cung_cap));
+    $parts[] = 'NCC: ' . ($node ? $node->title : ('#' . intval($gd->nid_nha_cung_cap)));
   }
 
-  if (!empty($gd->chuyen_xe_nid)) {
-    $node = node_load(intval($gd->chuyen_xe_nid));
-    $parts[] = 'CX: ' . ($node ? thu_chi_chuyen_xe_label($node) : ('#' . intval($gd->chuyen_xe_nid)));
+  if (!empty($gd->nid_chuyen_xe)) {
+    $node = node_load(intval($gd->nid_chuyen_xe));
+    $parts[] = 'CX: ' . ($node ? thu_chi_chuyen_xe_label($node) : ('#' . intval($gd->nid_chuyen_xe)));
   }
 
   return implode(' / ', $parts);
@@ -3009,25 +3022,25 @@ function thu_chi_duyet_badge($status) {
 /**
  * Kiểm tra một ID có phải node quỹ tài chính hợp lệ không.
  */
-function thu_chi_is_quy_node($quy_id) {
-  $quy_id = intval($quy_id);
-  if (!$quy_id) {
+function thu_chi_is_quy_node($nid_quy) {
+  $nid_quy = intval($nid_quy);
+  if (!$nid_quy) {
     return FALSE;
   }
-  return function_exists('quan_ly_tai_chinh_quy_load') && !!quan_ly_tai_chinh_quy_load($quy_id);
+  return function_exists('quan_ly_tai_chinh_quy_load') && !!quan_ly_tai_chinh_quy_load($nid_quy);
 }
 
 /**
  * Chuyển ID quỹ cũ từ bảng qltc_quy sang nid node quy_tai_chinh nếu cần.
  */
-function thu_chi_resolve_quy_node_id($quy_id) {
-  $quy_id = intval($quy_id);
-  if (!$quy_id) {
+function thu_chi_resolve_quy_node_id($nid_quy) {
+  $nid_quy = intval($nid_quy);
+  if (!$nid_quy) {
     return 0;
   }
 
-  if (thu_chi_is_quy_node($quy_id)) {
-    return $quy_id;
+  if (thu_chi_is_quy_node($nid_quy)) {
+    return $nid_quy;
   }
   return 0;
 }
@@ -3040,16 +3053,16 @@ function thu_chi_fix_giao_dich_quy_reference(&$node, &$gd) {
     return;
   }
 
-  $resolved_quy_id = thu_chi_resolve_quy_node_id($gd->quy_id);
-  if ($resolved_quy_id && $resolved_quy_id !== intval($gd->quy_id) && thu_chi_is_quy_node($resolved_quy_id)) {
+  $resolved_quy_id = thu_chi_resolve_quy_node_id($gd->nid_quy);
+  if ($resolved_quy_id && $resolved_quy_id !== intval($gd->nid_quy) && thu_chi_is_quy_node($resolved_quy_id)) {
     thu_chi_set_target_id($node, 'field_tc_quy', $resolved_quy_id);
-    $gd->quy_id = $resolved_quy_id;
+    $gd->nid_quy = $resolved_quy_id;
   }
 
-  $resolved_quy_nhan_id = thu_chi_resolve_quy_node_id($gd->quy_nhan_id);
-  if ($resolved_quy_nhan_id && $resolved_quy_nhan_id !== intval($gd->quy_nhan_id) && thu_chi_is_quy_node($resolved_quy_nhan_id)) {
+  $resolved_quy_nhan_id = thu_chi_resolve_quy_node_id($gd->nid_quy_nhan);
+  if ($resolved_quy_nhan_id && $resolved_quy_nhan_id !== intval($gd->nid_quy_nhan) && thu_chi_is_quy_node($resolved_quy_nhan_id)) {
     thu_chi_set_target_id($node, 'field_tc_quy_nhan', $resolved_quy_nhan_id);
-    $gd->quy_nhan_id = $resolved_quy_nhan_id;
+    $gd->nid_quy_nhan = $resolved_quy_nhan_id;
   }
 }
 
@@ -3087,7 +3100,7 @@ function thu_chi_can_sync_qltc_giao_dich() {
   return function_exists('db_table_exists')
     && db_table_exists('qltc_giao_dich')
     && db_field_exists('qltc_giao_dich', 'ref_type')
-    && db_field_exists('qltc_giao_dich', 'ref_id');
+    && db_field_exists('qltc_giao_dich', 'nid_ref');
 }
 
 /**
@@ -3102,24 +3115,24 @@ function thu_chi_sync_qltc_giao_dich_from_item($gd, $duyet_status = NULL) {
   $status = (thu_chi_duyet_status_counts_in_ledger($duyet_status) && intval($gd->status) === 1) ? 1 : 0;
   $now = REQUEST_TIME;
   $loai = isset($gd->loai_phieu) && $gd->loai_phieu === 'thu' ? 'thu' : 'chi';
-  $quy_id = thu_chi_resolve_quy_node_id(isset($gd->quy_id) ? $gd->quy_id : 0);
-  $quy_nhan_id = thu_chi_resolve_quy_node_id(isset($gd->quy_nhan_id) ? $gd->quy_nhan_id : 0);
+  $nid_quy = thu_chi_resolve_quy_node_id(isset($gd->nid_quy) ? $gd->nid_quy : 0);
+  $nid_quy_nhan = thu_chi_resolve_quy_node_id(isset($gd->nid_quy_nhan) ? $gd->nid_quy_nhan : 0);
 
   $detail_text = thu_chi_detail_summary_for_qltc($gd);
   $fields = array(
     'ma_giao_dich' => isset($gd->ma_giao_dich) ? (string) $gd->ma_giao_dich : ('TC' . intval($gd->gd_id)),
     'loai_giao_dich' => $loai,
     'nhom_giao_dich' => !empty($gd->nhom_giao_dich) ? (string) $gd->nhom_giao_dich : 'thu_chi_node',
-    'quy_id' => intval($quy_id),
-    'quy_nhan_id' => intval($quy_nhan_id),
+    'nid_quy' => intval($nid_quy),
+    'nid_quy_nhan' => intval($nid_quy_nhan),
     'so_tien' => thu_chi_money_to_number(isset($gd->so_tien) ? $gd->so_tien : 0),
     'ngay_giao_dich' => !empty($gd->ngay_giao_dich) ? intval($gd->ngay_giao_dich) : $now,
     'thang_luong' => !empty($gd->thang_luong) ? substr(preg_replace('/\D+/', '', (string) $gd->thang_luong), 0, 6) : date('Ym'),
-    'khach_hang_nid' => !empty($gd->khach_hang_nid) ? intval($gd->khach_hang_nid) : 0,
-    'nha_cung_cap_nid' => !empty($gd->nha_cung_cap_nid) ? intval($gd->nha_cung_cap_nid) : 0,
-    'chuyen_xe_nid' => !empty($gd->chuyen_xe_nid) ? intval($gd->chuyen_xe_nid) : 0,
+    'nid_khach_hang' => !empty($gd->nid_khach_hang) ? intval($gd->nid_khach_hang) : 0,
+    'nid_nha_cung_cap' => !empty($gd->nid_nha_cung_cap) ? intval($gd->nid_nha_cung_cap) : 0,
+    'nid_chuyen_xe' => !empty($gd->nid_chuyen_xe) ? intval($gd->nid_chuyen_xe) : 0,
     'ref_type' => 'phieu_thu_chi',
-    'ref_id' => intval($gd->gd_id),
+    'nid_ref' => intval($gd->gd_id),
     'dien_giai' => $detail_text,
     'uid' => !empty($gd->uid) ? intval($gd->uid) : 0,
     'status' => $status,
@@ -3137,7 +3150,7 @@ function thu_chi_sync_qltc_giao_dich_from_item($gd, $duyet_status = NULL) {
   $existing = db_select('qltc_giao_dich', 'gd')
     ->fields('gd', array('gd_id'))
     ->condition('ref_type', 'phieu_thu_chi')
-    ->condition('ref_id', intval($gd->gd_id))
+    ->condition('nid_ref', intval($gd->gd_id))
     ->range(0, 1)
     ->execute()
     ->fetchField();
@@ -3160,12 +3173,12 @@ function thu_chi_sync_qltc_giao_dich_from_item($gd, $duyet_status = NULL) {
 /**
  * Đồng bộ tất cả phiếu liên quan đến một quỹ trước khi gọi rebuild của QL tài chính.
  */
-function thu_chi_sync_qltc_items_by_quy($quy_id) {
+function thu_chi_sync_qltc_items_by_quy($nid_quy) {
   if (!thu_chi_can_sync_qltc_giao_dich()) {
     return 0;
   }
   $count = 0;
-  foreach (thu_chi_load_items_by_quy($quy_id) as $gd) {
+  foreach (thu_chi_load_items_by_quy($nid_quy) as $gd) {
     thu_chi_sync_so_cai_quy_from_item($gd, isset($gd->duyet_status) ? $gd->duyet_status : 'cho_duyet');
     $count++;
   }
@@ -3188,11 +3201,11 @@ function thu_chi_sync_all_qltc_giao_dich() {
     $gd = thu_chi_node_to_item($node);
     thu_chi_sync_qltc_giao_dich_from_item($gd, isset($gd->duyet_status) ? $gd->duyet_status : 'cho_duyet');
     $synced++;
-    if (!empty($gd->quy_id)) {
-      $quy_ids[] = intval($gd->quy_id);
+    if (!empty($gd->nid_quy)) {
+      $quy_ids[] = intval($gd->nid_quy);
     }
-    if (!empty($gd->quy_nhan_id)) {
-      $quy_ids[] = intval($gd->quy_nhan_id);
+    if (!empty($gd->nid_quy_nhan)) {
+      $quy_ids[] = intval($gd->nid_quy_nhan);
     }
   }
 
@@ -3254,21 +3267,21 @@ function thu_chi_quy_delta_map_for_approval($gd, $old_status, $new_status) {
   }
 
   $amount = thu_chi_money_to_number($gd->so_tien);
-  $quy_id = thu_chi_resolve_quy_node_id($gd->quy_id);
-  $quy_nhan_id = thu_chi_resolve_quy_node_id($gd->quy_nhan_id);
+  $nid_quy = thu_chi_resolve_quy_node_id($gd->nid_quy);
+  $nid_quy_nhan = thu_chi_resolve_quy_node_id($gd->nid_quy_nhan);
 
-  if ($gd->loai_phieu === 'thu' && $quy_id) {
-    $delta_map[$quy_id] = (isset($delta_map[$quy_id]) ? $delta_map[$quy_id] : 0) + ($amount * $multiplier);
+  if ($gd->loai_phieu === 'thu' && $nid_quy) {
+    $delta_map[$nid_quy] = (isset($delta_map[$nid_quy]) ? $delta_map[$nid_quy] : 0) + ($amount * $multiplier);
   }
-  elseif ($gd->loai_phieu === 'chi' && $quy_id) {
-    $delta_map[$quy_id] = (isset($delta_map[$quy_id]) ? $delta_map[$quy_id] : 0) - ($amount * $multiplier);
+  elseif ($gd->loai_phieu === 'chi' && $nid_quy) {
+    $delta_map[$nid_quy] = (isset($delta_map[$nid_quy]) ? $delta_map[$nid_quy] : 0) - ($amount * $multiplier);
   }
   elseif ($gd->loai_phieu === 'chuyen_quy') {
-    if ($quy_id) {
-      $delta_map[$quy_id] = (isset($delta_map[$quy_id]) ? $delta_map[$quy_id] : 0) - ($amount * $multiplier);
+    if ($nid_quy) {
+      $delta_map[$nid_quy] = (isset($delta_map[$nid_quy]) ? $delta_map[$nid_quy] : 0) - ($amount * $multiplier);
     }
-    if ($quy_nhan_id) {
-      $delta_map[$quy_nhan_id] = (isset($delta_map[$quy_nhan_id]) ? $delta_map[$quy_nhan_id] : 0) + ($amount * $multiplier);
+    if ($nid_quy_nhan) {
+      $delta_map[$nid_quy_nhan] = (isset($delta_map[$nid_quy_nhan]) ? $delta_map[$nid_quy_nhan] : 0) + ($amount * $multiplier);
     }
   }
 
@@ -3285,14 +3298,14 @@ function thu_chi_quy_delta_map_for_approval($gd, $old_status, $new_status) {
  */
 function thu_chi_apply_quy_delta_map(array $delta_map) {
   $result = array();
-  foreach ($delta_map as $quy_id => $delta) {
-    $quy_id = intval($quy_id);
+  foreach ($delta_map as $nid_quy => $delta) {
+    $nid_quy = intval($nid_quy);
     $delta = thu_chi_money_to_number($delta);
-    if (!$quy_id || abs($delta) < 0.00001) {
+    if (!$nid_quy || abs($delta) < 0.00001) {
       continue;
     }
 
-    $quy = function_exists('quan_ly_tai_chinh_quy_load') ? quan_ly_tai_chinh_quy_load($quy_id) : FALSE;
+    $quy = function_exists('quan_ly_tai_chinh_quy_load') ? quan_ly_tai_chinh_quy_load($nid_quy) : FALSE;
     if (!$quy) {
       continue;
     }
@@ -3301,10 +3314,10 @@ function thu_chi_apply_quy_delta_map(array $delta_map) {
     $after = $before + $delta;
     db_update('qltc_quy')
       ->fields(array('so_du_hien_tai' => $after, 'status' => 0, 'changed' => REQUEST_TIME))
-      ->condition('nid', $quy_id)
+      ->condition('nid', $nid_quy)
       ->execute();
 
-    $result[$quy_id] = array(
+    $result[$nid_quy] = array(
       'before' => $before,
       'after' => $after,
       'delta' => $delta,
@@ -3316,13 +3329,13 @@ function thu_chi_apply_quy_delta_map(array $delta_map) {
 /**
  * Lấy số dư hiện tại của quỹ.
  */
-function thu_chi_get_quy_current_balance($quy_id) {
-  $quy_id = thu_chi_resolve_quy_node_id($quy_id);
-  $quy_id = intval($quy_id);
-  if (!$quy_id) {
+function thu_chi_get_quy_current_balance($nid_quy) {
+  $nid_quy = thu_chi_resolve_quy_node_id($nid_quy);
+  $nid_quy = intval($nid_quy);
+  if (!$nid_quy) {
     return 0;
   }
-  $quy = function_exists('quan_ly_tai_chinh_quy_load') ? quan_ly_tai_chinh_quy_load($quy_id) : FALSE;
+  $quy = function_exists('quan_ly_tai_chinh_quy_load') ? quan_ly_tai_chinh_quy_load($nid_quy) : FALSE;
   if (!$quy) {
     return 0;
   }
@@ -3332,16 +3345,16 @@ function thu_chi_get_quy_current_balance($quy_id) {
 /**
  * Lưu lịch sử thay đổi số dư quỹ phát sinh từ duyệt phiếu thu chi.
  */
-function thu_chi_append_quy_duyet_history($quy_id, $gd, $old_status, $new_status, $balance_before, $balance_after) {
+function thu_chi_append_quy_duyet_history($nid_quy, $gd, $old_status, $new_status, $balance_before, $balance_after) {
   global $user;
 
-  $quy_id = thu_chi_resolve_quy_node_id($quy_id);
-  $quy_id = intval($quy_id);
-  if (!$quy_id || !$gd) {
+  $nid_quy = thu_chi_resolve_quy_node_id($nid_quy);
+  $nid_quy = intval($nid_quy);
+  if (!$nid_quy || !$gd) {
     return FALSE;
   }
 
-  $quy = function_exists('quan_ly_tai_chinh_quy_load') ? quan_ly_tai_chinh_quy_load($quy_id) : FALSE;
+  $quy = function_exists('quan_ly_tai_chinh_quy_load') ? quan_ly_tai_chinh_quy_load($nid_quy) : FALSE;
   if (!$quy) {
     return FALSE;
   }
@@ -3357,7 +3370,7 @@ function thu_chi_append_quy_duyet_history($quy_id, $gd, $old_status, $new_status
     'time_text' => format_date(REQUEST_TIME, 'custom', 'd/m/Y H:i:s'),
     'nguoi_thuc_hien_uid' => isset($user->uid) ? intval($user->uid) : 0,
     'nguoi_thuc_hien' => isset($user->name) ? $user->name : '',
-    'phieu_nid' => intval($gd->gd_id),
+    'nid_phieu' => intval($gd->gd_id),
     'ma_phieu' => $gd->ma_giao_dich,
     'loai_phieu' => $gd->loai_phieu,
     'so_tien' => thu_chi_money_to_number($gd->so_tien),
@@ -3380,7 +3393,7 @@ function thu_chi_append_quy_duyet_history($quy_id, $gd, $old_status, $new_status
 
   db_update('qltc_quy')
     ->fields(array('thong_tin_json' => json_encode($json), 'status' => 0, 'changed' => REQUEST_TIME))
-    ->condition('nid', $quy_id)
+    ->condition('nid', $nid_quy)
     ->execute();
 
   return TRUE;
@@ -3389,58 +3402,58 @@ function thu_chi_append_quy_duyet_history($quy_id, $gd, $old_status, $new_status
 /**
  * Tính lại số dư hiện tại của quỹ từ node phiếu thu chi.
  */
-function thu_chi_rebuild_quy_balance($quy_id) {
-  $quy_id = thu_chi_resolve_quy_node_id($quy_id);
-  $quy_id = intval($quy_id);
-  if (!$quy_id) {
+function thu_chi_rebuild_quy_balance($nid_quy) {
+  $nid_quy = thu_chi_resolve_quy_node_id($nid_quy);
+  $nid_quy = intval($nid_quy);
+  if (!$nid_quy) {
     return;
   }
 
   if (function_exists('quan_ly_tai_chinh_rebuild_quy_balance')) {
-    quan_ly_tai_chinh_rebuild_quy_balance($quy_id);
+    quan_ly_tai_chinh_rebuild_quy_balance($nid_quy);
     return;
   }
 
-  $quy = function_exists('quan_ly_tai_chinh_quy_load') ? quan_ly_tai_chinh_quy_load($quy_id) : FALSE;
+  $quy = function_exists('quan_ly_tai_chinh_quy_load') ? quan_ly_tai_chinh_quy_load($nid_quy) : FALSE;
   if (!$quy) {
     return;
   }
 
   $balance = thu_chi_money_to_number($quy->so_du_dau_ky);
-  foreach (thu_chi_load_items_by_quy($quy_id) as $gd) {
+  foreach (thu_chi_load_items_by_quy($nid_quy) as $gd) {
     if (empty($gd->duyet_status) || !thu_chi_duyet_status_counts_in_ledger($gd->duyet_status)) {
       continue;
     }
     $amount = thu_chi_money_to_number($gd->so_tien);
-    if ($gd->loai_phieu === 'thu' && intval($gd->quy_id) === $quy_id) {
+    if ($gd->loai_phieu === 'thu' && intval($gd->nid_quy) === $nid_quy) {
       $balance += $amount;
     }
-    elseif ($gd->loai_phieu === 'chi' && intval($gd->quy_id) === $quy_id) {
+    elseif ($gd->loai_phieu === 'chi' && intval($gd->nid_quy) === $nid_quy) {
       $balance -= $amount;
     }
   }
 
   db_update('qltc_quy')
     ->fields(array('so_du_hien_tai' => $balance, 'status' => 0, 'changed' => REQUEST_TIME))
-    ->condition('nid', $quy_id)
+    ->condition('nid', $nid_quy)
     ->execute();
 }
 
 /**
  * Load các phiếu đang hoạt động liên quan đến quỹ.
  */
-function thu_chi_load_items_by_quy($quy_id) {
+function thu_chi_load_items_by_quy($nid_quy) {
   $items = array();
-  $quy_id = thu_chi_resolve_quy_node_id($quy_id);
-  $quy_id = intval($quy_id);
-  if (!$quy_id) {
+  $nid_quy = thu_chi_resolve_quy_node_id($nid_quy);
+  $nid_quy = intval($nid_quy);
+  if (!$nid_quy) {
     return $items;
   }
 
   $nodes = db_select('qltc_phieu_thu_chi', 'p')
     ->fields('p')
     ->condition('hoat_dong', 1)
-    ->condition(db_or()->condition('quy_id', $quy_id)->condition('quy_nhan_id', $quy_id))
+    ->condition(db_or()->condition('nid_quy', $nid_quy)->condition('nid_quy_nhan', $nid_quy))
     ->execute();
   foreach ($nodes as $node) {
     $items[] = thu_chi_node_to_item($node);

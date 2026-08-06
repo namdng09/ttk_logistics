@@ -289,7 +289,7 @@
     var $modal = $form.closest(MODAL_SELECTOR);
     var $content = $modal.find('.qltc-runtime-modal-content');
     var $btn = $form.find('.qltc-btn-save-quy').first();
-    var id = parseInt($form.find('[name="quy_id"]').val(), 10) || 0;
+    var id = parseInt($form.find('[name="nid_quy"]').val(), 10) || 0;
     var url = id ? (QUY_API_BASE + '/' + id) : QUY_API_BASE;
     var method = id ? 'PUT' : 'POST';
     var payload = {
@@ -342,7 +342,7 @@
     var $modal = $form.closest(MODAL_SELECTOR);
     var $content = $modal.find('.qltc-runtime-modal-content');
     var $btn = $form.find('.qltc-btn-save-adjust').first();
-    var id = parseInt($form.find('[name="quy_id"]').val(), 10) || 0;
+    var id = parseInt($form.find('[name="nid_quy"]').val(), 10) || 0;
     var url = QUY_API_BASE + '/' + id + '?action=adjust';
     var payload = {
       so_du_moi: $form.find('[name="so_du_moi"]').val(),
@@ -636,7 +636,7 @@
     var isEdit = !!item.nid;
     return '<div class="qltc-modal-content" data-qltc-form-key="quy">' +
       '<form id="qltc-quy-form" class="qltc-quy-form qltc-module-form qltc-bootstrap-form" method="post">' +
-      '<input type="hidden" name="quy_id" value="' + (item.nid || 0) + '">' +
+      '<input type="hidden" name="nid_quy" value="' + (item.nid || 0) + '">' +
       '<div class="row g-3 qltc-quy-field-row">' +
       '<div class="col-12 col-md-2"><div class="row g-1"><div class="col-12"><label class="form-label fw-semibold">Mã quỹ <span class="text-danger">*</span></label><input type="text" class="form-control form-control-sm" name="ma_quy" value="' + escapeHtml(item.ma_quy || '') + '" placeholder="VD: TM01" required></div></div></div>' +
       '<div class="col-12 col-md-4"><div class="row g-1"><div class="col-12"><label class="form-label fw-semibold">Tên quỹ <span class="text-danger">*</span></label><input type="text" class="form-control form-control-sm" name="ten_quy" value="' + escapeHtml(item.ten_quy || '') + '" placeholder="VD: Tiền mặt công ty" required></div></div></div>' +
@@ -652,7 +652,7 @@
   function renderQuyAdjust(item) {
     var oldBalance = item.so_du_dau_ky || 0;
     return '<div class="qltc-modal-content" data-qltc-form-key="quy-adjust"><form id="qltc-quy-adjust-form" class="qltc-quy-adjust-form qltc-module-form qltc-bootstrap-form" method="post">' +
-      '<input type="hidden" name="quy_id" value="' + (item.nid || 0) + '"><input type="hidden" name="so_du_cu" value="' + formatMoney(oldBalance) + '">' +
+      '<input type="hidden" name="nid_quy" value="' + (item.nid || 0) + '"><input type="hidden" name="so_du_cu" value="' + formatMoney(oldBalance) + '">' +
       '<div class="alert alert-info py-2 mb-3"><strong>Lưu ý:</strong> Điều chỉnh số dư đầu kỳ không tạo phiếu thu/chi. Hệ thống sẽ lưu lịch sử điều chỉnh.</div>' +
       '<div class="row g-3 align-items-end"><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Mã quỹ</label><input type="text" class="form-control form-control-sm bg-light" value="' + escapeHtml(item.ma_quy || '') + '" readonly></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Tên quỹ</label><input type="text" class="form-control form-control-sm bg-light" value="' + escapeHtml(item.ten_quy || '') + '" readonly></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Số dư đầu kỳ hiện tại</label><input type="text" class="form-control form-control-sm text-end bg-light" value="' + formatMoney(oldBalance) + '" readonly></div></div>' +
       '<div class="row g-3 align-items-end mt-1"><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Số dư đầu kỳ mới <span class="text-danger">*</span></label><input type="text" inputmode="numeric" class="form-control form-control-sm text-end qltc-money-input qltc-adjust-new-balance" name="so_du_moi" value="' + formatMoney(oldBalance) + '" required></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Chênh lệch</label><input type="text" class="form-control form-control-sm text-end bg-light qltc-adjust-diff" value="0" readonly></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Ngày điều chỉnh</label><input type="text" class="form-control form-control-sm qltc-flatpickr-date" name="ngay_dieu_chinh" value="' + escapeHtml(currentDate()) + '" autocomplete="off"></div></div>' +
