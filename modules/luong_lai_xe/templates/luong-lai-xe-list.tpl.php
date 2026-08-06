@@ -18,6 +18,13 @@
         <label class="form-label" for="llx-ky-luong-to">Đến kỳ</label>
         <input type="text" class="form-control flatpickr-month" id="llx-ky-luong-to" placeholder="MM/yyyy">
       </div>
+      <div class="col-12 col-md-6 col-xl-8">
+        <label class="form-label" for="llx-keyword">Tìm lái xe</label>
+        <div class="input-group">
+          <input type="text" class="form-control" id="llx-keyword" placeholder="Tên, mã nhân viên, SĐT, số tài khoản ngân hàng...">
+          <button type="button" class="btn btn-label-primary" id="llx-search-btn" title="Tìm kiếm"><i class="ti tabler-search"></i></button>
+        </div>
+      </div>
     </div>
 
     <div class="table-responsive">

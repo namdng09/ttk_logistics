@@ -1,7 +1,3 @@
-.luong-lai-xe-page .table-responsive {
-  min-height: 220px;
-}
-
 .llx-table {
   table-layout: fixed;
   min-width: 1080px;
@@ -24,7 +20,7 @@
 .llx-col-actions { width: 58px; text-align: center !important; }
 .llx-col-stt { width: 50px; text-align: center !important; }
 .llx-col-period { width: 88px; }
-.llx-col-driver { width: 210px; }
+.llx-col-driver { width: 240px; }
 .llx-col-count { width: 86px; }
 .llx-col-money { width: 128px; }
 

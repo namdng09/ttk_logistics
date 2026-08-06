@@ -5,7 +5,8 @@
   var currentPage = 1;
   var state = {
     date_from: '',
-    date_to: ''
+    date_to: '',
+    keyword: ''
   };
   var currentDetail = null;
   var notyf;
@@ -55,6 +56,8 @@
     $(document).off('click.llx');
     $(document).off('keypress.llx');
     $(document).off('change.llx');
+    $(document).off('mouseover.llx');
+    $(document).off('mouseout.llx');
 
     $(document).on('keypress.llx', '#llx-pagination-jump', function (e) {
       if (e.which !== 13) return;
@@ -72,8 +75,18 @@
       loadList();
     });
 
+    $(document).on('click.llx', '#llx-search-btn', function () {
+      applySearch();
+    });
+
+    $(document).on('keypress.llx', '#llx-keyword', function (e) {
+      if (e.which !== 13) return;
+      e.preventDefault();
+      applySearch();
+    });
+
     $(document).on('click.llx', '#llx-btn-reload', function () {
-      $('#llx-ky-luong-from, #llx-ky-luong-to').val('');
+      $('#llx-ky-luong-from, #llx-ky-luong-to, #llx-keyword').val('');
       initDefaults();
       readFilters();
       currentPage = 1;
@@ -90,9 +103,30 @@
       }
     });
 
-    $(document).on('click.llx', '.llx-view-detail', function (e) {
+    $(document).on('click.llx', '.llx-act-view, .llx-act-advance, .llx-act-pay, .llx-act-deduct, .llx-act-history', function (e) {
       e.preventDefault();
       openDetail($(this).attr('data-id'), $(this).attr('data-ky-luong'));
+    });
+
+    $(document).on('mouseover.llx', '#llx-table-body .dropdown', function () {
+      var menu = this.querySelector('.dropdown-menu');
+      if (!menu) return;
+      var btn = this.querySelector('button');
+      var rect = btn.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.top = rect.top + 'px';
+      menu.style.left = rect.right + 'px';
+      menu.style.display = 'block';
+    });
+
+    $(document).on('mouseout.llx', '#llx-table-body .dropdown', function (e) {
+      var menu = this.querySelector('.dropdown-menu');
+      if (menu && !this.contains(e.relatedTarget)) {
+        menu.style.display = '';
+        menu.style.position = '';
+        menu.style.top = '';
+        menu.style.left = '';
+      }
     });
 
     $(document).on('click.llx', '#llx-btn-advance', function () {
@@ -113,6 +147,12 @@
 
   function query(extra) {
     return $.extend({}, state, extra || {});
+  }
+
+  function applySearch() {
+    state.keyword = $('#llx-keyword').val().trim();
+    currentPage = 1;
+    loadList();
   }
 
   function loadList() {
@@ -136,10 +176,13 @@
     var html = '';
     $.each(items, function (index, item) {
       var driver = item.lai_xe || {};
+      var stt = (((currentPage - 1) * 20) + index + 1);
+      var driverName = [String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || '-';
+      var driverSub = driverBankLine(driver);
       html += '<tr>' +
-        '<td class="text-center"><button type="button" class="btn btn-sm btn-icon btn-label-secondary rounded-pill llx-view-detail" data-id="' + esc(driver.nid) + '" data-ky-luong="' + esc(item.ky_luong || '') + '"><i class="ti tabler-dots-vertical"></i></button></td>' +
-        '<td class="text-center">' + (((currentPage - 1) * 20) + index + 1) + '</td>' +
-        '<td><div class="llx-driver-name">' + esc(driver.ten || '-') + '</div><div class="llx-subtext">' + esc([driver.ma_nhan_vien, driver.sdt].filter(Boolean).join(' / ')) + '</div></td>' +
+        '<td class="text-center">' + buildActions(item) + '</td>' +
+        '<td class="text-center">' + stt + '</td>' +
+        '<td><div class="llx-driver-name">' + esc(driverName) + '</div><div class="llx-subtext">' + esc(driverSub) + '</div></td>' +
         '<td>' + esc(item.ky_luong_display || '-') + '</td>' +
         '<td class="text-center">' + number(item.so_ke_hoach) + '</td>' +
         '<td class="text-end fw-semibold text-primary">' + money(item.tong_luong_ke_hoach) + '</td>' +
@@ -150,6 +193,35 @@
       '</tr>';
     });
     $('#llx-table-body').html(html);
+  }
+
+  function buildActions(item) {
+    var nid = esc((item.lai_xe && item.lai_xe.nid) || 0);
+    var ky = esc(item.ky_luong || '');
+    return '<div class="dropdown">' +
+      '<button type="button" class="btn btn-sm btn-icon btn-label-secondary rounded-pill"><i class="ti tabler-dots-vertical"></i></button>' +
+      '<ul class="dropdown-menu">' +
+      '<li><button type="button" class="dropdown-item llx-act-view" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-eye me-2"></i>Xem chi tiết</button></li>' +
+      '<li><button type="button" class="dropdown-item llx-act-advance" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-cash me-2"></i>Ứng tiền</button></li>' +
+      '<li><button type="button" class="dropdown-item llx-act-pay" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-wallet me-2"></i>Thanh toán lương</button></li>' +
+      '<li><button type="button" class="dropdown-item llx-act-deduct" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-receipt-2 me-2"></i>Khấu trừ tạm ứng</button></li>' +
+      '<li><button type="button" class="dropdown-item llx-act-history" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-history me-2"></i>Lịch sử tạm ứng</button></li>' +
+      '</ul></div>';
+  }
+
+  function driverBankLine(driver) {
+    var banks = driver.thong_tin_ngan_hang;
+    if (Object.prototype.toString.call(banks) === '[object Array]' && banks.length) {
+      var parts = [];
+      $.each(banks, function (_, b) {
+        b = b || {};
+        var name = String(b.ngan_hang || '').trim();
+        var stk = String(b.so_tai_khoan || '').trim();
+        if (name || stk) parts.push([name, stk].filter(Boolean).join(' - '));
+      });
+      if (parts.length) return parts.join('; ');
+    }
+    return String(driver.sdt || '').trim();
   }
 
   function openDetail(nid, kyLuong) {

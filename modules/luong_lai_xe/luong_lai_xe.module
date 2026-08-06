@@ -288,6 +288,9 @@ function _luong_lai_xe_plan_rows(array $filters) {
   $query = db_select('ke_hoach_xep_xe', 'kh');
   $query->fields('kh');
   $query->condition('kh.hoat_dong', 1);
+  if (db_table_exists('lai_xe')) {
+    $query->leftJoin('lai_xe', 'lx', 'lx.nid = kh.nid_lai_xe');
+  }
   if (!isset($filters['only_completed']) || !empty($filters['only_completed'])) {
     $query->condition('kh.trang_thai_van_chuyen', 'Hoàn thành');
   }
@@ -302,6 +305,12 @@ function _luong_lai_xe_plan_rows(array $filters) {
       ->condition('kh.dia_chi_kho', $like, 'LIKE')
       ->condition('kh.bai_lay_cont', $like, 'LIKE')
       ->condition('kh.bai_ha_cont', $like, 'LIKE');
+    if (db_table_exists('lai_xe')) {
+      $or->condition('lx.ten', $like, 'LIKE')
+        ->condition('lx.ma_nhan_vien', $like, 'LIKE')
+        ->condition('lx.sdt', $like, 'LIKE')
+        ->condition('lx.thong_tin_ngan_hang', $like, 'LIKE');
+    }
     $query->condition($or);
   }
   $query->orderBy('kh.created', 'DESC');
@@ -794,11 +803,26 @@ function _luong_lai_xe_plan_object($row, array $json) {
 }
 
 function _luong_lai_xe_driver_object($nid_lai_xe) {
+  $empty = array('nid' => (int) $nid_lai_xe, 'ten' => '', 'ma_nhan_vien' => '', 'sdt' => '', 'thong_tin_ngan_hang' => array());
   if (!$nid_lai_xe || !db_table_exists('lai_xe')) {
-    return array('nid' => (int) $nid_lai_xe, 'ten' => '', 'ma_nhan_vien' => '', 'sdt' => '');
+    return $empty;
   }
-  $row = db_query("SELECT nid, ten, ma_nhan_vien, sdt FROM {lai_xe} WHERE nid = :nid", array(':nid' => (int) $nid_lai_xe))->fetch();
-  return $row ? (array) $row : array('nid' => (int) $nid_lai_xe, 'ten' => '', 'ma_nhan_vien' => '', 'sdt' => '');
+  $row = db_query("SELECT nid, ten, ma_nhan_vien, sdt, thong_tin_ngan_hang FROM {lai_xe} WHERE nid = :nid", array(':nid' => (int) $nid_lai_xe))->fetch();
+  if (!$row) {
+    return $empty;
+  }
+  $ngan_hang = array();
+  if (!empty($row->thong_tin_ngan_hang)) {
+    $decoded = json_decode($row->thong_tin_ngan_hang, TRUE);
+    $ngan_hang = is_array($decoded) ? $decoded : array();
+  }
+  return array(
+    'nid' => (int) $row->nid,
+    'ten' => (string) $row->ten,
+    'ma_nhan_vien' => (string) $row->ma_nhan_vien,
+    'sdt' => (string) $row->sdt,
+    'thong_tin_ngan_hang' => $ngan_hang,
+  );
 }
 
 function _luong_lai_xe_plan_date($row) {
