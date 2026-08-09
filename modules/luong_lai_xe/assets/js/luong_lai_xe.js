@@ -10,6 +10,7 @@
   };
   var driverCache = {};
   var currentDetail = null;
+  var deductCaps = { tong_luong: 0, du_co_the_tru: 0 };
   var notyf;
 
   Drupal.behaviors.luongLaiXe = {
@@ -86,6 +87,10 @@
       if (e.which !== 13) return;
       e.preventDefault();
       applySearch();
+    });
+
+    $(document).on('input.llx', '#llx-deduct-so-tien', function () {
+      updateDeductRemaining();
     });
 
     $(document).on('click.llx', '#llx-btn-reload', function () {
@@ -420,10 +425,10 @@
     var driver = data.lai_xe || {};
     var summary = data.summary || {};
     var ky = data.ky_luong || '';
+    deductCaps.tong_luong = number(summary.tong_luong);
+    deductCaps.du_co_the_tru = number(summary.du_co_the_tru);
     $('#llx-deduct-info-driver').text([String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || 'Lái xe');
     $('#llx-deduct-info-ky').text(data.ky_luong_display || '-');
-    $('#llx-deduct-info-tong-luong').text(money(summary.tong_luong));
-    $('#llx-deduct-info-du-tru').text(money(summary.du_co_the_tru));
 
     var input = document.getElementById('llx-deduct-ky-luong');
     input.value = kyToMonthDisplay(ky);
@@ -447,6 +452,13 @@
     var kt = data.khau_tru || {};
     $('#llx-deduct-so-tien').val(kt.so_tien ? moneyInputValue(kt.so_tien) : '');
     $('#llx-deduct-ghi-chu').val(kt.ghi_chu || ('Khấu trừ tạm ứng vào lương tháng ' + (data.ky_luong_display || '')));
+    updateDeductRemaining();
+  }
+
+  function updateDeductRemaining() {
+    var amount = parseMoney($('#llx-deduct-so-tien').val());
+    $('#llx-deduct-info-tong-luong').text(money(Math.max(0, deductCaps.tong_luong - amount)));
+    $('#llx-deduct-info-du-tru').text(money(Math.max(0, deductCaps.du_co_the_tru - amount)));
   }
 
   function submitDeduct() {

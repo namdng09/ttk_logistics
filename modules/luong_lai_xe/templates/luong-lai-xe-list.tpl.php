@@ -110,38 +110,40 @@
             <tbody id="llx-detail-body"></tbody>
           </table>
         </div>
-        <div class="mt-4">
-          <h6 class="mb-2">Lịch sử tạm ứng</h6>
-          <div class="table-responsive">
-            <table class="table table-bordered table-hover llx-advance-table">
-              <thead class="table-light">
-                <tr>
-                  <th style="width:60px">#</th>
-                  <th style="width:110px">Ngày</th>
-                  <th style="width:150px">Mã giao dịch</th>
-                  <th>Nội dung</th>
-                  <th class="text-end" style="width:150px">Số tiền</th>
-                  <th class="text-center" style="width:110px">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody id="llx-advance-body"></tbody>
-            </table>
+        <div class="row g-3 mt-4">
+          <div class="col-md-6">
+            <h6 class="mb-2">Lịch sử tạm ứng</h6>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover llx-advance-table">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width:36px">#</th>
+                    <th style="width:84px">Ngày</th>
+                    <th style="width:130px">Mã giao dịch</th>
+                    <th>Nội dung</th>
+                    <th class="text-end" style="width:120px">Số tiền</th>
+                    <th class="text-center" style="width:88px">T.Thái</th>
+                  </tr>
+                </thead>
+                <tbody id="llx-advance-body"></tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="mt-4">
-          <h6 class="mb-2">Lịch sử khấu trừ tạm ứng</h6>
-          <div class="table-responsive">
-            <table class="table table-bordered table-hover llx-khau-tru-table">
-              <thead class="table-light">
-                <tr>
-                  <th style="width:60px">#</th>
-                  <th style="width:110px">Ngày</th>
-                  <th>Nội dung</th>
-                  <th class="text-end" style="width:150px">Số tiền</th>
-                </tr>
-              </thead>
-              <tbody id="llx-khau-tru-body"></tbody>
-            </table>
+          <div class="col-md-6">
+            <h6 class="mb-2">Lịch sử khấu trừ tạm ứng</h6>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover llx-khau-tru-table">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width:36px">#</th>
+                    <th style="width:84px">Ngày</th>
+                    <th>Nội dung</th>
+                    <th class="text-end" style="width:120px">Số tiền</th>
+                  </tr>
+                </thead>
+                <tbody id="llx-khau-tru-body"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -247,8 +249,8 @@
             <div class="row g-2">
               <div class="col-md-4"><span class="llx-summary-label">Lái xe</span><div class="fw-bold" id="llx-deduct-info-driver">-</div></div>
               <div class="col-md-2"><span class="llx-summary-label">Kỳ lương</span><div class="fw-bold" id="llx-deduct-info-ky">-</div></div>
-              <div class="col-md-3"><span class="llx-summary-label">Tổng lương</span><div class="fw-bold text-primary" id="llx-deduct-info-tong-luong">-</div></div>
-              <div class="col-md-3"><span class="llx-summary-label">Tạm ứng có thể trừ</span><div class="fw-bold text-danger" id="llx-deduct-info-du-tru">-</div></div>
+              <div class="col-md-3"><span class="llx-summary-label">Lương còn lại</span><div class="fw-bold text-primary" id="llx-deduct-info-tong-luong">-</div></div>
+              <div class="col-md-3"><span class="llx-summary-label">Tạm ứng còn lại</span><div class="fw-bold text-danger" id="llx-deduct-info-du-tru">-</div></div>
             </div>
           </div>
         </div>
