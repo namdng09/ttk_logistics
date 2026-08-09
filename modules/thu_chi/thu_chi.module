@@ -963,6 +963,12 @@ function thu_chi_approve_giao_dich($gd_id, $decision) {
     thu_chi_sync_so_cai_quy_from_item($gd, $new_status);
     thu_chi_sync_bcllx_tam_ung_status_from_phieu($node, $new_status);
     thu_chi_sync_bcllx_thanh_toan_luong_status_from_phieu($node, $new_status);
+    if (function_exists('luong_lai_xe_sync_thanh_toan_luong_status_from_phieu')) {
+      luong_lai_xe_sync_thanh_toan_luong_status_from_phieu($node, $new_status);
+    }
+    if (function_exists('luong_lai_xe_sync_khau_tru_status_from_phieu')) {
+      luong_lai_xe_sync_khau_tru_status_from_phieu($node, $new_status);
+    }
     foreach (array_unique(array_filter(array_map('intval', array($gd->nid_quy, $gd->nid_quy_nhan)))) as $qid) {
       thu_chi_rebuild_quy_balance($qid);
     }
@@ -1012,6 +1018,12 @@ function thu_chi_approve_giao_dich($gd_id, $decision) {
   // Đồng bộ trạng thái nghiệp vụ lương lái xe khi phiếu chi được duyệt/không duyệt.
   thu_chi_sync_bcllx_tam_ung_status_from_phieu($after_gd, $new_status);
   thu_chi_sync_bcllx_thanh_toan_luong_status_from_phieu($after_gd, $new_status);
+  if (function_exists('luong_lai_xe_sync_thanh_toan_luong_status_from_phieu')) {
+    luong_lai_xe_sync_thanh_toan_luong_status_from_phieu($after_gd, $new_status);
+  }
+  if (function_exists('luong_lai_xe_sync_khau_tru_status_from_phieu')) {
+    luong_lai_xe_sync_khau_tru_status_from_phieu($after_gd, $new_status);
+  }
 
   foreach ($quy_ids as $qid) {
     thu_chi_rebuild_quy_balance($qid);

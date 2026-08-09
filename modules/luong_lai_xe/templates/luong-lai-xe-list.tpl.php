@@ -32,7 +32,7 @@
       <table class="table table-bordered table-hover llx-table">
         <thead class="table-light">
           <tr>
-            <th class="llx-col-actions"></th>
+            <th class="llx-col-actions">CN</th>
             <th class="llx-col-stt">#</th>
             <th class="llx-col-driver">Lái xe</th>
             <th class="llx-col-period">Thời gian</th>
@@ -110,6 +110,24 @@
             <tbody id="llx-detail-body"></tbody>
           </table>
         </div>
+        <div class="mt-4">
+          <h6 class="mb-2">Lịch sử thanh toán lương</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover llx-payment-table">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:36px">#</th>
+                  <th style="width:84px">Ngày</th>
+                  <th style="width:130px">Mã giao dịch</th>
+                  <th>Nội dung</th>
+                  <th class="text-end" style="width:120px">Số tiền</th>
+                  <th class="text-center" style="width:88px">T.Thái</th>
+                </tr>
+              </thead>
+              <tbody id="llx-payment-body"></tbody>
+            </table>
+          </div>
+        </div>
         <div class="row g-3 mt-4">
           <div class="col-md-6">
             <h6 class="mb-2">Lịch sử tạm ứng</h6>
@@ -137,8 +155,10 @@
                   <tr>
                     <th style="width:36px">#</th>
                     <th style="width:84px">Ngày</th>
+                    <th style="width:130px">Mã giao dịch</th>
                     <th>Nội dung</th>
                     <th class="text-end" style="width:120px">Số tiền</th>
+                    <th class="text-center" style="width:88px">T.Thái</th>
                   </tr>
                 </thead>
                 <tbody id="llx-khau-tru-body"></tbody>
@@ -158,6 +178,78 @@
           <i class="ti tabler-printer me-1"></i>In phiếu lương
         </a>
         <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="llx-pay-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0" id="llx-pay-title">Thanh toán lương lái xe</h5>
+          <div class="small text-muted" id="llx-pay-driver"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body position-relative">
+        <div id="llx-pay-loading" class="llx-loading-overlay">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Đang tải...</span>
+          </div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Tổng lương</span><strong id="llx-pay-plan-salary">0</strong></div></div>
+          <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Hoàn chi phí</span><strong id="llx-pay-reimburse">0</strong></div></div>
+          <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Tạm ứng</span><strong id="llx-pay-advance">0</strong></div></div>
+          <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Khấu trừ</span><strong id="llx-pay-deduct">0</strong></div></div>
+          <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Lương chốt</span><strong id="llx-pay-final">0</strong></div></div>
+          <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Đã thanh toán</span><strong id="llx-pay-paid">0</strong></div></div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-lg-3"><div class="llx-summary-box llx-summary-box-accent"><span>Lương phải trả</span><strong id="llx-pay-remaining">0</strong></div></div>
+          <div class="col-6 col-lg-3"><div class="llx-summary-box"><span>Thực lãnh (sau khấu trừ)</span><strong id="llx-pay-net">0</strong></div></div>
+        </div>
+        <form id="llx-pay-form" class="needs-validation" novalidate>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label" for="llx-pay-ngay-chi">Ngày thanh toán <span class="text-danger">*</span></label>
+              <input type="text" class="form-control flatpickr-date" id="llx-pay-ngay-chi" placeholder="dd/mm/yyyy" required>
+              <div class="invalid-feedback">Vui lòng nhập ngày thanh toán.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="llx-pay-hinh-thuc">Hình thức chi</label>
+              <select class="form-select" id="llx-pay-hinh-thuc">
+                <option value="tien_mat" selected>Tiền mặt</option>
+                <option value="chuyen_khoan">Chuyển khoản</option>
+                <option value="khac">Khác</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="llx-pay-quy">Quỹ chi <span class="text-danger">*</span></label>
+              <select class="form-select" id="llx-pay-quy" required>
+                <option value="">-- Chọn quỹ chi --</option>
+              </select>
+              <div class="invalid-feedback">Vui lòng chọn quỹ chi.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="llx-pay-so-tien">Số tiền thanh toán <span class="text-danger">*</span></label>
+              <input type="text" class="form-control money-mask" id="llx-pay-so-tien" placeholder="0" inputmode="numeric" required>
+              <div class="invalid-feedback">Vui lòng nhập số tiền thanh toán.</div>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label" for="llx-pay-ghi-chu">Ghi chú chung</label>
+              <textarea class="form-control" id="llx-pay-ghi-chu" rows="2"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-success" id="llx-pay-save">
+          <i class="ti tabler-device-floppy me-1"></i>Lưu phiếu thanh toán
+        </button>
       </div>
     </div>
   </div>

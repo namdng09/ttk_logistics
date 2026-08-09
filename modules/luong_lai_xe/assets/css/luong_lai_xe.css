@@ -72,6 +72,15 @@
   font-size: 18px;
 }
 
+.llx-summary-box-accent {
+  background: #eef4ff;
+  border-color: #c6d8ff;
+}
+
+.llx-summary-box-accent strong {
+  color: #2470f0;
+}
+
 .llx-summary-label {
   display: block;
   color: #6d7280;

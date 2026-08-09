@@ -11,6 +11,8 @@
   var driverCache = {};
   var currentDetail = null;
   var deductCaps = { tong_luong: 0, du_co_the_tru: 0 };
+  var payModalData = { luong_phai_tra: 0 };
+  var payQuyBalances = {};
   var notyf;
 
   Drupal.behaviors.luongLaiXe = {
@@ -111,9 +113,14 @@
       }
     });
 
-    $(document).on('click.llx', '.llx-act-view, .llx-act-pay', function (e) {
+    $(document).on('click.llx', '.llx-act-view', function (e) {
       e.preventDefault();
       openDetail($(this).attr('data-id'), $(this).attr('data-ky-luong'));
+    });
+
+    $(document).on('click.llx', '.llx-act-pay', function (e) {
+      e.preventDefault();
+      openPayModal($(this).attr('data-id'), $(this).attr('data-ky-luong'));
     });
 
     $(document).on('click.llx', '.llx-act-deduct', function (e) {
@@ -183,7 +190,24 @@
     });
 
     $(document).on('click.llx', '#llx-btn-pay', function () {
-      paySalary();
+      if (currentDetail && currentDetail.lai_xe && currentDetail.lai_xe.nid) {
+        openPayModal(currentDetail.lai_xe.nid, currentDetail.filters && currentDetail.filters.ky_luong);
+      }
+    });
+
+    $(document).on('click.llx', '#llx-pay-save', function () {
+      submitPay();
+    });
+
+    $(document).on('keydown.llx', '#llx-pay-form', function (e) {
+      if (e.which === 13 && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        submitPay();
+      }
+    });
+
+    $(document).on('input.llx', '#llx-pay-so-tien', function () {
+      formatMoneyInputKeepingCaret(this);
     });
 
     $(document).on('click.llx', '#llx-deduct-save', function () {
@@ -306,6 +330,7 @@
     $('#llx-detail-body').html('');
     $('#llx-advance-body').html('');
     $('#llx-khau-tru-body').html('');
+    $('#llx-payment-body').html('');
     modal.show();
     $.getJSON(API + '/' + nid, kyLuong ? { ky_luong: kyLuong } : query())
       .done(function (res) {
@@ -350,23 +375,51 @@
     $('#llx-detail-body').html(html);
     renderAdvanceHistory(data.tam_ung_items || []);
     renderKhauTruHistory(data.khau_tru_items || []);
+    renderPaymentHistory(data.thanh_toan_items || []);
   }
 
   function renderKhauTruHistory(items) {
     var html = '';
     if (!items.length) {
-      html = '<tr><td colspan="4" class="text-center text-muted py-3">Chưa có khấu trừ tạm ứng.</td></tr>';
+      html = '<tr><td colspan="6" class="text-center text-muted py-3">Chưa có khấu trừ tạm ứng.</td></tr>';
     }
     $.each(items, function (index, item) {
-      var content = item.noi_dung || item.ghi_chu || ('Khấu trừ tạm ứng kỳ ' + (item.thang_luong || ''));
+      var status = item.trang_thai_label || item.trang_thai || 'da_chi';
+      var statusClass = item.trang_thai === 'huy' ? 'bg-label-danger'
+        : (item.trang_thai === 'cho_duyet' ? 'bg-label-warning' : 'bg-label-success');
+      var content = item.noi_dung || item.ghi_chu || ('Khấu trừ tạm ứng lương kỳ ' + (item.thang_luong || ''));
       html += '<tr>' +
         '<td class="text-center">' + (index + 1) + '</td>' +
         '<td>' + esc(item.created || '') + '</td>' +
+        '<td>' + esc(item.ma_giao_dich || '') + '</td>' +
         '<td>' + esc(content) + '</td>' +
         '<td class="text-end">' + money(item.so_tien) + '</td>' +
+        '<td class="text-center"><span class="badge ' + statusClass + '">' + esc(status) + '</span></td>' +
       '</tr>';
     });
     $('#llx-khau-tru-body').html(html);
+  }
+
+  function renderPaymentHistory(items) {
+    var html = '';
+    if (!items.length) {
+      html = '<tr><td colspan="6" class="text-center text-muted py-3">Chưa có thanh toán lương.</td></tr>';
+    }
+    $.each(items, function (index, item) {
+      var status = item.trang_thai_label || item.trang_thai || 'da_chi';
+      var statusClass = item.trang_thai === 'huy' ? 'bg-label-danger'
+        : (item.trang_thai === 'cho_duyet' ? 'bg-label-warning' : 'bg-label-success');
+      var content = item.noi_dung || item.ghi_chu || ('Thanh toán lương kỳ ' + (item.thang_luong || ''));
+      html += '<tr>' +
+        '<td class="text-center">' + (index + 1) + '</td>' +
+        '<td>' + esc(item.ngay_chi_display || item.created_display || '') + '</td>' +
+        '<td>' + esc(item.ma_phieu || '') + '</td>' +
+        '<td>' + esc(content) + '</td>' +
+        '<td class="text-end">' + money(item.so_tien) + '</td>' +
+        '<td class="text-center"><span class="badge ' + statusClass + '">' + esc(status) + '</span></td>' +
+      '</tr>';
+    });
+    $('#llx-payment-body').html(html);
   }
 
   function renderAdvanceHistory(items) {
@@ -771,30 +824,160 @@
     });
   }
 
-  function paySalary() {
-    if (!currentDetail || !currentDetail.lai_xe || !currentDetail.lai_xe.nid) return;
-    var net = parseInt(currentDetail.thuc_lanh, 10) || 0;
-    var msg = 'Thanh toán lương thực lãnh ' + money(net) + ' cho ' + (currentDetail.lai_xe.ten || 'lái xe') + '?';
-    if (!window.confirm(msg)) return;
-    $('#llx-detail-loading').addClass('is-visible');
+  function openPayModal(nid, kyLuong) {
+    if (!nid) return;
+    var modalEl = document.getElementById('llx-pay-modal');
+    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    $('#llx-pay-loading').addClass('is-visible');
+    $('#llx-pay-form').removeClass('was-validated');
+    $('#llx-pay-quy').html('<option value="">-- Chọn quỹ chi --</option>');
+    $('#llx-pay-form').attr('data-driver-id', nid);
+    $('#llx-pay-form').attr('data-ky-luong', kyLuong || '');
+    payQuyBalances = {};
+    payModalData = { luong_phai_tra: 0 };
+    var driver = driverCache[nid] || {};
+    renderPayDriver(nid, driver);
+    modal.show();
+
+    $.getJSON('/api/quan-ly-quy')
+      .done(function (res) {
+        populatePayQuy((res.data && res.data.items) || []);
+      })
+      .fail(function (xhr) {
+        notify(apiMsg(xhr), 'error');
+      });
+
+    $.getJSON(API + '/' + nid, kyLuong ? { ky_luong: kyLuong } : query())
+      .done(function (res) {
+        renderPayModal(res.data || {});
+      })
+      .fail(function (xhr) {
+        notify(apiMsg(xhr), 'error');
+      })
+      .always(function () {
+        $('#llx-pay-loading').removeClass('is-visible');
+      });
+  }
+
+  function renderPayDriver(nid, driver) {
+    driver = driver || {};
+    var name = [String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || 'Lái xe';
+    $('#llx-pay-title').text('Thanh toán lương - ' + name);
+    $('#llx-pay-driver').text([driver.ma_nhan_vien, driver.sdt].filter(Boolean).join(' / '));
+  }
+
+  function populatePayQuy(items) {
+    var quyHtml = '<option value="">-- Chọn quỹ chi --</option>';
+    $.each(items, function (_, quy) {
+      var balance = parseInt(quy.so_du_hien_tai, 10) || 0;
+      payQuyBalances[String(quy.nid)] = balance;
+      var label = String(quy.ten_quy || '');
+      if (quy.ma_quy) label += ' (' + quy.ma_quy + ')';
+      label += ' - Số dư: ' + money(balance);
+      quyHtml += '<option value="' + esc(quy.nid) + '">' + esc(label) + '</option>';
+    });
+    $('#llx-pay-quy').html(quyHtml);
+  }
+
+  function renderPayModal(data) {
+    var driver = data.lai_xe || {};
+    if (driver.nid) driverCache[driver.nid] = driver;
+    renderPayDriver(driver.nid, driver);
+    $('#llx-pay-plan-salary').text(money(data.tong_luong_ke_hoach));
+    $('#llx-pay-reimburse').text(money(data.hoan_chi_phi_da_thanh_toan));
+    $('#llx-pay-advance').text(money(data.tam_ung_da_chi));
+    $('#llx-pay-deduct').text(money(data.khau_tru_tam_ung));
+    $('#llx-pay-final').text(money(data.luong_chot));
+    $('#llx-pay-paid').text(money(data.da_thanh_toan));
+    $('#llx-pay-remaining').text(money(data.luong_phai_tra));
+    $('#llx-pay-net').text(money(data.thuc_lanh));
+    payModalData.luong_phai_tra = parseInt(data.luong_phai_tra, 10) || 0;
+
+    var input = document.getElementById('llx-pay-ngay-chi');
+    if (typeof flatpickr !== 'undefined') {
+      try { input._flatpickr && input._flatpickr.destroy(); } catch (e) {}
+      flatpickr(input, {
+        dateFormat: 'd/m/Y',
+        allowInput: true,
+        static: true,
+        defaultDate: new Date()
+      });
+    } else {
+      input.value = toDateDisplay(new Date());
+    }
+
+    $('#llx-pay-so-tien').val(moneyInputValue(data.luong_phai_tra));
+    $('#llx-pay-ghi-chu').val('Thanh toán lương lái xe');
+  }
+
+  function submitPay() {
+    var formEl = document.getElementById('llx-pay-form');
+    var nid = $(formEl).attr('data-driver-id');
+    if (!nid) {
+      notify('Không xác định được lái xe', 'error');
+      return;
+    }
+    var kyLuong = $(formEl).attr('data-ky-luong');
+    if (!kyLuong) {
+      notify('Không xác định được kỳ lương', 'error');
+      return;
+    }
+    var ngayChi = $.trim($('#llx-pay-ngay-chi').val());
+    if (!ngayChi || !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(ngayChi)) {
+      notify('Vui lòng nhập ngày thanh toán hợp lệ (dd/mm/yyyy)', 'error');
+      return;
+    }
+    var soTien = parseMoney($('#llx-pay-so-tien').val());
+    var quyChi = $('#llx-pay-quy').val();
+
+    $('#llx-pay-form').addClass('was-validated');
+    if (soTien <= 0) {
+      notify('Vui lòng nhập số tiền thanh toán lớn hơn 0', 'error');
+      return;
+    }
+    if (payModalData.luong_phai_tra > 0 && soTien > payModalData.luong_phai_tra) {
+      notify('Số tiền thanh toán không được lớn hơn lương phải trả còn lại (' + money(payModalData.luong_phai_tra) + ')', 'error');
+      return;
+    }
+    if (!quyChi) {
+      notify('Vui lòng chọn quỹ chi', 'error');
+      return;
+    }
+    var quyBalance = payQuyBalances[quyChi];
+    if (typeof quyBalance === 'number' && soTien > quyBalance) {
+      notify('Số dư quỹ không đủ. Số dư hiện tại: ' + money(quyBalance), 'error');
+      return;
+    }
+
+    var btn = document.getElementById('llx-pay-save');
+    btn.disabled = true;
+    $('#llx-pay-loading').addClass('is-visible');
     $.ajax({
-      url: API + '/' + currentDetail.lai_xe.nid + '/thanh-toan',
+      url: API + '/' + nid + '/thanh-toan',
       method: 'POST',
       contentType: 'application/json; charset=utf-8',
       dataType: 'json',
       data: JSON.stringify({
-        ky_luong: currentDetail.filters && currentDetail.filters.ky_luong,
-        luong_chot: currentDetail.luong_chot || currentDetail.luong_tam_tinh,
-        khau_tru_tam_ung: currentDetail.khau_tru_tam_ung
+        ky_luong: kyLuong,
+        ngay_thanh_toan: ngayChi,
+        hinh_thuc_chi: $('#llx-pay-hinh-thuc').val(),
+        quy_chi: quyChi,
+        so_tien: soTien,
+        ghi_chu: $.trim($('#llx-pay-ghi-chu').val())
       })
-    }).done(function () {
-      notify('Đã thanh toán lương', 'success');
-      openDetail(currentDetail.lai_xe.nid, currentDetail.filters && currentDetail.filters.ky_luong);
+    }).done(function (res) {
+      notify('Đã tạo phiếu thanh toán lương ' + (res.data && res.data.ma_phieu ? res.data.ma_phieu : ''), 'success');
+      var modalEl = document.getElementById('llx-pay-modal');
+      if (modalEl) {
+        var modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
       loadList();
     }).fail(function (xhr) {
       notify(apiMsg(xhr), 'error');
     }).always(function () {
-      $('#llx-detail-loading').removeClass('is-visible');
+      btn.disabled = false;
+      $('#llx-pay-loading').removeClass('is-visible');
     });
   }
 
