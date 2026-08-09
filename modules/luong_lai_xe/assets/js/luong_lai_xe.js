@@ -425,8 +425,8 @@
     var driver = data.lai_xe || {};
     var summary = data.summary || {};
     var ky = data.ky_luong || '';
-    deductCaps.tong_luong = number(summary.tong_luong);
-    deductCaps.du_co_the_tru = number(summary.du_co_the_tru);
+    deductCaps.tong_luong = number(summary.luong_con_lai !== undefined ? summary.luong_con_lai : summary.tong_luong);
+    deductCaps.du_co_the_tru = number(summary.tam_ung_con_lai !== undefined ? summary.tam_ung_con_lai : summary.du_co_the_tru);
     $('#llx-deduct-info-driver').text([String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || 'Lái xe');
     $('#llx-deduct-info-ky').text(data.ky_luong_display || '-');
 
@@ -449,9 +449,8 @@
       flatpickr(input, options);
     }
 
-    var kt = data.khau_tru || {};
-    $('#llx-deduct-so-tien').val(kt.so_tien ? moneyInputValue(kt.so_tien) : '');
-    $('#llx-deduct-ghi-chu').val(kt.ghi_chu || ('Khấu trừ tạm ứng vào lương tháng ' + (data.ky_luong_display || '')));
+    $('#llx-deduct-so-tien').val('');
+    $('#llx-deduct-ghi-chu').val('Khấu trừ tạm ứng vào lương tháng ' + (data.ky_luong_display || ''));
     updateDeductRemaining();
   }
 
@@ -476,8 +475,16 @@
     var amount = parseMoney($('#llx-deduct-so-tien').val());
 
     $('#llx-deduct-form').addClass('was-validated');
-    if (amount < 0 || $('#llx-deduct-so-tien').val() === '') {
+    if (amount <= 0) {
       notify('Vui lòng nhập số tiền khấu trừ hợp lệ', 'error');
+      return;
+    }
+    if (amount > deductCaps.tong_luong) {
+      notify('Số tiền khấu trừ không được lớn hơn lương còn lại', 'error');
+      return;
+    }
+    if (amount > deductCaps.du_co_the_tru) {
+      notify('Số tiền khấu trừ không được lớn hơn tạm ứng còn lại', 'error');
       return;
     }
 

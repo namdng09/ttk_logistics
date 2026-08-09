@@ -865,9 +865,13 @@ function _luong_lai_xe_thanh_toan_luong($nid_lai_xe) {
       'nid_ledger_thanh_toan' => $ledger ? (int) $ledger['nid'] : 0,
     ));
 
-    if ($khau_tru > 0 && db_table_exists('bcllx_tam_ung_khau_tru')) {
-      $deduction_id = _luong_lai_xe_save_khau_tru_record($nid_lai_xe, $salary_id, $ky_luong, $khau_tru, $account->uid);
-      watchdog('luong_lai_xe', 'Đã ghi khấu trừ tạm ứng @so_tien vào bảng bcllx_tam_ung_khau_tru (id=@id).', array('@so_tien' => $khau_tru, '@id' => $deduction_id), WATCHDOG_INFO);
+    if (db_table_exists('bcllx_tam_ung_khau_tru')) {
+      db_update('bcllx_tam_ung_khau_tru')
+        ->fields(array('nid_luong_lai_xe' => (int) $salary_id, 'updated' => REQUEST_TIME))
+        ->condition('nid_lai_xe', (int) $nid_lai_xe)
+        ->condition('thang_luong', (string) $ky_luong)
+        ->execute();
+      watchdog('luong_lai_xe', 'Đã gắn bảng lương @salary cho các dòng khấu trừ tạm ứng của lái xe @driver kỳ @ky.', array('@salary' => $salary_id, '@driver' => $nid_lai_xe, '@ky' => $ky_luong), WATCHDOG_INFO);
     }
 
     return _luong_lai_xe_success(array(
@@ -1128,22 +1132,8 @@ function _luong_lai_xe_khau_tru_form($nid_lai_xe) {
   $tong_luong = (int) $detail['luong_tam_tinh'];
   $summary['tong_luong'] = $tong_luong;
   $summary['thuc_linh'] = $tong_luong - $summary['khau_tru_trong_ky'];
-
-  $khau_tru = NULL;
-  if (db_table_exists('bcllx_tam_ung_khau_tru')) {
-    $khau_tru = db_select('bcllx_tam_ung_khau_tru', 'kt')
-      ->fields('kt')
-      ->condition('kt.nid_lai_xe', $nid_lai_xe)
-      ->condition('kt.thang_luong', $ky_luong)
-      ->range(0, 1)
-      ->execute()
-      ->fetchAssoc();
-  }
-  if ($khau_tru) {
-    $khau_tru['id'] = (int) $khau_tru['id'];
-    $khau_tru['so_tien'] = (int) $khau_tru['so_tien'];
-    $khau_tru['nid_phieu_thu_khau_tru'] = (int) $khau_tru['nid_phieu_thu_khau_tru'];
-  }
+  $summary['luong_con_lai'] = max(0, $tong_luong - $summary['khau_tru_trong_ky']);
+  $summary['tam_ung_con_lai'] = max(0, $summary['du_co_the_tru'] - $summary['khau_tru_trong_ky']);
 
   return _luong_lai_xe_success(array(
     'lai_xe' => _luong_lai_xe_driver_object($nid_lai_xe),
@@ -1151,7 +1141,7 @@ function _luong_lai_xe_khau_tru_form($nid_lai_xe) {
     'ky_luong' => $ky_luong,
     'ky_luong_display' => _luong_lai_xe_ky_luong_display($ky_luong),
     'summary' => $summary,
-    'khau_tru' => $khau_tru,
+    'khau_tru' => NULL,
   ));
 }
 
@@ -1179,44 +1169,23 @@ function _luong_lai_xe_khau_tru_save($nid_lai_xe) {
   $detail = _luong_lai_xe_driver_detail($nid_lai_xe, _luong_lai_xe_month_bounds($ky_luong));
   $summary = _luong_lai_xe_tam_ung_summary($nid_lai_xe, $ky_luong);
   $tong_luong = (int) $detail['luong_tam_tinh'];
+  $khau_tru_trong_ky = (int) $summary['khau_tru_trong_ky'];
+  $tam_ung_con_lai = max(0, (int) $summary['du_co_the_tru'] - $khau_tru_trong_ky);
+  $luong_con_lai = max(0, $tong_luong - $khau_tru_trong_ky);
 
-  if ($so_tien < 0) {
-    return _luong_lai_xe_fail('Số tiền khấu trừ không được âm');
+  if ($so_tien <= 0) {
+    return _luong_lai_xe_fail('Số tiền khấu trừ phải lớn hơn 0');
   }
-  if ($so_tien > $summary['du_co_the_tru']) {
-    return _luong_lai_xe_fail('Số tiền khấu trừ không được lớn hơn số dư tạm ứng có thể trừ (' . _luong_lai_xe_format_money($summary['du_co_the_tru']) . ')');
+  if ($so_tien > $tam_ung_con_lai) {
+    return _luong_lai_xe_fail('Số tiền khấu trừ không được lớn hơn tạm ứng còn lại (' . _luong_lai_xe_format_money($tam_ung_con_lai) . ')');
   }
-  if ($so_tien > $tong_luong) {
-    return _luong_lai_xe_fail('Số tiền khấu trừ không được lớn hơn tổng lương (' . _luong_lai_xe_format_money($tong_luong) . ')');
+  if ($so_tien > $luong_con_lai) {
+    return _luong_lai_xe_fail('Số tiền khấu trừ không được lớn hơn lương còn lại (' . _luong_lai_xe_format_money($luong_con_lai) . ')');
   }
 
   $transaction = db_transaction();
   try {
-    $existing = db_select('bcllx_tam_ung_khau_tru', 'kt')
-      ->fields('kt', array('id'))
-      ->condition('kt.nid_lai_xe', $nid_lai_xe)
-      ->condition('kt.thang_luong', $ky_luong)
-      ->range(0, 1)
-      ->execute()
-      ->fetchField();
-
     $now = REQUEST_TIME;
-    if ($so_tien <= 0) {
-      if ($existing) {
-        db_update('bcllx_tam_ung_khau_tru')
-          ->fields(array('so_tien' => 0, 'ghi_chu' => $ghi_chu, 'updated' => $now))
-          ->condition('id', (int) $existing)
-          ->execute();
-      }
-      return _luong_lai_xe_success(array(
-        'id' => (int) $existing,
-        'so_tien' => 0,
-        'ghi_chu' => $ghi_chu,
-        'nid_phieu_thu_khau_tru' => 0,
-        'message' => 'Đã xoá khấu trừ tạm ứng của kỳ',
-      ));
-    }
-
     $fields = array(
       'nid_lai_xe' => $nid_lai_xe,
       'thang_luong' => $ky_luong,
@@ -1224,16 +1193,10 @@ function _luong_lai_xe_khau_tru_save($nid_lai_xe) {
       'ngay_khau_tru' => $now,
       'ghi_chu' => $ghi_chu,
       'uid' => (int) $account->uid,
+      'created' => $now,
       'updated' => $now,
     );
-    if ($existing) {
-      db_update('bcllx_tam_ung_khau_tru')->fields($fields)->condition('id', (int) $existing)->execute();
-      $deduction_id = (int) $existing;
-    }
-    else {
-      $fields['created'] = $now;
-      $deduction_id = (int) db_insert('bcllx_tam_ung_khau_tru')->fields($fields)->execute();
-    }
+    $deduction_id = (int) db_insert('bcllx_tam_ung_khau_tru')->fields($fields)->execute();
 
     $receipt = _luong_lai_xe_create_khau_tru_receipt_from_manual_deduction($deduction_id);
     if (empty($receipt['success'])) {
@@ -1669,44 +1632,6 @@ function _luong_lai_xe_load_salary_snapshot($nid_lai_xe, $ky_luong) {
     ':nid_lai_xe' => (int) $nid_lai_xe,
     ':ky_luong' => (string) $ky_luong,
   ))->fetch();
-}
-
-function _luong_lai_xe_save_khau_tru_record($nid_lai_xe, $salary_id, $ky_luong, $so_tien, $uid) {
-  if (!db_table_exists('bcllx_tam_ung_khau_tru') || (int) $so_tien <= 0) {
-    return 0;
-  }
-  $existing = db_select('bcllx_tam_ung_khau_tru', 'kt')
-    ->fields('kt', array('id'))
-    ->condition('nid_lai_xe', (int) $nid_lai_xe)
-    ->condition('thang_luong', (string) $ky_luong)
-    ->range(0, 1)
-    ->execute()
-    ->fetchField();
-  $now = REQUEST_TIME;
-  if ($existing) {
-    db_update('bcllx_tam_ung_khau_tru')
-      ->fields(array(
-        'nid_luong_lai_xe' => (int) $salary_id,
-        'so_tien' => (int) $so_tien,
-        'ngay_khau_tru' => $now,
-        'updated' => $now,
-      ))
-      ->condition('id', (int) $existing)
-      ->execute();
-    return (int) $existing;
-  }
-  return (int) db_insert('bcllx_tam_ung_khau_tru')->fields(array(
-    'nid_lai_xe' => (int) $nid_lai_xe,
-    'nid_luong_lai_xe' => (int) $salary_id,
-    'thang_luong' => (string) $ky_luong,
-    'so_tien' => (int) $so_tien,
-    'nid_phieu_thu_khau_tru' => 0,
-    'ngay_khau_tru' => $now,
-    'ghi_chu' => '',
-    'uid' => (int) $uid,
-    'created' => $now,
-    'updated' => $now,
-  ))->execute();
 }
 
 function _luong_lai_xe_salary_code() {
