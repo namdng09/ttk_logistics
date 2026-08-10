@@ -1111,8 +1111,7 @@ body .flatpickr-calendar {
 }
 
 .khcp-table .money-input,
-.khcp-table .decimal-input,
-.khcp-table .qty-input {
+.khcp-table .decimal-input {
   text-align: right;
   font-family: inherit;
 }
@@ -1124,7 +1123,6 @@ body .flatpickr-calendar {
 .khcp-table .calculated-input[disabled],
 .khcp-table .calculated-input[readonly] {
   color: #667085;
-  background: #f9fafb;
   opacity: 1;
 }
 
@@ -1138,20 +1136,20 @@ body .flatpickr-calendar {
 }
 
 .khcp-col-name {
-  width: 18%;
+  width: 20%;
 }
 
 .khcp-col-money {
-  width: 118px;
+  width: 94px;
 }
 
 .khcp-col-qty,
 .khcp-col-vat {
-  width: 79px;
+  width: 56px;
 }
 
 .khcp-col-note {
-  width: 150px;
+  width: 148px;
 }
 
 .khcp-col-action {
@@ -1164,11 +1162,11 @@ body .flatpickr-calendar {
 }
 
 .khcp-dm-col-status {
-  width: 106px;
+  width: 107px;
 }
 
 .khcp-dm-col-place {
-  width: 22%;
+  width: 25%;
 }
 
 .khcp-row-actions {

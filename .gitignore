@@ -62,3 +62,5 @@ __MACOSX/
 
 # Strict mode: only track source files
 /modules/bao_cao_luong_lai_xe
+/modules/theo_doi_phieu_tra_khach
+/modules/cong_no_khach_hang

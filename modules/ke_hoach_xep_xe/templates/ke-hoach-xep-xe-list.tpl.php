@@ -246,6 +246,18 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
               </div>
             </div>
 
+            <div class="card khcp-revenue-card">
+              <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 min-w-0">
+                  <span class="khcp-section-title">Doanh thu khách hàng</span>
+                  <span class="badge rounded-pill bg-label-primary border" id="khcp-revenue-total">0</span>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="row g-3" id="khcp-revenue-fields"></div>
+              </div>
+            </div>
+
             <div class="card khcp-main-card">
               <div class="card-body p-0">
                 <div class="table-responsive khcp-table-wrap">
@@ -275,6 +287,11 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
               <div class="card-header">Tổng quan</div>
               <div class="card-body">
                 <div class="khcp-summary-block">
+                  <div class="khcp-summary-label">Doanh thu khách hàng</div>
+                  <div class="khcp-summary-value" id="khcp-total-revenue">0</div>
+                </div>
+
+                <div class="khcp-summary-block">
                   <div class="khcp-summary-label">Chi hộ khách hàng</div>
                   <div class="khcp-summary-value" id="khcp-total-customer">0</div>
                 </div>
@@ -289,18 +306,23 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
                   <div class="khcp-summary-value" id="khcp-total-driver-self">0</div>
                 </div>
 
+                <div class="khcp-summary-block">
+                  <div class="khcp-summary-label">Lương lái xe</div>
+                  <div class="khcp-summary-value" id="khcp-total-driver-salary">0</div>
+                </div>
+
                 <div class="khcp-summary-total">
-                  <div class="khcp-summary-label">Tổng chi phí</div>
+                  <div class="khcp-summary-label">Tổng dòng tiền</div>
                   <div class="khcp-summary-value" id="khcp-total-all">0</div>
                 </div>
 
                 <div class="khcp-summary-meta">
                   <div>
-                    <span>Chi phí kế hoạch</span>
+                    <span>Nguồn kế hoạch</span>
                     <strong id="khcp-total-plan-source">0</strong>
                   </div>
                   <div>
-                    <span>Lái xe chi trả</span>
+                    <span>Nguồn lái xe</span>
                     <strong id="khcp-total-driver-source">0</strong>
                   </div>
                   <div>

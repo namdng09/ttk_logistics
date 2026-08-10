@@ -2,10 +2,20 @@
   'use strict';
 
   var API_BASE = '/api/ke-hoach-chi-phi';
+  var REVENUE_TYPE = 'doanh_thu';
+  var DRIVER_SALARY_TYPE = 'luong_lai_xe';
+  var REVENUE_FIELDS = [
+    'Cước khách hàng',
+    'Phí vận chuyển',
+    'Phụ phí dầu',
+    'PT GFT + HĐ',
+    'Điều chỉnh phụ thu vé'
+  ];
   var COST_SECTIONS = [
     { value: 'tinh_cho_khach', label: 'Chi hộ khách hàng', source: 'ke_hoach' },
     { value: 'cong_ty_chi_tra', label: 'Công ty chi trả', source: 'ke_hoach' },
-    { value: 'lai_xe_tu_chiu', label: 'Lái xe chi trả', source: 'lai_xe' }
+    { value: 'lai_xe_tu_chiu', label: 'Lái xe chi trả', source: 'lai_xe' },
+    { value: DRIVER_SALARY_TYPE, label: 'Lương lái xe', source: 'lai_xe' }
   ];
   var DRIVER_COST_TYPE = 'lai_xe_tu_chiu';
   var notyf;
@@ -442,7 +452,7 @@
 
   function resolveSource(item) {
     var json = parseJson(item.thong_tin_json);
-    if (item.loai_chi_phi === DRIVER_COST_TYPE) return 'lai_xe';
+    if (item.loai_chi_phi === DRIVER_COST_TYPE || item.loai_chi_phi === DRIVER_SALARY_TYPE) return 'lai_xe';
     return json.nguon_nhap === 'lai_xe' ? 'lai_xe' : 'ke_hoach';
   }
 
@@ -461,10 +471,10 @@
     var quantity = toNumber(item.so_luong || 1) || 1;
     var vat = clampPercent(item.vat_percent);
     var rawType = item.loai_chi_phi || '';
-    var type = rawType === DRIVER_COST_TYPE ? DRIVER_COST_TYPE : (rawType || (fallbackSource === 'lai_xe' ? DRIVER_COST_TYPE : 'cong_ty_chi_tra'));
-    if (type !== 'tinh_cho_khach' && type !== 'cong_ty_chi_tra' && type !== DRIVER_COST_TYPE) type = 'cong_ty_chi_tra';
+    var type = rawType || (fallbackSource === 'lai_xe' ? DRIVER_COST_TYPE : 'cong_ty_chi_tra');
+    if (type !== REVENUE_TYPE && type !== 'tinh_cho_khach' && type !== 'cong_ty_chi_tra' && type !== DRIVER_COST_TYPE && type !== DRIVER_SALARY_TYPE) type = 'cong_ty_chi_tra';
     var source = item.source || fallbackSource || resolveSource($.extend({}, item, { loai_chi_phi: type }));
-    if (type === DRIVER_COST_TYPE) source = 'lai_xe';
+    if (type === DRIVER_COST_TYPE || type === DRIVER_SALARY_TYPE) source = 'lai_xe';
     else source = 'ke_hoach';
     return {
       key: item.key || (item.nid ? 'nid_' + item.nid : uid()),
@@ -515,15 +525,35 @@
     });
   }
 
+  function findRowByTypeAndName(type, name) {
+    name = normalizeKey(name);
+    for (var i = 0; i < state.rows.length; i++) {
+      if (state.rows[i].loai_chi_phi === type && normalizeKey(state.rows[i].ten_chi_phi) === name) {
+        return state.rows[i];
+      }
+    }
+    return null;
+  }
+
   function isBlankRow(row) {
-    return !String(row.ten_chi_phi || '').trim()
-      && toNumber(row.don_gia) === 0
+    return toNumber(row.don_gia) === 0
       && toNumber(row.tong_truoc_vat) === 0
-      && toNumber(row.tong_sau_vat) === 0;
+      && toNumber(row.tong_sau_vat) === 0
+      && !String(row.ghi_chu || '').trim();
   }
 
   function ensureEmptyRows() {
-    return;
+    for (var i = 0; i < REVENUE_FIELDS.length; i++) {
+      if (!findRowByTypeAndName(REVENUE_TYPE, REVENUE_FIELDS[i])) {
+        state.rows.push(normalizeRow({
+          source: 'ke_hoach',
+          loai_chi_phi: REVENUE_TYPE,
+          ten_chi_phi: REVENUE_FIELDS[i],
+          so_luong: 1,
+          thong_tin_json: { mac_dinh_doanh_thu: 1 }
+        }, 'ke_hoach'));
+      }
+    }
   }
 
   function expenseNameOptions(selectedValue) {
@@ -554,6 +584,23 @@
         dropdownParent: $('#ke-hoach-chi-phi-modal')
       });
     });
+  }
+
+  function revenueFieldTemplate(row) {
+    return '' +
+      '<div class="col-12 col-md-6 col-xl-4">' +
+        '<label class="form-label small mb-1">' + escHtml(row.ten_chi_phi) + '</label>' +
+        '<input type="text" inputmode="decimal" class="form-control form-control-sm khcp-revenue-field money-input" data-row-key="' + escHtml(row.key) + '" value="' + formatMoney(row.don_gia) + '" placeholder="0">' +
+      '</div>';
+  }
+
+  function renderRevenueFields() {
+    var html = '';
+    for (var i = 0; i < REVENUE_FIELDS.length; i++) {
+      var row = findRowByTypeAndName(REVENUE_TYPE, REVENUE_FIELDS[i]);
+      if (row) html += revenueFieldTemplate(row);
+    }
+    $('#khcp-revenue-fields').html(html);
   }
 
   function rowTemplate(row, index) {
@@ -649,7 +696,9 @@
   function updateSummary() {
     var company = 0;
     var driverSelf = 0;
+    var driverSalary = 0;
     var customer = 0;
+    var revenue = 0;
     var planSource = 0;
     var driverSource = 0;
     var rows = $.grep(state.rows, function (row) { return !isBlankRow(row); });
@@ -657,14 +706,19 @@
       var amount = toNumber(row.tong_sau_vat);
       if (row.loai_chi_phi === 'cong_ty_chi_tra') company += amount;
       if (row.loai_chi_phi === 'lai_xe_tu_chiu') driverSelf += amount;
+      if (row.loai_chi_phi === DRIVER_SALARY_TYPE) driverSalary += amount;
       if (row.loai_chi_phi === 'tinh_cho_khach') customer += amount;
+      if (row.loai_chi_phi === REVENUE_TYPE) revenue += amount;
       if (row.source === 'lai_xe') driverSource += amount;
       else planSource += amount;
     });
+    $('#khcp-revenue-total').text(formatMoney(revenue));
+    $('#khcp-total-revenue').text(formatMoney(revenue));
     $('#khcp-total-company').text(formatMoney(company));
     $('#khcp-total-driver-self').text(formatMoney(driverSelf));
+    $('#khcp-total-driver-salary').text(formatMoney(driverSalary));
     $('#khcp-total-customer').text(formatMoney(customer));
-    $('#khcp-total-all').text(formatMoney(company + driverSelf + customer));
+    $('#khcp-total-all').text(formatMoney(company + driverSelf + driverSalary + customer + revenue));
     $('#khcp-total-plan-source').text(formatMoney(planSource));
     $('#khcp-total-driver-source').text(formatMoney(driverSource));
     $('#khcp-total-rows').text(rows.length);
@@ -701,6 +755,7 @@
   function renderAll() {
     ensureEmptyRows();
     renderDinhMucTable();
+    renderRevenueFields();
     renderTable();
     updateSummary();
     setBusy(state.busy);
@@ -732,6 +787,7 @@
   }
 
   function validateRow(row, mark) {
+    if (row.loai_chi_phi === REVENUE_TYPE) return true;
     var hasMoney = toNumber(row.don_gia) > 0 || toNumber(row.tong_truoc_vat) > 0 || toNumber(row.tong_sau_vat) > 0;
     var hasName = String(row.ten_chi_phi || '').trim().length > 0;
     var valid = !hasMoney || (hasName && hasExpenseName(row.ten_chi_phi));
@@ -751,7 +807,12 @@
   }
 
   function payloadFromRow(row) {
-    row.loai_chi_phi = row.source === 'lai_xe' ? DRIVER_COST_TYPE : (row.loai_chi_phi === DRIVER_COST_TYPE ? 'cong_ty_chi_tra' : row.loai_chi_phi);
+    if (row.source === 'lai_xe' && row.loai_chi_phi !== DRIVER_SALARY_TYPE) {
+      row.loai_chi_phi = DRIVER_COST_TYPE;
+    }
+    if (row.source !== 'lai_xe' && row.loai_chi_phi === DRIVER_COST_TYPE) {
+      row.loai_chi_phi = 'cong_ty_chi_tra';
+    }
     var json = $.extend({}, row.thong_tin_json || {}, { nguon_nhap: row.source });
     return {
       nid_ke_hoach: state.nidKeHoach,
@@ -845,7 +906,7 @@
   }
 
   function saveRow(row, silent) {
-    if (isBlankRow(row)) return $.Deferred().resolve({ skipped: true }).promise();
+    if (isBlankRow(row) && !row.nid) return $.Deferred().resolve({ skipped: true }).promise();
     if (!validateRow(row, true)) return $.Deferred().reject({ message: 'Vui lòng chọn tên chi phí từ danh mục.' }).promise();
     var isUpdate = row.nid > 0;
     return $.ajax({
@@ -865,7 +926,7 @@
   }
 
   function saveAllRows() {
-    var rows = $.grep(state.rows, function (row) { return !isBlankRow(row); });
+    var rows = $.grep(state.rows, function (row) { return !isBlankRow(row) || row.nid > 0; });
     var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
     if (invalidRows.length) {
       notify('Vui lòng chọn tên chi phí từ danh mục cho các dòng có số tiền.', 'error');
@@ -994,6 +1055,21 @@
         var $tr = $input.closest('tr');
         $tr.find('[data-field="dinh_muc"]').val(formatMoney(row.dinh_muc));
       }
+    });
+    $(document).on('input change', '.khcp-revenue-field', function () {
+      var $input = $(this);
+      var row = getRow($input.data('row-key'));
+      if (!row) return;
+      formatMoneyInputKeepingCaret(this);
+      var amount = toNumber($input.val());
+      row.don_gia = amount;
+      row.so_luong = 1;
+      row.tong_truoc_vat = amount;
+      row.vat_percent = 0;
+      row.tong_sau_vat = amount;
+      row.source = 'ke_hoach';
+      row.loai_chi_phi = REVENUE_TYPE;
+      updateSummary();
     });
     $(document).on('input change', '.row-field', function () {
       var $input = $(this);
