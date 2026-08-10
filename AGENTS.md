@@ -340,6 +340,26 @@ notyf.error('Lỗi');
 - `dropdownParent` — chỉ định container (cần khi ở trong modal).
 - Select2 mặc định có ô search cho single-select.
 
+### Function dropdown (nút 3-dot trong bảng)
+- **Mở/đóng bằng CLICK** — không dùng hover (`mouseover`/`mouseout`).
+- HTML chuẩn (đồng nhất mọi module):
+
+```html
+<div class="dropdown">
+  <button class="btn btn-sm btn-icon btn-label-secondary rounded-pill">
+    <i class="ti tabler-dots-vertical"></i></button>
+  <ul class="dropdown-menu">...</ul>
+</div>
+```
+
+- **KHÔNG dùng `data-bs-toggle="dropdown"`** cho nút này (trừ màn đã dùng Bootstrap dropdown chuẩn như quản lý quỹ).
+- **Xử lý tập trung ở theme**: `themes/edusoul/quan-ly/assets/js/function-dropdown.js` — delegate click toàn trang cho mọi `.dropdown > button` chứa `.ti.tabler-dots-vertical`, tự:
+  - toggle mở/đóng khi click (click lại = đóng).
+  - đóng khi click ra ngoài / chọn item / nhấn Esc.
+  - collision detection: flip sang trái nếu gần mép phải, đẩy lên trên nếu gần mép dưới (margin 8px), dùng `position:fixed`.
+- Module JS **không** cần tự bind dropdown — chỉ cần đúng HTML pattern. Nếu dropdown riêng (như thu_chi `tc-function-btn`) thì thêm class riêng để helper skip.
+- Theme `edusoul_preprocess_html()` đã load `function-dropdown.js` toàn cục — không cần `drupal_add_js` lại ở module.
+
 ## TODO
 
 - Migrate các module cũ (danh_muc, ben_thu_ba, ...) sang schema + RESTful + hybrid.

@@ -62,8 +62,6 @@
     $(document).off('keydown.llx');
     $(document).off('input.llx');
     $(document).off('change.llx');
-    $(document).off('mouseover.llx');
-    $(document).off('mouseout.llx');
 
     $(document).on('keypress.llx', '#llx-pagination-jump', function (e) {
       if (e.which !== 13) return;
@@ -137,27 +135,6 @@
       e.preventDefault();
       var nid = $(this).attr('data-id');
       openAdvanceModal(nid, $(this).attr('data-ky-luong'), driverCache[nid] || {});
-    });
-
-    $(document).on('mouseover.llx', '#llx-table-body .dropdown', function () {
-      var menu = this.querySelector('.dropdown-menu');
-      if (!menu) return;
-      var btn = this.querySelector('button');
-      var rect = btn.getBoundingClientRect();
-      menu.style.position = 'fixed';
-      menu.style.top = rect.top + 'px';
-      menu.style.left = rect.right + 'px';
-      menu.style.display = 'block';
-    });
-
-    $(document).on('mouseout.llx', '#llx-table-body .dropdown', function (e) {
-      var menu = this.querySelector('.dropdown-menu');
-      if (menu && !this.contains(e.relatedTarget)) {
-        menu.style.display = '';
-        menu.style.position = '';
-        menu.style.top = '';
-        menu.style.left = '';
-      }
     });
 
     $(document).on('click.llx', '#llx-btn-advance', function () {

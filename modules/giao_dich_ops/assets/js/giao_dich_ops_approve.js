@@ -109,36 +109,6 @@
         t = t.parentElement;
       }
     });
-
-    document.addEventListener('mouseover', function (e) {
-      var dropdown = closest(e.target, 'dropdown');
-      if (dropdown && closest(dropdown, 'table-responsive')) {
-        var menu = dropdown.querySelector ? dropdown.querySelector('.dropdown-menu') : null;
-        var btn = dropdown.querySelector ? dropdown.querySelector('button') : null;
-        if (menu && btn) {
-          var rect = btn.getBoundingClientRect();
-          menu.style.position = 'fixed';
-          menu.style.top = rect.top + 'px';
-          menu.style.left = rect.right + 'px';
-          menu.style.display = 'block';
-          menu.style.zIndex = '1080';
-        }
-      }
-    });
-
-    document.addEventListener('mouseout', function (e) {
-      var dropdown = closest(e.target, 'dropdown');
-      if (dropdown && closest(dropdown, 'table-responsive') && !contains(dropdown, e.relatedTarget)) {
-        var menu = dropdown.querySelector ? dropdown.querySelector('.dropdown-menu') : null;
-        if (menu) {
-          menu.style.display = '';
-          menu.style.position = '';
-          menu.style.top = '';
-          menu.style.left = '';
-          menu.style.zIndex = '';
-        }
-      }
-    });
   }
 
   function loadFilterOptions() {
@@ -523,24 +493,6 @@
 
   function hasClass(el, className) {
     return el && ((' ' + el.className + ' ').indexOf(' ' + className + ' ') > -1);
-  }
-
-  function closest(el, className) {
-    while (el && el !== document) {
-      if (hasClass(el, className)) return el;
-      el = el.parentElement;
-    }
-    return null;
-  }
-
-  function contains(parent, child) {
-    if (!parent || !child) return false;
-    if (parent.contains) return parent.contains(child);
-    while (child) {
-      if (child === parent) return true;
-      child = child.parentNode;
-    }
-    return false;
   }
 
   function trim(value) {

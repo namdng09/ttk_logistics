@@ -305,36 +305,6 @@
       $('.modal-backdrop').last().css('z-index', '');
     });
 
-    $(document).on('mouseover', function (e) {
-      var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
-      if (dropdown && dropdown.closest('#table-ke-hoach-tuyen-xa-tbody')) {
-        var menu = dropdown.querySelector('.dropdown-menu');
-        if (menu) {
-          var btn = dropdown.querySelector('button');
-          var rect = btn.getBoundingClientRect();
-          menu.style.position = 'fixed';
-          menu.style.top = rect.top + 'px';
-          menu.style.left = rect.right + 'px';
-          menu.style.display = 'block';
-        }
-      }
-    });
-
-    $(document).on('mouseout', function (e) {
-      var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
-      if (dropdown && dropdown.closest('#table-ke-hoach-tuyen-xa-tbody')) {
-        if (!dropdown.contains(e.relatedTarget)) {
-          var menu = dropdown.querySelector('.dropdown-menu');
-          if (menu) {
-            menu.style.display = '';
-            menu.style.position = '';
-            menu.style.top = '';
-            menu.style.left = '';
-          }
-        }
-      }
-    });
-
     $('#btn-them-chang').on('click', function () {
       syncStateFromDom();
       state.changs.push(blankChang());
