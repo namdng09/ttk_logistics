@@ -207,9 +207,6 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
                       <button type="button" class="btn btn-sm btn-label-primary" id="khcp-dm-add-row">
                         <i class="ti tabler-plus me-1"></i>Thêm chặng
                       </button>
-                      <button type="button" class="btn btn-sm btn-primary" id="khcp-dm-save">
-                        <i class="ti tabler-device-floppy me-1"></i>Lưu định mức
-                      </button>
                     </div>
                   </div>
                   <div class="khcp-dm-summary">
@@ -254,7 +251,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
                 </div>
               </div>
               <div class="card-body">
-                <div class="row g-3" id="khcp-revenue-fields"></div>
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-5 g-3" id="khcp-revenue-fields"></div>
               </div>
             </div>
 
@@ -314,21 +311,6 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
                 <div class="khcp-summary-total">
                   <div class="khcp-summary-label">Tổng dòng tiền</div>
                   <div class="khcp-summary-value" id="khcp-total-all">0</div>
-                </div>
-
-                <div class="khcp-summary-meta">
-                  <div>
-                    <span>Nguồn kế hoạch</span>
-                    <strong id="khcp-total-plan-source">0</strong>
-                  </div>
-                  <div>
-                    <span>Nguồn lái xe</span>
-                    <strong id="khcp-total-driver-source">0</strong>
-                  </div>
-                  <div>
-                    <span>Số dòng</span>
-                    <strong id="khcp-total-rows">0</strong>
-                  </div>
                 </div>
               </div>
             </div>

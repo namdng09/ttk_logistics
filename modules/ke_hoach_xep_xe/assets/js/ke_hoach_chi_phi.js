@@ -61,6 +61,31 @@
     else notyf.success(message);
   }
 
+  function confirmAction(options, onConfirm) {
+    options = options || {};
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: options.title || 'Xác nhận?',
+        text: options.text || '',
+        icon: options.icon || 'question',
+        showCancelButton: true,
+        confirmButtonText: options.confirmButtonText || 'Xác nhận',
+        cancelButtonText: options.cancelButtonText || 'Huỷ',
+        customClass: {
+          confirmButton: options.confirmButtonClass || 'btn btn-primary',
+          cancelButton: 'btn btn-label-secondary ms-1'
+        },
+        buttonsStyling: false
+      }).then(function (result) {
+        if (result.isConfirmed && typeof onConfirm === 'function') onConfirm();
+      });
+      return;
+    }
+    if (window.confirm(options.text || options.title || 'Xác nhận?')) {
+      if (typeof onConfirm === 'function') onConfirm();
+    }
+  }
+
   function escHtml(value) {
     return String(value === null || typeof value === 'undefined' ? '' : value)
       .replace(/&/g, '&amp;')
@@ -549,8 +574,7 @@
           source: 'ke_hoach',
           loai_chi_phi: REVENUE_TYPE,
           ten_chi_phi: REVENUE_FIELDS[i],
-          so_luong: 1,
-          thong_tin_json: { mac_dinh_doanh_thu: 1 }
+          so_luong: 1
         }, 'ke_hoach'));
       }
     }
@@ -588,7 +612,7 @@
 
   function revenueFieldTemplate(row) {
     return '' +
-      '<div class="col-12 col-md-6 col-xl-4">' +
+      '<div class="col">' +
         '<label class="form-label small mb-1">' + escHtml(row.ten_chi_phi) + '</label>' +
         '<input type="text" inputmode="decimal" class="form-control form-control-sm khcp-revenue-field money-input" data-row-key="' + escHtml(row.key) + '" value="' + formatMoney(row.don_gia) + '" placeholder="0">' +
       '</div>';
@@ -699,8 +723,6 @@
     var driverSalary = 0;
     var customer = 0;
     var revenue = 0;
-    var planSource = 0;
-    var driverSource = 0;
     var rows = $.grep(state.rows, function (row) { return !isBlankRow(row); });
     $.each(rows, function (_, row) {
       var amount = toNumber(row.tong_sau_vat);
@@ -709,8 +731,6 @@
       if (row.loai_chi_phi === DRIVER_SALARY_TYPE) driverSalary += amount;
       if (row.loai_chi_phi === 'tinh_cho_khach') customer += amount;
       if (row.loai_chi_phi === REVENUE_TYPE) revenue += amount;
-      if (row.source === 'lai_xe') driverSource += amount;
-      else planSource += amount;
     });
     $('#khcp-revenue-total').text(formatMoney(revenue));
     $('#khcp-total-revenue').text(formatMoney(revenue));
@@ -719,9 +739,6 @@
     $('#khcp-total-driver-salary').text(formatMoney(driverSalary));
     $('#khcp-total-customer').text(formatMoney(customer));
     $('#khcp-total-all').text(formatMoney(company + driverSelf + driverSalary + customer + revenue));
-    $('#khcp-total-plan-source').text(formatMoney(planSource));
-    $('#khcp-total-driver-source').text(formatMoney(driverSource));
-    $('#khcp-total-rows').text(rows.length);
   }
 
   function clearPlanInfo() {
@@ -813,7 +830,8 @@
     if (row.source !== 'lai_xe' && row.loai_chi_phi === DRIVER_COST_TYPE) {
       row.loai_chi_phi = 'cong_ty_chi_tra';
     }
-    var json = $.extend({}, row.thong_tin_json || {}, { nguon_nhap: row.source });
+    var json = $.extend({}, row.thong_tin_json || {});
+    delete json.nguon_nhap;
     return {
       nid_ke_hoach: state.nidKeHoach,
       loai_ke_hoach: state.loaiKeHoach || 'thuong',
@@ -884,10 +902,9 @@
     };
   }
 
-  function saveDinhMucRows() {
-    if (!state.nidKeHoach) return;
-    setBusy(true);
-    $.ajax({
+  function persistDinhMucRows() {
+    if (!state.nidKeHoach) return $.Deferred().resolve({ skipped: true }).promise();
+    return $.ajax({
       url: '/api/quan-ly-cont/' + state.nidKeHoach,
       method: 'PUT',
       contentType: 'application/json; charset=utf-8',
@@ -897,11 +914,6 @@
       if (response && response.status === 'success' && response.data) {
         fillPlanInfo(response.data);
       }
-      notify('Đã lưu định mức khoán lái xe.', 'success');
-    }).fail(function (jqXHR) {
-      notify(apiMsg(jqXHR), 'error');
-    }).always(function () {
-      setBusy(false);
     });
   }
 
@@ -925,6 +937,29 @@
       });
   }
 
+  function saveRowsBulk(rows) {
+    if (!rows.length) return $.Deferred().resolve({ skipped: true }).promise();
+    var items = $.map(rows, function (row) {
+      return $.extend({ nid: row.nid || 0, client_key: row.key }, payloadFromRow(row));
+    });
+    return $.ajax({
+      url: API_BASE + '/bulk',
+      method: 'POST',
+      contentType: 'application/json; charset=utf-8',
+      dataType: 'json',
+      data: JSON.stringify({ items: items })
+    }).done(function (response) {
+      var savedItems = response && response.data && $.isArray(response.data.items) ? response.data.items : [];
+      $.each(savedItems, function (_, item) {
+        if (!item || !item.client_key || !item.nid) return;
+        var row = getRow(item.client_key);
+        if (!row) return;
+        row.nid = Number(item.nid) || row.nid;
+        row.key = 'nid_' + row.nid;
+      });
+    });
+  }
+
   function saveAllRows() {
     var rows = $.grep(state.rows, function (row) { return !isBlankRow(row) || row.nid > 0; });
     var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
@@ -933,20 +968,17 @@
       $('tr[data-row-key="' + invalidRows[0].key + '"] .cost-name').trigger('focus');
       return;
     }
-    if (!rows.length) {
-      notify('Chưa có chi phí cần lưu.', 'error');
+    if (!rows.length && !(state.dinhMucRows || []).length) {
+      notify('Chưa có dữ liệu cần lưu.', 'error');
       return;
     }
-    var chain = $.Deferred().resolve().promise();
     setBusy(true);
-    $.each(rows, function (_, row) {
-      chain = chain.then(function () { return saveRow(row, true); });
-    });
+    var chain = persistDinhMucRows().then(function () { return saveRowsBulk(rows); });
     chain.done(function () {
-      notify('Đã lưu toàn bộ chi phí.', 'success');
+      notify('Đã lưu toàn bộ dữ liệu chi phí.', 'success');
       loadRows();
     }).fail(function (error) {
-      notify(error && error.message ? error.message : 'Lưu chi phí thất bại.', 'error');
+      notify(error && error.responseText ? apiMsg(error) : (error && error.message ? error.message : 'Lưu dữ liệu chi phí thất bại.'), 'error');
     }).always(function () {
       setBusy(false);
     });
@@ -1027,9 +1059,16 @@
     });
     $(document).on('click', '#khcp-dm-rebuild', function (e) {
       e.preventDefault();
-      reloadAndRecalcDinhMuc(true);
+      confirmAction({
+        title: 'Tính lại định mức?',
+        text: 'Hệ thống sẽ tạo lại các chặng theo thông tin kế hoạch hiện tại và ghi đè danh sách định mức đang nhập.',
+        icon: 'warning',
+        confirmButtonText: 'Tính lại',
+        confirmButtonClass: 'btn btn-primary'
+      }, function () {
+        reloadAndRecalcDinhMuc(true);
+      });
     });
-    $(document).on('click', '#khcp-dm-save', saveDinhMucRows);
     $(document).on('click', '.btn-dm-recalc-row', function (e) {
       e.preventDefault();
       var row = getDinhMucRow($(this).closest('tr').data('dm-key'));

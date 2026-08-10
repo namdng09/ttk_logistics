@@ -918,6 +918,10 @@ body .flatpickr-calendar {
   background: #fff;
 }
 
+.khcp-revenue-card {
+  margin-bottom: 12px;
+}
+
 .khcp-dm-header {
   min-height: 46px;
   padding: 8px 12px;
@@ -1220,7 +1224,7 @@ body .flatpickr-calendar {
 
 .khcp-summary-value {
   color: #212529;
-  font-size: 22px;
+  font-size: 1rem;
   font-weight: 700;
   line-height: 1.2;
   text-align: right;
@@ -1232,7 +1236,7 @@ body .flatpickr-calendar {
 }
 
 .khcp-summary-total .khcp-summary-value {
-  font-size: 27px;
+  font-size: 1.25rem;
 }
 
 .khcp-summary-meta {

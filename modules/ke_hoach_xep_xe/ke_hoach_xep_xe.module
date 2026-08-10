@@ -62,6 +62,12 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/ke-hoach-chi-phi/bulk'] = array(
+    'page callback' => 'ke_hoach_chi_phi_rest_bulk',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/ke-hoach-chi-phi/%'] = array(
     'page callback' => 'ke_hoach_chi_phi_rest_item',
     'page arguments' => array(2),
@@ -302,14 +308,18 @@ function _ke_hoach_xep_xe_normalize_percent($value, $default = 0) {
 }
 
 function _ke_hoach_chi_phi_build_record(array $input, $existing = NULL) {
+  static $parents = array();
   $nid_ke_hoach = !empty($input['nid_ke_hoach']) ? (int) $input['nid_ke_hoach'] : ($existing && !empty($existing->nid_ke_hoach) ? (int) $existing->nid_ke_hoach : 0);
-  $parent = $nid_ke_hoach ? db_query("SELECT nid_lai_xe, loai_ke_hoach FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $nid_ke_hoach))->fetch() : NULL;
+  if ($nid_ke_hoach && !array_key_exists($nid_ke_hoach, $parents)) {
+    $parents[$nid_ke_hoach] = db_query("SELECT nid_lai_xe, loai_ke_hoach FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $nid_ke_hoach))->fetch();
+  }
+  $parent = $nid_ke_hoach ? $parents[$nid_ke_hoach] : NULL;
   $don_gia = array_key_exists('don_gia', $input) ? _ke_hoach_xep_xe_parse_money($input['don_gia']) : ($existing && isset($existing->don_gia) ? (int) $existing->don_gia : 0);
   $so_luong = array_key_exists('so_luong', $input) && $input['so_luong'] !== '' ? (float) $input['so_luong'] : ($existing && isset($existing->so_luong) ? (float) $existing->so_luong : 1);
   $tong_truoc_vat = array_key_exists('tong_truoc_vat', $input) ? _ke_hoach_xep_xe_parse_money($input['tong_truoc_vat']) : (int) round($don_gia * $so_luong);
   $vat_percent = array_key_exists('vat_percent', $input) && $input['vat_percent'] !== '' ? _ke_hoach_xep_xe_normalize_percent($input['vat_percent']) : ($existing && isset($existing->vat_percent) ? _ke_hoach_xep_xe_normalize_percent($existing->vat_percent) : 0);
   $tong_sau_vat = array_key_exists('tong_sau_vat', $input) ? _ke_hoach_xep_xe_parse_money($input['tong_sau_vat']) : (int) round($tong_truoc_vat * (1 + ($vat_percent / 100)));
-  $json = !empty($input['thong_tin_json']) && is_array($input['thong_tin_json']) ? $input['thong_tin_json'] : ($existing && !empty($existing->thong_tin_json) ? _ke_hoach_xep_xe_json_decode($existing->thong_tin_json) : array());
+  $json = array_key_exists('thong_tin_json', $input) && is_array($input['thong_tin_json']) ? $input['thong_tin_json'] : ($existing && !empty($existing->thong_tin_json) ? _ke_hoach_xep_xe_json_decode($existing->thong_tin_json) : array());
 
   return array(
     'nid_ke_hoach' => $nid_ke_hoach,
@@ -326,7 +336,7 @@ function _ke_hoach_chi_phi_build_record(array $input, $existing = NULL) {
     'nid_de_nghi_chi_phi' => !empty($input['nid_de_nghi_chi_phi']) ? (int) $input['nid_de_nghi_chi_phi'] : ($existing && !empty($existing->nid_de_nghi_chi_phi) ? (int) $existing->nid_de_nghi_chi_phi : 0),
     'nid_ledger' => !empty($input['nid_ledger']) ? (int) $input['nid_ledger'] : ($existing && !empty($existing->nid_ledger) ? (int) $existing->nid_ledger : 0),
     'ghi_chu' => isset($input['ghi_chu']) ? trim((string) $input['ghi_chu']) : ($existing && isset($existing->ghi_chu) ? (string) $existing->ghi_chu : ''),
-    'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json),
+    'thong_tin_json' => !empty($json) ? _ke_hoach_xep_xe_json_encode($json) : '',
   );
 }
 
@@ -362,6 +372,16 @@ function ke_hoach_chi_phi_rest_item($id) {
     default:
       return _ke_hoach_xep_xe_method_not_allowed('GET, PUT, DELETE');
   }
+}
+
+function ke_hoach_chi_phi_rest_bulk() {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return _ke_hoach_xep_xe_error('Bảng ke_hoach_chi_phi chưa được tạo. Hãy chạy update database.');
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    return _ke_hoach_xep_xe_method_not_allowed('POST');
+  }
+  return _ke_hoach_chi_phi_rest_bulk_save();
 }
 
 function _ke_hoach_chi_phi_rest_list() {
@@ -433,6 +453,68 @@ function _ke_hoach_chi_phi_rest_update($id) {
   db_update('ke_hoach_chi_phi')->fields($record)->condition('nid', $id)->execute();
   $row = db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid = :id", array(':id' => $id))->fetch();
   return _ke_hoach_xep_xe_success((array) $row);
+}
+
+function _ke_hoach_chi_phi_rest_bulk_save() {
+  if (!user_access('ke_hoach_xep_xe_create')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền lưu chi phí kế hoạch');
+  }
+  $input = _ke_hoach_xep_xe_input();
+  $items = !empty($input['items']) && is_array($input['items']) ? $input['items'] : array();
+  if (empty($items)) {
+    return _ke_hoach_xep_xe_fail('Danh sách chi phí bắt buộc');
+  }
+
+  $now = _ke_hoach_xep_xe_now();
+  $saved = array();
+  $transaction = db_transaction();
+  try {
+    foreach ($items as $index => $item) {
+      if (!is_array($item)) {
+        throw new Exception('Dòng #' . ($index + 1) . ': dữ liệu không hợp lệ');
+      }
+      $id = !empty($item['nid']) ? (int) $item['nid'] : 0;
+      $client_key = isset($item['client_key']) ? (string) $item['client_key'] : '';
+      if (empty($item['nid_ke_hoach']) || empty($item['ten_chi_phi'])) {
+        throw new Exception('Dòng #' . ($index + 1) . ': vui lòng nhập kế hoạch và tên chi phí');
+      }
+
+      if ($id) {
+        $existing = db_query(
+          "SELECT * FROM {ke_hoach_chi_phi} WHERE nid = :id AND nid_ke_hoach = :nid_ke_hoach AND hoat_dong = 1",
+          array(':id' => $id, ':nid_ke_hoach' => (int) $item['nid_ke_hoach'])
+        )->fetch();
+        if (!$existing) {
+          throw new Exception('Dòng #' . ($index + 1) . ': chi phí kế hoạch không tồn tại');
+        }
+        $record = _ke_hoach_chi_phi_build_record($item, $existing);
+        $record['changed'] = $now;
+        db_update('ke_hoach_chi_phi')->fields($record)->condition('nid', $id)->execute();
+      }
+      else {
+        $record = _ke_hoach_chi_phi_build_record($item);
+        $record['created'] = $now;
+        $record['changed'] = $now;
+        $record['hoat_dong'] = 1;
+        $id = db_insert('ke_hoach_chi_phi')->fields($record)->execute();
+      }
+
+      $row = db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid = :id", array(':id' => $id))->fetch();
+      $row_data = (array) $row;
+      $row_data['client_key'] = $client_key;
+      $saved[] = $row_data;
+    }
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('ke_hoach_xep_xe', 'Bulk save chi phí kế hoạch lỗi: @message', array('@message' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ke_hoach_xep_xe_fail($e->getMessage());
+  }
+
+  return _ke_hoach_xep_xe_success(array(
+    'items' => $saved,
+    'total' => count($saved),
+  ));
 }
 
 function _ke_hoach_chi_phi_rest_delete($id) {
