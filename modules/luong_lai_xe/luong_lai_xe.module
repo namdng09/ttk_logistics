@@ -215,7 +215,7 @@ function _luong_lai_xe_rest_list() {
     $summary['luong_chot'] = (int) $summary['luong_tam_tinh'];
     $summary['thuc_lanh'] = max(0, (int) $summary['luong_chot'] - (int) $summary['khau_tru_tam_ung']);
     $summary['da_thanh_toan'] = _luong_lai_xe_thanh_toan_sum((int) $summary['lai_xe']['nid'], (string) $summary['ky_luong']);
-    $summary['luong_phai_tra'] = max(0, (int) $summary['luong_chot'] - (int) $summary['da_thanh_toan']);
+    $summary['luong_phai_tra'] = max(0, (int) $summary['thuc_lanh'] - (int) $summary['da_thanh_toan']);
     unset($summary['plans'], $summary['tam_ung_items'], $summary['khau_tru_items']);
   }
   unset($summary);
@@ -370,7 +370,7 @@ function _luong_lai_xe_plan_salary_record($row, $light = FALSE) {
   $costs = _luong_lai_xe_plan_costs((int) $row->nid, $light);
   $requests = _luong_lai_xe_plan_requests((int) $row->nid, (int) $row->nid_lai_xe, $light);
   $salary_base = $mode === 'khoan' ? $dinh_muc : $luong_chuyen;
-  $salary_estimate = $mode === 'khoan' ? max(0, $dinh_muc - $costs['lai_xe_tu_chiu']) : $luong_chuyen;
+  $salary_estimate = $mode === 'khoan' ? $dinh_muc : $luong_chuyen;
 
   $record = array(
     'salary_base' => $salary_base,
@@ -539,7 +539,7 @@ function _luong_lai_xe_driver_detail($nid_lai_xe, array $filters) {
   $summary['thuc_lanh'] = max(0, (int) $summary['luong_chot'] - (int) $summary['khau_tru_tam_ung']);
   $ky_luong = !empty($filters['ky_luong']) ? (string) $filters['ky_luong'] : '';
   $summary['da_thanh_toan'] = _luong_lai_xe_thanh_toan_sum($nid_lai_xe, $ky_luong);
-  $summary['luong_phai_tra'] = max(0, (int) $summary['luong_chot'] - (int) $summary['da_thanh_toan']);
+  $summary['luong_phai_tra'] = max(0, (int) $summary['thuc_lanh'] - (int) $summary['da_thanh_toan']);
   $summary['thanh_toan_items'] = _luong_lai_xe_thanh_toan_rows($nid_lai_xe, $ky_luong);
   $summary['filters'] = $filters;
   $summary['ky_luong'] = $ky_luong;
@@ -821,7 +821,8 @@ function _luong_lai_xe_thanh_toan_luong($nid_lai_xe) {
   $luong_chot = (int) $detail['luong_chot'];
   $khau_tru_tam_ung = (int) $detail['khau_tru_tam_ung'];
   $da_thanh_toan = _luong_lai_xe_thanh_toan_sum($nid_lai_xe, $ky_luong);
-  $luong_phai_tra = max(0, $luong_chot - $da_thanh_toan);
+  $thuc_lanh = max(0, $luong_chot - $khau_tru_tam_ung);
+  $luong_phai_tra = max(0, $thuc_lanh - $da_thanh_toan);
   if ($luong_phai_tra <= 0) {
     return _luong_lai_xe_fail('Lương kỳ này đã thanh toán đủ.');
   }
@@ -872,7 +873,7 @@ function _luong_lai_xe_thanh_toan_luong($nid_lai_xe) {
       'ky_luong' => $ky_luong,
       'luong_chot' => $luong_chot,
       'khau_tru_tam_ung' => $khau_tru_tam_ung,
-      'thuc_lanh' => max(0, $luong_chot - $khau_tru_tam_ung),
+      'thuc_lanh' => $thuc_lanh,
       'trang_thai' => 'da_thanh_toan',
       'ghi_chu' => $ghi_chu,
       'nid_ledger_thanh_toan' => 0,
@@ -1009,9 +1010,6 @@ function _luong_lai_xe_create_thu_chi_salary_payment_voucher($nid_lai_xe, array 
   $driver_label = $driver_label !== '' ? $driver_label : 'Lái xe #' . intval($nid_lai_xe);
 
   $noi_dung = 'Thanh toán lương lái xe - ' . $driver_label . ' - kỳ ' . $thang_key;
-  if ($ghi_chu !== '') {
-    $noi_dung .= ' - Ghi chú: ' . $ghi_chu;
-  }
 
   $ngay_text = $ngay_chi;
   if (function_exists('thu_chi_parse_date')) {
@@ -1229,7 +1227,7 @@ function _luong_lai_xe_tam_ung_status_label($status) {
   $labels = array(
     'cho_duyet' => 'Chờ duyệt',
     'da_chi' => 'Đã chi',
-    'huy' => 'Hủy',
+    'huy' => 'Không duyệt',
   );
   return isset($labels[$status]) ? $labels[$status] : $status;
 }
@@ -1302,7 +1300,8 @@ function _luong_lai_xe_khau_tru_rows($nid_lai_xe, array $filters) {
   $rows = $query->orderBy('kt.ngay_khau_tru', 'DESC')->orderBy('kt.id', 'DESC')->execute()->fetchAll(PDO::FETCH_ASSOC);
 
   $ma_by_phieu = array();
-  if (!empty($rows) && db_table_exists('qltc_phieu_thu_chi') && db_field_exists('qltc_phieu_thu_chi', 'ma_giao_dich')) {
+  $quy_by_phieu = array();
+  if (!empty($rows) && db_table_exists('qltc_phieu_thu_chi')) {
     $phieu_nids = array();
     foreach ($rows as $row) {
       $nid = (int) $row['nid_phieu_thu_khau_tru'];
@@ -1311,8 +1310,20 @@ function _luong_lai_xe_khau_tru_rows($nid_lai_xe, array $filters) {
       }
     }
     if (!empty($phieu_nids)) {
-      foreach (db_select('qltc_phieu_thu_chi', 'p')->fields('p', array('nid', 'ma_giao_dich'))->condition('nid', $phieu_nids, 'IN')->execute()->fetchAll() as $p) {
-        $ma_by_phieu[(int) $p->nid] = (string) $p->ma_giao_dich;
+      $phieu_cols = array('nid');
+      if (db_field_exists('qltc_phieu_thu_chi', 'ma_giao_dich')) {
+        $phieu_cols[] = 'ma_giao_dich';
+      }
+      if (db_field_exists('qltc_phieu_thu_chi', 'nid_quy')) {
+        $phieu_cols[] = 'nid_quy';
+      }
+      foreach (db_select('qltc_phieu_thu_chi', 'p')->fields('p', $phieu_cols)->condition('nid', $phieu_nids, 'IN')->execute()->fetchAll() as $p) {
+        if (isset($p->ma_giao_dich)) {
+          $ma_by_phieu[(int) $p->nid] = (string) $p->ma_giao_dich;
+        }
+        if (isset($p->nid_quy)) {
+          $quy_by_phieu[(int) $p->nid] = (int) $p->nid_quy;
+        }
       }
     }
   }
@@ -1325,6 +1336,7 @@ function _luong_lai_xe_khau_tru_rows($nid_lai_xe, array $filters) {
     $row['ngay_khau_tru'] = (int) $row['ngay_khau_tru'];
     $row['created'] = $row['ngay_khau_tru'] ? date('d/m/Y', (int) $row['ngay_khau_tru']) : '';
     $row['ma_giao_dich'] = !empty($ma_by_phieu[$row['nid_phieu_thu_khau_tru']]) ? $ma_by_phieu[$row['nid_phieu_thu_khau_tru']] : '';
+    $row['quy_chi_label'] = !empty($quy_by_phieu[$row['nid_phieu_thu_khau_tru']]) ? _luong_lai_xe_quy_label($quy_by_phieu[$row['nid_phieu_thu_khau_tru']]) : '';
     $row['trang_thai'] = isset($row['trang_thai']) && (string) $row['trang_thai'] !== '' ? (string) $row['trang_thai'] : 'da_chi';
     $row['trang_thai_label'] = _luong_lai_xe_tam_ung_status_label($row['trang_thai']);
     $ghi_chu = isset($row['ghi_chu']) ? trim((string) $row['ghi_chu']) : '';

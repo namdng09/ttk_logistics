@@ -226,14 +226,6 @@
         e.preventDefault();
       }
     });
-
-    $(document).on('change.llx', '#llx-deduct-ky-luong', function () {
-      var nid = $('#llx-deduct-form').attr('data-driver-id');
-      if (nid) {
-        currentPage = 1;
-        openDeductModal(nid, monthDisplayToKy($(this).val()));
-      }
-    });
   }
 
   function readFilters() {
@@ -452,6 +444,7 @@
     $('#llx-deduct-so-tien').val('');
     $('#llx-deduct-ghi-chu').val('');
     $('#llx-deduct-form').attr('data-driver-id', nid);
+    $('#llx-deduct-form').attr('data-ky-luong', kyLuong || '');
     var driver = driverCache[nid] || {};
     var name = [String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || 'Lái xe';
     $('#llx-deduct-title').text('Khấu trừ tạm ứng lương');
@@ -482,25 +475,7 @@
     deductCaps.du_co_the_tru = number(summary.tam_ung_con_lai !== undefined ? summary.tam_ung_con_lai : summary.du_co_the_tru);
     $('#llx-deduct-info-driver').text([String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || 'Lái xe');
     $('#llx-deduct-info-ky').text(data.ky_luong_display || '-');
-
-    var input = document.getElementById('llx-deduct-ky-luong');
-    input.value = kyToMonthDisplay(ky);
-    if (typeof flatpickr !== 'undefined') {
-      try { input._flatpickr && input._flatpickr.destroy(); } catch (e) {}
-      var options = {
-        dateFormat: 'm/Y',
-        allowInput: true,
-        static: true
-      };
-      if (typeof monthSelectPlugin !== 'undefined') {
-        options.plugins = [new monthSelectPlugin({
-          shorthand: true,
-          dateFormat: 'm/Y',
-          altFormat: 'm/Y'
-        })];
-      }
-      flatpickr(input, options);
-    }
+    $('#llx-deduct-form').attr('data-ky-luong', data.ky_luong || ky || '');
 
     $('#llx-deduct-so-tien').val('');
     $('#llx-deduct-ghi-chu').val('Khấu trừ tạm ứng vào lương tháng ' + (data.ky_luong_display || ''));
@@ -520,9 +495,10 @@
       notify('Không xác định được lái xe', 'error');
       return;
     }
-    var kyParts = monthDisplayToParts($('#llx-deduct-ky-luong').val());
-    if (!kyParts) {
-      notify('Vui lòng chọn kỳ lương hợp lệ', 'error');
+    var kyLuong = $('#llx-deduct-form').attr('data-ky-luong') || '';
+    var ky = String(kyLuong || '').replace(/\D/g, '');
+    if (!/^\d{6}$/.test(ky)) {
+      notify('Không xác định được kỳ lương của lái xe', 'error');
       return;
     }
     var amount = parseMoney($('#llx-deduct-so-tien').val());
@@ -549,7 +525,7 @@
       contentType: 'application/json; charset=utf-8',
       dataType: 'json',
       data: JSON.stringify({
-        ky_luong: kyParts.year + kyParts.month,
+        ky_luong: ky,
         so_tien: amount,
         ghi_chu: $('#llx-deduct-ghi-chu').val().trim()
       })
@@ -624,13 +600,19 @@
     var deductions = data.khau_tru_rows || [];
     var htmlKt = '';
     if (!deductions.length) {
-      htmlKt = '<tr><td colspan="3" class="text-center text-muted py-3">Chưa có khấu trừ tạm ứng trong kỳ.</td></tr>';
+      htmlKt = '<tr><td colspan="6" class="text-center text-muted py-3">Chưa có khấu trừ tạm ứng trong kỳ.</td></tr>';
     }
     $.each(deductions, function (index, item) {
+      var status = item.trang_thai_label || item.trang_thai || 'da_chi';
+      var statusClass = item.trang_thai === 'huy' ? 'bg-label-danger'
+        : (item.trang_thai === 'cho_duyet' ? 'bg-label-warning' : 'bg-label-success');
       htmlKt += '<tr>' +
+        '<td><span class="fw-semibold">' + esc(item.ma_giao_dich || '-') + '</span></td>' +
         '<td>' + esc(item.created || '') + '</td>' +
         '<td class="text-end fw-semibold">' + money(item.so_tien) + '</td>' +
-        '<td>' + esc(item.ghi_chu || '') + '</td>' +
+        '<td>' + esc(item.quy_chi_label || '-') + '</td>' +
+        '<td class="text-center"><span class="badge ' + statusClass + '">' + esc(status) + '</span></td>' +
+        '<td>' + esc(item.noi_dung || '') + '</td>' +
       '</tr>';
     });
     $('#llx-history-khau-tru-body').html(htmlKt);
@@ -708,7 +690,7 @@
     driver = driver || {};
     var name = [String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || 'Lái xe';
     $('#llx-advance-title').text('Ứng tiền - ' + name);
-    $('#llx-advance-driver').text([driver.ma_nhan_vien, driver.sdt].filter(Boolean).join(' / '));
+    $('#llx-advance-driver').text(driverBankLine(driver));
     $('#llx-advance-form').attr('data-driver-id', nid);
   }
 
@@ -863,7 +845,7 @@
     driver = driver || {};
     var name = [String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || 'Lái xe';
     $('#llx-pay-title').text('Thanh toán lương - ' + name);
-    $('#llx-pay-driver').text([driver.ma_nhan_vien, driver.sdt].filter(Boolean).join(' / '));
+    $('#llx-pay-driver').text(driverBankLine(driver));
   }
 
   function populatePayQuy(items) {

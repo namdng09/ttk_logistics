@@ -205,11 +205,11 @@
           <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Tạm ứng</span><strong id="llx-pay-advance">0</strong></div></div>
           <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Khấu trừ</span><strong id="llx-pay-deduct">0</strong></div></div>
           <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Lương chốt</span><strong id="llx-pay-final">0</strong></div></div>
-          <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Đã thanh toán</span><strong id="llx-pay-paid">0</strong></div></div>
+          <div class="col-6 col-lg-2"><div class="llx-summary-box"><span>Thực lãnh (sau khấu trừ)</span><strong id="llx-pay-net">0</strong></div></div>
         </div>
         <div class="row g-3 mb-3">
+          <div class="col-6 col-lg-3"><div class="llx-summary-box"><span>Đã thanh toán</span><strong id="llx-pay-paid">0</strong></div></div>
           <div class="col-6 col-lg-3"><div class="llx-summary-box llx-summary-box-accent"><span>Lương phải trả</span><strong id="llx-pay-remaining">0</strong></div></div>
-          <div class="col-6 col-lg-3"><div class="llx-summary-box"><span>Thực lãnh (sau khấu trừ)</span><strong id="llx-pay-net">0</strong></div></div>
         </div>
         <form id="llx-pay-form" class="needs-validation" novalidate>
           <div class="row g-3">
@@ -348,12 +348,7 @@
         </div>
         <form id="llx-deduct-form" class="needs-validation" novalidate>
           <div class="row g-3">
-            <div class="col-6 col-md-4">
-              <label class="form-label" for="llx-deduct-ky-luong">Kỳ lương <span class="text-danger">*</span></label>
-              <input type="text" class="form-control flatpickr-month" id="llx-deduct-ky-luong" placeholder="MM/yyyy" required>
-              <div class="invalid-feedback">Vui lòng chọn kỳ lương.</div>
-            </div>
-            <div class="col-6 col-md-8">
+            <div class="col-md-4">
               <label class="form-label" for="llx-deduct-so-tien">Số tiền khấu trừ tạm ứng <span class="text-danger">*</span></label>
               <input type="text" class="form-control money-mask" id="llx-deduct-so-tien" placeholder="0" inputmode="numeric" required>
               <div class="invalid-feedback">Vui lòng nhập số tiền khấu trừ.</div>
@@ -422,8 +417,11 @@
             <table class="table table-bordered table-hover llx-khau-tru-table">
               <thead class="table-light">
                 <tr>
+                  <th style="width:150px">Mã phiếu</th>
                   <th style="width:110px">Ngày</th>
                   <th class="text-end" style="width:150px">Số tiền</th>
+                  <th>Quỹ chi</th>
+                  <th class="text-center" style="width:110px">Trạng thái</th>
                   <th>Ghi chú</th>
                 </tr>
               </thead>
