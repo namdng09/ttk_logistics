@@ -1232,6 +1232,15 @@ function _luong_lai_xe_tam_ung_status_label($status) {
   return isset($labels[$status]) ? $labels[$status] : $status;
 }
 
+function _luong_lai_xe_khau_tru_status_label($status) {
+  $labels = array(
+    'cho_duyet' => 'Chờ thu',
+    'da_chi' => 'Đã thu',
+    'huy' => 'Không duyệt',
+  );
+  return isset($labels[$status]) ? $labels[$status] : $status;
+}
+
 function _luong_lai_xe_quy_label($quy_value) {
   $quy_value = trim((string) $quy_value);
   if ($quy_value === '') {
@@ -1338,7 +1347,7 @@ function _luong_lai_xe_khau_tru_rows($nid_lai_xe, array $filters) {
     $row['ma_giao_dich'] = !empty($ma_by_phieu[$row['nid_phieu_thu_khau_tru']]) ? $ma_by_phieu[$row['nid_phieu_thu_khau_tru']] : '';
     $row['quy_chi_label'] = !empty($quy_by_phieu[$row['nid_phieu_thu_khau_tru']]) ? _luong_lai_xe_quy_label($quy_by_phieu[$row['nid_phieu_thu_khau_tru']]) : '';
     $row['trang_thai'] = isset($row['trang_thai']) && (string) $row['trang_thai'] !== '' ? (string) $row['trang_thai'] : 'da_chi';
-    $row['trang_thai_label'] = _luong_lai_xe_tam_ung_status_label($row['trang_thai']);
+    $row['trang_thai_label'] = _luong_lai_xe_khau_tru_status_label($row['trang_thai']);
     $ghi_chu = isset($row['ghi_chu']) ? trim((string) $row['ghi_chu']) : '';
     $row['noi_dung'] = $ghi_chu !== '' ? $ghi_chu : ('Khấu trừ tạm ứng lương kỳ ' . (string) $row['thang_luong']);
   }
@@ -2145,6 +2154,9 @@ function _luong_lai_xe_ky_luong_display($ky_luong) {
 }
 
 function _luong_lai_xe_json_decode($value) {
+  if (is_array($value)) {
+    return $value;
+  }
   $data = json_decode((string) $value, TRUE);
   return is_array($data) ? $data : array();
 }

@@ -344,3 +344,29 @@ function luong_lai_xe_update_7010() {
 
   return 'Đã thêm cột trang_thai cho bảng bcllx_tam_ung_khau_tru để đồng bộ trạng thái khi duyệt/không duyệt phiếu thu.';
 }
+
+/**
+ * Xử lý lỗi #1062 khi convert bảng search sang utf8mb4_unicode_ci.
+ *
+ * Bảng search_index có PK (word, sid, type), cột word lưu từ khóa đã lowercase.
+ * utf8mb4_unicode_ci không phân biệt dấu nên các từ khác dấu (VD: đông/động)
+ * trùng sort key dẫn tới Duplicate entry. Cần xóa index trước khi convert.
+ * Search index là dữ liệu cache, Drupal cron sẽ đánh index lại.
+ */
+function luong_lai_xe_update_7011() {
+  $tables = array('search_index', 'search_dataset', 'search_total', 'search_node_links');
+  $converted = array();
+  foreach ($tables as $table) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    db_query('TRUNCATE TABLE {' . $table . '}');
+    db_query('ALTER TABLE {' . $table . '} CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    $converted[] = $table;
+  }
+
+  if (empty($converted)) {
+    return 'Không có bảng search nào cần xử lý.';
+  }
+  return 'Đã xóa sạch và convert sang utf8mb4_unicode_ci các bảng: ' . implode(', ', $converted) . '. Chạy cron để đánh search index lại.';
+}

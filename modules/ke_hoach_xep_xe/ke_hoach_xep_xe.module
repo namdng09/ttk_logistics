@@ -267,6 +267,9 @@ function _ke_hoach_xep_xe_default_record() {
 }
 
 function _ke_hoach_xep_xe_json_decode($value) {
+  if (is_array($value)) {
+    return $value;
+  }
   $data = json_decode((string) $value, TRUE);
   return is_array($data) ? $data : array();
 }
@@ -579,6 +582,7 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE) {
     $result['is_cont_keo_ve'] = (bool) db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1", array(':nid' => $result['nid']))->fetchField();
   }
   $json = _ke_hoach_xep_xe_json_decode(isset($result['thong_tin_json']) ? $result['thong_tin_json'] : '');
+  $result['thong_tin_json'] = $json;
   $result['ghi_chu'] = !empty($json['ghi_chu']) ? $json['ghi_chu'] : '';
   $result['hinh_thuc_status_text'] = _ke_hoach_xep_xe_hinh_thuc_status_text($result);
   unset($result['nid_khach_hang'], $result['nid_lai_xe'], $result['nid_phuong_tien'], $result['nid_mooc']);
@@ -1473,7 +1477,8 @@ function _ke_hoach_tuyen_xa_load_changs($ke_hoach_id) {
     else {
       $item['mooc'] = NULL;
     }
-    $item['ghi_chu'] = _ke_hoach_tuyen_xa_json_text(isset($item['thong_tin_json']) ? $item['thong_tin_json'] : '');
+    $item['thong_tin_json'] = _ke_hoach_xep_xe_json_decode(isset($item['thong_tin_json']) ? $item['thong_tin_json'] : '');
+    $item['ghi_chu'] = !empty($item['thong_tin_json']['ghi_chu']) ? $item['thong_tin_json']['ghi_chu'] : '';
     $items[] = $item;
   }
   return $items;
@@ -1496,6 +1501,7 @@ function _ke_hoach_tuyen_xa_load_chi_phi($ke_hoach_id) {
   foreach ($rows as $row) {
     $item = (array) $row;
     $json = _ke_hoach_xep_xe_json_decode(isset($item['thong_tin_json']) ? $item['thong_tin_json'] : '');
+    $item['thong_tin_json'] = $json;
     $item['id'] = $item['nid'];
     $item['ke_hoach_id'] = $item['nid_ke_hoach'];
     $item['so_tien'] = isset($item['tong_sau_vat']) ? (int) $item['tong_sau_vat'] : 0;
