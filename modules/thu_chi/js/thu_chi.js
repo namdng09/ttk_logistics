@@ -208,6 +208,100 @@
         var $form = $(this).closest('#tc-thu-chi-form');
         recalculateAllDetails($form);
       });
+
+    $(document)
+      .off('click' + NS, '.tc-thu-chi-table .tc-function-btn')
+      .on('click' + NS, '.tc-thu-chi-table .tc-function-btn', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $dropdown = $(this).closest('.tc-function-dropdown');
+        if (!$dropdown.length) return;
+        if ($dropdown.data('tcOpen')) {
+          tcCloseFunctionMenu($dropdown);
+        }
+        else {
+          tcCloseFunctionMenu();
+          tcOpenFunctionMenu($dropdown);
+        }
+      });
+
+    $(document)
+      .off('click' + NS, '.tc-thu-chi-table .dropdown-menu .dropdown-item')
+      .on('click' + NS, '.tc-thu-chi-table .dropdown-menu .dropdown-item', function () {
+        var $dropdown = $(this).closest('.tc-function-dropdown');
+        if (!$dropdown.length) return;
+        tcCloseFunctionMenu($dropdown);
+      });
+
+    $(document)
+      .off('click' + NS + 'tcClosePin')
+      .on('click' + NS + 'tcClosePin', function (e) {
+        if ($(e.target).closest('.tc-function-dropdown').length) return;
+        tcCloseFunctionMenu();
+      });
+
+    $(document)
+      .off('keydown' + NS + 'tcEsc')
+      .on('keydown' + NS + 'tcEsc', function (e) {
+        if (e.which === 27) {
+          tcCloseFunctionMenu();
+        }
+      });
+  }
+
+  function tcOpenFunctionMenu($dropdown) {
+    var $btn = $dropdown.find('.tc-function-btn').first();
+    var $menu = $dropdown.find('.dropdown-menu').first();
+    if (!$btn.length || !$menu.length) return;
+    var btnRect = $btn[0].getBoundingClientRect();
+    var margin = 8;
+    var menuWidth = $menu.outerWidth() || 190;
+    var menuHeight = $menu.outerHeight() || 200;
+    var viewportW = window.innerWidth || document.documentElement.clientWidth;
+    var viewportH = window.innerHeight || document.documentElement.clientHeight;
+
+    var left = btnRect.right;
+    if (left + menuWidth > viewportW - margin) {
+      left = btnRect.left - menuWidth;
+    }
+    if (left < margin) {
+      left = btnRect.right;
+    }
+
+    var top = btnRect.top;
+    if (top + menuHeight > viewportH - margin) {
+      top = Math.max(margin, btnRect.bottom - menuHeight);
+    }
+    if (top < margin) {
+      top = margin;
+    }
+
+    $menu.css({
+      position: 'fixed',
+      top: top + 'px',
+      left: left + 'px',
+      display: 'block'
+    });
+    $dropdown.data('tcOpen', true);
+  }
+
+  function tcCloseFunctionMenu($dropdown) {
+    var $list = $dropdown ? $dropdown.filter(function () {
+      return $(this).data('tcOpen');
+    }) : $('.tc-function-dropdown').filter(function () {
+      return $(this).data('tcOpen');
+    });
+    $list.each(function () {
+      var $d = $(this);
+      var $menu = $d.find('.dropdown-menu').first();
+      $menu.css({
+        position: '',
+        top: '',
+        left: '',
+        display: ''
+      });
+      $d.data('tcOpen', false);
+    });
   }
 
   function ensureModal() {

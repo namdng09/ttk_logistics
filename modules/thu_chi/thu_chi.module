@@ -490,7 +490,7 @@ function thu_chi_load_items(array $filters) {
  */
 function thu_chi_render_table(array $items, array $quy_map) {
   $header = array(
-    array('data' => '', 'class' => array('text-center', 'tc-action-th')),
+    array('data' => 'CN', 'class' => array('text-center', 'tc-action-th')),
     array('data' => 'Ngày', 'class' => array('text-center')),
     'Mã phiếu',
     'Trạng thái',
@@ -555,8 +555,8 @@ function thu_chi_render_action_dropdown($item) {
   $ma = isset($item->ma_giao_dich) ? $item->ma_giao_dich : ('#' . $gd_id);
 
   $html = '<div class="dropdown tc-function-dropdown">';
-  $html .= '<button type="button" class="btn p-0 dropdown-toggle hide-arrow tc-function-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Chức năng">';
-  $html .= '<i class="icon-base ti tabler-settings-spark"></i></button>';
+  $html .= '<button type="button" class="btn btn-sm btn-icon btn-label-secondary rounded-pill tc-function-btn" title="Chức năng">';
+  $html .= '<i class="ti tabler-dots-vertical"></i></button>';
   $html .= '<div class="dropdown-menu dropdown-menu-start">';
 
   if ($status === 'yeu_cau_dieu_chinh') {

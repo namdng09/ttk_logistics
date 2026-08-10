@@ -289,12 +289,6 @@
   justify-content: center;
   color: #64748b;
 }
-.tc-function-dropdown .tc-function-btn:hover {
-  color: #0d6efd;
-}
-.tc-function-dropdown .tc-function-btn::after {
-  display: none;
-}
 .tc-truncated-cell {
   display: inline-block;
   max-width: 220px;
