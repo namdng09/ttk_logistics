@@ -20,6 +20,8 @@
   var listSearchDropdownsLoaded = false;
   var listSearchDropdownsLoading = false;
   var listSearchDropdownCallbacks = [];
+  var nestedContEditContext = null;
+  var nestedContRestorePending = null;
   var listSearchDropdownData = {
     customers: [],
     kho: [],
@@ -578,6 +580,7 @@
       success: function (res) {
         if (res.status !== 'success' || !res.data) {
           $('#' + contentId + ' #form-loading').hide();
+          if (nestedContEditContext && nestedContEditContext.childId === id) nestedContEditContext = null;
           if (notyf) notyf.error(res.message || 'Không tải được kế hoạch');
           return;
         }
@@ -595,9 +598,25 @@
       },
       error: function (jqXHR) {
         $('#' + contentId + ' #form-loading').hide();
+        if (nestedContEditContext && nestedContEditContext.childId === id) nestedContEditContext = null;
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
+  }
+
+  function openNestedContEditModal(id, parentId) {
+    id = parseInt(id, 10) || 0;
+    parentId = parseInt(parentId, 10) || 0;
+    if (!id || !parentId || id === parentId) return;
+    if (nestedContEditContext) {
+      if (notyf) notyf.error('Đang mở một modal xếp xe liên quan. Vui lòng đóng modal hiện tại trước.');
+      return;
+    }
+    nestedContEditContext = {
+      parentId: parentId,
+      childId: id
+    };
+    openEditFullscreenModal(id);
   }
 
   function collectListFilters() {
@@ -884,6 +903,7 @@
     });
     $('#ke-hoach-edit-fullscreen-modal, #ke-hoach-tuyen-xa-edit-fullscreen-modal').on('hidden.bs.modal', function (e) {
       if (e.target !== this) return;
+      var nestedToRestore = nestedContEditContext ? $.extend({}, nestedContEditContext) : null;
       $('#ke-hoach-edit-modal-content, #ke-hoach-tuyen-xa-edit-modal-content').empty();
       if (detachedCreateFormApp) {
         $('#ke-hoach-edit-modal-template').after(detachedCreateFormApp);
@@ -898,6 +918,13 @@
       initForm._formNode = null;
       initForm._planType = null;
       initForm();
+      if (nestedToRestore && nestedToRestore.parentId) {
+        nestedContRestorePending = nestedToRestore;
+        nestedContEditContext = null;
+        window.setTimeout(function () {
+          openEditFullscreenModal(nestedToRestore.parentId);
+        }, 0);
+      }
     });
     $(document).on('click', '.btn-delete-ke-hoach-xep-xe', function (e) {
       e.preventDefault();
@@ -1139,6 +1166,7 @@
       .off('input', '.line-cont-filter-bkg, .line-cont-filter-cont')
       .off('change', '.line-cont-filter-kho, .line-cont-filter-du-hang')
       .off('change', '.line-cont-ref-checkbox')
+      .off('click', '.btn-edit-cont-candidate')
       .off('change', '.line-bai-ha-theo-ke-hoach-checkbox')
       .off('change', '.line-cont-picker-wrap .line-bai-ha-thuc-te-select')
       .off('change blur', '.cont-inline-note')
@@ -1975,7 +2003,7 @@
         rows.push('<tr>' +
           '<td class="text-center"><input class="form-check-input line-cont-ref-checkbox" type="checkbox" value="' + item.nid + '" data-id="' + item.nid + '" data-so-cont="' + escHtml(item.so_cont || '') + '"' + (selected ? ' checked' : '') + '></td>' +
           '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(item) + '</td>' +
-          '<td><div>' + escHtml(item.so_bkg || '') + '</div><div class="fw-semibold">' + escHtml(item.so_cont || '') + '</div></td>' +
+          '<td><div><button type="button" class="btn btn-link p-0 text-start fw-semibold btn-edit-cont-candidate" data-id="' + item.nid + '" title="Mở modal xếp xe">' + escHtml(item.so_bkg || ('#' + item.nid)) + '</button></div><div class="fw-semibold">' + escHtml(item.so_cont || '') + '</div></td>' +
           '<td class="line-cont-kho-cell"><div>' + escHtml(khachHangName) + '</div><div class="text-muted small">' + escHtml(item.dia_chi_kho || '') + '</div></td>' +
           '<td class="line-cont-destination-cell">' +
             '<label class="form-check form-check-inline mb-1">' +
@@ -2585,6 +2613,15 @@
       renderContCandidateRows(line, $card);
       if (line.ke_hoach_cont_ref_nid && notyf) notyf.success('Đã chọn cont kéo về: ' + ($checkbox.attr('data-so-cont') || ''));
     });
+    $(document).on('click', '.btn-edit-cont-candidate', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var id = parseInt($(this).data('id'), 10) || 0;
+      var parentId = parseInt($form('#nid-input').val(), 10) || 0;
+      if (!id || !parentId || id === parentId) return;
+      syncAllLines();
+      openNestedContEditModal(id, parentId);
+    });
     $(document).on('change', '.line-bai-ha-theo-ke-hoach-checkbox', function () {
       var $checkbox = $(this);
       var $picker = $checkbox.closest('.line-cont-picker-wrap');
@@ -2670,6 +2707,16 @@
             } finally {
               window.setTimeout(function () {
                 showLoading(false);
+                if (nestedContRestorePending && nestedContRestorePending.parentId === (parseInt($form('#nid-input').val(), 10) || 0)) {
+                  var $card = useTableLayout ? $form('#ke-hoach-lines-body .ke-hoach-table-row').first() : $form('#ke-hoach-lines .ke-hoach-line-card').first();
+                  var line = $card.length ? syncLine($card) : null;
+                  if (line) {
+                    state.contCandidateCache = {};
+                    $card.removeData('contCandidates').removeData('contCandidatesCacheKey').removeData('contCandidatesLoaded');
+                    loadContCandidates(line, $card);
+                  }
+                  nestedContRestorePending = null;
+                }
                 $(document).trigger('keHoachEditReady');
               }, 0);
             }
