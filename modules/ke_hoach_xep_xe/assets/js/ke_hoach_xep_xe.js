@@ -551,7 +551,8 @@
     });
   }
 
-  function openEditFullscreenModal(id) {
+  function openEditFullscreenModal(id, options) {
+    options = options || {};
     id = parseInt(id, 10) || 0;
     if (!id) return;
     var isTuyenXa = currentPlanType() === 'tuyen_xa';
@@ -565,7 +566,9 @@
       window.location.href = '/ke-hoach-xep-xe/' + id + '/sua';
       return;
     }
-    listPageSettingsBeforeEdit = $.extend(true, {}, Drupal.settings.ke_hoach_xep_xe || {});
+    if (!options.preserveListSettings) {
+      listPageSettingsBeforeEdit = $.extend(true, {}, Drupal.settings.ke_hoach_xep_xe || {});
+    }
     if (!detachedCreateFormApp) {
       detachedCreateFormApp = $('#ke-hoach-form-app').detach();
     }
@@ -616,7 +619,7 @@
       parentId: parentId,
       childId: id
     };
-    openEditFullscreenModal(id);
+    openEditFullscreenModal(id, { preserveListSettings: true });
   }
 
   function collectListFilters() {
@@ -901,9 +904,17 @@
       persistListSnapshot();
       openEditFullscreenModal(match[1]);
     });
+    $('#ke-hoach-edit-fullscreen-modal, #ke-hoach-tuyen-xa-edit-fullscreen-modal').on('hide.bs.modal', function (e) {
+      if (e.target !== this || !nestedContEditContext || !nestedContEditContext.parentId) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      var nestedToRestore = $.extend({}, nestedContEditContext);
+      nestedContRestorePending = nestedToRestore;
+      nestedContEditContext = null;
+      openEditFullscreenModal(nestedToRestore.parentId, { preserveListSettings: true });
+    });
     $('#ke-hoach-edit-fullscreen-modal, #ke-hoach-tuyen-xa-edit-fullscreen-modal').on('hidden.bs.modal', function (e) {
       if (e.target !== this) return;
-      var nestedToRestore = nestedContEditContext ? $.extend({}, nestedContEditContext) : null;
       $('#ke-hoach-edit-modal-content, #ke-hoach-tuyen-xa-edit-modal-content').empty();
       if (detachedCreateFormApp) {
         $('#ke-hoach-edit-modal-template').after(detachedCreateFormApp);
@@ -918,13 +929,6 @@
       initForm._formNode = null;
       initForm._planType = null;
       initForm();
-      if (nestedToRestore && nestedToRestore.parentId) {
-        nestedContRestorePending = nestedToRestore;
-        nestedContEditContext = null;
-        window.setTimeout(function () {
-          openEditFullscreenModal(nestedToRestore.parentId);
-        }, 0);
-      }
     });
     $(document).on('click', '.btn-delete-ke-hoach-xep-xe', function (e) {
       e.preventDefault();
