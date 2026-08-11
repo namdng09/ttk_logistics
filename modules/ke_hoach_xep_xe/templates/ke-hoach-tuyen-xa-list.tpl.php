@@ -150,7 +150,9 @@
             </div>
             <div class="col-md-3">
               <label class="form-label">Loại cont</label>
-              <input type="text" class="form-control" name="loai_cont" placeholder="Ví dụ: 45'">
+              <select class="form-select" name="loai_cont">
+                <option value="">Chọn hoặc nhập loại cont</option>
+              </select>
             </div>
             <div class="col-md-4">
               <label class="form-label">Điểm đi <span class="text-danger">*</span></label>
@@ -168,7 +170,9 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">Kho / điểm nhận</label>
-              <input type="text" class="form-control" name="dia_chi_kho" placeholder="Nhập kho / nơi nhận hàng">
+              <select class="form-select" name="dia_chi_kho">
+                <option value="">Chọn hoặc nhập kho</option>
+              </select>
             </div>
             <div class="col-md-4">
               <label class="form-label">Ngày bắt đầu</label>

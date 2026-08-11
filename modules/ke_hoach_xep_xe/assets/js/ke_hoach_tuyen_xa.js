@@ -17,6 +17,8 @@
     mode: 'create',
     customers: [],
     checkpoints: [],
+    warehouses: [],
+    containerTypes: ['20RF', '20DC', '40HC', '40RF', '40DC'],
     expenseNames: [],
     drivers: [],
     vehicles: [],
@@ -178,6 +180,14 @@
       html += '<option value="' + escHtml(current) + '" selected>' + escHtml(current) + '</option>';
     }
     return html;
+  }
+
+  function setTaggableValue($el, value) {
+    value = $.trim(String(value || ''));
+    if (value && !$el.find('option').filter(function () { return this.value === value; }).length) {
+      $el.append('<option value="' + escHtml(value) + '">' + escHtml(value) + '</option>');
+    }
+    $el.val(value).trigger('change');
   }
 
   function keyedOptions(items, selected, placeholder, allowCurrentOutsideList) {
@@ -490,14 +500,17 @@
   }
 
   function ensureSupportData(callback) {
-    if (supportLoaded) {
+    if (supportLoaded && state.warehouses && state.warehouses.length) {
       callback();
       return;
+    }
+    if (supportLoaded && (!state.warehouses || !state.warehouses.length)) {
+      supportLoaded = false;
     }
     supportCallbacks.push(callback);
     if (supportLoading) return;
     supportLoading = true;
-    var pending = 5;
+    var pending = 6;
     function done() {
       pending--;
       if (pending > 0) return;
@@ -517,6 +530,13 @@
       if (res.status === 'success' && res.data) {
         state.expenseNames = $.map(res.data.items || [], function (item) {
           return item && item.ten ? item.ten : '';
+        });
+      }
+    }).always(done);
+    $.getJSON('/api/danh-muc', { limit: 500, phan_loai: 'Kho' }, function (res) {
+      if (res.status === 'success' && res.data) {
+        state.warehouses = $.map(res.data.items || [], function (item) {
+          return item && (item.ten || item.name || item.label) ? (item.ten || item.name || item.label) : '';
         });
       }
     }).always(done);
@@ -544,6 +564,9 @@
   function openCreate() {
     state.mode = 'create';
     resetForm();
+    applyMode();
+    showLoading(true);
+    getModal().show();
     ensureSupportData(function () {
       renderSupportOptions();
       state.changs = [blankChang()];
@@ -551,7 +574,7 @@
       state.dau = [blankDau()];
       renderAllRepeaterTables();
       applyMode();
-      getModal().show();
+      showLoading(false);
     });
   }
 
@@ -607,6 +630,10 @@
     var currentCustomer = $customer.val() || '';
     var $checkpoint = $('#form-ke-hoach-tuyen-xa select[name="cua_khau"]');
     var currentCheckpoint = $checkpoint.val() || '';
+    var $loaiCont = $('#form-ke-hoach-tuyen-xa select[name="loai_cont"]');
+    var currentLoaiCont = $loaiCont.val() || '';
+    var $warehouse = $('#form-ke-hoach-tuyen-xa select[name="dia_chi_kho"]');
+    var currentWarehouse = $warehouse.val() || '';
     var customerHtml = '<option value="">Chọn khách hàng</option>';
     for (var i = 0; i < state.customers.length; i++) {
       customerHtml += '<option value="' + state.customers[i].nid + '">' + escHtml(state.customers[i].ten || ('#' + state.customers[i].nid)) + '</option>';
@@ -618,14 +645,24 @@
       checkpointHtml += '<option value="' + escHtml(state.checkpoints[j].ten || '') + '">' + escHtml(state.checkpoints[j].ten || '') + '</option>';
     }
     $checkpoint.html(checkpointHtml);
+    $loaiCont.html(termOptions(state.containerTypes, currentLoaiCont, 'Chọn hoặc nhập loại cont'));
+    $warehouse.html(termOptions(state.warehouses, currentWarehouse, 'Chọn hoặc nhập kho'));
 
     initSelect2($customer[0], 'Chọn khách hàng');
     initSelect2($checkpoint[0], 'Chọn cửa khẩu');
+    initTaggableSelect2($loaiCont[0], 'Chọn hoặc nhập loại cont');
+    initTaggableSelect2($warehouse[0], 'Chọn hoặc nhập kho');
     if (currentCustomer) {
       $customer.val(String(currentCustomer)).trigger('change');
     }
     if (currentCheckpoint) {
       $checkpoint.val(String(currentCheckpoint)).trigger('change');
+    }
+    if (currentLoaiCont) {
+      $loaiCont.val(String(currentLoaiCont)).trigger('change');
+    }
+    if (currentWarehouse) {
+      $warehouse.val(String(currentWarehouse)).trigger('change');
     }
     initDateInputs('#ke-hoach-tuyen-xa-modal');
   }
@@ -787,8 +824,8 @@
     form.find('[name="nid_khach_hang"]').val(data.khach_hang ? data.khach_hang.nid : '').trigger('change');
     form.find('[name="so_bkg"]').val(data.so_bkg || '');
     form.find('[name="so_cont"]').val(data.so_cont || '');
-    form.find('[name="loai_cont"]').val(data.loai_cont || '');
-    form.find('[name="dia_chi_kho"]').val(data.dia_chi_kho || '');
+    setTaggableValue(form.find('[name="loai_cont"]'), data.loai_cont || '');
+    setTaggableValue(form.find('[name="dia_chi_kho"]'), data.dia_chi_kho || '');
     form.find('[name="diem_di"]').val(data.diem_di || '');
     form.find('[name="cua_khau"]').val(data.cua_khau || '').trigger('change');
     form.find('[name="diem_den"]').val(data.diem_den || '');
@@ -912,8 +949,8 @@
       nid_khach_hang: form.find('[name="nid_khach_hang"]').val(),
       so_bkg: form.find('[name="so_bkg"]').val().trim(),
       so_cont: form.find('[name="so_cont"]').val().trim(),
-      loai_cont: form.find('[name="loai_cont"]').val().trim(),
-      dia_chi_kho: form.find('[name="dia_chi_kho"]').val().trim(),
+      loai_cont: $.trim(String(form.find('[name="loai_cont"]').val() || '')),
+      dia_chi_kho: $.trim(String(form.find('[name="dia_chi_kho"]').val() || '')),
       diem_di: form.find('[name="diem_di"]').val().trim(),
       cua_khau: form.find('[name="cua_khau"]').val() || '',
       diem_den: form.find('[name="diem_den"]').val().trim(),

@@ -12,7 +12,6 @@
   table-layout: fixed;
 }
 
-.khxh-list-table .khxh-col-select { width: 36px; }
 .khxh-list-table .khxh-col-actions { width: 35px; }
 .khxh-list-table .khxh-col-stt { width: 33px; }
 .khxh-list-table .khxh-col-date { width: 73px; }
@@ -24,16 +23,15 @@
 .khxh-list-table .khxh-col-route { width: 110px; }
 .khxh-list-table .khxh-col-cang { width: 110px; }
 .khxh-list-table .khxh-col-status { width: 110px; }
-.khxh-list-table .khxh-col-invoice-status { width: 120px; }
 
 .khxh-list-table th {
   white-space: nowrap;
 }
 
-#ke-hoach-list-app .khxh-list-table th:nth-child(4),
-#ke-hoach-list-app .khxh-list-table td:nth-child(4),
-#ke-hoach-list-app .khxh-list-table th:nth-child(12),
-#ke-hoach-list-app .khxh-list-table td:nth-child(12) {
+#ke-hoach-list-app .khxh-list-table th:nth-child(3),
+#ke-hoach-list-app .khxh-list-table td:nth-child(3),
+#ke-hoach-list-app .khxh-list-table th:nth-child(11),
+#ke-hoach-list-app .khxh-list-table td:nth-child(11) {
   width: 92px;
   min-width: 92px;
   max-width: 92px;
@@ -41,15 +39,16 @@
   text-align: center;
 }
 
-#ke-hoach-list-app .khxh-list-table td:first-child,
-#ke-hoach-list-app .khxh-list-table td:nth-child(2) {
+#ke-hoach-list-app .khxh-list-table td:first-child {
   padding-left: 0;
   padding-right: 0;
 }
 
-.khxh-phieu-cell .badge {
-  white-space: normal;
-  line-height: 1.2;
+#ke-hoach-list-app .khxh-list-table th:nth-child(2),
+#ke-hoach-list-app .khxh-list-table td:nth-child(2) {
+  text-align: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
 
 .khxh-date-badge {
@@ -238,6 +237,10 @@ body .flatpickr-calendar {
   grid-column: span 8;
 }
 
+.khxh-span-12 {
+  grid-column: 1 / -1;
+}
+
 .ke-hoach-edit-grid .select2-container {
   width: 100% !important;
 }
@@ -248,12 +251,17 @@ body .flatpickr-calendar {
   .khxh-span-8 {
     grid-column: span 8;
   }
+
+  .khxh-span-12 {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 767.98px) {
   .khxh-span-3,
   .khxh-span-4,
-  .khxh-span-8 {
+  .khxh-span-8,
+  .khxh-span-12 {
     grid-column: 1 / -1;
   }
 }
@@ -349,6 +357,8 @@ body .flatpickr-calendar {
   gap: 0.75rem 1rem;
   min-height: calc(1.5em + 0.75rem + 2px);
   align-items: center;
+  overflow-x: visible;
+  white-space: nowrap;
 }
 
 .line-hinh-thuc-option {
@@ -356,6 +366,8 @@ body .flatpickr-calendar {
   align-items: center;
   gap: 0.4rem;
   margin: 0;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .line-hinh-thuc-option .form-check-input {
@@ -708,8 +720,17 @@ body .flatpickr-calendar {
 }
 
 .line-cont-filter-row {
-  --bs-gutter-x: 12px;
-  --bs-gutter-y: 12px;
+  --bs-gutter-x: 8px;
+  --bs-gutter-y: 8px;
+}
+
+.line-cont-filter-row .form-control,
+.line-cont-filter-row .form-select,
+.line-cont-filter-row .select2-container--default .select2-selection--single {
+  min-height: 36px;
+  height: 36px;
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
 }
 
 .ke-hoach-cont-picker-head {
@@ -742,9 +763,13 @@ body .flatpickr-calendar {
 }
 
 .line-cont-picker-wrap .table > thead > tr > th {
-  padding-top: 0.3rem;
-  padding-bottom: 0.3rem;
-  line-height: 2;
+  background: #dfdfe3;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  line-height: 1.2;
+  font-size: 0.78rem;
+  font-weight: 600;
+  vertical-align: middle;
 }
 
 .line-cont-picker-wrap .table th:first-child,

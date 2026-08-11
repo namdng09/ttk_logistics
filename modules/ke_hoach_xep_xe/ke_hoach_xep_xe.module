@@ -599,7 +599,7 @@ function _ke_hoach_xep_xe_validate_lines($items, $require_vehicle_driver = TRUE,
   return NULL;
 }
 
-function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, $phieu_tra_khach_status = NULL) {
+function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE) {
   $result = (array) $row;
   $nid_khach_hang = !empty($result['nid_khach_hang']) ? (int) $result['nid_khach_hang'] : 0;
   $nid_lai_xe = !empty($result['nid_lai_xe']) ? (int) $result['nid_lai_xe'] : 0;
@@ -667,7 +667,6 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, $phieu_tra_khac
   $result['thong_tin_json'] = $json;
   $result['ghi_chu'] = !empty($json['ghi_chu']) ? $json['ghi_chu'] : '';
   $result['hinh_thuc_status_text'] = _ke_hoach_xep_xe_hinh_thuc_status_text($result);
-  $result['phieu_tra_khach_hang'] = $phieu_tra_khach_status !== NULL ? $phieu_tra_khach_status : _ke_hoach_xep_xe_phieu_tra_khach_status($result['nid'], $result['trang_thai_van_chuyen'], $nid_khach_hang);
   unset($result['nid_khach_hang'], $result['nid_lai_xe'], $result['nid_phuong_tien'], $result['nid_mooc']);
 
   return $result;
@@ -688,109 +687,6 @@ function _ke_hoach_xep_xe_hinh_thuc_status_text($row) {
     return 'Kéo lên';
   }
   return '';
-}
-
-function _ke_hoach_xep_xe_phieu_tra_khach_status($nid_ke_hoach, $trang_thai_van_chuyen, $nid_khach_hang) {
-  $status = array(
-    'co_the_tao_phieu' => $trang_thai_van_chuyen === 'Hoàn thành' && (int) $nid_khach_hang > 0,
-    'trang_thai_duyet' => '',
-    'trang_thai_label' => $trang_thai_van_chuyen === 'Hoàn thành' ? 'Chưa xuất' : 'Chưa hoàn thành',
-    'nid_phieu_tra_khach_hang' => 0,
-    'ma_phieu' => '',
-    'so_hoa_don' => '',
-  );
-  if (!db_table_exists('phieu_tra_khach_hang') || !db_table_exists('phieu_tra_khach_hang_ke_hoach')) {
-    return $status;
-  }
-
-  $query = db_select('phieu_tra_khach_hang_ke_hoach', 'l');
-  $query->innerJoin('phieu_tra_khach_hang', 'p', 'p.nid = l.nid_phieu_tra_khach_hang AND p.hoat_dong = 1');
-  $row = $query
-    ->fields('p', array('nid', 'ma_phieu', 'so_hoa_don', 'trang_thai_duyet'))
-    ->condition('l.nid_ke_hoach', (int) $nid_ke_hoach)
-    ->condition('l.hoat_dong', 1)
-    ->orderBy('l.id', 'DESC')
-    ->range(0, 1)
-    ->execute()
-    ->fetch();
-
-  if (!$row) {
-    return $status;
-  }
-
-  $status['nid_phieu_tra_khach_hang'] = (int) $row->nid;
-  $status['ma_phieu'] = (string) $row->ma_phieu;
-  $status['so_hoa_don'] = (string) $row->so_hoa_don;
-  $status['trang_thai_duyet'] = (string) $row->trang_thai_duyet;
-  if ($status['trang_thai_duyet'] === 'da_duyet') {
-    $status['trang_thai_label'] = 'Đã xuất hóa đơn';
-    $status['co_the_tao_phieu'] = FALSE;
-  }
-  elseif ($status['trang_thai_duyet'] === 'chua_duyet') {
-    $status['trang_thai_label'] = 'Chờ khách duyệt';
-    $status['co_the_tao_phieu'] = FALSE;
-  }
-  elseif ($status['trang_thai_duyet'] === 'khong_duyet') {
-    $status['trang_thai_label'] = 'Không duyệt';
-    $status['co_the_tao_phieu'] = $trang_thai_van_chuyen === 'Hoàn thành' && (int) $nid_khach_hang > 0;
-  }
-
-  return $status;
-}
-
-function _ke_hoach_xep_xe_phieu_tra_khach_status_map($rows) {
-  $map = array();
-  $ids = array();
-  foreach ($rows as $row) {
-    $id = (int) $row->nid;
-    $ids[] = $id;
-    $nid_khach_hang = !empty($row->nid_khach_hang) ? (int) $row->nid_khach_hang : 0;
-    $trang_thai_van_chuyen = !empty($row->trang_thai_van_chuyen) ? (string) $row->trang_thai_van_chuyen : '';
-    $map[$id] = array(
-      'co_the_tao_phieu' => $trang_thai_van_chuyen === 'Hoàn thành' && $nid_khach_hang > 0,
-      'trang_thai_duyet' => '',
-      'trang_thai_label' => $trang_thai_van_chuyen === 'Hoàn thành' ? 'Chưa xuất' : 'Chưa hoàn thành',
-      'nid_phieu_tra_khach_hang' => 0,
-      'ma_phieu' => '',
-      'so_hoa_don' => '',
-    );
-  }
-  $ids = array_values(array_unique(array_filter($ids)));
-  if (empty($ids) || !db_table_exists('phieu_tra_khach_hang') || !db_table_exists('phieu_tra_khach_hang_ke_hoach')) {
-    return $map;
-  }
-
-  $query = db_select('phieu_tra_khach_hang_ke_hoach', 'l');
-  $query->innerJoin('phieu_tra_khach_hang', 'p', 'p.nid = l.nid_phieu_tra_khach_hang AND p.hoat_dong = 1');
-  $result = $query
-    ->fields('l', array('nid_ke_hoach'))
-    ->fields('p', array('nid', 'ma_phieu', 'so_hoa_don', 'trang_thai_duyet'))
-    ->condition('l.nid_ke_hoach', $ids, 'IN')
-    ->condition('l.hoat_dong', 1)
-    ->orderBy('l.id', 'ASC')
-    ->execute();
-
-  foreach ($result as $row) {
-    $id = (int) $row->nid_ke_hoach;
-    if (!isset($map[$id])) continue;
-    $map[$id]['nid_phieu_tra_khach_hang'] = (int) $row->nid;
-    $map[$id]['ma_phieu'] = (string) $row->ma_phieu;
-    $map[$id]['so_hoa_don'] = (string) $row->so_hoa_don;
-    $map[$id]['trang_thai_duyet'] = (string) $row->trang_thai_duyet;
-    if ($map[$id]['trang_thai_duyet'] === 'da_duyet') {
-      $map[$id]['trang_thai_label'] = 'Đã xuất hóa đơn';
-      $map[$id]['co_the_tao_phieu'] = FALSE;
-    }
-    elseif ($map[$id]['trang_thai_duyet'] === 'chua_duyet') {
-      $map[$id]['trang_thai_label'] = 'Chờ khách duyệt';
-      $map[$id]['co_the_tao_phieu'] = FALSE;
-    }
-    elseif ($map[$id]['trang_thai_duyet'] === 'khong_duyet') {
-      $map[$id]['trang_thai_label'] = 'Không duyệt';
-    }
-  }
-
-  return $map;
 }
 
 function _ke_hoach_xep_xe_statuses() {
@@ -931,9 +827,8 @@ function _ke_hoach_xep_xe_rest_list() {
   $rows = $query->execute()->fetchAll();
 
   $items = array();
-  $phieu_status_map = _ke_hoach_xep_xe_phieu_tra_khach_status_map($rows);
   foreach ($rows as $row) {
-    $items[] = _ke_hoach_xep_xe_enrich_row($row, TRUE, isset($phieu_status_map[(int) $row->nid]) ? $phieu_status_map[(int) $row->nid] : NULL);
+    $items[] = _ke_hoach_xep_xe_enrich_row($row, TRUE);
   }
 
   $total_pages = (int) ceil($total / $limit);

@@ -11,11 +11,6 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
 
   <div class="card-body">
     <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-3">
-      <?php if (!$is_tuyen_xa): ?>
-      <button type="button" class="btn btn-label-success btn-create-phieu-tra-khach" disabled>
-        <i class="ti tabler-file-invoice me-1"></i>Tạo phiếu trả KH <span class="badge bg-white text-success ms-1" id="khxh-selected-count">0</span>
-      </button>
-      <?php endif; ?>
       <button type="button" class="btn btn-label-primary" data-bs-toggle="modal" data-bs-target="#ke-hoach-search-modal">
         <i class="ti tabler-search me-1"></i>Tìm kiếm
       </button>
@@ -31,7 +26,6 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
     <div class="table-responsive">
       <table class="table table-bordered table-hover mb-0 khxh-list-table">
         <colgroup>
-          <col class="khxh-col-select">
           <col class="khxh-col-actions">
           <col class="khxh-col-stt">
           <col class="khxh-col-date">
@@ -44,11 +38,9 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
           <col class="khxh-col-cang">
           <col class="khxh-col-date">
           <col class="khxh-col-status">
-          <col class="khxh-col-invoice-status">
         </colgroup>
         <thead class="table-light">
           <tr>
-            <th class="text-center"><input class="form-check-input" type="checkbox" id="khxh-check-all"></th>
             <th style="width:60px;text-align:center">CN</th>
             <th>#</th>
             <th>Ngày</th>
@@ -61,12 +53,11 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
             <th>Cảng xuất</th>
             <th>Cut off</th>
             <th>T.Thái</th>
-            <th>Phiếu trả KH</th>
           </tr>
         </thead>
         <tbody id="list-body">
           <tr id="loading-row">
-            <td colspan="14" class="text-center py-4">
+            <td colspan="12" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
