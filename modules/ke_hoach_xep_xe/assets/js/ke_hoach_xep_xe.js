@@ -12,7 +12,7 @@
   var currentStatus = '';
   var currentFilters = {};
   var FORM_DROPDOWN_CACHE_KEY = 'ke_hoach_xep_xe_form_dropdowns_v1';
-  var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v1';
+  var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v2';
   var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
   var formDropdownCacheMemory = null;
   var detachedCreateFormApp = null;
@@ -144,6 +144,106 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function phieuTraKhachBadge(row) {
+    var info = row.phieu_tra_khach_hang || {};
+    var status = info.trang_thai_duyet || '';
+    var label = info.trang_thai_label || 'Chưa xuất';
+    var badgeClass = 'bg-label-secondary';
+    if (info.co_the_tao_phieu) badgeClass = 'bg-label-success';
+    else if (status === 'chua_duyet') badgeClass = 'bg-label-warning';
+    else if (status === 'da_duyet') badgeClass = 'bg-label-primary';
+    else if (status === 'khong_duyet') badgeClass = 'bg-label-danger';
+    var note = info.ma_phieu ? '<div class="small text-muted mt-1">' + escHtml(info.ma_phieu) + (info.so_hoa_don ? ' - HĐ ' + escHtml(info.so_hoa_don) : '') + '</div>' : '';
+    return '<span class="badge ' + badgeClass + '">' + escHtml(label) + '</span>' + note;
+  }
+
+  function updateBulkPhieuTraKhachState() {
+    var count = $('.khxh-plan-check:checked').length;
+    $('#khxh-selected-count').text(count);
+    $('.btn-create-phieu-tra-khach').prop('disabled', count === 0);
+    var totalEnabled = $('.khxh-plan-check:not(:disabled)').length;
+    $('#khxh-check-all').prop('checked', totalEnabled > 0 && count === totalEnabled);
+  }
+
+  function selectedPlanPayload() {
+    var ids = [];
+    var customerId = 0;
+    var customerName = '';
+    var mismatch = false;
+    $('.khxh-plan-check:checked').each(function () {
+      var $check = $(this);
+      var id = parseInt($check.val(), 10) || 0;
+      var rowCustomerId = parseInt($check.attr('data-customer-id'), 10) || 0;
+      if (id) ids.push(id);
+      if (!customerId) {
+        customerId = rowCustomerId;
+        customerName = $check.attr('data-customer-name') || '';
+      }
+      else if (customerId !== rowCustomerId) {
+        mismatch = true;
+      }
+    });
+    return { ids: ids, customerId: customerId, customerName: customerName, mismatch: mismatch };
+  }
+
+  function createPhieuTraKhachFromSelected() {
+    var payload = selectedPlanPayload();
+    if (!payload.ids.length) {
+      if (notyf) notyf.error('Vui lòng chọn kế hoạch cần tạo phiếu trả khách hàng');
+      return;
+    }
+    if (payload.mismatch || !payload.customerId) {
+      if (notyf) notyf.error('Các kế hoạch được chọn phải cùng một khách hàng');
+      return;
+    }
+    var doCreate = function () {
+      $('.btn-create-phieu-tra-khach').prop('disabled', true);
+      $.ajax({
+        url: '/api/phieu-tra-khach-hang',
+        type: 'POST',
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'json',
+        data: JSON.stringify({
+          nid_khach_hang: payload.customerId,
+          nid_ke_hoach: payload.ids
+        }),
+        success: function (res) {
+          if (res.status === 'success') {
+            var code = res.data && res.data.ma_phieu ? res.data.ma_phieu : '';
+            if (notyf) notyf.success('Đã tạo phiếu trả khách hàng' + (code ? ': ' + code : ''));
+            loadList();
+          }
+          else if (notyf) {
+            notyf.error(res.message || 'Tạo phiếu trả khách hàng thất bại');
+          }
+        },
+        error: function (jqXHR) {
+          if (notyf) notyf.error(apiMsg(jqXHR));
+        },
+        complete: function () {
+          updateBulkPhieuTraKhachState();
+        }
+      });
+    };
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: 'Tạo phiếu trả khách hàng?',
+        text: 'Tạo phiếu cho ' + payload.ids.length + ' kế hoạch của ' + (payload.customerName || 'khách hàng đã chọn') + '.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Tạo phiếu',
+        cancelButtonText: 'Huỷ',
+        customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-label-secondary ms-1' },
+        buttonsStyling: false
+      }).then(function (result) {
+        if (result.isConfirmed) doCreate();
+      });
+    }
+    else if (confirm('Tạo phiếu trả khách hàng cho ' + payload.ids.length + ' kế hoạch đã chọn?')) {
+      doCreate();
+    }
   }
 
   function apiToDate(val) {
@@ -768,6 +868,7 @@
         $('#pagination-wrap').replaceWith(snapshot.paginationWrapHtml);
       }
       clearForceReloadList();
+      updateBulkPhieuTraKhachState();
       return true;
     }
 
@@ -837,6 +938,15 @@
       clearListFilters();
       currentPage = 1;
       loadList();
+    });
+    $(document).on('change', '#khxh-check-all', function () {
+      $('.khxh-plan-check:not(:disabled)').prop('checked', this.checked);
+      updateBulkPhieuTraKhachState();
+    });
+    $(document).on('change', '.khxh-plan-check', updateBulkPhieuTraKhachState);
+    $(document).on('click', '.btn-create-phieu-tra-khach', function (e) {
+      e.preventDefault();
+      createPhieuTraKhachFromSelected();
     });
     $('#pagination-jump').on('keypress', function (e) {
       if (e.which === 13) {
@@ -931,7 +1041,9 @@
 
   function loadList() {
     var tbody = document.getElementById('list-body');
-    tbody.innerHTML = '<tr id="loading-row"><td colspan="12" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
+    $('#khxh-check-all').prop('checked', false);
+    updateBulkPhieuTraKhachState();
+    tbody.innerHTML = '<tr id="loading-row"><td colspan="14" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
     var params = { page: currentPage, loai_ke_hoach: currentPlanType() };
     if (currentKeyword) params.keyword = currentKeyword;
     if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
@@ -944,14 +1056,14 @@
       success: function (res) {
         $('#loading-row').remove();
         if (res.status !== 'success' || !res.data) {
-          tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="14" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
           return;
         }
         var resp = res.data;
         var items = resp.items || [];
         var pageSize = resp.limit || 20;
         if (!items.length) {
-          tbody.innerHTML = '<tr><td colspan="12" class="text-center py-4">Không có dữ liệu</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="14" class="text-center py-4">Không có dữ liệu</td></tr>';
           renderPagination(resp);
           return;
         }
@@ -962,6 +1074,9 @@
           var stt = (resp.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(row);
           var khName = (row.khach_hang && row.khach_hang.ten) || '';
+          var khId = row.khach_hang && row.khach_hang.nid ? parseInt(row.khach_hang.nid, 10) || 0 : 0;
+          var ptkh = row.phieu_tra_khach_hang || {};
+          var canCreatePhieu = !!ptkh.co_the_tao_phieu;
           var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + (HINH_THUC_COLOR[row.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</span>' : '';
           var hinhThucStatus = '';
           if (row.is_cont_keo_ve || row.hinh_thuc_van_tai === 'dong_hang_trong_ngay') {
@@ -974,6 +1089,7 @@
             contHtml += (contHtml ? ' - ' : '') + escHtml(row.so_cont);
           }
           html += '<tr>' +
+            '<td class="text-center"><input class="form-check-input khxh-plan-check" type="checkbox" value="' + row.nid + '" data-customer-id="' + khId + '" data-customer-name="' + escHtml(khName) + '"' + (canCreatePhieu ? '' : ' disabled') + '></td>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
             '<td class="khxh-date-cell">' + formatDateBadge(row.created) + '</td>' +
@@ -1002,9 +1118,11 @@
             '<td class="khxh-cang-cell">' + escHtml(row.cang_xuat || '') + '</td>' +
             '<td class="khxh-date-cell">' + cutOffBadge(row.cut_off) + '</td>' +
             '<td class="khxh-status-cell"><span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</span></td>' +
+            '<td class="khxh-phieu-cell">' + phieuTraKhachBadge(row) + '</td>' +
             '</tr>';
         }
         tbody.innerHTML = html;
+        updateBulkPhieuTraKhachState();
         renderPagination(resp);
         if ($('#ke-hoach-list-app').length) {
           setListSnapshot({
@@ -1018,7 +1136,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });

@@ -1,0 +1,357 @@
+<?php
+
+/**
+ * @file
+ * Công nợ khách hàng.
+ */
+
+function cong_no_khach_hang_permission() {
+  return array(
+    'cong_no_khach_hang_view' => array('title' => t('Xem công nợ khách hàng')),
+    'cong_no_khach_hang_pay' => array('title' => t('Thanh toán công nợ khách hàng')),
+  );
+}
+
+function cong_no_khach_hang_menu() {
+  $items = array();
+  $items['api/cong-no-khach-hang'] = array(
+    'page callback' => 'cong_no_khach_hang_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/cong-no-khach-hang/thanh-toan'] = array(
+    'page callback' => 'cong_no_khach_hang_payment_api',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['cong-no-khach-hang'] = array(
+    'title' => 'Công nợ khách hàng',
+    'page callback' => 'cong_no_khach_hang_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+function cong_no_khach_hang_theme() {
+  $path = drupal_get_path('module', 'cong_no_khach_hang') . '/templates';
+  return array(
+    'cong_no_khach_hang_list_page' => array(
+      'template' => 'cong-no-khach-hang-list',
+      'path' => $path,
+    ),
+  );
+}
+
+function cong_no_khach_hang_page_list() {
+  drupal_add_css(drupal_get_path('module', 'cong_no_khach_hang') . '/assets/css/cong_no_khach_hang.css');
+  drupal_add_js(drupal_get_path('module', 'cong_no_khach_hang') . '/assets/js/cong_no_khach_hang.js', array('group' => JS_THEME, 'weight' => 5));
+  drupal_add_js(array('cong_no_khach_hang' => array(
+    'permissions' => array(
+      'view' => user_access('cong_no_khach_hang_view'),
+      'pay' => user_access('cong_no_khach_hang_pay'),
+    ),
+  )), 'setting');
+  return theme('cong_no_khach_hang_list_page');
+}
+
+function _cnkh_input() {
+  $data = json_decode(file_get_contents('php://input'), TRUE);
+  return is_array($data) ? $data : array();
+}
+
+function _cnkh_success($data = NULL) {
+  $res = array('status' => 'success');
+  if ($data !== NULL) $res['data'] = $data;
+  return $res;
+}
+
+function _cnkh_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _cnkh_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _cnkh_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function _cnkh_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+function _cnkh_money($value) {
+  if (is_numeric($value)) return (int) round($value);
+  $value = preg_replace('/[^\d-]/', '', (string) $value);
+  return $value === '' || $value === '-' ? 0 : (int) $value;
+}
+
+function _cnkh_json_decode($value) {
+  $data = json_decode((string) $value, TRUE);
+  return is_array($data) ? $data : array();
+}
+
+function _cnkh_json_encode($data) {
+  $options = defined('JSON_UNESCAPED_UNICODE') ? JSON_UNESCAPED_UNICODE : 0;
+  return !empty($data) ? json_encode($data, $options) : '';
+}
+
+function _cnkh_month($value) {
+  $value = preg_replace('/[^0-9]/', '', (string) $value);
+  return strlen($value) === 6 ? $value : '';
+}
+
+function _cnkh_customer_name($nid) {
+  $nid = (int) $nid;
+  if (!$nid) return '';
+  if (db_table_exists('khach_hang')) {
+    $name = db_select('khach_hang', 'kh')->fields('kh', array('ten'))->condition('kh.nid', $nid)->range(0, 1)->execute()->fetchField();
+    if ($name !== FALSE && $name !== '') return (string) $name;
+  }
+  return 'Khách hàng #' . $nid;
+}
+
+function _cnkh_status($total, $paid) {
+  $total = _cnkh_money($total);
+  $paid = _cnkh_money($paid);
+  if ($total > 0 && $paid >= $total) return 'da_thanh_toan';
+  if ($paid > 0) return 'thanh_toan_mot_phan';
+  return 'chua_thanh_toan';
+}
+
+function cong_no_khach_hang_rest_collection() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _cnkh_method_not_allowed('GET');
+  if (!user_access('cong_no_khach_hang_view')) return _cnkh_unauthorized('Bạn không có quyền xem công nợ khách hàng');
+  return _cnkh_report();
+}
+
+function _cnkh_report() {
+  if (!db_table_exists('phieu_tra_khach_hang')) return _cnkh_error('Chưa có bảng phieu_tra_khach_hang');
+  $month = !empty($_GET['thang_hach_toan']) ? _cnkh_month($_GET['thang_hach_toan']) : '';
+  $customer_id = !empty($_GET['nid_khach_hang']) ? (int) $_GET['nid_khach_hang'] : 0;
+  $query = db_select('phieu_tra_khach_hang', 'p')->fields('p')->condition('p.hoat_dong', 1)->condition('p.trang_thai_duyet', 'da_duyet');
+  if ($month) $query->condition('p.thang_hach_toan', $month);
+  if ($customer_id) $query->condition('p.nid_khach_hang', $customer_id);
+  $rows = $query->orderBy('p.thang_hach_toan', 'DESC')->orderBy('p.nid_khach_hang', 'ASC')->execute()->fetchAll();
+  $groups = array();
+  foreach ($rows as $row) {
+    $key = (int) $row->nid_khach_hang . ':' . (string) $row->thang_hach_toan;
+    if (!isset($groups[$key])) {
+      $groups[$key] = array(
+        'nid_khach_hang' => (int) $row->nid_khach_hang,
+        'khach_hang' => _cnkh_customer_name($row->nid_khach_hang),
+        'thang_hach_toan' => (string) $row->thang_hach_toan,
+        'tong_phai_thu' => 0,
+        'da_thanh_toan' => 0,
+        'con_lai' => 0,
+        'so_phieu' => 0,
+        'trang_thai' => 'chua_thanh_toan',
+        'items' => array(),
+      );
+    }
+    $total = (int) $row->tong_tien;
+    $paid = (int) $row->da_thanh_toan;
+    $remaining = max($total - $paid, 0);
+    $groups[$key]['tong_phai_thu'] += $total;
+    $groups[$key]['da_thanh_toan'] += $paid;
+    $groups[$key]['con_lai'] += $remaining;
+    $groups[$key]['so_phieu']++;
+    $groups[$key]['items'][] = array(
+      'nid' => (int) $row->nid,
+      'ma_phieu' => (string) $row->ma_phieu,
+      'ma_phieu_khach' => (string) $row->ma_phieu_khach,
+      'so_hoa_don' => (string) $row->so_hoa_don,
+      'tong_tien' => $total,
+      'da_thanh_toan' => $paid,
+      'con_lai' => $remaining,
+      'download_url' => url('phieu-tra-khach-hang/tai/' . (int) $row->nid),
+    );
+  }
+  $items = array_values($groups);
+  foreach ($items as &$item) {
+    $item['trang_thai'] = _cnkh_status($item['tong_phai_thu'], $item['da_thanh_toan']);
+  }
+  unset($item);
+  usort($items, function ($a, $b) {
+    if ($a['thang_hach_toan'] === $b['thang_hach_toan']) return strcmp($a['khach_hang'], $b['khach_hang']);
+    return strcmp($b['thang_hach_toan'], $a['thang_hach_toan']);
+  });
+  return _cnkh_success(array('items' => $items, 'total' => count($items)));
+}
+
+function cong_no_khach_hang_payment_api() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _cnkh_method_not_allowed('POST');
+  if (!user_access('cong_no_khach_hang_pay')) return _cnkh_unauthorized('Bạn không có quyền thanh toán công nợ khách hàng');
+  return _cnkh_create_payment();
+}
+
+function _cnkh_load_vouchers_for_payment(array $voucher_ids, $customer_id, $month) {
+  $voucher_ids = array_values(array_unique(array_filter(array_map('intval', $voucher_ids))));
+  if (empty($voucher_ids)) return array();
+  $rows = db_select('phieu_tra_khach_hang', 'p')->fields('p')
+    ->condition('p.nid', $voucher_ids, 'IN')
+    ->condition('p.nid_khach_hang', (int) $customer_id)
+    ->condition('p.thang_hach_toan', (string) $month)
+    ->condition('p.trang_thai_duyet', 'da_duyet')
+    ->condition('p.hoat_dong', 1)
+    ->orderBy('p.nid', 'ASC')
+    ->execute()->fetchAll();
+  return $rows;
+}
+
+function _cnkh_build_allocations(array $vouchers, $amount) {
+  $left = _cnkh_money($amount);
+  $allocations = array();
+  foreach ($vouchers as $row) {
+    if ($left <= 0) break;
+    $remaining = max((int) $row->tong_tien - (int) $row->da_thanh_toan, 0);
+    if ($remaining <= 0) continue;
+    $pay = min($remaining, $left);
+    $left -= $pay;
+    $allocations[] = array(
+      'phieu_tra_khach_hang_nid' => (int) $row->nid,
+      'voucher_nid' => (int) $row->nid,
+      'ma_phieu' => (string) $row->ma_phieu,
+      'tong_phai_thu' => (int) $row->tong_tien,
+      'da_thu_truoc_phieu' => (int) $row->da_thanh_toan,
+      'con_lai_truoc_phieu' => $remaining,
+      'so_tien_thanh_toan' => $pay,
+      'so_tien' => $pay,
+      'con_lai_sau_thanh_toan' => max($remaining - $pay, 0),
+    );
+  }
+  return $allocations;
+}
+
+function _cnkh_create_payment() {
+  global $user;
+  $input = _cnkh_input();
+  $customer_id = !empty($input['nid_khach_hang']) ? (int) $input['nid_khach_hang'] : 0;
+  $month = !empty($input['thang_hach_toan']) ? _cnkh_month($input['thang_hach_toan']) : '';
+  $amount = isset($input['so_tien']) ? _cnkh_money($input['so_tien']) : 0;
+  $nid_quy = !empty($input['nid_quy']) ? (int) $input['nid_quy'] : 0;
+  $voucher_ids = !empty($input['voucher_ids']) && is_array($input['voucher_ids']) ? $input['voucher_ids'] : array();
+  if (!$customer_id || !$month || $amount <= 0 || !$nid_quy || empty($voucher_ids)) {
+    return _cnkh_fail('Thiếu khách hàng, tháng hạch toán, quỹ, số tiền hoặc phiếu cần thanh toán');
+  }
+  if (!module_exists('thu_chi')) return _cnkh_fail('Module thu_chi chưa được bật');
+  module_load_include('module', 'thu_chi');
+  if (!function_exists('thu_chi_giao_dich_save_values') || !function_exists('thu_chi_approve_giao_dich')) {
+    return _cnkh_fail('Không tìm thấy hàm tạo/duyệt phiếu thu chi');
+  }
+  $vouchers = _cnkh_load_vouchers_for_payment($voucher_ids, $customer_id, $month);
+  if (empty($vouchers)) return _cnkh_fail('Không có phiếu trả khách hợp lệ để thanh toán');
+  $allocations = _cnkh_build_allocations($vouchers, $amount);
+  if (empty($allocations)) return _cnkh_fail('Các phiếu đã được thanh toán đủ');
+  $allocated_total = 0;
+  $allocated_ids = array();
+  foreach ($allocations as $row) {
+    $allocated_total += (int) $row['so_tien_thanh_toan'];
+    $allocated_ids[] = (int) $row['phieu_tra_khach_hang_nid'];
+  }
+  $category_id = function_exists('thu_chi_get_or_create_category_node') ? (int) thu_chi_get_or_create_category_node('Công nợ khách hàng') : 0;
+  $noi_dung = function_exists('thu_chi_get_or_create_noi_dung_node') ? (int) thu_chi_get_or_create_noi_dung_node('Thanh toán công nợ khách hàng') : 'Thanh toán công nợ khách hàng';
+  $values = array(
+    'loai_phieu' => 'thu',
+    'loai_giao_dich' => $category_id ? array($category_id) : array('Công nợ khách hàng'),
+    'nid_quy' => $nid_quy,
+    'ngay_giao_dich' => !empty($input['ngay_giao_dich']) ? $input['ngay_giao_dich'] : date('d/m/Y'),
+    'thang_luong' => $month,
+    'nid_khach_hang' => $customer_id,
+    'uid_nguoi_de_xuat' => !empty($input['uid_nguoi_de_xuat']) ? (int) $input['uid_nguoi_de_xuat'] : (isset($user->uid) ? (int) $user->uid : 0),
+    'nhom_giao_dich' => 'cong_no_khach_hang',
+    'ref_type' => 'cong_no_khach_hang',
+    'nid_ref' => $customer_id,
+    'chi_tiet' => array(array(
+      'noi_dung' => $noi_dung,
+      'don_gia' => $allocated_total,
+      'so_luong' => 1,
+      'don_vi_tinh' => 'lần',
+      'vat' => 0,
+    )),
+  );
+  $transaction = db_transaction();
+  try {
+    $result = thu_chi_giao_dich_save_values($values);
+    if (empty($result['success']) || empty($result['gd_id'])) {
+      throw new Exception(!empty($result['message']) ? $result['message'] : 'Không tạo được phiếu thu');
+    }
+    $gd_id = (int) $result['gd_id'];
+    $gd = thu_chi_giao_dich_load($gd_id, TRUE);
+    $json = _cnkh_json_decode($gd->thong_tin_json);
+    $json['phieu_tra_khach_hang_nids'] = $allocated_ids;
+    $json['voucher_nids'] = $allocated_ids;
+    $json['phan_bo_phieu_tra_khach_hang'] = $allocations;
+    $json['voucher_allocations'] = $allocations;
+    $json['created_from'] = 'cong_no_khach_hang';
+    db_update('qltc_phieu_thu_chi')->fields(array('thong_tin_json' => _cnkh_json_encode($json), 'changed' => REQUEST_TIME))->condition('nid', $gd_id)->execute();
+    $approve = thu_chi_approve_giao_dich($gd_id, 'duyet');
+    if (empty($approve['success'])) {
+      throw new Exception(!empty($approve['message']) ? $approve['message'] : 'Không duyệt được phiếu thu');
+    }
+    _cnkh_sync_voucher_payment_status($allocated_ids);
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('cong_no_khach_hang', 'Lỗi thanh toán công nợ: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _cnkh_fail($e->getMessage());
+  }
+  return _cnkh_success(array('nid_phieu_thu_chi' => $gd_id, 'so_tien' => $allocated_total, 'message' => 'Đã tạo và duyệt phiếu thu công nợ'));
+}
+
+function _cnkh_payment_paid_map(array $voucher_ids) {
+  $voucher_ids = array_values(array_unique(array_filter(array_map('intval', $voucher_ids))));
+  $map = array();
+  foreach ($voucher_ids as $id) $map[$id] = 0;
+  if (empty($voucher_ids) || !db_table_exists('qltc_phieu_thu_chi')) return $map;
+  $query = db_select('qltc_phieu_thu_chi', 'p')->fields('p', array('thong_tin_json'))->condition('p.hoat_dong', 1)->condition('p.duyet_status', 'da_duyet');
+  $or = db_or();
+  foreach ($voucher_ids as $id) {
+    $or->condition('p.thong_tin_json', '%"phieu_tra_khach_hang_nid":' . $id . '%', 'LIKE');
+    $or->condition('p.thong_tin_json', '%"voucher_nid":' . $id . '%', 'LIKE');
+  }
+  $query->condition($or);
+  foreach ($query->execute() as $record) {
+    $json = _cnkh_json_decode($record->thong_tin_json);
+    $rows = array();
+    foreach (array('phan_bo_phieu_tra_khach_hang', 'voucher_allocations') as $key) {
+      if (!empty($json[$key]) && is_array($json[$key])) {
+        $rows = $json[$key];
+        break;
+      }
+    }
+    foreach ($rows as $row) {
+      if (!is_array($row)) continue;
+      $vid = !empty($row['phieu_tra_khach_hang_nid']) ? (int) $row['phieu_tra_khach_hang_nid'] : (!empty($row['voucher_nid']) ? (int) $row['voucher_nid'] : 0);
+      if (!$vid || !isset($map[$vid])) continue;
+      $map[$vid] += !empty($row['so_tien_thanh_toan']) ? _cnkh_money($row['so_tien_thanh_toan']) : _cnkh_money(isset($row['so_tien']) ? $row['so_tien'] : 0);
+    }
+  }
+  return $map;
+}
+
+function _cnkh_sync_voucher_payment_status(array $voucher_ids) {
+  $paid_map = _cnkh_payment_paid_map($voucher_ids);
+  foreach ($paid_map as $id => $paid) {
+    $row = db_select('phieu_tra_khach_hang', 'p')->fields('p')->condition('p.nid', (int) $id)->execute()->fetchObject();
+    if (!$row) continue;
+    $total = (int) $row->tong_tien;
+    $paid = min(max((int) $paid, 0), $total);
+    $remaining = max($total - $paid, 0);
+    db_update('phieu_tra_khach_hang')->fields(array(
+      'da_thanh_toan' => $paid,
+      'con_lai_thanh_toan' => $remaining,
+      'trang_thai_thanh_toan' => _cnkh_status($total, $paid),
+      'changed' => date('Y-m-d H:i:s'),
+    ))->condition('nid', (int) $id)->execute();
+  }
+}

@@ -1,0 +1,6 @@
+name = Công nợ khách hàng
+description = Theo dõi công nợ khách hàng từ phiếu trả khách hàng và thanh toán qua thu chi.
+core = 7.x
+package = ANDIN JSC API
+version = 7.x-1.0
+

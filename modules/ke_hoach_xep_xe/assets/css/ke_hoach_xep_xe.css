@@ -12,6 +12,7 @@
   table-layout: fixed;
 }
 
+.khxh-list-table .khxh-col-select { width: 36px; }
 .khxh-list-table .khxh-col-actions { width: 35px; }
 .khxh-list-table .khxh-col-stt { width: 33px; }
 .khxh-list-table .khxh-col-date { width: 73px; }
@@ -23,15 +24,16 @@
 .khxh-list-table .khxh-col-route { width: 110px; }
 .khxh-list-table .khxh-col-cang { width: 110px; }
 .khxh-list-table .khxh-col-status { width: 110px; }
+.khxh-list-table .khxh-col-invoice-status { width: 120px; }
 
 .khxh-list-table th {
   white-space: nowrap;
 }
 
-#ke-hoach-list-app .khxh-list-table th:nth-child(3),
-#ke-hoach-list-app .khxh-list-table td:nth-child(3),
-#ke-hoach-list-app .khxh-list-table th:nth-child(11),
-#ke-hoach-list-app .khxh-list-table td:nth-child(11) {
+#ke-hoach-list-app .khxh-list-table th:nth-child(4),
+#ke-hoach-list-app .khxh-list-table td:nth-child(4),
+#ke-hoach-list-app .khxh-list-table th:nth-child(12),
+#ke-hoach-list-app .khxh-list-table td:nth-child(12) {
   width: 92px;
   min-width: 92px;
   max-width: 92px;
@@ -39,9 +41,15 @@
   text-align: center;
 }
 
-#ke-hoach-list-app .khxh-list-table td:first-child {
+#ke-hoach-list-app .khxh-list-table td:first-child,
+#ke-hoach-list-app .khxh-list-table td:nth-child(2) {
   padding-left: 0;
   padding-right: 0;
+}
+
+.khxh-phieu-cell .badge {
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .khxh-date-badge {

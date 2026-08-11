@@ -1,0 +1,13 @@
+.ptkh-page .table td,
+.ptkh-page .table th { vertical-align: middle; }
+.ptkh-money { font-variant-numeric: tabular-nums; }
+.ptkh-total-box { min-width: 140px; border: 1px solid #e6e6f0; border-radius: 6px; padding: 8px 12px; background: #fff; text-align: right; }
+.ptkh-total-box span { display:block; color:#6f6b7d; font-size:12px; }
+.ptkh-total-box strong { font-size:16px; }
+.ptkh-candidate-disabled { background:#f8f8fb; }
+.ptkh-candidate-disabled td { color:#6f6b7d; }
+.ptkh-detail-summary { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.ptkh-detail-summary > div { border:1px solid #e6e6f0; border-radius:6px; padding:10px 12px; background:#fff; }
+.ptkh-detail-summary span { display:block; color:#6f6b7d; font-size:12px; }
+.ptkh-detail-summary strong { display:block; margin-top:4px; }
+@media (max-width: 767.98px) { .ptkh-detail-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

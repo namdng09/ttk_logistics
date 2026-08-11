@@ -1,0 +1,88 @@
+<?php
+
+/**
+ * @file
+ * Install hooks for Phiếu trả khách hàng.
+ */
+
+function phieu_tra_khach_hang_schema() {
+  $schema['phieu_tra_khach_hang'] = array(
+    'description' => 'Phiếu trả khách hàng.',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'ma_phieu' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'ma_phieu_khach' => array('type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''),
+      'so_hoa_don' => array('type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''),
+      'nid_khach_hang' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'tu_ngay' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
+      'den_ngay' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
+      'thang_hach_toan' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
+      'tong_doanh_thu' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'tong_chi_ho_khach_hang' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'tong_tien' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'da_thanh_toan' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'con_lai_thanh_toan' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'trang_thai_duyet' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'chua_duyet'),
+      'ngay_duyet' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'uid_nguoi_duyet' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'trang_thai_thanh_toan' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'chua_thanh_toan'),
+      'file_url' => array('type' => 'varchar', 'length' => 500, 'not null' => TRUE, 'default' => ''),
+      'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+      'chi_tiet_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      'lich_su_duyet_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      'lich_su_thanh_toan_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+    ),
+    'primary key' => array('nid'),
+    'unique keys' => array(
+      'ma_phieu' => array('ma_phieu'),
+    ),
+    'indexes' => array(
+      'nid_khach_hang' => array('nid_khach_hang'),
+      'thang_hach_toan' => array('thang_hach_toan'),
+      'trang_thai_duyet' => array('trang_thai_duyet'),
+      'trang_thai_thanh_toan' => array('trang_thai_thanh_toan'),
+      'hoat_dong' => array('hoat_dong'),
+      'created' => array('created'),
+    ),
+  );
+
+  $schema['phieu_tra_khach_hang_ke_hoach'] = array(
+    'description' => 'Kế hoạch nằm trong phiếu trả khách hàng.',
+    'fields' => array(
+      'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'nid_phieu_tra_khach_hang' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_ke_hoach' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_khach_hang' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'tong_doanh_thu' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'tong_chi_ho_khach_hang' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'tong_tien' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'thong_tin_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'nid_phieu_tra_khach_hang' => array('nid_phieu_tra_khach_hang'),
+      'nid_ke_hoach' => array('nid_ke_hoach'),
+      'nid_khach_hang' => array('nid_khach_hang'),
+      'hoat_dong' => array('hoat_dong'),
+    ),
+  );
+
+  return $schema;
+}
+
+function phieu_tra_khach_hang_update_7001() {
+  $schema = phieu_tra_khach_hang_schema();
+  foreach ($schema as $table => $definition) {
+    if (!db_table_exists($table)) {
+      db_create_table($table, $definition);
+    }
+  }
+  return 'Đã tạo bảng Phiếu trả khách hàng.';
+}
+

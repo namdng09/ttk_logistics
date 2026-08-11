@@ -135,6 +135,18 @@ function getMainMenuSoft()
                             <div data-i18n="Thu chi">Thu chi</div>
                         </a>
                     </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'phieu-tra-khach-hang') === 0) ? ' active' : '') . '">
+                        <a href="/phieu-tra-khach-hang" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-file-invoice"></i>
+                            <div data-i18n="Phiếu trả KH">Phiếu trả KH</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'cong-no-khach-hang') === 0) ? ' active' : '') . '">
+                        <a href="/cong-no-khach-hang" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-report-money"></i>
+                            <div data-i18n="Công nợ KH">Công nợ KH</div>
+                        </a>
+                    </li>
                     <li class="menu-item' . ((strpos(current_path(), 'so-chi-phi-van-hanh') === 0 || strpos(current_path(), 'giao-dich-ops') === 0) ? ' active' : '') . '">
                         <a href="/so-chi-phi-van-hanh" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-wallet"></i>
