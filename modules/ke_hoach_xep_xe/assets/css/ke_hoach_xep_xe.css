@@ -896,6 +896,10 @@ body .flatpickr-calendar {
   padding: 14px;
 }
 
+.khcp-driver-pay-mode-btn {
+  white-space: nowrap;
+}
+
 .khcp-plan-card {
   margin-bottom: 12px;
   border: 1px solid var(--khcp-border);
@@ -953,6 +957,11 @@ body .flatpickr-calendar {
 
 .khcp-revenue-card {
   margin-bottom: 12px;
+}
+
+.khcp-revenue-card .card-header {
+  min-height: 46px;
+  padding: 8px 12px;
 }
 
 .khcp-dm-header {
@@ -1241,6 +1250,82 @@ body .flatpickr-calendar {
 
 .khcp-summary-card .card-body {
   padding: 8px 14px 14px;
+}
+
+.khcp-oil-card {
+  border: 1px solid var(--khcp-border);
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.khcp-oil-card .card-header {
+  padding: 10px 12px;
+  background: #fff;
+  font-weight: 650;
+}
+
+.khcp-oil-card .card-body {
+  padding: 12px;
+}
+
+.khcp-oil-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.khcp-oil-summary > div {
+  padding: 8px 10px;
+  border: 1px solid #eef0f3;
+  border-radius: 6px;
+  background: #f8f9fa;
+}
+
+.khcp-oil-summary span {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--khcp-muted);
+  font-size: 12px;
+}
+
+.khcp-oil-summary strong {
+  display: block;
+  color: #212529;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.khcp-oil-table .form-control {
+  min-height: 32px;
+  padding: 0.25rem 0.45rem;
+  font-size: 12px;
+}
+
+.khcp-oil-table th:nth-child(1),
+.khcp-oil-table td:nth-child(1) {
+  width: 34%;
+}
+
+.khcp-oil-table th:nth-child(2),
+.khcp-oil-table td:nth-child(2) {
+  width: 22%;
+}
+
+.khcp-oil-table th:nth-child(3),
+.khcp-oil-table td:nth-child(3) {
+  width: 32%;
+}
+
+.khcp-oil-table th:nth-child(4),
+.khcp-oil-table td:nth-child(4) {
+  width: 42px;
+}
+
+#ke-hoach-chi-phi-modal ~ .flatpickr-calendar,
+body > .flatpickr-calendar {
+  z-index: 99999 !important;
 }
 
 .khcp-summary-block,

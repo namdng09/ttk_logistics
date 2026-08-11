@@ -155,7 +155,9 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
         </div>
 
         <div class="d-flex align-items-center gap-2 ms-auto">
-          <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Đóng"></button>
+          <button type="button" class="btn btn-sm khcp-driver-pay-mode-btn" id="khcp-driver-pay-mode-btn" style="display:none;">
+            <i class="ti tabler-cash me-1"></i><span>Chuyến khoán</span>
+          </button>
         </div>
       </div>
 
@@ -165,7 +167,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
         </div>
 
         <div class="row g-3 h-100">
-          <div class="col-12 col-xl-9">
+          <div class="col-12 col-xl-8">
             <div class="card khcp-plan-card">
               <div class="card-body">
                 <div class="khcp-plan-info-grid">
@@ -279,7 +281,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
             </div>
           </div>
 
-          <div class="col-12 col-xl-3">
+          <div class="col-12 col-xl-4">
             <div class="card khcp-summary-card">
               <div class="card-header">Tổng quan</div>
               <div class="card-body">
@@ -311,6 +313,42 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
                 <div class="khcp-summary-total">
                   <div class="khcp-summary-label">Tổng dòng tiền</div>
                   <div class="khcp-summary-value" id="khcp-total-all">0</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card khcp-oil-card mt-3" id="khcp-oil-card" style="display:none;">
+              <div class="card-header">
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                  <span>Đổ dầu tuyến xa</span>
+                  <button type="button" class="btn btn-sm btn-label-primary" id="khcp-oil-add-row">
+                    <i class="ti tabler-plus me-1"></i>Thêm
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="khcp-oil-summary">
+                  <div>
+                    <span>Tổng lít</span>
+                    <strong id="khcp-oil-total-lit">0</strong>
+                  </div>
+                  <div>
+                    <span>Tổng tiền dầu</span>
+                    <strong id="khcp-oil-total-money">0</strong>
+                  </div>
+                </div>
+                <div class="table-responsive khcp-oil-table-wrap" id="khcp-oil-table-wrap">
+                  <table class="table table-bordered table-sm align-middle mb-0 khcp-table khcp-dm-table khcp-oil-table">
+                    <thead>
+                      <tr>
+                        <th>Ngày</th>
+                        <th class="khcp-col-qty">Số lít</th>
+                        <th class="khcp-col-money">Số tiền</th>
+                        <th class="khcp-col-action"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="khcp-oil-table-body"></tbody>
+                  </table>
                 </div>
               </div>
             </div>

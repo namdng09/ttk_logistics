@@ -30,6 +30,8 @@
     locationNames: [],
     dinhMucRoutes: [],
     dinhMucRows: [],
+    oilRows: [],
+    driverPayMode: 'khoan',
     rows: [],
     busy: false,
     tempIndex: 0
@@ -163,6 +165,23 @@
       return String(number);
     }
     return String(Math.round(number * 100) / 100).replace('.', ',');
+  }
+
+  function apiToDate(value) {
+    value = String(value || '').trim();
+    if (!value) return '';
+    var match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return match ? (match[3] + '/' + match[2] + '/' + match[1]) : value;
+  }
+
+  function dateToApi(value) {
+    value = String(value || '').trim();
+    if (!value) return '';
+    var match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (match) {
+      return match[3] + '-' + ('0' + match[2]).slice(-2) + '-' + ('0' + match[1]).slice(-2);
+    }
+    return value.substr(0, 10);
   }
 
   function textOrDash(value) {
@@ -346,6 +365,37 @@
     };
   }
 
+  function normalizeOilRow(item) {
+    item = item || {};
+    return {
+      key: item.key || uid(),
+      ngay: item.ngay || '',
+      so_lit: toNumber(item.so_lit),
+      so_tien: toNumber(item.so_tien)
+    };
+  }
+
+  function isCompanyOilEnabled() {
+    return state.loaiKeHoach === 'tuyen_xa' && state.driverPayMode === 'theo_chuyen';
+  }
+
+  function oilTotalLit() {
+    var total = 0;
+    $.each(state.oilRows || [], function (_, row) {
+      total += toNumber(row.so_lit);
+    });
+    return total;
+  }
+
+  function oilTotalMoney() {
+    if (!isCompanyOilEnabled()) return 0;
+    var total = 0;
+    $.each(state.oilRows || [], function (_, row) {
+      total += toNumber(row.so_tien);
+    });
+    return total;
+  }
+
   function applyDinhMuc(row, force) {
     var amount = findDinhMucAmount(row.diem_dau, row.diem_cuoi, row.trang_thai_xe);
     if (force || !row.manual) {
@@ -401,7 +451,8 @@
       push('Chặng 3', 'h', kho2, end2);
     }
     else if (hinhThuc === 'rut_mooc') {
-      push('Chặng 1', 'h', kho || start, end);
+      push('Chặng 1', 'v', start, kho);
+      push('Chặng 2', 'h', kho, end);
     }
     else if (hinhThuc === 'roi_cont') {
       if (start && kho) push('Chặng 1', 'v', start, kho);
@@ -452,6 +503,14 @@
       if (toNumber(row.dinh_muc) > 0) matched += 1;
     });
     return matched;
+  }
+
+  function dinhMucTotal() {
+    var total = 0;
+    $.each(state.dinhMucRows || [], function (_, row) {
+      total += toNumber(row.dinh_muc);
+    });
+    return total;
   }
 
   function reloadAndRecalcDinhMuc(rebuildFromPlan, targetRow) {
@@ -540,6 +599,13 @@
   function getDinhMucRow(key) {
     for (var i = 0; i < state.dinhMucRows.length; i++) {
       if (state.dinhMucRows[i].key === key) return state.dinhMucRows[i];
+    }
+    return null;
+  }
+
+  function getOilRow(key) {
+    for (var i = 0; i < state.oilRows.length; i++) {
+      if (state.oilRows[i].key === key) return state.oilRows[i];
     }
     return null;
   }
@@ -687,11 +753,10 @@
   }
 
   function updateDinhMucSummary() {
-    var total = 0;
+    var total = dinhMucTotal();
     var matched = 0;
     var missing = 0;
     $.each(state.dinhMucRows || [], function (_, row) {
-      total += toNumber(row.dinh_muc);
       if (toNumber(row.dinh_muc) > 0) matched += 1;
       else missing += 1;
     });
@@ -699,6 +764,7 @@
     $('#khcp-dm-matched').text(matched);
     $('#khcp-dm-missing').text(missing);
     $('#khcp-dm-count').text((state.dinhMucRows || []).length + ' chặng');
+    updateSummary();
   }
 
   function renderDinhMucTable() {
@@ -717,21 +783,97 @@
     updateDinhMucSummary();
   }
 
+  function oilRowTemplate(row, index) {
+    return '' +
+      '<tr data-oil-key="' + escHtml(row.key) + '">' +
+        '<td><input type="text" class="form-control form-control-sm khcp-oil-field khcp-oil-date" data-field="ngay" value="' + escHtml(apiToDate(row.ngay)) + '" placeholder="dd/mm/yyyy"></td>' +
+        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-oil-field decimal-input" data-field="so_lit" value="' + escHtml(formatDecimal(row.so_lit)) + '" placeholder="0"></td>' +
+        '<td><input type="text" inputmode="numeric" class="form-control form-control-sm khcp-oil-field money-input" data-field="so_tien" value="' + formatMoney(row.so_tien) + '" placeholder="0"></td>' +
+        '<td><div class="khcp-row-actions"><button type="button" class="btn btn-sm btn-label-danger btn-oil-delete-row" title="Xoá dòng"><i class="ti tabler-trash"></i></button></div></td>' +
+      '</tr>';
+  }
+
+  function renderOilTable() {
+    var html = '';
+    var enabled = isCompanyOilEnabled();
+    var rows = state.oilRows || [];
+    if (!rows.length) {
+      html = '<tr><td colspan="4" class="text-center text-muted py-3">Chưa có dữ liệu dầu</td></tr>';
+    }
+    else {
+      $.each(rows, function (index, row) {
+        html += oilRowTemplate(row, index);
+      });
+    }
+    $('#khcp-oil-table-body').html(html);
+    $('#khcp-oil-table-wrap, #khcp-oil-add-row').toggle(enabled);
+    $('#khcp-oil-card').toggle(state.loaiKeHoach === 'tuyen_xa');
+    updateOilSummary();
+    $('#khcp-oil-table-body').find('.khcp-oil-date').each(function () {
+      if (typeof flatpickr !== 'undefined') {
+        flatpickr(this, {
+          enableTime: false,
+          dateFormat: 'd/m/Y',
+          allowInput: true,
+          static: false,
+          appendTo: document.body
+        });
+      }
+    });
+  }
+
+  function focusLastOilDatePicker() {
+    window.setTimeout(function () {
+      var input = $('#khcp-oil-table-body tr:last .khcp-oil-date')[0];
+      if (!input) return;
+      input.focus();
+      if (input._flatpickr) {
+        input._flatpickr.open();
+      }
+    }, 0);
+  }
+
+  function updateOilSummary() {
+    var enabled = isCompanyOilEnabled();
+    $('#khcp-oil-table-wrap, #khcp-oil-add-row').toggle(enabled);
+    $('#khcp-oil-card').toggle(state.loaiKeHoach === 'tuyen_xa');
+    updateDriverPayModeButton();
+    $('#khcp-oil-total-lit').text(enabled ? formatDecimal(oilTotalLit()) : '0');
+    $('#khcp-oil-total-money').text(formatMoney(oilTotalMoney()));
+  }
+
+  function updateDriverPayModeButton() {
+    var isTuyenXa = state.loaiKeHoach === 'tuyen_xa';
+    var isTripSalary = state.driverPayMode === 'theo_chuyen';
+    var $btn = $('#khcp-driver-pay-mode-btn');
+    $btn.toggle(isTuyenXa);
+    $btn
+      .toggleClass('btn-label-secondary', !isTripSalary)
+      .toggleClass('btn-label-primary', isTripSalary)
+      .attr('title', isTripSalary ? 'Click để chuyển về chuyến khoán' : 'Click để chuyển sang tính lương theo chuyến')
+      .html(isTripSalary
+        ? '<i class="ti tabler-gas-station me-1"></i><span>Tính lương theo chuyến</span>'
+        : '<i class="ti tabler-cash me-1"></i><span>Chuyến khoán</span>');
+  }
+
   function updateSummary() {
     var company = 0;
     var driverSelf = 0;
-    var driverSalary = 0;
+    var driverSalaryExtra = 0;
     var customer = 0;
     var revenue = 0;
+    var driverSalary = dinhMucTotal();
     var rows = $.grep(state.rows, function (row) { return !isBlankRow(row); });
     $.each(rows, function (_, row) {
       var amount = toNumber(row.tong_sau_vat);
       if (row.loai_chi_phi === 'cong_ty_chi_tra') company += amount;
       if (row.loai_chi_phi === 'lai_xe_tu_chiu') driverSelf += amount;
-      if (row.loai_chi_phi === DRIVER_SALARY_TYPE) driverSalary += amount;
+      if (row.loai_chi_phi === DRIVER_SALARY_TYPE) driverSalaryExtra += amount;
       if (row.loai_chi_phi === 'tinh_cho_khach') customer += amount;
       if (row.loai_chi_phi === REVENUE_TYPE) revenue += amount;
     });
+    company += oilTotalMoney();
+    driverSalary += driverSalaryExtra;
     $('#khcp-revenue-total').text(formatMoney(revenue));
     $('#khcp-total-revenue').text(formatMoney(revenue));
     $('#khcp-total-company').text(formatMoney(company));
@@ -749,6 +891,8 @@
 
   function fillPlanInfo(plan) {
     state.plan = plan || {};
+    state.driverPayMode = state.plan.hinh_thuc_tinh_luong_lai_xe || (state.plan.thong_tin_json && state.plan.thong_tin_json.hinh_thuc_tinh_luong_lai_xe) || 'khoan';
+    if ($.inArray(state.driverPayMode, ['khoan', 'theo_chuyen']) === -1) state.driverPayMode = 'khoan';
     var customer = state.plan.khach_hang && state.plan.khach_hang.ten ? state.plan.khach_hang.ten : '';
     var vehicle = state.plan.phuong_tien && state.plan.phuong_tien.bks ? state.plan.phuong_tien.bks : '';
     var mooc = state.plan.mooc && state.plan.mooc.bks ? state.plan.mooc.bks : '';
@@ -774,6 +918,7 @@
     renderDinhMucTable();
     renderRevenueFields();
     renderTable();
+    renderOilTable();
     updateSummary();
     setBusy(state.busy);
   }
@@ -883,6 +1028,16 @@
       });
   }
 
+  function loadOilRows() {
+    state.oilRows = [];
+    if (!state.nidKeHoach || state.loaiKeHoach !== 'tuyen_xa') return $.Deferred().resolve().promise();
+    return $.getJSON('/api/ke-hoach-tuyen-xa-dau', { nid_ke_hoach: state.nidKeHoach, limit: 100 })
+      .done(function (response) {
+        var items = response && response.data && response.data.items ? response.data.items : [];
+        state.oilRows = $.map(items, function (item) { return normalizeOilRow(item); });
+      });
+  }
+
   function dinhMucPayload() {
     var items = $.map(state.dinhMucRows || [], function (row, index) {
       return {
@@ -894,26 +1049,60 @@
         manual: row.manual ? 1 : 0
       };
     });
-    var total = 0;
-    $.each(items, function (_, item) { total += toNumber(item.dinh_muc); });
     return {
       items: items,
-      tong_khoan: total
+      tong_khoan: dinhMucTotal()
     };
   }
 
   function persistDinhMucRows() {
     if (!state.nidKeHoach) return $.Deferred().resolve({ skipped: true }).promise();
+    var payload = {
+      dinh_muc_khoan_lai_xe: dinhMucPayload()
+    };
+    if (state.loaiKeHoach === 'tuyen_xa') {
+      payload.hinh_thuc_tinh_luong_lai_xe = state.driverPayMode;
+    }
     return $.ajax({
       url: '/api/quan-ly-cont/' + state.nidKeHoach,
       method: 'PUT',
       contentType: 'application/json; charset=utf-8',
       dataType: 'json',
-      data: JSON.stringify({ dinh_muc_khoan_lai_xe: dinhMucPayload() })
+      data: JSON.stringify(payload)
     }).done(function (response) {
       if (response && response.status === 'success' && response.data) {
         fillPlanInfo(response.data);
       }
+    });
+  }
+
+  function oilPayload() {
+    var items = $.map(state.oilRows || [], function (row) {
+      var item = {
+        ngay: dateToApi(row.ngay),
+        so_lit: toNumber(row.so_lit),
+        so_tien: toNumber(row.so_tien)
+      };
+      if (!item.ngay && !item.so_lit && !item.so_tien) return null;
+      return item;
+    });
+    return {
+      nid_ke_hoach: state.nidKeHoach,
+      items: items
+    };
+  }
+
+  function persistOilRows() {
+    if (!state.nidKeHoach || state.loaiKeHoach !== 'tuyen_xa') return $.Deferred().resolve({ skipped: true }).promise();
+    return $.ajax({
+      url: '/api/ke-hoach-tuyen-xa-dau',
+      method: 'POST',
+      contentType: 'application/json; charset=utf-8',
+      dataType: 'json',
+      data: JSON.stringify(oilPayload())
+    }).done(function (response) {
+      var items = response && response.data && response.data.items ? response.data.items : [];
+      state.oilRows = $.map(items, function (item) { return normalizeOilRow(item); });
     });
   }
 
@@ -973,7 +1162,11 @@
       return;
     }
     setBusy(true);
-    var chain = persistDinhMucRows().then(function () { return saveRowsBulk(rows); });
+    var chain = persistDinhMucRows().then(function () {
+      return saveRowsBulk(rows);
+    }).then(function () {
+      return persistOilRows();
+    });
     chain.done(function () {
       notify('Đã lưu toàn bộ dữ liệu chi phí.', 'success');
       loadRows();
@@ -1013,16 +1206,18 @@
     state.rows = [];
     state.dinhMucRows = [];
     state.dinhMucRoutes = [];
+    state.oilRows = [];
+    state.driverPayMode = 'khoan';
     $('#khcp-plan-code').text('#' + state.nidKeHoach);
     clearPlanInfo();
     setBusy(true);
     renderAll();
     if (!modal) {
-      modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(document.getElementById('ke-hoach-chi-phi-modal'), { backdrop: 'static', keyboard: false }) : new bootstrap.Modal(document.getElementById('ke-hoach-chi-phi-modal'));
+      modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(document.getElementById('ke-hoach-chi-phi-modal'), { backdrop: 'static', keyboard: true }) : new bootstrap.Modal(document.getElementById('ke-hoach-chi-phi-modal'), { backdrop: 'static', keyboard: true });
     }
     modal.show();
     var planChain = loadPlanInfo().then(loadCustomerDinhMuc);
-    $.when(loadExpenseNames(), loadLocations(), planChain, fetchRows())
+    $.when(loadExpenseNames(), loadLocations(), planChain, loadOilRows(), fetchRows())
       .done(function () {
         rebuildDinhMucRows(true);
       })
@@ -1056,6 +1251,23 @@
       state.dinhMucRows.push(row);
       renderDinhMucTable();
       $('tr[data-dm-key="' + row.key + '"] .khcp-dm-place-select').first().trigger('focus');
+    });
+    $(document).on('click', '#khcp-oil-add-row', function () {
+      state.oilRows.push(normalizeOilRow({}));
+      renderOilTable();
+      updateSummary();
+      focusLastOilDatePicker();
+    });
+    $(document).on('click', '.btn-oil-delete-row', function () {
+      var key = $(this).closest('tr').data('oil-key');
+      state.oilRows = $.grep(state.oilRows, function (row) { return row.key !== key; });
+      renderOilTable();
+      updateSummary();
+    });
+    $(document).on('click', '#khcp-driver-pay-mode-btn', function () {
+      state.driverPayMode = state.driverPayMode === 'theo_chuyen' ? 'khoan' : 'theo_chuyen';
+      renderOilTable();
+      updateSummary();
     });
     $(document).on('click', '#khcp-dm-rebuild', function (e) {
       e.preventDefault();
@@ -1124,6 +1336,16 @@
       if ($.inArray(field, ['don_gia', 'so_luong', 'tong_truoc_vat', 'vat_percent', 'tong_sau_vat']) !== -1) updateRowDom(row, field);
       updateSummary();
     });
+    $(document).on('input change', '.khcp-oil-field', function () {
+      var $input = $(this);
+      var row = getOilRow($input.closest('tr').data('oil-key'));
+      var field = $input.data('field');
+      if (!row || !field) return;
+      if ($input.hasClass('money-input')) formatMoneyInputKeepingCaret(this);
+      row[field] = field === 'ngay' ? dateToApi($input.val()) : toNumber($input.val());
+      updateOilSummary();
+      updateSummary();
+    });
     $(document).on('focus', '.decimal-input, .qty-input', function () {
       this.select();
     });
@@ -1146,6 +1368,7 @@
     $('#ke-hoach-chi-phi-modal').on('hidden.bs.modal', function () {
       state.nidKeHoach = 0;
       state.rows = [];
+      state.oilRows = [];
     });
   }
 

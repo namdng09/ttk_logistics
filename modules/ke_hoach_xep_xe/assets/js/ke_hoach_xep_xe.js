@@ -1473,8 +1473,6 @@
                 '<input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '">' +
                 '<button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal' + (line.nid_mooc ? ' is-selected' : '') + '">' + moocSummaryHtml(line) + '</button>' +
               '</div>' +
-              '<div class="khxh-span-4"><label class="form-label">Ngày bắt đầu</label><input type="text" class="form-control line-date-input line-ngay-bat-dau-input" value="' + escHtml(apiToDate(line.ngay_bat_dau || '')) + '" placeholder="dd/mm/yyyy"></div>' +
-              '<div class="khxh-span-4"><label class="form-label">Ngày kết thúc</label><input type="text" class="form-control line-date-input line-ngay-ket-thuc-input" value="' + escHtml(apiToDate(line.ngay_ket_thuc || '')) + '" placeholder="dd/mm/yyyy"></div>' +
               '<div class="khxh-span-4"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Ghi chú"></div>' +
               '<div class="khxh-span-12"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
               '</div>' +
@@ -1547,9 +1545,7 @@
           '</td>' +
           '<td class="line-combo-cell">' +
             '<input type="text" class="form-control line-cut-off-input mb-2" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM">' +
-            '<select class="form-select line-hinh-thuc-select mb-2">' + hinhThucOptions + '</select>' +
-            '<input type="text" class="form-control line-date-input line-ngay-bat-dau-input mb-2" value="' + escHtml(apiToDate(line.ngay_bat_dau || '')) + '" placeholder="Ngày bắt đầu">' +
-            '<input type="text" class="form-control line-date-input line-ngay-ket-thuc-input" value="' + escHtml(apiToDate(line.ngay_ket_thuc || '')) + '" placeholder="Ngày kết thúc">' +
+            '<select class="form-select line-hinh-thuc-select">' + hinhThucOptions + '</select>' +
           '</td>' +
           '<td class="text-center">' + actionCopy + '</td>' +
           '<td class="text-center">' + actionRemove + '</td>' +
@@ -1599,8 +1595,8 @@
         line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
         line.bai_ha_thuc_te = ($row.find('.line-bai-ha-thuc-te-select').val() || '').trim();
         line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
-        line.ngay_bat_dau = dateToApi($row.find('.line-ngay-bat-dau-input').val().trim());
-        line.ngay_ket_thuc = dateToApi($row.find('.line-ngay-ket-thuc-input').val().trim());
+        if ($row.find('.line-ngay-bat-dau-input').length) line.ngay_bat_dau = dateToApi($row.find('.line-ngay-bat-dau-input').val().trim());
+        if ($row.find('.line-ngay-ket-thuc-input').length) line.ngay_ket_thuc = dateToApi($row.find('.line-ngay-ket-thuc-input').val().trim());
         line.ghi_chu = ($row.find('.line-ghi-chu-input').val() || '').trim();
         line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-radio:checked').val() || '').trim();
         line.da_cat_mooc = (line.hinh_thuc_van_tai === 'cat_keo' || line.hinh_thuc_van_tai === 'cat_keo_cheo' || line.hinh_thuc_van_tai === 'tha_mooc') ? 1 : 0;
@@ -1630,8 +1626,8 @@
       line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-select').val() || '').trim();
       line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
       line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
-      line.ngay_bat_dau = dateToApi($row.find('.line-ngay-bat-dau-input').val().trim());
-      line.ngay_ket_thuc = dateToApi($row.find('.line-ngay-ket-thuc-input').val().trim());
+      if ($row.find('.line-ngay-bat-dau-input').length) line.ngay_bat_dau = dateToApi($row.find('.line-ngay-bat-dau-input').val().trim());
+      if ($row.find('.line-ngay-ket-thuc-input').length) line.ngay_ket_thuc = dateToApi($row.find('.line-ngay-ket-thuc-input').val().trim());
       line.ghi_chu = ($row.find('.line-ghi-chu-input').val() || '').trim();
       return line;
     }
