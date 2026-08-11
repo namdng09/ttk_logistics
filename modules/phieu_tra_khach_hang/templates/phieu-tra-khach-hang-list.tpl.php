@@ -17,7 +17,19 @@
         <tbody id="ptkh-table-body"><tr><td colspan="8" class="text-center py-4"><span class="spinner-border spinner-border-sm"></span></td></tr></tbody>
       </table>
     </div>
-    <nav class="mt-3"><ul class="pagination mb-0" id="ptkh-pagination"></ul></nav>
+    <div id="ptkh-pagination-wrap" class="mt-3" style="display:none;">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="text-muted small" id="ptkh-pagination-info"></div>
+        <nav>
+          <ul class="pagination justify-content-center mb-0" id="ptkh-pagination"></ul>
+        </nav>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-muted small">Trang</span>
+          <input type="text" class="form-control form-control-sm" id="ptkh-pagination-jump" style="width:60px;text-align:center;" inputmode="numeric">
+          <span class="text-muted small" id="ptkh-pagination-total-pages"></span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 

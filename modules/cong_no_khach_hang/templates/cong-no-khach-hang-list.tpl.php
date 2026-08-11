@@ -12,6 +12,19 @@
         <tbody id="cnkh-table-body"><tr><td colspan="8" class="text-center py-4"><span class="spinner-border spinner-border-sm"></span></td></tr></tbody>
       </table>
     </div>
+    <div id="cnkh-pagination-wrap" class="mt-3" style="display:none;">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="text-muted small" id="cnkh-pagination-info"></div>
+        <nav>
+          <ul class="pagination justify-content-center mb-0" id="cnkh-pagination"></ul>
+        </nav>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-muted small">Trang</span>
+          <input type="text" class="form-control form-control-sm" id="cnkh-pagination-jump" style="width:60px;text-align:center;" inputmode="numeric">
+          <span class="text-muted small" id="cnkh-pagination-total-pages"></span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -22,4 +35,3 @@
     <div class="modal-footer"><button type="button" class="btn btn-success" id="cnkh-pay-selected"><i class="ti tabler-wallet me-1"></i>Thanh toán phiếu chọn</button><button type="button" class="btn btn-primary" data-bs-dismiss="modal">Đóng</button></div>
   </div></div>
 </div>
-

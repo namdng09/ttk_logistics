@@ -1,7 +1,7 @@
 (function ($) {
   'use strict';
   var API = '/api/cong-no-khach-hang';
-  var state = { items: [], current: null };
+  var state = { items: [], current: null, page: 1 };
   var notyf;
 
   function notify(msg, type) { if (!notyf && window.Notyf) notyf = new Notyf(); notyf ? (type === 'error' ? notyf.error(msg) : notyf.success(msg)) : alert(msg); }
@@ -23,13 +23,41 @@
   }
   function loadList() {
     $('#cnkh-table-body').html('<tr><td colspan="8" class="text-center py-4"><span class="spinner-border spinner-border-sm"></span></td></tr>');
-    $.getJSON(API, { nid_khach_hang: $('#cnkh-filter-customer').val() || '', thang_hach_toan: $('#cnkh-filter-month').val() || '' }).done(function (res) {
+    $.getJSON(API, { page: state.page, nid_khach_hang: $('#cnkh-filter-customer').val() || '', thang_hach_toan: $('#cnkh-filter-month').val() || '' }).done(function (res) {
       state.items = (res.data && res.data.items) || [];
-      if (!state.items.length) { $('#cnkh-table-body').html('<tr><td colspan="8" class="text-center text-muted py-4">Không có công nợ.</td></tr>'); return; }
+      if (!state.items.length) {
+        $('#cnkh-table-body').html('<tr><td colspan="8" class="text-center text-muted py-4">Không có công nợ.</td></tr>');
+        renderPagination(res.data || {});
+        return;
+      }
       $('#cnkh-table-body').html($.map(state.items, function (item, idx) {
         return '<tr><td><strong>' + esc(item.khach_hang) + '</strong></td><td>' + esc(item.thang_hach_toan) + '</td><td class="text-center">' + item.so_phieu + '</td><td class="text-end cnkh-money fw-semibold">' + money(item.tong_phai_thu) + '</td><td class="text-end cnkh-money">' + money(item.da_thanh_toan) + '</td><td class="text-end cnkh-money">' + money(item.con_lai) + '</td><td>' + statusBadge(item.trang_thai) + '</td><td><button class="btn btn-sm btn-label-primary cnkh-detail" data-index="' + idx + '"><i class="ti tabler-eye"></i></button></td></tr>';
       }).join(''));
+      renderPagination(res.data || {});
     }).fail(function (xhr) { $('#cnkh-table-body').html('<tr><td colspan="8" class="text-center text-danger py-4">' + esc(apiMsg(xhr)) + '</td></tr>'); });
+  }
+  function renderPagination(data) {
+    var total = parseInt(data.total_pages || 0, 10);
+    var current = parseInt(data.current_page || 0, 10);
+    var totalItems = parseInt(data.total || 0, 10);
+    if (current) state.page = current;
+    $('#cnkh-pagination-info').text('Tổng số: ' + totalItems + ' bản ghi');
+    $('#cnkh-pagination-total-pages').text('/ ' + total);
+    $('#cnkh-pagination-jump').val(current || '').attr('data-total-pages', total);
+    $('#cnkh-pagination-wrap').show();
+    var html = '';
+    html += '<li class="page-item ' + (current <= 1 ? 'disabled' : '') + '"><a class="page-link cnkh-page-link" href="#" data-page="1"><i class="ti tabler-chevrons-left"></i></a></li>';
+    html += '<li class="page-item ' + (current <= 1 ? 'disabled' : '') + '"><a class="page-link cnkh-page-link" href="#" data-page="' + (current - 1) + '"><i class="ti tabler-chevron-left"></i></a></li>';
+    var start = Math.max(1, current - 2);
+    var end = Math.min(total, current + 2);
+    if (start > 1) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    for (var p = start; p <= end; p++) {
+      html += '<li class="page-item ' + (p === current ? 'active' : '') + '"><a class="page-link cnkh-page-link" href="#" data-page="' + p + '">' + p + '</a></li>';
+    }
+    if (end < total) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    html += '<li class="page-item ' + (current >= total ? 'disabled' : '') + '"><a class="page-link cnkh-page-link" href="#" data-page="' + (current + 1) + '"><i class="ti tabler-chevron-right"></i></a></li>';
+    html += '<li class="page-item ' + (current >= total ? 'disabled' : '') + '"><a class="page-link cnkh-page-link" href="#" data-page="' + total + '"><i class="ti tabler-chevrons-right"></i></a></li>';
+    $('#cnkh-pagination').html(html);
   }
   function openDetail(index) {
     var item = state.items[index]; if (!item) return;
@@ -54,10 +82,28 @@
   }
   $(function () {
     loadCustomers(); loadList();
-    $('#cnkh-search').on('click', loadList);
+    $('#cnkh-search').on('click', function () { state.page = 1; loadList(); });
+    $('#cnkh-filter-month').on('keydown', function (e) { if (e.which === 13) { state.page = 1; loadList(); } });
+    $(document).on('click', '.cnkh-page-link', function (e) {
+      e.preventDefault();
+      var page = parseInt($(this).data('page'), 10) || 0;
+      if (page && page !== state.page) {
+        state.page = page;
+        loadList();
+      }
+    });
+    $('#cnkh-pagination-jump').on('keypress', function (e) {
+      if (e.which === 13) {
+        var page = parseInt(this.value, 10) || 0;
+        var total = parseInt($(this).attr('data-total-pages'), 10) || 0;
+        if (page > 0 && page <= total) {
+          state.page = page;
+          loadList();
+        }
+      }
+    });
     $(document).on('click', '.cnkh-detail', function () { openDetail($(this).data('index')); });
     $(document).on('change', '#cnkh-check-all', function () { $('.cnkh-voucher-check:not(:disabled)').prop('checked', this.checked); });
     $('#cnkh-pay-selected').on('click', paySelected);
   });
 })(jQuery);
-

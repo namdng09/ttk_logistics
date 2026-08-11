@@ -112,12 +112,27 @@
   }
 
   function renderPager(data) {
-    var total = parseInt(data.total_pages || 1, 10);
-    var current = parseInt(data.current_page || 1, 10);
+    var container = $('#ptkh-pagination-wrap');
+    var total = parseInt(data.total_pages || 0, 10);
+    var current = parseInt(data.current_page || 0, 10);
+    var totalItems = parseInt(data.total || 0, 10);
+    if (current) state.page = current;
+    $('#ptkh-pagination-info').text('Tổng số: ' + totalItems + ' bản ghi');
+    $('#ptkh-pagination-total-pages').text('/ ' + total);
+    $('#ptkh-pagination-jump').val(current || '').attr('data-total-pages', total);
+    container.show();
     var html = '';
-    for (var i = 1; i <= total; i++) {
-      html += '<li class="page-item' + (i === current ? ' active' : '') + '"><a class="page-link ptkh-page-link" href="#" data-page="' + i + '">' + i + '</a></li>';
+    html += '<li class="page-item ' + (current <= 1 ? 'disabled' : '') + '"><a class="page-link ptkh-page-link" href="#" data-page="1"><i class="ti tabler-chevrons-left"></i></a></li>';
+    html += '<li class="page-item ' + (current <= 1 ? 'disabled' : '') + '"><a class="page-link ptkh-page-link" href="#" data-page="' + (current - 1) + '"><i class="ti tabler-chevron-left"></i></a></li>';
+    var start = Math.max(1, current - 2);
+    var end = Math.min(total, current + 2);
+    if (start > 1) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    for (var i = start; i <= end; i++) {
+      html += '<li class="page-item ' + (i === current ? 'active' : '') + '"><a class="page-link ptkh-page-link" href="#" data-page="' + i + '">' + i + '</a></li>';
     }
+    if (end < total) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    html += '<li class="page-item ' + (current >= total ? 'disabled' : '') + '"><a class="page-link ptkh-page-link" href="#" data-page="' + (current + 1) + '"><i class="ti tabler-chevron-right"></i></a></li>';
+    html += '<li class="page-item ' + (current >= total ? 'disabled' : '') + '"><a class="page-link ptkh-page-link" href="#" data-page="' + total + '"><i class="ti tabler-chevrons-right"></i></a></li>';
     $('#ptkh-pagination').html(html);
   }
 
@@ -258,7 +273,24 @@
   function bind() {
     $('#ptkh-search, #ptkh-reload').on('click', function () { state.page = 1; loadList(); });
     $('#ptkh-keyword').on('keydown', function (e) { if (e.which === 13) { state.page = 1; loadList(); } });
-    $(document).on('click', '.ptkh-page-link', function (e) { e.preventDefault(); state.page = parseInt($(this).data('page'), 10) || 1; loadList(); });
+    $(document).on('click', '.ptkh-page-link', function (e) {
+      e.preventDefault();
+      var page = parseInt($(this).data('page'), 10) || 0;
+      if (page && page !== state.page) {
+        state.page = page;
+        loadList();
+      }
+    });
+    $('#ptkh-pagination-jump').on('keypress', function (e) {
+      if (e.which === 13) {
+        var page = parseInt(this.value, 10) || 0;
+        var total = parseInt($(this).attr('data-total-pages'), 10) || 0;
+        if (page > 0 && page <= total) {
+          state.page = page;
+          loadList();
+        }
+      }
+    });
     $('#ptkh-open-create').on('click', function () { state.candidates = []; renderCandidates(); $('#ptkh-create-modal').modal('show'); });
     $('#ptkh-load-candidates').on('click', loadCandidates);
     $('#ptkh-check-all').on('change', function () { $('.ptkh-plan-check:not(:disabled)').prop('checked', this.checked); updateSelectedTotal(); });

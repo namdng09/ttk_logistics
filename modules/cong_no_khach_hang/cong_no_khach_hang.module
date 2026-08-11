@@ -136,6 +136,8 @@ function cong_no_khach_hang_rest_collection() {
 
 function _cnkh_report() {
   if (!db_table_exists('phieu_tra_khach_hang')) return _cnkh_error('Chưa có bảng phieu_tra_khach_hang');
+  $page = !empty($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = !empty($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
   $month = !empty($_GET['thang_hach_toan']) ? _cnkh_month($_GET['thang_hach_toan']) : '';
   $customer_id = !empty($_GET['nid_khach_hang']) ? (int) $_GET['nid_khach_hang'] : 0;
   $query = db_select('phieu_tra_khach_hang', 'p')->fields('p')->condition('p.hoat_dong', 1)->condition('p.trang_thai_duyet', 'da_duyet');
@@ -185,7 +187,17 @@ function _cnkh_report() {
     if ($a['thang_hach_toan'] === $b['thang_hach_toan']) return strcmp($a['khach_hang'], $b['khach_hang']);
     return strcmp($b['thang_hach_toan'], $a['thang_hach_toan']);
   });
-  return _cnkh_success(array('items' => $items, 'total' => count($items)));
+  $total = count($items);
+  $total_pages = (int) ceil($total / $limit);
+  $current_page = $total_pages > 0 ? min($page, $total_pages) : 0;
+  $paged_items = $current_page > 0 ? array_slice($items, ($current_page - 1) * $limit, $limit) : array();
+  return _cnkh_success(array(
+    'items' => $paged_items,
+    'total' => $total,
+    'current_page' => $current_page,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+  ));
 }
 
 function cong_no_khach_hang_payment_api() {

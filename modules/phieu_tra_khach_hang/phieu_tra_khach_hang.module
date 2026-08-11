@@ -382,10 +382,12 @@ function _ptkh_rest_list() {
   }
   $count = clone $query;
   $total = (int) $count->countQuery()->execute()->fetchField();
-  $rows = $query->orderBy('p.created', 'DESC')->orderBy('p.nid', 'DESC')->range(($page - 1) * $limit, $limit)->execute()->fetchAll();
+  $total_pages = (int) ceil($total / $limit);
+  $current_page = $total_pages > 0 ? min($page, $total_pages) : 0;
+  $rows = $current_page > 0 ? $query->orderBy('p.created', 'DESC')->orderBy('p.nid', 'DESC')->range(($current_page - 1) * $limit, $limit)->execute()->fetchAll() : array();
   $items = array();
   foreach ($rows as $row) $items[] = _ptkh_load($row->nid, FALSE);
-  return _ptkh_success(array('items' => $items, 'total' => $total, 'current_page' => $page, 'total_pages' => max(1, ceil($total / $limit))));
+  return _ptkh_success(array('items' => $items, 'total' => $total, 'current_page' => $current_page, 'total_pages' => $total_pages, 'limit' => $limit));
 }
 
 function _ptkh_rest_get($id) {
