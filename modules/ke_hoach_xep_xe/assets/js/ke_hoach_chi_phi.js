@@ -203,10 +203,14 @@
 
   function planRouteText(plan) {
     plan = plan || {};
+    var related = plan.hinh_thuc_van_tai === 'cat_keo_cheo' ? relatedContPlan() : null;
     var points = [];
     pushRoutePoint(points, plan.bai_lay_thuc_te || plan.bai_lay_cont);
     pushRoutePoint(points, plan.dia_chi_kho || plan.diem_den);
-    pushRoutePoint(points, plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den);
+    if (related) {
+      pushRoutePoint(points, khoPoint(related));
+    }
+    pushRoutePoint(points, related ? (related.bai_ha_thuc_te || related.bai_ha_cont || plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den) : (plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den));
     return points.join(' - ');
   }
 
