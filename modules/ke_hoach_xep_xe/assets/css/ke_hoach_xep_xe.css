@@ -900,6 +900,13 @@ body .flatpickr-calendar {
   white-space: nowrap;
 }
 
+.khcp-header-transport {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .khcp-plan-card {
   margin-bottom: 12px;
   border: 1px solid var(--khcp-border);
@@ -933,6 +940,16 @@ body .flatpickr-calendar {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.khcp-plan-info-route {
+  grid-column: span 2;
+}
+
+.khcp-plan-info-route strong {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .khcp-dm-card,

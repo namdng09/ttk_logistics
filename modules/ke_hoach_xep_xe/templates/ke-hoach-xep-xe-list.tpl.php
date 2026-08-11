@@ -158,6 +158,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
           <button type="button" class="btn btn-sm khcp-driver-pay-mode-btn" id="khcp-driver-pay-mode-btn" style="display:none;">
             <i class="ti tabler-cash me-1"></i><span>Chuyến khoán</span>
           </button>
+          <span class="badge rounded-pill bg-label-secondary border khcp-header-transport" id="khcp-header-transport">-</span>
         </div>
       </div>
 
@@ -183,13 +184,9 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
                     <span>Phương tiện / Lái xe</span>
                     <strong id="khcp-info-vehicle-driver">-</strong>
                   </div>
-                  <div>
-                    <span>Kho / Bãi hạ</span>
+                  <div class="khcp-plan-info-route">
+                    <span>Tuyến</span>
                     <strong id="khcp-info-route">-</strong>
-                  </div>
-                  <div>
-                    <span>Hình thức vận tải</span>
-                    <strong id="khcp-info-status">-</strong>
                   </div>
                 </div>
               </div>

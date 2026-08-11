@@ -189,6 +189,27 @@
     return value || '-';
   }
 
+  function setInfoText(selector, value) {
+    value = textOrDash(value);
+    $(selector).text(value).attr('title', value);
+  }
+
+  function pushRoutePoint(points, value) {
+    value = String(value || '').trim();
+    if (!value) return;
+    if (points.length && points[points.length - 1] === value) return;
+    points.push(value);
+  }
+
+  function planRouteText(plan) {
+    plan = plan || {};
+    var points = [];
+    pushRoutePoint(points, plan.bai_lay_thuc_te || plan.bai_lay_cont);
+    pushRoutePoint(points, plan.dia_chi_kho || plan.diem_den);
+    pushRoutePoint(points, plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den);
+    return points.join(' - ');
+  }
+
   function hinhThucLabel(value) {
     var map = {
       cat_keo: 'Cắt kéo',
@@ -200,6 +221,28 @@
     };
     value = String(value || '').trim();
     return map[value] || value;
+  }
+
+  function hinhThucColor(value) {
+    var map = {
+      cat_keo: 'bg-label-success',
+      cat_keo_cheo: 'bg-label-primary',
+      tha_mooc: 'bg-label-warning',
+      rut_mooc: 'bg-label-info',
+      dong_hang_trong_ngay: 'bg-label-danger',
+      roi_cont: 'bg-label-secondary'
+    };
+    return map[String(value || '').trim()] || 'bg-label-secondary';
+  }
+
+  function updateTransportBadge(value) {
+    var raw = String(value || '').trim();
+    var label = raw ? hinhThucLabel(raw) : 'Chưa chọn hình thức vận tải';
+    $('#khcp-header-transport')
+      .removeClass('bg-label-success bg-label-primary bg-label-warning bg-label-info bg-label-danger bg-label-secondary')
+      .addClass(hinhThucColor(raw))
+      .text(label)
+      .attr('title', label);
   }
 
   function parseJson(value) {
@@ -885,8 +928,9 @@
 
   function clearPlanInfo() {
     state.plan = null;
-    $('#khcp-header-meta').text('');
-    $('#khcp-info-customer, #khcp-info-bkg-cont, #khcp-info-vehicle-driver, #khcp-info-route, #khcp-info-status').text('-');
+    $('#khcp-header-meta').text('').attr('title', '');
+    updateTransportBadge('');
+    $('#khcp-info-customer, #khcp-info-bkg-cont, #khcp-info-vehicle-driver, #khcp-info-route').text('-').attr('title', '-');
   }
 
   function fillPlanInfo(plan) {
@@ -895,19 +939,18 @@
     if ($.inArray(state.driverPayMode, ['khoan', 'theo_chuyen']) === -1) state.driverPayMode = 'khoan';
     var customer = state.plan.khach_hang && state.plan.khach_hang.ten ? state.plan.khach_hang.ten : '';
     var vehicle = state.plan.phuong_tien && state.plan.phuong_tien.bks ? state.plan.phuong_tien.bks : '';
-    var mooc = state.plan.mooc && state.plan.mooc.bks ? state.plan.mooc.bks : '';
     var driver = state.plan.lai_xe && state.plan.lai_xe.ten ? state.plan.lai_xe.ten : '';
     var cont = [state.plan.loai_cont, state.plan.so_cont].filter(Boolean).join(' - ');
     var bkgCont = [state.plan.so_bkg, cont].filter(Boolean).join(' / ');
-    var vehicleDriver = [vehicle, mooc, driver].filter(Boolean).join(' / ');
-    var route = [state.plan.dia_chi_kho, state.plan.bai_ha_thuc_te || state.plan.bai_ha_cont || state.plan.diem_den].filter(Boolean).join(' / ');
-    var status = hinhThucLabel(state.plan.hinh_thuc_van_tai || '');
-    $('#khcp-header-meta').text([customer, bkgCont, driver].filter(Boolean).join(' - '));
-    $('#khcp-info-customer').text(textOrDash(customer));
-    $('#khcp-info-bkg-cont').text(textOrDash(bkgCont));
-    $('#khcp-info-vehicle-driver').text(textOrDash(vehicleDriver));
-    $('#khcp-info-route').text(textOrDash(route));
-    $('#khcp-info-status').text(textOrDash(status));
+    var vehicleDriver = [vehicle, driver].filter(Boolean).join(' / ');
+    var route = planRouteText(state.plan);
+    var headerMeta = [customer, bkgCont].filter(Boolean).join(' - ');
+    $('#khcp-header-meta').text(headerMeta).attr('title', headerMeta);
+    updateTransportBadge(state.plan.hinh_thuc_van_tai || '');
+    setInfoText('#khcp-info-customer', customer);
+    setInfoText('#khcp-info-bkg-cont', bkgCont);
+    setInfoText('#khcp-info-vehicle-driver', vehicleDriver);
+    setInfoText('#khcp-info-route', route);
     if (!state.nidLaiXe && state.plan.lai_xe && state.plan.lai_xe.nid) {
       state.nidLaiXe = Number(state.plan.lai_xe.nid) || 0;
     }
