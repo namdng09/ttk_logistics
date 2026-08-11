@@ -14,6 +14,7 @@ function phieu_tra_khach_hang_schema() {
       'ma_phieu_khach' => array('type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''),
       'so_hoa_don' => array('type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''),
       'nid_khach_hang' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'uid_nguoi_tao' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'tu_ngay' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
       'den_ngay' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
       'thang_hach_toan' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
@@ -41,6 +42,7 @@ function phieu_tra_khach_hang_schema() {
     ),
     'indexes' => array(
       'nid_khach_hang' => array('nid_khach_hang'),
+      'uid_nguoi_tao' => array('uid_nguoi_tao'),
       'thang_hach_toan' => array('thang_hach_toan'),
       'trang_thai_duyet' => array('trang_thai_duyet'),
       'trang_thai_thanh_toan' => array('trang_thai_thanh_toan'),
@@ -76,6 +78,15 @@ function phieu_tra_khach_hang_schema() {
   return $schema;
 }
 
+function phieu_tra_khach_hang_update_7002() {
+  if (db_table_exists('phieu_tra_khach_hang') && !db_field_exists('phieu_tra_khach_hang', 'uid_nguoi_tao')) {
+    db_add_field('phieu_tra_khach_hang', 'uid_nguoi_tao', array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0));
+  }
+  if (db_table_exists('phieu_tra_khach_hang') && !db_index_exists('phieu_tra_khach_hang', 'uid_nguoi_tao')) {
+    db_add_index('phieu_tra_khach_hang', 'uid_nguoi_tao', array('uid_nguoi_tao'));
+  }
+}
+
 function phieu_tra_khach_hang_update_7001() {
   $schema = phieu_tra_khach_hang_schema();
   foreach ($schema as $table => $definition) {
@@ -85,4 +96,3 @@ function phieu_tra_khach_hang_update_7001() {
   }
   return 'Đã tạo bảng Phiếu trả khách hàng.';
 }
-

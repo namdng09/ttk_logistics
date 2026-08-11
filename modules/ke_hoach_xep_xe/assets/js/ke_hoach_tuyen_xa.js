@@ -458,7 +458,7 @@
       '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill" type="button">' +
       '<i class="ti tabler-dots-vertical"></i></button>' +
       '<ul class="dropdown-menu">' +
-      '<li><button type="button" class="dropdown-item btn-view-ke-hoach-tuyen-xa" data-id="' + id + '"><i class="ti tabler-eye me-2"></i>Xem</button></li>' +
+      '<li><button type="button" class="dropdown-item btn-view-ke-hoach-tuyen-xa" data-id="' + id + '"><i class="ti tabler-eye me-2"></i>Xem chi tiết</button></li>' +
       '<li><button type="button" class="dropdown-item btn-edit-ke-hoach-tuyen-xa" data-id="' + id + '"><i class="ti tabler-edit me-2"></i>Sửa</button></li>' +
       '<li><hr class="dropdown-divider"></li>' +
       '<li><button type="button" class="dropdown-item text-danger btn-delete-ke-hoach-tuyen-xa" data-id="' + id + '"><i class="ti tabler-trash me-2"></i>Xoá</button></li>' +
