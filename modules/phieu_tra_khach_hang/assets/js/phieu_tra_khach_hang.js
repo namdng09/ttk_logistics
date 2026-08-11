@@ -75,8 +75,9 @@
   }
 
   function loadList() {
-    $('#ptkh-table-body').html('<tr><td colspan="8" class="text-center py-4"><span class="spinner-border spinner-border-sm"></span></td></tr>');
+    $('#ptkh-table-body').html('<tr id="ptkh-loading-row"><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>');
     $.getJSON(API, queryFilters()).done(function (res) {
+      $('#ptkh-loading-row').remove();
       var items = res && res.data ? (res.data.items || []) : [];
       if (!items.length) {
         $('#ptkh-table-body').html('<tr><td colspan="8" class="text-center text-muted py-4">Không có dữ liệu.</td></tr>');
@@ -86,6 +87,7 @@
       }
       renderPager(res.data || {});
     }).fail(function (xhr) {
+      $('#ptkh-loading-row').remove();
       $('#ptkh-table-body').html('<tr><td colspan="8" class="text-center text-danger py-4">' + esc(apiMsg(xhr)) + '</td></tr>');
     });
   }
@@ -93,13 +95,13 @@
   function rowHtml(item) {
     return '<tr>' +
       '<td><div class="dropdown"><button class="btn btn-sm btn-icon btn-label-secondary rounded-pill"><i class="ti tabler-dots-vertical"></i></button><ul class="dropdown-menu">' +
-        '<li><a href="#" class="dropdown-item ptkh-view" data-id="' + item.nid + '"><i class="ti tabler-eye me-2"></i>Xem chi tiết</a></li>' +
-        '<li><a class="dropdown-item" target="_blank" href="' + esc(item.download_url || ('/phieu-tra-khach-hang/tai/' + item.nid)) + '"><i class="ti tabler-download me-2"></i>Tải phiếu trả</a></li>' +
-        '<li><a href="#" class="dropdown-item ptkh-history" data-id="' + item.nid + '"><i class="ti tabler-history me-2"></i>Lịch sử duyệt</a></li>' +
+        '<li><a href="#" class="dropdown-item ptkh-view" data-id="' + item.nid + '"><i class="ti tabler-eye me-2 text-primary"></i>Xem chi tiết</a></li>' +
+        '<li><a class="dropdown-item" target="_blank" href="' + esc(item.download_url || ('/phieu-tra-khach-hang/tai/' + item.nid)) + '"><i class="ti tabler-download me-2 text-info"></i>Tải phiếu trả</a></li>' +
+        '<li><a href="#" class="dropdown-item ptkh-history" data-id="' + item.nid + '"><i class="ti tabler-history me-2 text-secondary"></i>Lịch sử duyệt</a></li>' +
         '<li><hr class="dropdown-divider"></li>' +
-        '<li><a href="#" class="dropdown-item ptkh-status" data-id="' + item.nid + '" data-status="da_duyet"><i class="ti tabler-circle-check me-2"></i>Khách đã duyệt</a></li>' +
-        '<li><a href="#" class="dropdown-item ptkh-status" data-id="' + item.nid + '" data-status="chua_duyet"><i class="ti tabler-refresh me-2"></i>Chờ duyệt</a></li>' +
-        '<li><a href="#" class="dropdown-item text-danger ptkh-status" data-id="' + item.nid + '" data-status="khong_duyet"><i class="ti tabler-circle-x me-2"></i>Không duyệt</a></li>' +
+        '<li><a href="#" class="dropdown-item ptkh-status" data-id="' + item.nid + '" data-status="da_duyet"><i class="ti tabler-circle-check me-2 text-success"></i>Khách đã duyệt</a></li>' +
+        '<li><a href="#" class="dropdown-item ptkh-status" data-id="' + item.nid + '" data-status="chua_duyet"><i class="ti tabler-refresh me-2 text-warning"></i>Chờ duyệt</a></li>' +
+        '<li><a href="#" class="dropdown-item text-danger ptkh-status" data-id="' + item.nid + '" data-status="khong_duyet"><i class="ti tabler-circle-x me-2 text-danger"></i>Không duyệt</a></li>' +
       '</ul></div></td>' +
       '<td><strong>' + esc(item.ma_phieu) + '</strong><div class="small text-muted">' + esc(item.ma_phieu_khach || '') + '</div></td>' +
       '<td>' + esc(item.khach_hang) + '</td>' +
@@ -143,15 +145,17 @@
       return;
     }
     $('#ptkh-check-all').prop('checked', false);
-    $('#ptkh-candidate-body').html('<tr><td colspan="8" class="text-center py-4"><span class="spinner-border spinner-border-sm"></span></td></tr>');
+    $('#ptkh-candidate-body').html('<tr id="ptkh-candidate-loading-row"><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>');
     $.getJSON(API + '/candidates', {
       nid_khach_hang: customer,
       from_date: $('#ptkh-create-from').val() || '',
       to_date: $('#ptkh-create-to').val() || ''
     }).done(function (res) {
+      $('#ptkh-candidate-loading-row').remove();
       state.candidates = res && res.data ? (res.data.items || []) : [];
       renderCandidates();
     }).fail(function (xhr) {
+      $('#ptkh-candidate-loading-row').remove();
       $('#ptkh-candidate-body').html('<tr><td colspan="8" class="text-center text-danger py-4">' + esc(apiMsg(xhr)) + '</td></tr>');
     });
   }
@@ -225,7 +229,7 @@
 
   function openDetail(id, showHistoryOnly) {
     $('#ptkh-detail-title').text(showHistoryOnly ? 'Lịch sử duyệt' : 'Chi tiết phiếu');
-    $('#ptkh-detail-body').html('<div class="text-center py-4"><span class="spinner-border"></span></div>');
+    $('#ptkh-detail-body').html('<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></div>');
     $('#ptkh-detail-modal').modal('show');
     $.getJSON(API + '/' + id).done(function (res) {
       renderDetail(res.data || {}, showHistoryOnly);

@@ -14,7 +14,7 @@
     <div class="table-responsive">
       <table class="table table-bordered table-hover align-middle">
         <thead class="table-light"><tr><th style="width:46px">CN</th><th>Mã phiếu</th><th>Khách hàng</th><th>Thời gian</th><th class="text-end">Tổng tiền</th><th class="text-end">Đã TT</th><th class="text-end">Còn lại</th><th>Trạng thái</th></tr></thead>
-        <tbody id="ptkh-table-body"><tr><td colspan="8" class="text-center py-4"><span class="spinner-border spinner-border-sm"></span></td></tr></tbody>
+        <tbody id="ptkh-table-body"><tr id="ptkh-loading-row"><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr></tbody>
       </table>
     </div>
     <div id="ptkh-pagination-wrap" class="mt-3" style="display:none;">
