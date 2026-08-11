@@ -1,3 +1,177 @@
-.cnkh-money { font-variant-numeric: tabular-nums; }
-.cnkh-summary-box { border:1px solid #e6e6f0; border-radius:6px; padding:10px 12px; background:#fff; }
+.cnkh-page {
+  --cnkh-border: #e6e8ef;
+  --cnkh-muted: #6f6b7d;
+}
 
+.cnkh-filter-card,
+.cnkh-list-card {
+  border: 1px solid var(--cnkh-border);
+  box-shadow: none;
+}
+
+.cnkh-summary-card {
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--cnkh-border);
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+}
+
+.cnkh-summary-icon {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 22px;
+}
+
+.cnkh-summary-primary {
+  color: #7367f0;
+  background: rgba(115, 103, 240, .12);
+}
+
+.cnkh-summary-success {
+  color: #28c76f;
+  background: rgba(40, 199, 111, .12);
+}
+
+.cnkh-summary-warning {
+  color: #ff9f43;
+  background: rgba(255, 159, 67, .14);
+}
+
+.cnkh-summary-info {
+  color: #00bad1;
+  background: rgba(0, 186, 209, .12);
+}
+
+.cnkh-summary-label {
+  color: var(--cnkh-muted);
+  font-size: 12px;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.cnkh-summary-value {
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.cnkh-table thead th {
+  background: #f8f8fb;
+  color: #5d596c;
+  font-size: 12px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cnkh-table td {
+  vertical-align: middle;
+}
+
+.cnkh-group-row {
+  background: #fff;
+}
+
+.cnkh-group-row:hover {
+  background: #fafafe;
+}
+
+.cnkh-detail-row > td {
+  padding: 0 !important;
+  background: #fbfbfd;
+}
+
+.cnkh-detail-panel {
+  padding: 16px;
+  border-top: 1px solid var(--cnkh-border);
+  border-bottom: 1px solid var(--cnkh-border);
+}
+
+.cnkh-voucher-table {
+  background: #fff;
+}
+
+.cnkh-voucher-table thead th {
+  background: #f4f5f8;
+  color: #5d596c;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cnkh-money,
+.cnkh-voucher-table .text-end {
+  font-variant-numeric: tabular-nums;
+}
+
+.cnkh-info-box {
+  border: 1px solid var(--cnkh-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+  min-height: 70px;
+}
+
+.cnkh-pay-vouchers {
+  border: 1px solid var(--cnkh-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cnkh-pay-vouchers .table th {
+  background: #f8f8fb;
+}
+
+.cnkh-page .dropdown-menu .dropdown-item {
+  align-items: center;
+  gap: 0;
+}
+
+.cnkh-page .dropdown-menu .dropdown-item i {
+  width: 18px;
+  min-width: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cnkh-page .select2-container--default .select2-selection--single {
+  min-height: 38px;
+  border-color: #d9dee3;
+}
+
+.cnkh-page .select2-container--default .select2-selection--single .select2-selection__rendered {
+  line-height: 36px;
+}
+
+.cnkh-page .select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 36px;
+}
+
+.cnkh-page .select2-container--default .select2-selection--single .select2-selection__clear {
+  height: 36px;
+  line-height: 34px;
+  margin-right: 18px;
+}
+
+.flatpickr-calendar {
+  z-index: 99999 !important;
+}
+
+@media (max-width: 767.98px) {
+  .cnkh-summary-card {
+    min-height: 78px;
+  }
+
+  .cnkh-detail-panel {
+    padding: 12px;
+  }
+}

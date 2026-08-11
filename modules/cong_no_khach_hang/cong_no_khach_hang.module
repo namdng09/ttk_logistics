@@ -46,13 +46,28 @@ function cong_no_khach_hang_theme() {
 }
 
 function cong_no_khach_hang_page_list() {
-  drupal_add_css(drupal_get_path('module', 'cong_no_khach_hang') . '/assets/css/cong_no_khach_hang.css');
-  drupal_add_js(drupal_get_path('module', 'cong_no_khach_hang') . '/assets/js/cong_no_khach_hang.js', array('group' => JS_THEME, 'weight' => 5));
+  $path = drupal_get_path('module', 'cong_no_khach_hang');
+  $version = REQUEST_TIME;
+  drupal_add_css($path . '/assets/css/cong_no_khach_hang.css', array('group' => CSS_THEME, 'weight' => 20, 'version' => $version));
+  drupal_add_js($path . '/assets/js/cong_no_khach_hang.js', array('group' => JS_THEME, 'weight' => 5, 'version' => $version));
+
+  $fund_options = array();
+  if (module_exists('thu_chi')) {
+    module_load_include('module', 'thu_chi');
+    if (function_exists('thu_chi_quy_options')) {
+      foreach (thu_chi_quy_options(TRUE) as $nid => $label) {
+        if ((int) $nid <= 0) continue;
+        $fund_options[] = array('nid' => (int) $nid, 'label' => (string) $label);
+      }
+    }
+  }
+
   drupal_add_js(array('cong_no_khach_hang' => array(
     'permissions' => array(
       'view' => user_access('cong_no_khach_hang_view'),
       'pay' => user_access('cong_no_khach_hang_pay'),
     ),
+    'fund_options' => $fund_options,
   )), 'setting');
   return theme('cong_no_khach_hang_list_page');
 }
@@ -110,14 +125,44 @@ function _cnkh_month($value) {
   return strlen($value) === 6 ? $value : '';
 }
 
-function _cnkh_customer_name($nid) {
-  $nid = (int) $nid;
-  if (!$nid) return '';
-  if (db_table_exists('khach_hang')) {
-    $name = db_select('khach_hang', 'kh')->fields('kh', array('ten'))->condition('kh.nid', $nid)->range(0, 1)->execute()->fetchField();
-    if ($name !== FALSE && $name !== '') return (string) $name;
+function _cnkh_created_month($created) {
+  $time = strtotime((string) $created);
+  return $time ? date('Ym', $time) : '';
+}
+
+function _cnkh_month_label($month) {
+  $month = _cnkh_month($month);
+  return $month ? substr($month, 4, 2) . '/' . substr($month, 0, 4) : '';
+}
+
+function _cnkh_month_bounds($month) {
+  $month = _cnkh_month($month);
+  if (!$month) return array('', '');
+  $first = substr($month, 0, 4) . '-' . substr($month, 4, 2) . '-01 00:00:00';
+  $last = date('Y-m-t 23:59:59', strtotime($first));
+  return array($first, $last);
+}
+
+function _cnkh_filter_month($prefix) {
+  $month = !empty($_GET[$prefix . '_month']) ? (int) $_GET[$prefix . '_month'] : 0;
+  $year = !empty($_GET[$prefix . '_year']) ? (int) $_GET[$prefix . '_year'] : 0;
+  if ($month >= 1 && $month <= 12 && $year >= 2000 && $year <= 2099) {
+    return sprintf('%04d%02d', $year, $month);
   }
-  return 'Khách hàng #' . $nid;
+  return '';
+}
+
+function _cnkh_customer_info($nid) {
+  $nid = (int) $nid;
+  $fallback = array('nid' => $nid, 'ma_kh' => '', 'ten' => $nid ? ('Khách hàng #' . $nid) : '');
+  if (!$nid || !db_table_exists('khach_hang')) return $fallback;
+  $row = db_select('khach_hang', 'kh')->fields('kh')->condition('kh.nid', $nid)->range(0, 1)->execute()->fetchObject();
+  if (!$row) return $fallback;
+  return array(
+    'nid' => $nid,
+    'ma_kh' => isset($row->ma_kh) ? (string) $row->ma_kh : '',
+    'ten' => isset($row->ten) ? (string) $row->ten : $fallback['ten'],
+  );
 }
 
 function _cnkh_status($total, $paid) {
@@ -126,6 +171,20 @@ function _cnkh_status($total, $paid) {
   if ($total > 0 && $paid >= $total) return 'da_thanh_toan';
   if ($paid > 0) return 'thanh_toan_mot_phan';
   return 'chua_thanh_toan';
+}
+
+function _cnkh_status_label($status) {
+  $map = array(
+    'chua_thanh_toan' => 'Chưa thanh toán',
+    'thanh_toan_mot_phan' => 'Thanh toán một phần',
+    'da_thanh_toan' => 'Đã thanh toán',
+  );
+  return isset($map[$status]) ? $map[$status] : (string) $status;
+}
+
+function _cnkh_normalize_status_filter($status) {
+  $status = (string) $status;
+  return in_array($status, array('chua_thanh_toan', 'thanh_toan_mot_phan', 'da_thanh_toan'), TRUE) ? $status : '';
 }
 
 function cong_no_khach_hang_rest_collection() {
@@ -138,31 +197,72 @@ function _cnkh_report() {
   if (!db_table_exists('phieu_tra_khach_hang')) return _cnkh_error('Chưa có bảng phieu_tra_khach_hang');
   $page = !empty($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
   $limit = !empty($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
-  $month = !empty($_GET['thang_hach_toan']) ? _cnkh_month($_GET['thang_hach_toan']) : '';
   $customer_id = !empty($_GET['nid_khach_hang']) ? (int) $_GET['nid_khach_hang'] : 0;
-  $query = db_select('phieu_tra_khach_hang', 'p')->fields('p')->condition('p.hoat_dong', 1)->condition('p.trang_thai_duyet', 'da_duyet');
-  if ($month) $query->condition('p.thang_hach_toan', $month);
+  $status_filter = _cnkh_normalize_status_filter(isset($_GET['trang_thai']) ? $_GET['trang_thai'] : '');
+  $keyword = isset($_GET['keyword']) ? trim((string) $_GET['keyword']) : '';
+  $from_month = _cnkh_filter_month('from');
+  $to_month = _cnkh_filter_month('to');
+  if (!$from_month && !empty($_GET['thang_cong_no'])) $from_month = _cnkh_month($_GET['thang_cong_no']);
+  if (!$to_month && !empty($_GET['thang_cong_no'])) $to_month = _cnkh_month($_GET['thang_cong_no']);
+  if (!$from_month && !empty($_GET['thang_hach_toan'])) $from_month = _cnkh_month($_GET['thang_hach_toan']);
+  if (!$to_month && !empty($_GET['thang_hach_toan'])) $to_month = _cnkh_month($_GET['thang_hach_toan']);
+
+  $query = db_select('phieu_tra_khach_hang', 'p')
+    ->fields('p')
+    ->condition('p.hoat_dong', 1)
+    ->condition('p.trang_thai_duyet', 'da_duyet');
   if ($customer_id) $query->condition('p.nid_khach_hang', $customer_id);
-  $rows = $query->orderBy('p.thang_hach_toan', 'DESC')->orderBy('p.nid_khach_hang', 'ASC')->execute()->fetchAll();
+  if ($from_month) {
+    list($from_start,) = _cnkh_month_bounds($from_month);
+    if ($from_start) $query->condition('p.created', $from_start, '>=');
+  }
+  if ($to_month) {
+    list(, $to_end) = _cnkh_month_bounds($to_month);
+    if ($to_end) $query->condition('p.created', $to_end, '<=');
+  }
+  if ($keyword !== '') {
+    $or = db_or();
+    $or->condition('p.ma_phieu', '%' . db_like($keyword) . '%', 'LIKE');
+    $or->condition('p.so_hoa_don', '%' . db_like($keyword) . '%', 'LIKE');
+    $query->condition($or);
+  }
+  $rows = $query->orderBy('p.created', 'DESC')->orderBy('p.nid', 'DESC')->execute()->fetchAll();
+
+  $voucher_ids = array();
+  foreach ($rows as $row) $voucher_ids[] = (int) $row->nid;
+  $paid_map = _cnkh_payment_paid_map($voucher_ids);
+
   $groups = array();
+  $customers = array();
   foreach ($rows as $row) {
-    $key = (int) $row->nid_khach_hang . ':' . (string) $row->thang_hach_toan;
+    $month = _cnkh_created_month($row->created);
+    if (!$month) continue;
+    $customer_key = (int) $row->nid_khach_hang;
+    if (!isset($customers[$customer_key])) $customers[$customer_key] = _cnkh_customer_info($customer_key);
+    $customer = $customers[$customer_key];
+    $key = $customer_key . ':' . $month;
     if (!isset($groups[$key])) {
       $groups[$key] = array(
-        'nid_khach_hang' => (int) $row->nid_khach_hang,
-        'khach_hang' => _cnkh_customer_name($row->nid_khach_hang),
-        'thang_hach_toan' => (string) $row->thang_hach_toan,
+        'nid_khach_hang' => $customer_key,
+        'khach_hang' => $customer,
+        'thang_cong_no' => $month,
+        'thang_cong_no_label' => _cnkh_month_label($month),
         'tong_phai_thu' => 0,
         'da_thanh_toan' => 0,
         'con_lai' => 0,
         'so_phieu' => 0,
         'trang_thai' => 'chua_thanh_toan',
+        'trang_thai_label' => 'Chưa thanh toán',
         'items' => array(),
       );
     }
-    $total = (int) $row->tong_tien;
-    $paid = (int) $row->da_thanh_toan;
+    $total = _cnkh_money($row->tong_tien);
+    $stored_paid = isset($row->da_thanh_toan) ? _cnkh_money($row->da_thanh_toan) : 0;
+    $tracked_paid = isset($paid_map[(int) $row->nid]) ? _cnkh_money($paid_map[(int) $row->nid]) : 0;
+    $paid = min(max($stored_paid, $tracked_paid), $total);
     $remaining = max($total - $paid, 0);
+    $voucher_status = _cnkh_status($total, $paid);
+
     $groups[$key]['tong_phai_thu'] += $total;
     $groups[$key]['da_thanh_toan'] += $paid;
     $groups[$key]['con_lai'] += $remaining;
@@ -170,29 +270,56 @@ function _cnkh_report() {
     $groups[$key]['items'][] = array(
       'nid' => (int) $row->nid,
       'ma_phieu' => (string) $row->ma_phieu,
-      'ma_phieu_khach' => (string) $row->ma_phieu_khach,
       'so_hoa_don' => (string) $row->so_hoa_don,
+      'created' => (string) $row->created,
       'tong_tien' => $total,
       'da_thanh_toan' => $paid,
       'con_lai' => $remaining,
+      'trang_thai_thanh_toan' => $voucher_status,
+      'trang_thai_thanh_toan_label' => _cnkh_status_label($voucher_status),
       'download_url' => url('phieu-tra-khach-hang/tai/' . (int) $row->nid),
     );
   }
+
   $items = array_values($groups);
-  foreach ($items as &$item) {
+  $filtered_items = array();
+  foreach ($items as $item) {
     $item['trang_thai'] = _cnkh_status($item['tong_phai_thu'], $item['da_thanh_toan']);
+    $item['trang_thai_label'] = _cnkh_status_label($item['trang_thai']);
+    if ($status_filter && $item['trang_thai'] !== $status_filter) continue;
+    $filtered_items[] = $item;
   }
-  unset($item);
+  $items = $filtered_items;
   usort($items, function ($a, $b) {
-    if ($a['thang_hach_toan'] === $b['thang_hach_toan']) return strcmp($a['khach_hang'], $b['khach_hang']);
-    return strcmp($b['thang_hach_toan'], $a['thang_hach_toan']);
+    if ($a['thang_cong_no'] === $b['thang_cong_no']) return strcmp($a['khach_hang']['ten'], $b['khach_hang']['ten']);
+    return strcmp($b['thang_cong_no'], $a['thang_cong_no']);
   });
+
+  $summary = array(
+    'so_nhom' => count($items),
+    'so_khach_hang' => 0,
+    'so_phieu' => 0,
+    'tong_phai_thu' => 0,
+    'da_thanh_toan' => 0,
+    'con_lai' => 0,
+  );
+  $summary_customers = array();
+  foreach ($items as $item) {
+    $summary_customers[(int) $item['nid_khach_hang']] = TRUE;
+    $summary['so_phieu'] += (int) $item['so_phieu'];
+    $summary['tong_phai_thu'] += (int) $item['tong_phai_thu'];
+    $summary['da_thanh_toan'] += (int) $item['da_thanh_toan'];
+    $summary['con_lai'] += (int) $item['con_lai'];
+  }
+  $summary['so_khach_hang'] = count($summary_customers);
+
   $total = count($items);
   $total_pages = (int) ceil($total / $limit);
-  $current_page = $total_pages > 0 ? min($page, $total_pages) : 0;
-  $paged_items = $current_page > 0 ? array_slice($items, ($current_page - 1) * $limit, $limit) : array();
+  $current_page = $total_pages > 0 ? min($page, $total_pages) : 1;
+  $paged_items = $total > 0 ? array_slice($items, ($current_page - 1) * $limit, $limit) : array();
   return _cnkh_success(array(
     'items' => $paged_items,
+    'summary' => $summary,
     'total' => $total,
     'current_page' => $current_page,
     'total_pages' => $total_pages,
@@ -208,24 +335,34 @@ function cong_no_khach_hang_payment_api() {
 
 function _cnkh_load_vouchers_for_payment(array $voucher_ids, $customer_id, $month) {
   $voucher_ids = array_values(array_unique(array_filter(array_map('intval', $voucher_ids))));
-  if (empty($voucher_ids)) return array();
-  $rows = db_select('phieu_tra_khach_hang', 'p')->fields('p')
+  $month = _cnkh_month($month);
+  if (empty($voucher_ids) || !$month) return array();
+  list($start, $end) = _cnkh_month_bounds($month);
+  $query = db_select('phieu_tra_khach_hang', 'p')->fields('p')
     ->condition('p.nid', $voucher_ids, 'IN')
     ->condition('p.nid_khach_hang', (int) $customer_id)
-    ->condition('p.thang_hach_toan', (string) $month)
     ->condition('p.trang_thai_duyet', 'da_duyet')
     ->condition('p.hoat_dong', 1)
-    ->orderBy('p.nid', 'ASC')
-    ->execute()->fetchAll();
-  return $rows;
+    ->condition('p.created', $start, '>=')
+    ->condition('p.created', $end, '<=')
+    ->orderBy('p.created', 'ASC')
+    ->orderBy('p.nid', 'ASC');
+  return $query->execute()->fetchAll();
 }
 
 function _cnkh_build_allocations(array $vouchers, $amount) {
   $left = _cnkh_money($amount);
+  $voucher_ids = array();
+  foreach ($vouchers as $row) $voucher_ids[] = (int) $row->nid;
+  $paid_map = _cnkh_payment_paid_map($voucher_ids);
   $allocations = array();
   foreach ($vouchers as $row) {
     if ($left <= 0) break;
-    $remaining = max((int) $row->tong_tien - (int) $row->da_thanh_toan, 0);
+    $total = _cnkh_money($row->tong_tien);
+    $stored_paid = isset($row->da_thanh_toan) ? _cnkh_money($row->da_thanh_toan) : 0;
+    $tracked_paid = isset($paid_map[(int) $row->nid]) ? _cnkh_money($paid_map[(int) $row->nid]) : 0;
+    $paid_before = min(max($stored_paid, $tracked_paid), $total);
+    $remaining = max($total - $paid_before, 0);
     if ($remaining <= 0) continue;
     $pay = min($remaining, $left);
     $left -= $pay;
@@ -233,8 +370,9 @@ function _cnkh_build_allocations(array $vouchers, $amount) {
       'phieu_tra_khach_hang_nid' => (int) $row->nid,
       'voucher_nid' => (int) $row->nid,
       'ma_phieu' => (string) $row->ma_phieu,
-      'tong_phai_thu' => (int) $row->tong_tien,
-      'da_thu_truoc_phieu' => (int) $row->da_thanh_toan,
+      'so_hoa_don' => (string) $row->so_hoa_don,
+      'tong_phai_thu' => $total,
+      'da_thu_truoc_phieu' => $paid_before,
       'con_lai_truoc_phieu' => $remaining,
       'so_tien_thanh_toan' => $pay,
       'so_tien' => $pay,
@@ -248,12 +386,15 @@ function _cnkh_create_payment() {
   global $user;
   $input = _cnkh_input();
   $customer_id = !empty($input['nid_khach_hang']) ? (int) $input['nid_khach_hang'] : 0;
-  $month = !empty($input['thang_hach_toan']) ? _cnkh_month($input['thang_hach_toan']) : '';
+  $month = '';
+  foreach (array('thang_cong_no', 'month', 'thang_hach_toan') as $key) {
+    if (!$month && !empty($input[$key])) $month = _cnkh_month($input[$key]);
+  }
   $amount = isset($input['so_tien']) ? _cnkh_money($input['so_tien']) : 0;
   $nid_quy = !empty($input['nid_quy']) ? (int) $input['nid_quy'] : 0;
   $voucher_ids = !empty($input['voucher_ids']) && is_array($input['voucher_ids']) ? $input['voucher_ids'] : array();
   if (!$customer_id || !$month || $amount <= 0 || !$nid_quy || empty($voucher_ids)) {
-    return _cnkh_fail('Thiếu khách hàng, tháng hạch toán, quỹ, số tiền hoặc phiếu cần thanh toán');
+    return _cnkh_fail('Thiếu khách hàng, tháng công nợ, quỹ, số tiền hoặc phiếu cần thanh toán');
   }
   if (!module_exists('thu_chi')) return _cnkh_fail('Module thu_chi chưa được bật');
   module_load_include('module', 'thu_chi');
@@ -270,6 +411,7 @@ function _cnkh_create_payment() {
     $allocated_total += (int) $row['so_tien_thanh_toan'];
     $allocated_ids[] = (int) $row['phieu_tra_khach_hang_nid'];
   }
+
   $category_id = function_exists('thu_chi_get_or_create_category_node') ? (int) thu_chi_get_or_create_category_node('Công nợ khách hàng') : 0;
   $noi_dung = function_exists('thu_chi_get_or_create_noi_dung_node') ? (int) thu_chi_get_or_create_noi_dung_node('Thanh toán công nợ khách hàng') : 'Thanh toán công nợ khách hàng';
   $values = array(
@@ -283,6 +425,7 @@ function _cnkh_create_payment() {
     'nhom_giao_dich' => 'cong_no_khach_hang',
     'ref_type' => 'cong_no_khach_hang',
     'nid_ref' => $customer_id,
+    'ghi_chu' => !empty($input['ghi_chu']) ? (string) $input['ghi_chu'] : '',
     'chi_tiet' => array(array(
       'noi_dung' => $noi_dung,
       'don_gia' => $allocated_total,
@@ -291,6 +434,7 @@ function _cnkh_create_payment() {
       'vat' => 0,
     )),
   );
+
   $transaction = db_transaction();
   try {
     $result = thu_chi_giao_dich_save_values($values);
@@ -305,6 +449,8 @@ function _cnkh_create_payment() {
     $json['phan_bo_phieu_tra_khach_hang'] = $allocations;
     $json['voucher_allocations'] = $allocations;
     $json['created_from'] = 'cong_no_khach_hang';
+    $json['thang_cong_no'] = $month;
+    $json['payment_scope'] = !empty($input['payment_scope']) ? (string) $input['payment_scope'] : 'selected';
     db_update('qltc_phieu_thu_chi')->fields(array('thong_tin_json' => _cnkh_json_encode($json), 'changed' => REQUEST_TIME))->condition('nid', $gd_id)->execute();
     $approve = thu_chi_approve_giao_dich($gd_id, 'duyet');
     if (empty($approve['success'])) {
@@ -356,7 +502,7 @@ function _cnkh_sync_voucher_payment_status(array $voucher_ids) {
   foreach ($paid_map as $id => $paid) {
     $row = db_select('phieu_tra_khach_hang', 'p')->fields('p')->condition('p.nid', (int) $id)->execute()->fetchObject();
     if (!$row) continue;
-    $total = (int) $row->tong_tien;
+    $total = _cnkh_money($row->tong_tien);
     $paid = min(max((int) $paid, 0), $total);
     $remaining = max($total - $paid, 0);
     db_update('phieu_tra_khach_hang')->fields(array(
