@@ -1091,7 +1091,7 @@
   function loadPlanInfo() {
     if (!state.nidKeHoach) return $.Deferred().resolve().promise();
     clearPlanInfo();
-    return $.getJSON('/api/ke-hoach-xep-xe/' + state.nidKeHoach)
+    return $.getJSON('/api/ke-hoach-xep-xe/' + state.nidKeHoach, { context: 'chi_phi' })
       .done(function (response) {
         if (response && response.status === 'success' && response.data) {
           fillPlanInfo(response.data);

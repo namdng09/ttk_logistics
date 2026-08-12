@@ -1019,6 +1019,8 @@
           if (row.so_cont) {
             contHtml += (contHtml ? ' - ' : '') + escHtml(row.so_cont);
           }
+          var baiLayDisplay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
+          var baiHaDisplay = row.bai_ha_thuc_te || row.bai_ha_cont || '';
           html += '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
@@ -1040,9 +1042,9 @@
             '<td class="khxh-kho-cell">' + escHtml(row.dia_chi_kho || '') + '</td>' +
             '<td class="text-nowrap">' +
               '<div class="khxh-hanh-trinh-cell">' +
-                '<div class="khxh-hanh-trinh-box">' + (row.bai_lay_cont ? escHtml(row.bai_lay_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
+                '<div class="khxh-hanh-trinh-box">' + (baiLayDisplay ? escHtml(baiLayDisplay) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
                 '<div class="khxh-hanh-trinh-separator"></div>' +
-                '<div class="khxh-hanh-trinh-box">' + (row.bai_ha_cont ? escHtml(row.bai_ha_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
+                '<div class="khxh-hanh-trinh-box">' + (baiHaDisplay ? escHtml(baiHaDisplay) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
               '</div>' +
             '</td>' +
             '<td class="khxh-cang-cell">' + escHtml(row.cang_xuat || '') + '</td>' +
@@ -2808,7 +2810,7 @@
               '</td>' +
               '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(item) + '</td>' +
               '<td class="khxh-kho-cell">' + escHtml(item.dia_chi_kho || '') + '</td>' +
-              '<td class="text-nowrap"><div class="khxh-hanh-trinh-cell"><div class="khxh-hanh-trinh-box">' + (item.bai_lay_cont ? escHtml(item.bai_lay_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + (item.bai_ha_cont ? escHtml(item.bai_ha_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div></div></td>' +
+              '<td class="text-nowrap"><div class="khxh-hanh-trinh-cell"><div class="khxh-hanh-trinh-box">' + ((item.bai_lay_thuc_te || item.bai_lay_cont) ? escHtml(item.bai_lay_thuc_te || item.bai_lay_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + ((item.bai_ha_thuc_te || item.bai_ha_cont) ? escHtml(item.bai_ha_thuc_te || item.bai_ha_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div></div></td>' +
               '<td class="khxh-cang-cell">' + escHtml(item.cang_xuat || '') + '</td>' +
               '<td class="khxh-date-cell">' + cutOffBadge(item.cut_off) + '</td>' +
               '<td class="khxh-status-cell text-center"><button type="button" class="btn btn-sm ' + (daDuHang ? 'btn-success' : 'btn-label-secondary') + ' cont-toggle-btn" data-field="da_du_hang">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</button></td>' +
