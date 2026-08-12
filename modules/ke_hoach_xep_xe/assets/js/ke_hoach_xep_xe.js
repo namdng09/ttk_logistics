@@ -1173,6 +1173,10 @@
     function $form(selector) {
       return $formApp.find(selector);
     }
+    function $formOrPage(selector) {
+      var $el = $form(selector);
+      return $el.length ? $el : $(selector);
+    }
     function formDropdownParent() {
       var $modal = $formApp.closest('.modal');
       if (!$modal.length) {
@@ -1438,6 +1442,7 @@
       var dropdownParent = formDropdownParent();
       initSelect2($row.find('.line-customer-select')[0], 'Chọn khách hàng', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true, dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-hinh-thuc-select')[0], '— Chọn hình thức —', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-bai-lay-select')[0], '— Chọn bãi lấy —', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-bai-ha-select')[0], '— Chọn bãi hạ —', { dropdownParent: dropdownParent });
@@ -1628,8 +1633,8 @@
             '<select class="form-select line-bai-lay-select mb-2">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select>' +
             '<select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select>' +
           '</td>' +
-	          '<td class="line-combo-cell">' +
-	            '<input type="text" class="form-control line-cut-off-input mb-2" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM">' +
+	          '<td class="line-combo-cell line-cutoff-cell' + (dateInputsHtml ? ' has-date-range' : '') + '">' +
+	            '<input type="text" class="form-control line-cut-off-input' + (dateInputsHtml ? ' mb-2' : '') + '" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM">' +
 	            dateInputsHtml +
 	          '</td>' +
           '<td class="text-center">' + actionCopy + '</td>' +
@@ -1918,7 +1923,7 @@
 	    function getContPicker($card) {
 	      var key = $card && $card.length ? $card.data('line-key') : '';
 	      if (useTableLayout) {
-	        var $modalPicker = $form('#cont-ref-picker-wrap');
+	        var $modalPicker = $formOrPage('#cont-ref-picker-wrap');
 	        if ($modalPicker.length && (!key || String($modalPicker.attr('data-line-key') || '') === String(key))) {
 	          return $modalPicker;
 	        }
@@ -2036,15 +2041,26 @@
 	        return;
 	      }
 	      activeContPickerLineKey = key;
-	      var $wrap = $form('#cont-ref-picker-wrap');
+	      var $wrap = $formOrPage('#cont-ref-picker-wrap');
+	      if (!$wrap.length) {
+	        if (notyf) notyf.error('Không tìm thấy modal chọn cont kéo về');
+	        return;
+	      }
 	      $wrap.attr('data-line-key', key);
 	      $wrap.find('.line-cont-filter-bkg, .line-cont-filter-cont').val('');
 	      var $filterKho = $wrap.find('.line-cont-filter-kho');
 	      if ($filterKho.data('select2')) $filterKho.select2('destroy');
 	      $filterKho.html(buildTagOptions(state.diaDiem.kho, ''));
 	      $wrap.find('.line-cont-filter-du-hang').val('');
-	      $form('#cont-ref-picker-target').text('Đang chọn cho dòng #' + ($row.index() + 1));
-	      if (!contRefModal) contRefModal = new bootstrap.Modal($form('#cont-ref-picker-modal')[0]);
+	      $formOrPage('#cont-ref-picker-target').text('Đang chọn cho dòng #' + ($row.index() + 1));
+	      var modalEl = $formOrPage('#cont-ref-picker-modal')[0];
+	      if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+	        if (notyf) notyf.error('Không khởi tạo được modal chọn cont kéo về');
+	        return;
+	      }
+	      if (!contRefModal || contRefModal._element !== modalEl) {
+	        contRefModal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
+	      }
 	      contRefModal.show();
 	      loadContCandidates(line, $row);
 	    }

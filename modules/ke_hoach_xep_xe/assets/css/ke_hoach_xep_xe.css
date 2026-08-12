@@ -622,6 +622,10 @@ body .flatpickr-calendar {
   vertical-align: top !important;
 }
 
+.line-combo-cell.line-cutoff-cell:not(.has-date-range) {
+  vertical-align: middle !important;
+}
+
 .line-combo-cell .mb-2 {
   margin-bottom: 0.5rem !important;
 }
@@ -712,7 +716,6 @@ body .flatpickr-calendar {
 
 .btn-open-cont-ref-modal:disabled,
 .btn-open-cont-ref-modal.disabled {
-  color: #98a2b3 !important;
   background: #f8f9fa;
   cursor: not-allowed;
   opacity: 0.75;
@@ -731,7 +734,6 @@ body .flatpickr-calendar {
 .line-vehicle-display .vehicle-inline-text,
 .line-mooc-display .vehicle-inline-text,
 .btn-open-cont-ref-modal .vehicle-inline-text {
-  color: #344054;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
