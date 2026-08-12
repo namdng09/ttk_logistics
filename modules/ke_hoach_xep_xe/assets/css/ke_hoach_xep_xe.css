@@ -1105,6 +1105,10 @@ body .flatpickr-calendar {
   vertical-align: middle;
 }
 
+.khcp-table tbody tr.khcp-type-divider:hover td {
+  background: #eef3f8;
+}
+
 .khcp-table tbody tr.khcp-type-divider .btn {
   width: 30px;
   height: 30px;
@@ -1319,11 +1323,6 @@ body .flatpickr-calendar {
   min-height: 32px;
   padding: 0.25rem 0.45rem;
   font-size: 12px;
-}
-
-.khcp-oil-type-divider td {
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
 }
 
 .khcp-oil-table th:nth-child(1),

@@ -864,7 +864,7 @@
     var rows = state.oilRows || [];
     $.each(OIL_TYPES, function (_, type) {
       html += '' +
-        '<tr class="khcp-oil-type-divider" data-oil-type="' + escHtml(type.value) + '">' +
+        '<tr class="khcp-type-divider khcp-oil-type-divider" data-oil-type="' + escHtml(type.value) + '">' +
           '<td class="text-center py-1">' +
             '<button type="button" class="btn btn-sm btn-icon btn-primary text-white btn-oil-add-group" data-oil-type="' + escHtml(type.value) + '" title="Thêm dòng"><i class="ti tabler-plus"></i></button>' +
           '</td>' +
