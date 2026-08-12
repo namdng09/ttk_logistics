@@ -315,13 +315,14 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
             </div>
 
             <div class="card khcp-oil-card mt-3" id="khcp-oil-card" style="display:none;">
-              <div class="card-header">
-                <div class="d-flex align-items-center justify-content-between gap-2">
-                  <span>Đổ dầu tuyến xa</span>
+              <div class="khcp-dm-header">
+                <div class="d-flex align-items-center gap-2 min-w-0">
+                  <span class="khcp-section-title">Đổ dầu tuyến xa</span>
+                  <span class="badge rounded-pill bg-label-secondary border" id="khcp-oil-count">0 dòng</span>
                 </div>
               </div>
               <div class="card-body">
-                <div class="khcp-oil-summary">
+                <div class="khcp-oil-summary khcp-dm-summary">
                   <div>
                     <span>Tổng lít</span>
                     <strong id="khcp-oil-total-lit">0</strong>

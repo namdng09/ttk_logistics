@@ -981,6 +981,10 @@ body .flatpickr-calendar {
   padding: 8px 12px;
 }
 
+.khcp-revenue-field {
+  text-align: right;
+}
+
 .khcp-dm-header {
   min-height: 46px;
   padding: 8px 12px;
@@ -1279,43 +1283,25 @@ body .flatpickr-calendar {
   overflow: hidden;
 }
 
-.khcp-oil-card .card-header {
-  padding: 10px 12px;
-  background: #fff;
-  font-weight: 650;
-}
-
 .khcp-oil-card .card-body {
-  padding: 12px;
+  padding: 0;
 }
 
 .khcp-oil-summary {
-  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
 }
 
 .khcp-oil-summary > div {
-  padding: 8px 10px;
-  border: 1px solid #eef0f3;
-  border-radius: 6px;
-  background: #f8f9fa;
+  border-right: 1px solid var(--khcp-border);
 }
 
 .khcp-oil-summary span {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--khcp-muted);
-  font-size: 12px;
+  margin-bottom: 0;
 }
 
 .khcp-oil-summary strong {
-  display: block;
-  color: #212529;
-  font-size: 14px;
-  font-weight: 700;
-  text-align: right;
+  font-size: 18px;
+  text-align: left;
 }
 
 .khcp-oil-table .form-control,

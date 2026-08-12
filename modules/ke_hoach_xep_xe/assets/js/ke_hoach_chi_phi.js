@@ -862,6 +862,7 @@
     var html = '';
     var enabled = isCompanyOilEnabled();
     var rows = state.oilRows || [];
+    var displayIndex = 0;
     $.each(OIL_TYPES, function (_, type) {
       html += '' +
         '<tr class="khcp-type-divider khcp-oil-type-divider" data-oil-type="' + escHtml(type.value) + '">' +
@@ -872,7 +873,8 @@
         '</tr>';
       $.each(rows, function (index, row) {
         if ((row.loai_do_dau || 'do_dau_ngoai') !== type.value) return;
-        html += oilRowTemplate(row, index);
+        displayIndex += 1;
+        html += oilRowTemplate(row, displayIndex - 1);
       });
     });
     $('#khcp-oil-table-body').html(html);
@@ -911,6 +913,7 @@
     updateDriverPayModeButton();
     $('#khcp-oil-total-lit').text(enabled ? formatDecimal(oilTotalLit()) : '0');
     $('#khcp-oil-total-money').text(formatMoney(oilTotalMoney()));
+    $('#khcp-oil-count').text((state.oilRows || []).length + ' dòng');
   }
 
   function updateDriverPayModeButton() {
