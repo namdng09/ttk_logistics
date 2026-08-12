@@ -414,10 +414,21 @@
 
   function normalizeOilRow(item) {
     item = item || {};
+    var json = item.thong_tin_json || {};
+    var loai = item.loai_do_dau || json.loai_do_dau || item.loai_dau || '';
+    if (!loai) loai = 'do_dau_ngoai';
+    var soLitDauCai = toNumber(item.so_lit_dau_cai || json.so_lit_dau_cai);
+    var soLitMooc = toNumber(item.so_lit_mooc || json.so_lit_mooc);
+    if (!soLitDauCai && !soLitMooc && toNumber(item.so_lit)) {
+      soLitDauCai = toNumber(item.so_lit);
+    }
     return {
       key: item.key || uid(),
       ngay: item.ngay || '',
-      so_lit: toNumber(item.so_lit),
+      loai_do_dau: loai,
+      so_lit_dau_cai: soLitDauCai,
+      so_lit_mooc: soLitMooc,
+      so_lit: soLitDauCai + soLitMooc,
       so_tien: toNumber(item.so_tien)
     };
   }
@@ -429,7 +440,7 @@
   function oilTotalLit() {
     var total = 0;
     $.each(state.oilRows || [], function (_, row) {
-      total += toNumber(row.so_lit);
+      total += toNumber(row.so_lit_dau_cai) + toNumber(row.so_lit_mooc);
     });
     return total;
   }
@@ -831,10 +842,21 @@
   }
 
   function oilRowTemplate(row, index) {
+    var typeOptions = [
+      { value: 'do_dau_ngoai', label: 'Đổ dầu ngoài' },
+      { value: 've_bai_truoc_khi_xep', label: 'Tại bãi trước khi xếp' },
+      { value: 've_bai_sau_chuyen', label: 'Tại bãi sau chuyến' }
+    ];
+    var typeHtml = '';
+    for (var i = 0; i < typeOptions.length; i++) {
+      typeHtml += '<option value="' + typeOptions[i].value + '"' + (row.loai_do_dau === typeOptions[i].value ? ' selected' : '') + '>' + escHtml(typeOptions[i].label) + '</option>';
+    }
     return '' +
       '<tr data-oil-key="' + escHtml(row.key) + '">' +
         '<td><input type="text" class="form-control form-control-sm khcp-oil-field khcp-oil-date" data-field="ngay" value="' + escHtml(apiToDate(row.ngay)) + '" placeholder="dd/mm/yyyy"></td>' +
-        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-oil-field decimal-input" data-field="so_lit" value="' + escHtml(formatDecimal(row.so_lit)) + '" placeholder="0"></td>' +
+        '<td><select class="form-select form-select-sm khcp-oil-field" data-field="loai_do_dau">' + typeHtml + '</select></td>' +
+        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-oil-field decimal-input" data-field="so_lit_dau_cai" value="' + escHtml(formatDecimal(row.so_lit_dau_cai)) + '" placeholder="0"></td>' +
+        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-oil-field decimal-input" data-field="so_lit_mooc" value="' + escHtml(formatDecimal(row.so_lit_mooc)) + '" placeholder="0"></td>' +
         '<td><input type="text" inputmode="numeric" class="form-control form-control-sm khcp-oil-field money-input" data-field="so_tien" value="' + formatMoney(row.so_tien) + '" placeholder="0"></td>' +
         '<td><div class="khcp-row-actions"><button type="button" class="btn btn-sm btn-label-danger btn-oil-delete-row" title="Xoá dòng"><i class="ti tabler-trash"></i></button></div></td>' +
       '</tr>';
@@ -845,7 +867,7 @@
     var enabled = isCompanyOilEnabled();
     var rows = state.oilRows || [];
     if (!rows.length) {
-      html = '<tr><td colspan="4" class="text-center text-muted py-3">Chưa có dữ liệu dầu</td></tr>';
+      html = '<tr><td colspan="6" class="text-center text-muted py-3">Chưa có dữ liệu dầu</td></tr>';
     }
     else {
       $.each(rows, function (index, row) {
@@ -1127,7 +1149,10 @@
     var items = $.map(state.oilRows || [], function (row) {
       var item = {
         ngay: dateToApi(row.ngay),
-        so_lit: toNumber(row.so_lit),
+        loai_do_dau: row.loai_do_dau || 'do_dau_ngoai',
+        so_lit_dau_cai: toNumber(row.so_lit_dau_cai),
+        so_lit_mooc: toNumber(row.so_lit_mooc),
+        so_lit: toNumber(row.so_lit_dau_cai) + toNumber(row.so_lit_mooc),
         so_tien: toNumber(row.so_tien)
       };
       if (!item.ngay && !item.so_lit && !item.so_tien) return null;
@@ -1389,7 +1414,10 @@
       var field = $input.data('field');
       if (!row || !field) return;
       if ($input.hasClass('money-input')) formatMoneyInputKeepingCaret(this);
-      row[field] = field === 'ngay' ? dateToApi($input.val()) : toNumber($input.val());
+      if (field === 'ngay') row[field] = dateToApi($input.val());
+      else if ($input.hasClass('money-input') || $input.hasClass('decimal-input')) row[field] = toNumber($input.val());
+      else row[field] = $input.val();
+      row.so_lit = toNumber(row.so_lit_dau_cai) + toNumber(row.so_lit_mooc);
       updateOilSummary();
       updateSummary();
     });

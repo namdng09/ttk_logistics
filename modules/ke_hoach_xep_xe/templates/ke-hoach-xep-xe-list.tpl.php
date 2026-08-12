@@ -339,7 +339,9 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
                     <thead>
                       <tr>
                         <th>Ngày</th>
-                        <th class="khcp-col-qty">Số lít</th>
+                        <th>Loại đổ dầu</th>
+                        <th class="khcp-col-qty">Lít đầu cái</th>
+                        <th class="khcp-col-qty">Lít mooc</th>
                         <th class="khcp-col-money">Số tiền</th>
                         <th class="khcp-col-action"></th>
                       </tr>

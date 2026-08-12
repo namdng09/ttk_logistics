@@ -291,6 +291,13 @@ function _ke_hoach_xep_xe_json_encode(array $data) {
   return json_encode($data, $options);
 }
 
+function _ke_hoach_xep_xe_merge_json_text($existing, $incoming) {
+  $existing_json = _ke_hoach_xep_xe_json_decode($existing);
+  $incoming_json = _ke_hoach_xep_xe_json_decode($incoming);
+  $merged = array_merge($existing_json, $incoming_json);
+  return !empty($merged) ? _ke_hoach_xep_xe_json_encode($merged) : '';
+}
+
 function _ke_hoach_xep_xe_parse_money($value) {
   if (is_numeric($value)) {
     return (int) round($value);
@@ -953,7 +960,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch');
   }
 
-  $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  $existing = db_query("SELECT nid, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -971,6 +978,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
   }
 
   $record = _ke_hoach_xep_xe_build_record($input, $line);
+  $record['thong_tin_json'] = _ke_hoach_xep_xe_merge_json_text(isset($existing->thong_tin_json) ? $existing->thong_tin_json : '', $record['thong_tin_json']);
   _ke_hoach_xep_xe_apply_cont_logic($record);
 
   $transaction = db_transaction();
@@ -1527,15 +1535,25 @@ function _ke_hoach_tuyen_xa_save_dau($ke_hoach_id, array $items, array $chang_ke
     if (empty($item['ngay']) && empty($item['so_lit']) && empty($item['so_tien']) && empty($item['loai_dau'])) {
       continue;
     }
+    $loai_do_dau = !empty($item['loai_do_dau']) ? trim((string) $item['loai_do_dau']) : (!empty($item['loai_dau']) ? trim((string) $item['loai_dau']) : '');
+    $so_lit_dau_cai = isset($item['so_lit_dau_cai']) && $item['so_lit_dau_cai'] !== '' ? (float) $item['so_lit_dau_cai'] : (isset($item['so_lit']) && $item['so_lit'] !== '' ? (float) $item['so_lit'] : 0);
+    $so_lit_mooc = isset($item['so_lit_mooc']) && $item['so_lit_mooc'] !== '' ? (float) $item['so_lit_mooc'] : 0;
+    $so_lit = isset($item['so_lit']) && $item['so_lit'] !== '' ? (float) $item['so_lit'] : ($so_lit_dau_cai + $so_lit_mooc);
+    $json = array(
+      'loai_do_dau' => $loai_do_dau,
+      'bai_do_dau' => !empty($item['bai_do_dau']) ? trim((string) $item['bai_do_dau']) : '',
+      'so_lit_dau_cai' => $so_lit_dau_cai,
+      'so_lit_mooc' => $so_lit_mooc,
+    );
     db_insert('ke_hoach_tuyen_xa_dau')
       ->fields(array(
         'ke_hoach_id' => (int) $ke_hoach_id,
         'chang_id' => !empty($item['chang_key']) && isset($chang_key_map[(string) $item['chang_key']]) ? (int) $chang_key_map[(string) $item['chang_key']] : 0,
         'ngay' => !empty($item['ngay']) ? _ke_hoach_tuyen_xa_normalize_date($item['ngay']) : '',
-        'loai_dau' => !empty($item['loai_dau']) ? trim((string) $item['loai_dau']) : '',
-        'so_lit' => isset($item['so_lit']) && $item['so_lit'] !== '' ? (float) $item['so_lit'] : 0,
+        'loai_dau' => $loai_do_dau,
+        'so_lit' => $so_lit,
         'so_tien' => !empty($item['so_tien']) ? (int) $item['so_tien'] : 0,
-        'thong_tin_json' => '',
+        'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json),
         'created' => $now,
         'changed' => $now,
         'hoat_dong' => 1,
@@ -1595,11 +1613,22 @@ function _ke_hoach_tuyen_xa_dau_rest_save() {
   foreach ($items as $index => $item) {
     if (!is_array($item)) continue;
     $ngay = !empty($item['ngay']) ? _ke_hoach_tuyen_xa_normalize_date($item['ngay']) : '';
-    $so_lit = isset($item['so_lit']) && $item['so_lit'] !== '' ? (float) str_replace(',', '.', preg_replace('/[^\d,.\-]/', '', (string) $item['so_lit'])) : 0;
+    $so_lit_dau_cai = isset($item['so_lit_dau_cai']) && $item['so_lit_dau_cai'] !== '' ? (float) str_replace(',', '.', preg_replace('/[^\d,.\-]/', '', (string) $item['so_lit_dau_cai'])) : 0;
+    $so_lit_mooc = isset($item['so_lit_mooc']) && $item['so_lit_mooc'] !== '' ? (float) str_replace(',', '.', preg_replace('/[^\d,.\-]/', '', (string) $item['so_lit_mooc'])) : 0;
+    $so_lit = isset($item['so_lit']) && $item['so_lit'] !== '' ? (float) str_replace(',', '.', preg_replace('/[^\d,.\-]/', '', (string) $item['so_lit'])) : ($so_lit_dau_cai + $so_lit_mooc);
     $so_tien = !empty($item['so_tien']) ? _ke_hoach_xep_xe_parse_money($item['so_tien']) : 0;
+    $loai_do_dau = !empty($item['loai_do_dau']) ? trim((string) $item['loai_do_dau']) : (!empty($item['loai_dau']) ? trim((string) $item['loai_dau']) : '');
+    $bai_do_dau = !empty($item['bai_do_dau']) ? trim((string) $item['bai_do_dau']) : '';
     if (!$ngay && !$so_lit && !$so_tien) continue;
+    if (!$so_lit_dau_cai && !$so_lit_mooc && $so_lit) {
+      $so_lit_dau_cai = $so_lit;
+    }
     $clean_items[] = array(
       'ngay' => $ngay,
+      'loai_do_dau' => $loai_do_dau,
+      'bai_do_dau' => $bai_do_dau,
+      'so_lit_dau_cai' => $so_lit_dau_cai,
+      'so_lit_mooc' => $so_lit_mooc,
       'so_lit' => $so_lit,
       'so_tien' => $so_tien,
     );
@@ -1701,6 +1730,12 @@ function _ke_hoach_tuyen_xa_load_dau($ke_hoach_id) {
     ->fetchAll();
   foreach ($rows as $row) {
     $item = (array) $row;
+    $json = _ke_hoach_xep_xe_json_decode(isset($item['thong_tin_json']) ? $item['thong_tin_json'] : '');
+    $item['thong_tin_json'] = $json;
+    $item['loai_do_dau'] = !empty($json['loai_do_dau']) ? $json['loai_do_dau'] : (!empty($item['loai_dau']) ? $item['loai_dau'] : '');
+    $item['bai_do_dau'] = !empty($json['bai_do_dau']) ? $json['bai_do_dau'] : '';
+    $item['so_lit_dau_cai'] = isset($json['so_lit_dau_cai']) ? (string) $json['so_lit_dau_cai'] : (isset($item['so_lit']) ? (string) $item['so_lit'] : '0');
+    $item['so_lit_mooc'] = isset($json['so_lit_mooc']) ? (string) $json['so_lit_mooc'] : '0';
     $item['so_lit'] = isset($item['so_lit']) ? (string) $item['so_lit'] : '0';
     $item['chang_key'] = !empty($item['chang_id']) ? (string) $item['chang_id'] : '';
     $items[] = $item;
@@ -1864,7 +1899,7 @@ function _ke_hoach_tuyen_xa_rest_update($id) {
   if (!user_access('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch tuyến xa');
   }
-  $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':id' => $id, ':loai' => 'tuyen_xa'))->fetchField();
+  $existing = db_query("SELECT nid, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':id' => $id, ':loai' => 'tuyen_xa'))->fetch();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch tuyến xa không tồn tại');
   }
@@ -1875,6 +1910,7 @@ function _ke_hoach_tuyen_xa_rest_update($id) {
   }
   $built = _ke_hoach_tuyen_xa_build_parent_record($input);
   $record = $built['parent'];
+  $record['thong_tin_json'] = _ke_hoach_xep_xe_merge_json_text(isset($existing->thong_tin_json) ? $existing->thong_tin_json : '', $record['thong_tin_json']);
   $transaction = db_transaction();
   try {
     db_update('ke_hoach_xep_xe')

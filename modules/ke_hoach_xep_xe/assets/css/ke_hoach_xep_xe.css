@@ -1314,7 +1314,8 @@ body .flatpickr-calendar {
   text-align: right;
 }
 
-.khcp-oil-table .form-control {
+.khcp-oil-table .form-control,
+.khcp-oil-table .form-select {
   min-height: 32px;
   padding: 0.25rem 0.45rem;
   font-size: 12px;
@@ -1322,21 +1323,31 @@ body .flatpickr-calendar {
 
 .khcp-oil-table th:nth-child(1),
 .khcp-oil-table td:nth-child(1) {
-  width: 34%;
+  width: 105px;
 }
 
 .khcp-oil-table th:nth-child(2),
 .khcp-oil-table td:nth-child(2) {
-  width: 22%;
+  width: 155px;
 }
 
 .khcp-oil-table th:nth-child(3),
 .khcp-oil-table td:nth-child(3) {
-  width: 32%;
+  width: 92px;
 }
 
 .khcp-oil-table th:nth-child(4),
 .khcp-oil-table td:nth-child(4) {
+  width: 84px;
+}
+
+.khcp-oil-table th:nth-child(5),
+.khcp-oil-table td:nth-child(5) {
+  width: 110px;
+}
+
+.khcp-oil-table th:nth-child(6),
+.khcp-oil-table td:nth-child(6) {
   width: 42px;
 }
 
