@@ -142,18 +142,6 @@
             window.ptlxOpenAssignModal(nid, bksText, laixeData);
             return;
           }
-          if (t.classList.contains('btn-assign-mooc')) {
-            e.preventDefault();
-            var moocNid = t.getAttribute('data-id');
-            var moocTr = t.closest('tr');
-            var moocBks = moocTr.querySelector('td:nth-child(3)').textContent;
-            var moocMaTS = moocTr.querySelector('td:nth-child(4)').textContent;
-            var moocText = moocBks + (moocMaTS ? ' - ' + moocMaTS : '');
-            var moocItem = currentItemsMap[moocNid] || null;
-            var currentMooc = moocItem ? (moocItem.mooc || null) : null;
-            window.ptmOpenAssignModal(moocNid, moocText, currentMooc);
-            return;
-          }
           if (t.classList.contains('btn-delete-phuong-tien')) {
             e.preventDefault();
             confirmDelete(t.getAttribute('data-id'));
@@ -277,7 +265,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="8" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="7" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -291,7 +279,7 @@
         }
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="8" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="7" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -310,14 +298,6 @@
           } else {
             laixeName = '<span class="text-muted fst-italic">Chưa chọn</span>';
           }
-          var moocHtml = '<span class="badge bg-label-secondary">Mooc</span>';
-          if (item.loai_phuong_tien === 'dau_keo') {
-            if (item.mooc && item.mooc.label) {
-              moocHtml = escapeHtml(item.mooc.label);
-            } else {
-              moocHtml = '<span class="text-muted fst-italic">Chưa chọn</span>';
-            }
-          }
           html +=
             '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
@@ -326,7 +306,6 @@
             '<td>' + escapeHtml(item.ma_tai_san || '') + '</td>' +
             '<td><span class="badge ' + (LOAI_PHUONG_TIEN_COLOR[item.loai_phuong_tien] || 'bg-label-secondary') + '">' + escapeHtml(LOAI_PHUONG_TIEN_MAP[item.loai_phuong_tien] || item.loai_phuong_tien || '') + '</span></td>' +
             '<td>' + escapeHtml(item.hang_xe || '') + '</td>' +
-            '<td>' + moocHtml + '</td>' +
             '<td>' + laixeName + laixeSDT + '</td>' +
             '</tr>';
         }
@@ -335,7 +314,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="8" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="7" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -362,9 +341,6 @@
     if (perms.phuong_tien_create) {
       items += '<li><button type="button" class="dropdown-item btn-edit-phuong-tien" data-id="' + nid + '"><i class="ti tabler-edit me-2"></i>Sửa</button></li>';
       items += '<li><button type="button" class="dropdown-item btn-assign-lai-xe" data-id="' + nid + '"><i class="ti tabler-steering-wheel me-2"></i>Chọn lái xe</button></li>';
-      if (perms.ptm_create && item && item.loai_phuong_tien === 'dau_keo') {
-        items += '<li><button type="button" class="dropdown-item btn-assign-mooc" data-id="' + nid + '"><i class="ti tabler-link me-2"></i>Chọn Mooc</button></li>';
-      }
     }
     if (perms.phuong_tien_delete) {
       items += '<li><hr class="dropdown-divider"></li>';
