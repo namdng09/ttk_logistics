@@ -620,6 +620,45 @@ function _ke_hoach_xep_xe_validate_lines($items, $require_vehicle_driver = TRUE,
   return NULL;
 }
 
+function _ke_hoach_xep_xe_validate_cont_refs($items, $exclude_id = 0) {
+  if (empty($items) || !is_array($items)) {
+    return NULL;
+  }
+  $seen = array();
+  foreach ($items as $index => $item) {
+    $line_no = $index + 1;
+    $ref_id = !empty($item['ke_hoach_cont_ref_nid']) ? (int) $item['ke_hoach_cont_ref_nid'] : 0;
+    if (!$ref_id) {
+      continue;
+    }
+    $hinh_thuc = !empty($item['hinh_thuc_van_tai']) ? trim((string) $item['hinh_thuc_van_tai']) : '';
+    if (!in_array($hinh_thuc, array('cat_keo', 'cat_keo_cheo', 'rut_mooc'), TRUE)) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': hình thức vận tải không được chọn cont kéo về');
+    }
+    if (!empty($seen[$ref_id])) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': cont kéo về đã được chọn ở dòng #' . $seen[$ref_id]);
+    }
+    $seen[$ref_id] = $line_no;
+
+    $query = db_select('ke_hoach_xep_xe', 'kh')
+      ->fields('kh', array('nid', 'so_bkg', 'so_cont'))
+      ->condition('kh.ke_hoach_cont_ref_nid', $ref_id)
+      ->condition('kh.hoat_dong', 1);
+    if ($exclude_id) {
+      $query->condition('kh.nid', (int) $exclude_id, '<>');
+    }
+    $used = $query->execute()->fetch();
+    if ($used) {
+      $label = !empty($used->so_bkg) ? $used->so_bkg : ('#' . $used->nid);
+      if (!empty($used->so_cont)) {
+        $label .= ' / ' . $used->so_cont;
+      }
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': cont kéo về đã được dùng bởi kế hoạch ' . $label);
+    }
+  }
+  return NULL;
+}
+
 function _ke_hoach_xep_xe_related_summary($row) {
   if (!$row) {
     return NULL;
@@ -671,14 +710,6 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
 
   if ($nid_mooc) {
     $mooc = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $nid_mooc))->fetch();
-    $result['mooc'] = $mooc ? (array) $mooc : NULL;
-  }
-  elseif ($nid_phuong_tien && module_exists('phuong_tien_mooc') && db_table_exists('phuong_tien_mooc')) {
-    $mooc = db_query("SELECT m.nid, m.bks, m.ma_tai_san, m.loai_phuong_tien, m.hang_xe, m.nam_san_xuat
-      FROM {phuong_tien_mooc} ptm
-      INNER JOIN {phuong_tien} m ON ptm.nid_mooc = m.nid
-      WHERE ptm.nid_dau_keo = :nid AND ptm.hoat_dong = 1
-      ORDER BY ptm.id DESC", array(':nid' => $nid_phuong_tien))->fetch();
     $result['mooc'] = $mooc ? (array) $mooc : NULL;
   }
   else {
@@ -897,6 +928,10 @@ function _ke_hoach_xep_xe_rest_create() {
   if ($line_validation) {
     return $line_validation;
   }
+  $cont_ref_validation = _ke_hoach_xep_xe_validate_cont_refs(isset($input['items']) ? $input['items'] : array());
+  if ($cont_ref_validation) {
+    return $cont_ref_validation;
+  }
 
   $created_ids = array();
 
@@ -1007,6 +1042,10 @@ function _ke_hoach_xep_xe_rest_update($id) {
   $line_validation = _ke_hoach_xep_xe_validate_lines(array($line), FALSE, FALSE);
   if ($line_validation) {
     return $line_validation;
+  }
+  $cont_ref_validation = _ke_hoach_xep_xe_validate_cont_refs(array($line), $id);
+  if ($cont_ref_validation) {
+    return $cont_ref_validation;
   }
 
   $record = _ke_hoach_xep_xe_build_record($input, $line);
@@ -1195,9 +1234,6 @@ function _ke_hoach_cont_rest_update($id) {
       $ngay_ket_thuc = !empty($input['ngay_ket_thuc']) ? trim((string) $input['ngay_ket_thuc']) : '';
       $ngay_ket_thuc = $ngay_ket_thuc ? substr(_ke_hoach_xep_xe_filter_date($ngay_ket_thuc), 0, 10) : '';
       $update['ngay_ket_thuc'] = $ngay_ket_thuc ?: date('Y-m-d', REQUEST_TIME);
-    }
-    else {
-      $update['ngay_ket_thuc'] = '';
     }
   }
   if (array_key_exists('bai_lay_thuc_te', $input)) {

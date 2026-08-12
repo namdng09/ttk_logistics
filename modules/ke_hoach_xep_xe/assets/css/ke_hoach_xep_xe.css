@@ -51,6 +51,10 @@
   padding-right: 0.5rem;
 }
 
+#ke-hoach-list-app .dropdown-menu .dropdown-item.btn-open-ke-hoach-chi-phi > i.tabler-receipt-2 {
+  color: var(--bs-success) !important;
+}
+
 .khxh-date-badge {
   display: inline-flex;
   padding: 0.35rem 0.55rem;
@@ -630,6 +634,11 @@ body .flatpickr-calendar {
   margin-bottom: 0.5rem !important;
 }
 
+.line-combo-cell .line-customer-select + .select2-container,
+.line-combo-cell .line-hinh-thuc-select + .select2-container {
+  margin-bottom: 0.5rem !important;
+}
+
 .line-combo-cell .line-bai-lay-select + .select2-container {
   margin-bottom: 0.5rem !important;
 }
@@ -669,7 +678,8 @@ body .flatpickr-calendar {
 
 .vehicle-summary,
 .line-vehicle-display,
-.line-mooc-display {
+.line-mooc-display,
+.btn-open-cont-ref-modal {
   min-height: 38px;
   max-width: 100%;
   display: flex;
@@ -686,14 +696,32 @@ body .flatpickr-calendar {
 
 .vehicle-summary.is-selected,
 .line-vehicle-display.is-selected,
-.line-mooc-display.is-selected {
+.line-mooc-display.is-selected,
+.btn-open-cont-ref-modal.is-selected {
   border-color: color-mix(in sRGB, var(--bs-base-color) 22%, var(--bs-paper-bg)) !important;
   background: #fff;
 }
 
+.btn-open-cont-ref-modal.is-selected {
+  color: var(--bs-primary);
+}
+
+.btn-open-cont-ref-modal.is-invalid {
+  border-color: var(--bs-danger) !important;
+}
+
+.btn-open-cont-ref-modal:disabled,
+.btn-open-cont-ref-modal.disabled {
+  color: #98a2b3 !important;
+  background: #f8f9fa;
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
 .vehicle-summary .vehicle-inline-placeholder,
 .line-vehicle-display .vehicle-inline-placeholder,
-.line-mooc-display .vehicle-inline-placeholder {
+.line-mooc-display .vehicle-inline-placeholder,
+.btn-open-cont-ref-modal .vehicle-inline-placeholder {
   color: #98a2b3;
   font-style: italic;
   font-size: 0.85rem;
@@ -701,7 +729,8 @@ body .flatpickr-calendar {
 
 .vehicle-summary .vehicle-inline-text,
 .line-vehicle-display .vehicle-inline-text,
-.line-mooc-display .vehicle-inline-text {
+.line-mooc-display .vehicle-inline-text,
+.btn-open-cont-ref-modal .vehicle-inline-text {
   color: #344054;
   white-space: nowrap;
   overflow: hidden;
@@ -777,6 +806,12 @@ body .flatpickr-calendar {
   width: 42px;
   min-width: 42px;
   text-align: center;
+}
+
+.line-cont-picker-wrap .btn-edit-cont-candidate,
+.line-cont-picker-wrap .line-cont-bkg-copy-text {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .line-cont-destination-cell {
@@ -1268,13 +1303,12 @@ body .flatpickr-calendar {
 
 .khcp-summary-card .card-header {
   padding: 13px 14px;
-  border-bottom: 1px solid var(--khcp-border);
   background: #fff;
   font-weight: 650;
 }
 
 .khcp-summary-card .card-body {
-  padding: 8px 14px 14px;
+  padding: 12px;
 }
 
 .khcp-oil-card {
@@ -1346,33 +1380,85 @@ body > .flatpickr-calendar {
   z-index: 99999 !important;
 }
 
-.khcp-summary-block,
 .khcp-summary-total {
-  padding: 13px 0;
-  border-bottom: 1px solid #eef0f3;
+  padding: 12px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #eef3f8;
 }
 
 .khcp-summary-label {
   margin-bottom: 3px;
-  color: var(--khcp-muted);
+  color: #667085;
   font-size: 12px;
 }
 
 .khcp-summary-value {
   color: #212529;
-  font-size: 1rem;
+  font-size: 1.35rem;
   font-weight: 700;
   line-height: 1.2;
-  text-align: right;
 }
 
 .khcp-summary-total {
-  margin-top: 4px;
-  border-bottom: 0;
+  margin-bottom: 12px;
 }
 
-.khcp-summary-total .khcp-summary-value {
-  font-size: 1.25rem;
+.khcp-summary-group {
+  padding: 10px 0;
+  border-top: 1px solid #eef0f3;
+}
+
+.khcp-summary-group:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.khcp-summary-group-title {
+  margin-bottom: 7px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.khcp-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.khcp-summary-row + .khcp-summary-row {
+  margin-top: 4px;
+}
+
+.khcp-summary-row:hover {
+  background: #f3f4f6;
+}
+
+.khcp-summary-row span {
+  min-width: 0;
+  color: #667085;
+  font-size: 12px;
+}
+
+.khcp-summary-row strong {
+  flex: 0 0 auto;
+  color: #212529;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.khcp-summary-row.is-revenue strong {
+  color: #0f766e;
+}
+
+.khcp-summary-row.is-driver-salary strong {
+  color: #6f42c1;
 }
 
 .khcp-summary-meta {
