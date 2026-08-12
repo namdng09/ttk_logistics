@@ -2056,6 +2056,15 @@
       }
     }
 
+    function setContDestinationSelectValue($select, value) {
+      if (!$select || !$select.length) return;
+      value = value || '';
+      if (value && !$select.find('option').filter(function () { return $(this).val() === value; }).length) {
+        $select.append('<option value="' + escHtml(value) + '">' + escHtml(value) + '</option>');
+      }
+      $select.val(value).trigger('change.select2');
+    }
+
     function stageContBaiHaThucTe($card, contId, value) {
       contId = parseInt(contId, 10) || 0;
       if (!contId) return;
@@ -2065,6 +2074,7 @@
       var $select = $picker.find('.line-bai-ha-thuc-te-select[data-id="' + contId + '"]');
       var planned = ($select.attr('data-planned') || '').trim();
       var actual = normalizeBaiHaThucTe(value || '', planned);
+      setContDestinationSelectValue($select, actual || planned);
       $select.closest('td').find('.line-bai-ha-theo-ke-hoach-checkbox').prop('checked', !actual);
     }
 
@@ -2637,8 +2647,9 @@
         stageContBaiHaThucTe($card, contId, '');
         return;
       }
-      $checkbox.closest('td').find('.line-bai-ha-thuc-te-select').val('').trigger('change.select2');
-      stageContBaiHaThucTe($card, contId, '');
+      var $select = $checkbox.closest('td').find('.line-bai-ha-thuc-te-select');
+      if ($select.data('select2')) $select.select2('open');
+      else $select.focus();
     });
     $(document).on('change', '.line-cont-picker-wrap .line-bai-ha-thuc-te-select', function () {
       var $select = $(this);
