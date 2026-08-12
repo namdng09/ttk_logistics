@@ -17,6 +17,10 @@
     { value: 'lai_xe_tu_chiu', label: 'Lái xe chi trả', source: 'lai_xe' },
     { value: DRIVER_SALARY_TYPE, label: 'Lương lái xe', source: 'lai_xe' }
   ];
+  var OIL_TYPES = [
+    { value: 'do_dau_ngoai', label: 'Đổ dầu bãi ngoài' },
+    { value: 'do_dau_bai_cong_ty', label: 'Đổ dầu bãi công ty' }
+  ];
   var DRIVER_COST_TYPE = 'lai_xe_tu_chiu';
   var notyf;
   var modal;
@@ -416,6 +420,7 @@
     item = item || {};
     var json = item.thong_tin_json || {};
     var loai = item.loai_do_dau || json.loai_do_dau || item.loai_dau || '';
+    if (loai === 've_bai_truoc_khi_xep' || loai === 've_bai_sau_chuyen') loai = 'do_dau_bai_cong_ty';
     if (!loai) loai = 'do_dau_ngoai';
     var soLitDauCai = toNumber(item.so_lit_dau_cai || json.so_lit_dau_cai);
     var soLitMooc = toNumber(item.so_lit_mooc || json.so_lit_mooc);
@@ -842,19 +847,10 @@
   }
 
   function oilRowTemplate(row, index) {
-    var typeOptions = [
-      { value: 'do_dau_ngoai', label: 'Đổ dầu ngoài' },
-      { value: 've_bai_truoc_khi_xep', label: 'Tại bãi trước khi xếp' },
-      { value: 've_bai_sau_chuyen', label: 'Tại bãi sau chuyến' }
-    ];
-    var typeHtml = '';
-    for (var i = 0; i < typeOptions.length; i++) {
-      typeHtml += '<option value="' + typeOptions[i].value + '"' + (row.loai_do_dau === typeOptions[i].value ? ' selected' : '') + '>' + escHtml(typeOptions[i].label) + '</option>';
-    }
     return '' +
-      '<tr data-oil-key="' + escHtml(row.key) + '">' +
+      '<tr data-oil-key="' + escHtml(row.key) + '" data-oil-type="' + escHtml(row.loai_do_dau || 'do_dau_ngoai') + '">' +
+        '<td class="text-center small text-muted">' + (index + 1) + '</td>' +
         '<td><input type="text" class="form-control form-control-sm khcp-oil-field khcp-oil-date" data-field="ngay" value="' + escHtml(apiToDate(row.ngay)) + '" placeholder="dd/mm/yyyy"></td>' +
-        '<td><select class="form-select form-select-sm khcp-oil-field" data-field="loai_do_dau">' + typeHtml + '</select></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-oil-field decimal-input" data-field="so_lit_dau_cai" value="' + escHtml(formatDecimal(row.so_lit_dau_cai)) + '" placeholder="0"></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-oil-field decimal-input" data-field="so_lit_mooc" value="' + escHtml(formatDecimal(row.so_lit_mooc)) + '" placeholder="0"></td>' +
         '<td><input type="text" inputmode="numeric" class="form-control form-control-sm khcp-oil-field money-input" data-field="so_tien" value="' + formatMoney(row.so_tien) + '" placeholder="0"></td>' +
@@ -866,16 +862,21 @@
     var html = '';
     var enabled = isCompanyOilEnabled();
     var rows = state.oilRows || [];
-    if (!rows.length) {
-      html = '<tr><td colspan="6" class="text-center text-muted py-3">Chưa có dữ liệu dầu</td></tr>';
-    }
-    else {
+    $.each(OIL_TYPES, function (_, type) {
+      html += '' +
+        '<tr class="khcp-oil-type-divider" data-oil-type="' + escHtml(type.value) + '">' +
+          '<td class="text-center py-1">' +
+            '<button type="button" class="btn btn-sm btn-icon btn-primary text-white btn-oil-add-group" data-oil-type="' + escHtml(type.value) + '" title="Thêm dòng"><i class="ti tabler-plus"></i></button>' +
+          '</td>' +
+          '<td colspan="5" class="py-2 px-3"><strong class="small">' + escHtml(type.label) + '</strong></td>' +
+        '</tr>';
       $.each(rows, function (index, row) {
+        if ((row.loai_do_dau || 'do_dau_ngoai') !== type.value) return;
         html += oilRowTemplate(row, index);
       });
-    }
+    });
     $('#khcp-oil-table-body').html(html);
-    $('#khcp-oil-table-wrap, #khcp-oil-add-row').toggle(enabled);
+    $('#khcp-oil-table-wrap').toggle(enabled);
     $('#khcp-oil-card').toggle(state.loaiKeHoach === 'tuyen_xa');
     updateOilSummary();
     $('#khcp-oil-table-body').find('.khcp-oil-date').each(function () {
@@ -891,9 +892,10 @@
     });
   }
 
-  function focusLastOilDatePicker() {
+  function focusOilDatePicker(rowKey) {
     window.setTimeout(function () {
-      var input = $('#khcp-oil-table-body tr:last .khcp-oil-date')[0];
+      var selector = rowKey ? 'tr[data-oil-key="' + rowKey + '"] .khcp-oil-date' : 'tr:last .khcp-oil-date';
+      var input = $('#khcp-oil-table-body').find(selector)[0];
       if (!input) return;
       input.focus();
       if (input._flatpickr) {
@@ -904,7 +906,7 @@
 
   function updateOilSummary() {
     var enabled = isCompanyOilEnabled();
-    $('#khcp-oil-table-wrap, #khcp-oil-add-row').toggle(enabled);
+    $('#khcp-oil-table-wrap').toggle(enabled);
     $('#khcp-oil-card').toggle(state.loaiKeHoach === 'tuyen_xa');
     updateDriverPayModeButton();
     $('#khcp-oil-total-lit').text(enabled ? formatDecimal(oilTotalLit()) : '0');
@@ -1324,11 +1326,13 @@
       renderDinhMucTable();
       $('tr[data-dm-key="' + row.key + '"] .khcp-dm-place-select').first().trigger('focus');
     });
-    $(document).on('click', '#khcp-oil-add-row', function () {
-      state.oilRows.push(normalizeOilRow({}));
+    $(document).on('click', '.btn-oil-add-group', function () {
+      var type = $(this).data('oil-type') || 'do_dau_ngoai';
+      var row = normalizeOilRow({ loai_do_dau: type });
+      state.oilRows.push(row);
       renderOilTable();
       updateSummary();
-      focusLastOilDatePicker();
+      focusOilDatePicker(row.key);
     });
     $(document).on('click', '.btn-oil-delete-row', function () {
       var key = $(this).closest('tr').data('oil-key');

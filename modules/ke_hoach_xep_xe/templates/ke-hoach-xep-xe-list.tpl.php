@@ -318,9 +318,6 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
               <div class="card-header">
                 <div class="d-flex align-items-center justify-content-between gap-2">
                   <span>Đổ dầu tuyến xa</span>
-                  <button type="button" class="btn btn-sm btn-label-primary" id="khcp-oil-add-row">
-                    <i class="ti tabler-plus me-1"></i>Thêm
-                  </button>
                 </div>
               </div>
               <div class="card-body">
@@ -338,8 +335,8 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
                   <table class="table table-bordered table-sm align-middle mb-0 khcp-table khcp-dm-table khcp-oil-table">
                     <thead>
                       <tr>
+                        <th class="khcp-col-index">#</th>
                         <th>Ngày</th>
-                        <th>Loại đổ dầu</th>
                         <th class="khcp-col-qty">Lít đầu cái</th>
                         <th class="khcp-col-qty">Lít mooc</th>
                         <th class="khcp-col-money">Số tiền</th>

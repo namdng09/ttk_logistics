@@ -1321,14 +1321,19 @@ body .flatpickr-calendar {
   font-size: 12px;
 }
 
+.khcp-oil-type-divider td {
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+}
+
 .khcp-oil-table th:nth-child(1),
 .khcp-oil-table td:nth-child(1) {
-  width: 105px;
+  width: 42px;
 }
 
 .khcp-oil-table th:nth-child(2),
 .khcp-oil-table td:nth-child(2) {
-  width: 155px;
+  width: 105px;
 }
 
 .khcp-oil-table th:nth-child(3),

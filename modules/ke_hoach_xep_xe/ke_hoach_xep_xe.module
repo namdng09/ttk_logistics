@@ -306,6 +306,14 @@ function _ke_hoach_xep_xe_parse_money($value) {
   return $value === '' || $value === '-' ? 0 : (int) $value;
 }
 
+function _ke_hoach_tuyen_xa_normalize_oil_type($type) {
+  $type = trim((string) $type);
+  if ($type === 've_bai_truoc_khi_xep' || $type === 've_bai_sau_chuyen') {
+    return 'do_dau_bai_cong_ty';
+  }
+  return $type !== '' ? $type : 'do_dau_ngoai';
+}
+
 function _ke_hoach_xep_xe_normalize_percent($value, $default = 0) {
   $percent = is_numeric($value) ? (float) $value : (float) str_replace(',', '.', preg_replace('/[^\d,.\-]/', '', (string) $value));
   if (!is_finite($percent)) {
@@ -1535,7 +1543,7 @@ function _ke_hoach_tuyen_xa_save_dau($ke_hoach_id, array $items, array $chang_ke
     if (empty($item['ngay']) && empty($item['so_lit']) && empty($item['so_tien']) && empty($item['loai_dau'])) {
       continue;
     }
-    $loai_do_dau = !empty($item['loai_do_dau']) ? trim((string) $item['loai_do_dau']) : (!empty($item['loai_dau']) ? trim((string) $item['loai_dau']) : '');
+    $loai_do_dau = _ke_hoach_tuyen_xa_normalize_oil_type(!empty($item['loai_do_dau']) ? $item['loai_do_dau'] : (!empty($item['loai_dau']) ? $item['loai_dau'] : ''));
     $so_lit_dau_cai = isset($item['so_lit_dau_cai']) && $item['so_lit_dau_cai'] !== '' ? (float) $item['so_lit_dau_cai'] : (isset($item['so_lit']) && $item['so_lit'] !== '' ? (float) $item['so_lit'] : 0);
     $so_lit_mooc = isset($item['so_lit_mooc']) && $item['so_lit_mooc'] !== '' ? (float) $item['so_lit_mooc'] : 0;
     $so_lit = isset($item['so_lit']) && $item['so_lit'] !== '' ? (float) $item['so_lit'] : ($so_lit_dau_cai + $so_lit_mooc);
@@ -1617,7 +1625,7 @@ function _ke_hoach_tuyen_xa_dau_rest_save() {
     $so_lit_mooc = isset($item['so_lit_mooc']) && $item['so_lit_mooc'] !== '' ? (float) str_replace(',', '.', preg_replace('/[^\d,.\-]/', '', (string) $item['so_lit_mooc'])) : 0;
     $so_lit = isset($item['so_lit']) && $item['so_lit'] !== '' ? (float) str_replace(',', '.', preg_replace('/[^\d,.\-]/', '', (string) $item['so_lit'])) : ($so_lit_dau_cai + $so_lit_mooc);
     $so_tien = !empty($item['so_tien']) ? _ke_hoach_xep_xe_parse_money($item['so_tien']) : 0;
-    $loai_do_dau = !empty($item['loai_do_dau']) ? trim((string) $item['loai_do_dau']) : (!empty($item['loai_dau']) ? trim((string) $item['loai_dau']) : '');
+    $loai_do_dau = _ke_hoach_tuyen_xa_normalize_oil_type(!empty($item['loai_do_dau']) ? $item['loai_do_dau'] : (!empty($item['loai_dau']) ? $item['loai_dau'] : ''));
     $bai_do_dau = !empty($item['bai_do_dau']) ? trim((string) $item['bai_do_dau']) : '';
     if (!$ngay && !$so_lit && !$so_tien) continue;
     if (!$so_lit_dau_cai && !$so_lit_mooc && $so_lit) {
@@ -1732,7 +1740,7 @@ function _ke_hoach_tuyen_xa_load_dau($ke_hoach_id) {
     $item = (array) $row;
     $json = _ke_hoach_xep_xe_json_decode(isset($item['thong_tin_json']) ? $item['thong_tin_json'] : '');
     $item['thong_tin_json'] = $json;
-    $item['loai_do_dau'] = !empty($json['loai_do_dau']) ? $json['loai_do_dau'] : (!empty($item['loai_dau']) ? $item['loai_dau'] : '');
+    $item['loai_do_dau'] = _ke_hoach_tuyen_xa_normalize_oil_type(!empty($json['loai_do_dau']) ? $json['loai_do_dau'] : (!empty($item['loai_dau']) ? $item['loai_dau'] : ''));
     $item['bai_do_dau'] = !empty($json['bai_do_dau']) ? $json['bai_do_dau'] : '';
     $item['so_lit_dau_cai'] = isset($json['so_lit_dau_cai']) ? (string) $json['so_lit_dau_cai'] : (isset($item['so_lit']) ? (string) $item['so_lit'] : '0');
     $item['so_lit_mooc'] = isset($json['so_lit_mooc']) ? (string) $json['so_lit_mooc'] : '0';
