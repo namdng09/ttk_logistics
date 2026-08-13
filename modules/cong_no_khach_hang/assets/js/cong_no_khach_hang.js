@@ -92,15 +92,15 @@
 
   function initMonthYearFilters() {
     var now = new Date();
-    var currentMonth = now.getMonth() + 1;
     var currentYear = now.getFullYear();
-    var monthHtml = '<option value="">Tất cả</option>';
+    var monthHtml = '';
     for (var i = 1; i <= 12; i++) monthHtml += '<option value="' + i + '">' + pad(i) + '</option>';
     $('.cnkh-month-select').html(monthHtml);
     var yearHtml = '<option value="">Tất cả</option>';
     for (var y = currentYear + 1; y >= currentYear - 5; y--) yearHtml += '<option value="' + y + '">' + y + '</option>';
     $('.cnkh-year-select').html(yearHtml);
-    $('#cnkh-filter-from-month,#cnkh-filter-to-month').val(currentMonth);
+    $('#cnkh-filter-from-month').val(1);
+    $('#cnkh-filter-to-month').val(12);
     $('#cnkh-filter-from-year,#cnkh-filter-to-year').val(currentYear);
   }
 
@@ -135,8 +135,7 @@
       from_year: $('#cnkh-filter-from-year').val() || '',
       to_month: $('#cnkh-filter-to-month').val() || '',
       to_year: $('#cnkh-filter-to-year').val() || '',
-      trang_thai: $('#cnkh-filter-status').val() || '',
-      keyword: $.trim($('#cnkh-filter-keyword').val() || '')
+      trang_thai: $('#cnkh-filter-status').val() || ''
     };
   }
 
@@ -181,27 +180,80 @@
   function renderTable() {
     if (!state.items.length) {
       $('#cnkh-table-body').html('<tr><td colspan="9" class="text-center text-muted py-4">Không có công nợ.</td></tr>');
+      $('#cnkh-list-count').text('0 nhóm');
       return;
     }
+    $('#cnkh-list-count').text(state.items.length + ' nhóm');
     var html = '';
-    $.each(state.items, function (idx, item) {
-      var key = rowKey(item);
-      var expanded = !!state.expanded[key];
-      var customer = item.khach_hang || {};
-      html += '<tr class="cnkh-group-row" data-index="' + idx + '">' +
-        '<td class="text-center"><button type="button" class="btn btn-sm btn-icon btn-label-secondary cnkh-expand" data-index="' + idx + '"><i class="ti ' + (expanded ? 'tabler-chevron-down' : 'tabler-chevron-right') + '"></i></button></td>' +
-        '<td><strong>' + esc(customer.ten || '') + '</strong>' + (customer.ma_kh ? '<div class="small text-muted">' + esc(customer.ma_kh) + '</div>' : '') + '</td>' +
-        '<td>' + esc(item.thang_cong_no_label || monthLabel(item.thang_cong_no)) + '</td>' +
-        '<td class="text-center">' + esc(item.so_phieu || 0) + '</td>' +
-        '<td class="text-end cnkh-money fw-semibold">' + moneyText(item.tong_phai_thu) + '</td>' +
-        '<td class="text-end cnkh-money">' + moneyText(item.da_thanh_toan) + '</td>' +
-        '<td class="text-end cnkh-money fw-semibold">' + moneyText(item.con_lai) + '</td>' +
-        '<td>' + statusBadge(item.trang_thai) + '</td>' +
-        '<td>' + actionDropdown(idx) + '</td>' +
-        '</tr>';
-      if (expanded) html += renderDetailRow(item, idx);
+    var groups = groupItemsByMonth(state.items);
+    var displayIndex = 1;
+    $.each(groups, function (_, group) {
+      html += renderMonthRow(group);
+      $.each(group.items, function (_, entry) {
+        var idx = entry.index;
+        var item = entry.item;
+        var key = rowKey(item);
+        var expanded = !!state.expanded[key];
+        var customer = item.khach_hang || {};
+        html += '<tr class="cnkh-group-row cnkh-summary-row' + (expanded ? ' is-open' : '') + '" data-index="' + idx + '">' +
+          '<td class="text-center"><button type="button" class="btn btn-sm btn-icon btn-label-secondary cnkh-expand cnkh-toggle-btn" data-index="' + idx + '"><i class="ti tabler-chevron-right cnkh-toggle-icon"></i></button></td>' +
+          '<td class="text-center text-muted">' + displayIndex++ + '</td>' +
+          '<td><div class="cnkh-customer-name fw-semibold">' + esc(customer.ten || '') + '</div>' + (customer.ma_kh ? '<div class="cnkh-customer-meta text-muted">' + esc(customer.ma_kh) + '</div>' : '') + '</td>' +
+          '<td class="text-center"><span class="badge bg-label-info rounded-pill">' + esc(item.so_phieu || 0) + '</span></td>' +
+          '<td class="text-end cnkh-money fw-semibold">' + moneyText(item.tong_phai_thu) + '</td>' +
+          '<td class="text-end cnkh-money cnkh-paid">' + moneyText(item.da_thanh_toan) + '</td>' +
+          '<td class="text-end cnkh-money fw-semibold ' + (moneyValue(item.con_lai) > 0 ? 'cnkh-debt' : 'text-success') + '">' + moneyText(item.con_lai) + '</td>' +
+          '<td class="text-center">' + statusBadge(item.trang_thai) + '</td>' +
+          '<td>' + actionDropdown(idx) + '</td>' +
+          '</tr>';
+        if (expanded) html += renderDetailRow(item, idx);
+      });
     });
     $('#cnkh-table-body').html(html);
+  }
+
+  function groupItemsByMonth(items) {
+    var map = {};
+    var groups = [];
+    $.each(items, function (idx, item) {
+      var month = String(item.thang_cong_no || '');
+      if (!map[month]) {
+        map[month] = {
+          month: month,
+          label: item.thang_cong_no_label || monthLabel(month),
+          items: [],
+          customerCount: 0,
+          voucherCount: 0,
+          total: 0,
+          paid: 0,
+          remaining: 0
+        };
+        groups.push(map[month]);
+      }
+      var group = map[month];
+      group.items.push({ item: item, index: idx });
+      group.customerCount += 1;
+      group.voucherCount += moneyValue(item.so_phieu);
+      group.total += moneyValue(item.tong_phai_thu);
+      group.paid += moneyValue(item.da_thanh_toan);
+      group.remaining += moneyValue(item.con_lai);
+    });
+    return groups;
+  }
+
+  function renderMonthRow(group) {
+    return '<tr class="cnkh-month-group-row"><td colspan="9">' +
+      '<div class="d-flex flex-wrap align-items-center justify-content-between gap-2">' +
+      '<div class="d-flex align-items-center gap-2">' +
+      '<i class="ti tabler-calendar-month fs-3 cnkh-month-icon"></i>' +
+      '<div><div class="fw-bold">Tháng ' + esc(group.label) + '</div>' +
+      '<div class="small opacity-75">' + group.customerCount + ' khách hàng · ' + group.voucherCount + ' phiếu trả</div></div>' +
+      '</div>' +
+      '<div class="d-flex flex-wrap gap-2 cnkh-month-totals">' +
+      '<span>Phải thu: <strong>' + moneyText(group.total) + '</strong></span>' +
+      '<span>Đã TT: <strong>' + moneyText(group.paid) + '</strong></span>' +
+      '<span>Còn lại: <strong>' + moneyText(group.remaining) + '</strong></span>' +
+      '</div></div></td></tr>';
   }
 
   function renderDetailRow(item, index) {
@@ -412,22 +464,25 @@
       var now = new Date();
       $('#cnkh-filter-customer').val('').trigger('change');
       $('#cnkh-filter-status').val('').trigger('change');
-      $('#cnkh-filter-keyword').val('');
-      $('#cnkh-filter-from-month,#cnkh-filter-to-month').val(now.getMonth() + 1);
+      $('#cnkh-filter-from-month').val(1);
+      $('#cnkh-filter-to-month').val(12);
       $('#cnkh-filter-from-year,#cnkh-filter-to-year').val(now.getFullYear());
       state.page = 1;
       state.expanded = {};
       loadList();
     });
-    $('#cnkh-filter-keyword').on('keydown', function (e) {
-      if (e.which === 13) {
-        state.page = 1;
-        state.expanded = {};
-        loadList();
-      }
-    });
     $(document).on('click', '.cnkh-expand,.cnkh-toggle-detail', function (e) {
       e.preventDefault();
+      e.stopPropagation();
+      var idx = parseInt($(this).data('index'), 10);
+      var item = state.items[idx];
+      if (!item) return;
+      var key = rowKey(item);
+      state.expanded[key] = !state.expanded[key];
+      renderTable();
+    });
+    $(document).on('click', '.cnkh-summary-row', function (e) {
+      if ($(e.target).closest('a,button,input,.dropdown-menu').length) return;
       var idx = parseInt($(this).data('index'), 10);
       var item = state.items[idx];
       if (!item) return;

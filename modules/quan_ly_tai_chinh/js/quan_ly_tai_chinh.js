@@ -1157,10 +1157,20 @@
     }
   }
 
+  function toNotiflixTarget(target) {
+    if (typeof target === 'string' || Array.isArray(target)) {
+      return target;
+    }
+    if (window.NodeList && NodeList.prototype.isPrototypeOf(target)) {
+      return target;
+    }
+    return [target];
+  }
+
   function block(target) {
     if (window.Notiflix && window.Notiflix.Block && target) {
       try {
-        window.Notiflix.Block.standard(target);
+        window.Notiflix.Block.standard(toNotiflixTarget(target));
         return;
       } catch (ignore) {}
     }
@@ -1169,7 +1179,7 @@
   function unblock(target) {
     if (window.Notiflix && window.Notiflix.Block && target) {
       try {
-        window.Notiflix.Block.remove(target);
+        window.Notiflix.Block.remove(toNotiflixTarget(target));
         return;
       } catch (ignore) {}
     }

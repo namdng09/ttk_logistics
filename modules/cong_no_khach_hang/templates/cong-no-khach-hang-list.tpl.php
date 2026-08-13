@@ -2,35 +2,30 @@
   <div class="card cnkh-filter-card mb-3">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
       <h4 class="card-title mb-0">Công nợ khách hàng</h4>
-      <button type="button" class="btn btn-primary" id="cnkh-search">
-        <i class="ti tabler-search me-1"></i>Tìm kiếm
-      </button>
     </div>
     <div class="card-body">
-      <div class="row g-2 align-items-end">
-        <div class="col-xl-3 col-lg-4 col-md-6">
+      <div class="cnkh-filter-row">
+        <div class="cnkh-filter-field cnkh-filter-customer">
           <label class="form-label">Khách hàng</label>
           <select id="cnkh-filter-customer" class="form-select">
             <option value="">Tất cả</option>
           </select>
         </div>
-        <div class="col-xl-2 col-lg-2 col-md-3 col-6">
+        <div class="cnkh-filter-field">
           <label class="form-label">Từ tháng</label>
-          <select id="cnkh-filter-from-month" class="form-select cnkh-month-select"></select>
+          <div class="cnkh-month-range">
+            <select id="cnkh-filter-from-month" class="form-select cnkh-month-select"></select>
+            <select id="cnkh-filter-from-year" class="form-select cnkh-year-select"></select>
+          </div>
         </div>
-        <div class="col-xl-2 col-lg-2 col-md-3 col-6">
-          <label class="form-label">Từ năm</label>
-          <select id="cnkh-filter-from-year" class="form-select cnkh-year-select"></select>
-        </div>
-        <div class="col-xl-2 col-lg-2 col-md-3 col-6">
+        <div class="cnkh-filter-field">
           <label class="form-label">Đến tháng</label>
-          <select id="cnkh-filter-to-month" class="form-select cnkh-month-select"></select>
+          <div class="cnkh-month-range">
+            <select id="cnkh-filter-to-month" class="form-select cnkh-month-select"></select>
+            <select id="cnkh-filter-to-year" class="form-select cnkh-year-select"></select>
+          </div>
         </div>
-        <div class="col-xl-2 col-lg-2 col-md-3 col-6">
-          <label class="form-label">Đến năm</label>
-          <select id="cnkh-filter-to-year" class="form-select cnkh-year-select"></select>
-        </div>
-        <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="cnkh-filter-field">
           <label class="form-label">Trạng thái</label>
           <select id="cnkh-filter-status" class="form-select">
             <option value="">Tất cả</option>
@@ -39,13 +34,12 @@
             <option value="da_thanh_toan">Đã thanh toán</option>
           </select>
         </div>
-        <div class="col-xl-4 col-lg-5 col-md-6">
-          <label class="form-label">Từ khóa</label>
-          <input type="text" id="cnkh-filter-keyword" class="form-control" placeholder="Mã phiếu, số hóa đơn">
-        </div>
-        <div class="col-xl-2 col-lg-3 col-md-4 d-flex gap-2">
-          <button type="button" class="btn btn-label-secondary w-100" id="cnkh-reset">
-            <i class="ti tabler-refresh me-1"></i>Reset
+        <div class="cnkh-filter-actions">
+          <button type="button" class="btn btn-primary w-100" id="cnkh-search">
+            <i class="icon-base ti tabler-search me-1"></i>Tìm kiếm
+          </button>
+          <button type="button" class="btn btn-label-secondary btn-icon" id="cnkh-reset" title="Làm mới">
+            <i class="icon-base ti tabler-refresh"></i>
           </button>
         </div>
       </div>
@@ -92,14 +86,20 @@
   </div>
 
   <div class="card cnkh-list-card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div>
+        <h5 class="card-title mb-1">Danh sách công nợ khách hàng</h5>
+      </div>
+      <span class="badge bg-label-primary rounded-pill" id="cnkh-list-count">0 nhóm</span>
+    </div>
     <div class="card-body">
       <div class="table-responsive">
         <table class="table table-hover align-middle cnkh-table">
           <thead>
             <tr>
               <th style="width:52px"></th>
+              <th style="width:64px" class="text-center">STT</th>
               <th>Khách hàng</th>
-              <th>Tháng công nợ</th>
               <th class="text-center">Số phiếu</th>
               <th class="text-end">Phải thu</th>
               <th class="text-end">Đã TT</th>
