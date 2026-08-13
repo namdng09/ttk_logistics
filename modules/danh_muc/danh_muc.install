@@ -138,3 +138,11 @@ function danh_muc_update_7005() {
       ->execute();
   }
 }
+
+function danh_muc_update_7006() {
+  if (!db_table_exists('danh_muc_phu_phi')) {
+    return;
+  }
+  watchdog('danh_muc', 'Drop bảng danh_muc_phu_phi (đã migrate sang thong_tin_json ở update_7005).', array(), WATCHDOG_INFO);
+  db_drop_table('danh_muc_phu_phi');
+}

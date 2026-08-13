@@ -396,7 +396,7 @@
           $select.append($('<option>', { value: ten, text: ten }));
         }
         $select.val(ten).trigger('change');
-      });
+      }, phanLoaiOptions);
     });
   }
 
