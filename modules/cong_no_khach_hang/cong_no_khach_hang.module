@@ -73,6 +73,16 @@ function cong_no_khach_hang_page_list() {
 }
 
 function _cnkh_input() {
+  if (!empty($_POST)) {
+    $input = $_POST;
+    foreach (array('voucher_ids') as $key) {
+      if (!empty($input[$key]) && is_string($input[$key])) {
+        $decoded = json_decode($input[$key], TRUE);
+        if (is_array($decoded)) $input[$key] = $decoded;
+      }
+    }
+    return $input;
+  }
   $data = json_decode(file_get_contents('php://input'), TRUE);
   return is_array($data) ? $data : array();
 }
@@ -154,14 +164,20 @@ function _cnkh_filter_month($prefix) {
 
 function _cnkh_customer_info($nid) {
   $nid = (int) $nid;
-  $fallback = array('nid' => $nid, 'ma_kh' => '', 'ten' => $nid ? ('Khách hàng #' . $nid) : '');
+  $fallback = array('nid' => $nid, 'ma_kh' => '', 'ten' => $nid ? ('Khách hàng #' . $nid) : '', 'thong_tin_ngan_hang' => array());
   if (!$nid || !db_table_exists('khach_hang')) return $fallback;
   $row = db_select('khach_hang', 'kh')->fields('kh')->condition('kh.nid', $nid)->range(0, 1)->execute()->fetchObject();
   if (!$row) return $fallback;
+  $ngan_hang = array();
+  if (!empty($row->thong_tin_ngan_hang)) {
+    $decoded = json_decode($row->thong_tin_ngan_hang, TRUE);
+    if (is_array($decoded)) $ngan_hang = $decoded;
+  }
   return array(
     'nid' => $nid,
     'ma_kh' => isset($row->ma_kh) ? (string) $row->ma_kh : '',
     'ten' => isset($row->ten) ? (string) $row->ten : $fallback['ten'],
+    'thong_tin_ngan_hang' => $ngan_hang,
   );
 }
 
@@ -451,6 +467,9 @@ function _cnkh_create_payment() {
     $json['created_from'] = 'cong_no_khach_hang';
     $json['thang_cong_no'] = $month;
     $json['payment_scope'] = !empty($input['payment_scope']) ? (string) $input['payment_scope'] : 'selected';
+    $json['payment_method'] = !empty($input['payment_method']) ? (string) $input['payment_method'] : '';
+    $bill = _cnkh_save_payment_bill();
+    if (!empty($bill)) $json['bill_thanh_toan'] = $bill;
     db_update('qltc_phieu_thu_chi')->fields(array('thong_tin_json' => _cnkh_json_encode($json), 'changed' => REQUEST_TIME))->condition('nid', $gd_id)->execute();
     $approve = thu_chi_approve_giao_dich($gd_id, 'duyet');
     if (empty($approve['success'])) {
@@ -464,6 +483,25 @@ function _cnkh_create_payment() {
     return _cnkh_fail($e->getMessage());
   }
   return _cnkh_success(array('nid_phieu_thu_chi' => $gd_id, 'so_tien' => $allocated_total, 'message' => 'Đã tạo và duyệt phiếu thu công nợ'));
+}
+
+function _cnkh_save_payment_bill() {
+  if (empty($_FILES['bill_file']) || empty($_FILES['bill_file']['name'])) return array();
+  $validators = array(
+    'file_validate_extensions' => array('jpg jpeg png webp pdf'),
+  );
+  $dir = 'public://cong_no_khach_hang_bill';
+  file_prepare_directory($dir, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS);
+  $file = file_save_upload('bill_file', $validators, $dir, FILE_EXISTS_RENAME);
+  if (!$file) return array();
+  $file->status = FILE_STATUS_PERMANENT;
+  file_save($file);
+  return array(
+    'fid' => (int) $file->fid,
+    'filename' => (string) $file->filename,
+    'uri' => (string) $file->uri,
+    'url' => file_create_url($file->uri),
+  );
 }
 
 function _cnkh_payment_paid_map(array $voucher_ids) {

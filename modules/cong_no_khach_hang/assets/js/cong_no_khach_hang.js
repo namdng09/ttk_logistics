@@ -341,22 +341,68 @@
       notify('Không có phiếu còn nợ để thanh toán.', 'error');
       return;
     }
-    var total = 0;
-    $.each(vouchers, function (_, row) { total += moneyValue(row.con_lai); });
+    var selectedTotal = voucherTotal(vouchers);
+    var totalVouchers = vouchersWithDebt(item);
+    var totalDebt = voucherTotal(totalVouchers);
     var customer = item.khach_hang || {};
-    state.payment = { item: item, vouchers: vouchers, scope: scope || 'selected' };
-    $('#cnkh-pay-customer').val(customer.ten || '');
-    $('#cnkh-pay-month').val(item.thang_cong_no_label || monthLabel(item.thang_cong_no));
+    state.payment = { item: item, vouchers: vouchers, totalVouchers: totalVouchers, scope: scope || 'selected' };
+    $('#cnkh-pay-customer').text(customer.ten || '');
+    $('#cnkh-pay-month').text(item.thang_cong_no_label || monthLabel(item.thang_cong_no));
     $('#cnkh-pay-date').val(todayText());
-    $('#cnkh-pay-amount').val(money(total));
+    $('#cnkh-pay-amount').val(money(selectedTotal));
     $('#cnkh-pay-note').val('');
-    $('#cnkh-pay-scope').val(scope === 'period' ? 'Thanh toán cả kỳ' : (vouchers.length === 1 ? 'Thanh toán 1 phiếu' : 'Thanh toán phiếu chọn'));
+    $('#cnkh-pay-bill').val('');
+    $('#cnkh-pay-scope').text(scope === 'period' ? 'Thanh toán cả kỳ' : (vouchers.length === 1 ? 'Thanh toán 1 phiếu' : 'Thanh toán phiếu chọn'));
+    $('#cnkh-method-voucher-label').text(vouchers.length === 1 ? 'Thanh toán theo phiếu đang chọn' : 'Thanh toán theo các phiếu đã chọn');
+    $('input[name="cnkh-payment-method"][value="voucher"]').prop('checked', true);
+    renderPaymentBankInfo(customer);
     $('#cnkh-pay-vouchers').html(renderPaymentVoucherList(vouchers));
+    updatePaymentMethodNote();
     $('#cnkh-payment-form').removeClass('was-validated');
     if (window.flatpickr) {
       flatpickr($('#cnkh-pay-date')[0], { dateFormat: 'd/m/Y', allowInput: true, static: true });
     }
     $('#cnkh-payment-modal').modal('show');
+  }
+
+  function voucherTotal(vouchers) {
+    var total = 0;
+    $.each(vouchers || [], function (_, row) { total += moneyValue(row.con_lai); });
+    return total;
+  }
+
+  function activePaymentVouchers() {
+    if (!state.payment) return [];
+    var method = $('input[name="cnkh-payment-method"]:checked').val() || 'voucher';
+    return method === 'total' ? (state.payment.totalVouchers || []) : (state.payment.vouchers || []);
+  }
+
+  function updatePaymentMethodNote() {
+    if (!state.payment) return;
+    var method = $('input[name="cnkh-payment-method"]:checked').val() || 'voucher';
+    var vouchers = activePaymentVouchers();
+    var total = voucherTotal(vouchers);
+    $('#cnkh-pay-amount').val(money(total));
+    $('#cnkh-pay-vouchers').html(renderPaymentVoucherList(vouchers));
+    $('#cnkh-payment-method-note').text(method === 'total'
+      ? 'Thanh toán theo tổng tiền còn nợ của tất cả phiếu trong kỳ: ' + moneyText(total)
+      : 'Thanh toán theo danh sách phiếu đang chọn: ' + moneyText(total));
+  }
+
+  function renderPaymentBankInfo(customer) {
+    var banks = customer && $.isArray(customer.thong_tin_ngan_hang) ? customer.thong_tin_ngan_hang : [];
+    if (!banks.length) {
+      $('#cnkh-pay-bank-info').html('<div class="alert alert-warning py-2 mb-0">Khách hàng chưa có thông tin ngân hàng.</div>');
+      return;
+    }
+    var html = '';
+    $.each(banks, function (_, bank) {
+      html += '<div class="cnkh-bank-line">' +
+        '<div class="fw-semibold">' + esc(bank.ngan_hang || '-') + '</div>' +
+        '<div class="small text-muted">STK: <strong>' + esc(bank.so_tai_khoan || '-') + '</strong> · Chủ TK: <strong>' + esc(bank.ten_tai_khoan || '-') + '</strong></div>' +
+        '</div>';
+    });
+    $('#cnkh-pay-bank-info').html(html);
   }
 
   function renderPaymentVoucherList(vouchers) {
@@ -379,25 +425,31 @@
       notify('Số tiền thanh toán phải lớn hơn 0.', 'error');
       return;
     }
-    var ids = $.map(state.payment.vouchers, function (row) { return parseInt(row.nid, 10); });
-    var payload = {
-      nid_khach_hang: state.payment.item.nid_khach_hang,
-      thang_cong_no: state.payment.item.thang_cong_no,
-      voucher_ids: ids,
-      so_tien: amount,
-      nid_quy: $('#cnkh-pay-fund').val(),
-      ngay_giao_dich: $('#cnkh-pay-date').val(),
-      ghi_chu: $('#cnkh-pay-note').val(),
-      payment_scope: state.payment.scope
-    };
+    var vouchers = activePaymentVouchers();
+    var ids = $.map(vouchers, function (row) { return parseInt(row.nid, 10); });
+    var payload = new FormData();
+    payload.append('nid_khach_hang', state.payment.item.nid_khach_hang);
+    payload.append('thang_cong_no', state.payment.item.thang_cong_no);
+    payload.append('voucher_ids', JSON.stringify(ids));
+    payload.append('so_tien', amount);
+    payload.append('nid_quy', $('#cnkh-pay-fund').val());
+    payload.append('ngay_giao_dich', $('#cnkh-pay-date').val());
+    payload.append('ghi_chu', $('#cnkh-pay-note').val());
+    payload.append('payment_scope', $('input[name="cnkh-payment-method"]:checked').val() === 'total' ? 'total' : state.payment.scope);
+    payload.append('payment_method', $('input[name="cnkh-payment-method"]:checked').val() || 'voucher');
+    var billInput = $('#cnkh-pay-bill')[0];
+    if (billInput && billInput.files && billInput.files[0]) {
+      payload.append('bill_file', billInput.files[0]);
+    }
     var $btn = $('#cnkh-payment-submit');
     $btn.prop('disabled', true).addClass('disabled');
     $.ajax({
       url: API + '/thanh-toan',
       method: 'POST',
-      contentType: 'application/json; charset=utf-8',
+      processData: false,
+      contentType: false,
       dataType: 'json',
-      data: JSON.stringify(payload)
+      data: payload
     }).done(function () {
       notify('Đã thanh toán công nợ.', 'success');
       $('#cnkh-payment-modal').modal('hide');
@@ -533,6 +585,7 @@
       }
     });
     $('#cnkh-payment-submit').on('click', submitPayment);
+    $(document).on('change', 'input[name="cnkh-payment-method"]', updatePaymentMethodNote);
     $('#cnkh-payment-form').on('keydown', function (e) {
       if (e.which === 13) {
         e.preventDefault();

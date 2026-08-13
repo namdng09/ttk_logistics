@@ -130,8 +130,8 @@
   </div>
 </div>
 
-<div class="modal fade" id="cnkh-payment-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+<div class="modal fade cnkh-payment-modal" id="cnkh-payment-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Thanh toán công nợ</h5>
@@ -139,44 +139,95 @@
       </div>
       <div class="modal-body">
         <form id="cnkh-payment-form" class="needs-validation" novalidate>
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label">Khách hàng</label>
-              <input type="text" class="form-control" id="cnkh-pay-customer" readonly>
+          <div class="cnkh-payment-context mb-3">
+            <div>
+              <span>Khách hàng</span>
+              <strong id="cnkh-pay-customer">-</strong>
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Tháng công nợ</label>
-              <input type="text" class="form-control" id="cnkh-pay-month" readonly>
+            <div>
+              <span>Kỳ công nợ</span>
+              <strong id="cnkh-pay-month">-</strong>
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Quỹ nhận tiền <span class="text-danger">*</span></label>
-              <select class="form-select" id="cnkh-pay-fund" required>
-                <option value="">Chọn quỹ</option>
-              </select>
-              <div class="invalid-feedback">Vui lòng chọn quỹ.</div>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Ngày giao dịch <span class="text-danger">*</span></label>
-              <input type="text" class="form-control flatpickr-date date-mask" id="cnkh-pay-date" required>
-              <div class="invalid-feedback">Vui lòng nhập ngày giao dịch.</div>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Số tiền <span class="text-danger">*</span></label>
-              <div class="input-group">
-                <input type="text" class="form-control money-mask" id="cnkh-pay-amount" inputmode="numeric" placeholder="0" required>
-                <span class="input-group-text">đ</span>
-              </div>
-              <div class="invalid-feedback">Vui lòng nhập số tiền.</div>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Phạm vi</label>
-              <input type="text" class="form-control" id="cnkh-pay-scope" readonly>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Ghi chú</label>
-              <textarea class="form-control" id="cnkh-pay-note" rows="2"></textarea>
+            <div>
+              <span>Phạm vi</span>
+              <strong id="cnkh-pay-scope">-</strong>
             </div>
           </div>
+
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <div class="card border cnkh-payment-section h-100">
+                <div class="card-header py-2"><strong>Phương pháp thanh toán</strong></div>
+                <div class="card-body">
+                  <div class="cnkh-payment-methods">
+                    <label class="form-check">
+                      <input class="form-check-input" type="radio" name="cnkh-payment-method" value="voucher" checked>
+                      <span class="form-check-label" id="cnkh-method-voucher-label">Thanh toán theo từng phiếu</span>
+                    </label>
+                    <label class="form-check">
+                      <input class="form-check-input" type="radio" name="cnkh-payment-method" value="total">
+                      <span class="form-check-label">Thanh toán theo tổng tiền</span>
+                    </label>
+                  </div>
+                  <div class="mt-3">
+                    <label class="form-label">Số tiền thanh toán <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                      <input type="text" class="form-control money-mask text-end" id="cnkh-pay-amount" inputmode="numeric" placeholder="0" required>
+                      <span class="input-group-text">đ</span>
+                    </div>
+                    <div class="invalid-feedback">Vui lòng nhập số tiền.</div>
+                    <div class="small text-muted mt-1" id="cnkh-payment-method-note"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="card border cnkh-payment-section h-100">
+                <div class="card-header py-2"><strong>Thông tin giao dịch</strong></div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Quỹ nhận tiền <span class="text-danger">*</span></label>
+                      <select class="form-select" id="cnkh-pay-fund" required>
+                        <option value="">Chọn quỹ</option>
+                      </select>
+                      <div class="invalid-feedback">Vui lòng chọn quỹ.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ngày giao dịch <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control flatpickr-date date-mask" id="cnkh-pay-date" required>
+                      <div class="invalid-feedback">Vui lòng nhập ngày giao dịch.</div>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label">Ghi chú</label>
+                      <textarea class="form-control" id="cnkh-pay-note" rows="2"></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-7">
+              <div class="card border cnkh-payment-section">
+                <div class="card-header py-2"><strong>Thông tin ngân hàng khách hàng</strong></div>
+                <div class="card-body">
+                  <div id="cnkh-pay-bank-info" class="cnkh-bank-current"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-5">
+              <div class="card border cnkh-payment-section">
+                <div class="card-header py-2"><strong>Bill thanh toán</strong></div>
+                <div class="card-body">
+                  <input type="file" class="form-control" id="cnkh-pay-bill" accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf">
+                  <div class="small text-muted mt-1">Hỗ trợ ảnh hoặc PDF. Phần lưu file sẽ nối API khi chốt nghiệp vụ bill.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="cnkh-pay-vouchers mt-3" id="cnkh-pay-vouchers"></div>
         </form>
       </div>

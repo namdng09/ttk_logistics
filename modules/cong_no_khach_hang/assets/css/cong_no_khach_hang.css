@@ -304,6 +304,102 @@
   background: #f8f8fb;
 }
 
+.cnkh-payment-modal .modal-content {
+  border: 0;
+  box-shadow: 0 .75rem 2rem rgba(34, 48, 62, .22);
+}
+
+.cnkh-payment-modal .modal-header,
+.cnkh-payment-modal .modal-footer {
+  padding: .875rem 1rem;
+}
+
+.cnkh-payment-modal .modal-body {
+  padding: 1rem;
+}
+
+.cnkh-payment-modal .form-label {
+  font-size: .8125rem;
+  font-weight: 600;
+}
+
+.cnkh-payment-context {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--cnkh-border);
+  border-radius: 8px;
+  background: rgba(105, 108, 255, .04);
+}
+
+.cnkh-payment-context span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--cnkh-muted);
+  font-size: 12px;
+}
+
+.cnkh-payment-context strong {
+  display: block;
+  color: #384551;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.cnkh-payment-section {
+  box-shadow: none;
+}
+
+.cnkh-payment-section .card-header {
+  background: #fafafa;
+}
+
+.cnkh-payment-methods {
+  display: grid;
+  gap: 8px;
+}
+
+.cnkh-payment-methods .form-check {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--cnkh-border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.cnkh-payment-methods .form-check-input {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+#cnkh-pay-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cnkh-bank-current {
+  display: grid;
+  gap: 8px;
+}
+
+.cnkh-bank-line {
+  padding: 10px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+@media (max-width: 767.98px) {
+  .cnkh-payment-context {
+    grid-template-columns: 1fr;
+  }
+}
+
 .cnkh-page .dropdown-menu .dropdown-item {
   align-items: center;
   gap: 0;
