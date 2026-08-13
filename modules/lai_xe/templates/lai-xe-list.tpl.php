@@ -39,14 +39,12 @@
             <th>CCCD</th>
             <th>Số bằng lái</th>
             <th>Loại bằng</th>
-            <th style="width:110px;" class="text-end">Lương tháng</th>
-            <th style="width:90px;" class="text-center">Ngày công</th>
-            <th style="width:110px;" class="text-end">Lương ngày</th>
+            <th style="width:110px;" class="text-center">Ngày sinh</th>
           </tr>
         </thead>
         <tbody id="table-lai-xe-tbody">
           <tr id="loading-row">
-            <td colspan="11" class="text-center py-4">
+            <td colspan="9" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -138,6 +136,10 @@
               <label class="form-label">Ngày nhận việc</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="ngay_nhan_viec" placeholder="dd/MM/yyyy">
             </div>
+            <div class="col-md-4">
+              <label class="form-label">Ngày sinh</label>
+              <input type="text" class="form-control flatpickr-date date-mask" name="dod" placeholder="dd/MM/yyyy">
+            </div>
 
             <!-- Bank Info Repeater -->
             <div class="col-12">
@@ -150,38 +152,6 @@
                 </div>
                 <div id="ngan-hang-repeater">
                   <!-- Repeater items will be added here -->
-                </div>
-              </div>
-            </div>
-
-            <!-- Lương -->
-            <div class="col-12">
-              <hr class="my-3">
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <label class="form-label">Lương cơ bản</label>
-                  <div class="input-group">
-                    <span class="input-group-text">đ</span>
-                    <input type="text" class="form-control money-mask" name="luong_co_ban" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Lương tháng</label>
-                  <div class="input-group">
-                    <span class="input-group-text">đ</span>
-                    <input type="text" class="form-control money-mask" name="luong_thang" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Ngày công</label>
-                  <input type="text" class="form-control" name="ngay_cong" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Lương ngày</label>
-                  <div class="input-group">
-                    <span class="input-group-text">đ</span>
-                    <input type="text" class="form-control" name="luong_ngay" readonly tabindex="-1" placeholder="Tự tính">
-                  </div>
                 </div>
               </div>
             </div>

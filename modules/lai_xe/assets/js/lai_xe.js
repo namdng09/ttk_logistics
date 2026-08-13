@@ -7,11 +7,6 @@
   var BANK_LIST = [];
   var BANK_LIST_LOADED = false;
 
-  function applyMoneyMaskValue(input) {
-    if (!input) return;
-    input.value = formatMoney(parseMoney(input.value));
-  }
-
   function modalShow(id) {
     var el = document.getElementById(id);
     if (el) new bootstrap.Modal(el).show();
@@ -64,19 +59,6 @@
         if (btn && !btn.disabled) btn.click();
       }
     });
-
-    // Auto-calc luong_ngay
-    var luongThangEl = doc.querySelector('#form-lai-xe input[name="luong_thang"]');
-    var ngayCongEl = doc.querySelector('#form-lai-xe input[name="ngay_cong"]');
-    var luongNgayEl = doc.querySelector('#form-lai-xe input[name="luong_ngay"]');
-    function calcLuongNgay() {
-      if (!luongNgayEl) return;
-      var lt = parseMoney(luongThangEl ? luongThangEl.value : 0);
-      var nc = parseInt(ngayCongEl ? ngayCongEl.value : 0, 10) || 0;
-      luongNgayEl.value = nc > 0 ? formatMoney(Math.round(lt / nc)) : '';
-    }
-    if (luongThangEl) luongThangEl.addEventListener('input', calcLuongNgay);
-    if (ngayCongEl) ngayCongEl.addEventListener('input', calcLuongNgay);
 
     // Reload
     var reloadBtn = doc.querySelector('.btn-reload-lai-xe');
@@ -211,13 +193,6 @@
     }
     data.thong_tin_ngan_hang = collectNganHang();
 
-    data.luong = {
-      luong_co_ban: parseMoney(data.luong_co_ban),
-      luong_thang: parseMoney(data.luong_thang),
-      ngay_cong: parseInt(data.ngay_cong, 10) || 0
-    };
-    delete data.luong_ngay;
-
     var nid = data.nid;
     var url = nid ? '/api/lai-xe/' + nid : '/api/lai-xe';
     var method = nid ? 'PUT' : 'POST';
@@ -255,7 +230,7 @@
   function loadList() {
     var tbody = $('#table-lai-xe-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="11" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="9" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -269,7 +244,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="11" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="9" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -278,7 +253,7 @@
         var pageSize = data.limit || 20;
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="11" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="9" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -298,9 +273,7 @@
             '<td>' + escapeHtml(item.cccd || '') + '</td>' +
             '<td>' + escapeHtml(item.so_bang_lai || '') + '</td>' +
             '<td>' + escapeHtml(item.loai_bang_lai || '') + '</td>' +
-            '<td class="text-end">' + formatMoney(item.luong && item.luong.luong_thang ? item.luong.luong_thang : 0) + '</td>' +
-            '<td class="text-center">' + (item.luong && item.luong.ngay_cong ? item.luong.ngay_cong : '') + '</td>' +
-            '<td class="text-end">' + formatMoney(item.luong && item.luong.ngay_cong > 0 ? Math.round((item.luong.luong_thang || 0) / item.luong.ngay_cong) : 0) + '</td>' +
+            '<td class="text-center">' + escapeHtml(item.dod || '') + '</td>' +
             '</tr>';
         }
         tbody.append(html);
@@ -308,7 +281,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="11" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="9" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -664,10 +637,6 @@
     document.getElementById('lai-xe-modal-title').textContent = 'Thêm lái xe';
     var selBang = document.querySelector('#form-lai-xe select[name="loai_bang_lai"]');
     if (selBang) initLoaiBangLaiSelect(selBang, '');
-    document.querySelector('#form-lai-xe input[name="luong_co_ban"]').value = '';
-    document.querySelector('#form-lai-xe input[name="luong_thang"]').value = '';
-    document.querySelector('#form-lai-xe input[name="ngay_cong"]').value = '';
-    document.querySelector('#form-lai-xe input[name="luong_ngay"]').value = '';
     initRepeater();
     setFormMode('create');
   }
@@ -687,6 +656,7 @@
     }
     document.querySelector('#form-lai-xe input[name="han_bang_lai"]').value = d.han_bang_lai || '';
     document.querySelector('#form-lai-xe input[name="ngay_nhan_viec"]').value = d.ngay_nhan_viec || '';
+    document.querySelector('#form-lai-xe input[name="dod"]').value = d.dod || '';
 
     // Repeater ngan hang
     var container = document.getElementById('ngan-hang-repeater');
@@ -697,19 +667,6 @@
       }
     } else {
       addNganHangRow();
-    }
-
-    // Salary fields
-    var luong = d.luong || {};
-    var luongCoBan = luong.luong_co_ban || 0;
-    var luongThang = luong.luong_thang || 0;
-    var ngayCong = luong.ngay_cong || 0;
-    document.querySelector('#form-lai-xe input[name="luong_co_ban"]').value = luongCoBan ? formatMoney(luongCoBan) : '';
-    document.querySelector('#form-lai-xe input[name="luong_thang"]').value = luongThang ? formatMoney(luongThang) : '';
-    document.querySelector('#form-lai-xe input[name="ngay_cong"]').value = ngayCong || '';
-    var luongNgayEl = document.querySelector('#form-lai-xe input[name="luong_ngay"]');
-    if (luongNgayEl) {
-      luongNgayEl.value = ngayCong > 0 ? formatMoney(Math.round(luongThang / ngayCong)) : '';
     }
   }
 
@@ -739,23 +696,6 @@
         }
       });
     }
-    // Money mask with thousands separator (no Cleave dependency)
-    $('.money-mask').each(function () {
-      if (this.hasAttribute('readonly')) return;
-      if (this._moneyHandler) return;
-      this._moneyHandler = true;
-      applyMoneyMaskValue(this);
-      this.addEventListener('input', function () {
-        var cursor = this.selectionStart;
-        var raw = this.value.replace(/[^\d]/g, '');
-        var formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        if (formatted !== this.value) {
-          var diff = formatted.length - this.value.length;
-          this.value = formatted;
-          this.setSelectionRange(cursor + diff, cursor + diff);
-        }
-      });
-    });
   }
 
   function confirmDelete(id) {
@@ -808,16 +748,6 @@
     } catch (e) {
       return 'Lỗi kết nối server';
     }
-  }
-
-  function formatMoney(n) {
-    if (!n || isNaN(n)) return '';
-    return Number(n).toLocaleString('vi-VN');
-  }
-
-  function parseMoney(s) {
-    if (!s) return 0;
-    return parseInt(String(s).replace(/\./g, ''), 10) || 0;
   }
 
   function escapeHtml(str) {

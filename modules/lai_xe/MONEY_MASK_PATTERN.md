@@ -81,6 +81,5 @@ $('.money-mask').each(function () {
 
 ## Áp dụng tại module lái xe
 
-- `Lương cơ bản`: `input[name="luong_co_ban"]`
-- `Lương tháng`: `input[name="luong_thang"]`
-- `Lương ngày`: field readonly, format hiển thị theo cùng chuẩn `vi-VN`
+- Module lái xe hiện **không còn field tiền nào** (đã bỏ Lương cơ bản, Lương tháng, Lương ngày).
+- Nếu sau này thêm lại ô tiền, áp dụng đúng helper `money-mask` ở phần JS mẫu phía trên.

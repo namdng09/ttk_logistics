@@ -64,11 +64,12 @@ function lai_xe_schema() {
         'length' => 10,
         'not null' => FALSE,
       ),
-      'thong_tin_ngan_hang' => array(
-        'type' => 'text',
+      'dod' => array(
+        'type' => 'varchar',
+        'length' => 10,
         'not null' => FALSE,
       ),
-      'luong' => array(
+      'thong_tin_ngan_hang' => array(
         'type' => 'text',
         'not null' => FALSE,
       ),
@@ -171,5 +172,18 @@ function lai_xe_update_7007() {
   $field = db_query("SHOW COLUMNS FROM {lai_xe} LIKE 'luong'")->fetch();
   if (!$field) {
     db_query("ALTER TABLE {lai_xe} ADD luong TEXT NULL AFTER thong_tin_ngan_hang");
+  }
+}
+
+function lai_xe_update_7008() {
+  // Add dod (ngày sinh) column
+  $field = db_query("SHOW COLUMNS FROM {lai_xe} LIKE 'dod'")->fetch();
+  if (!$field) {
+    db_query("ALTER TABLE {lai_xe} ADD dod VARCHAR(10) NULL AFTER ngay_nhan_viec");
+  }
+  // Drop unused luong column
+  $field = db_query("SHOW COLUMNS FROM {lai_xe} LIKE 'luong'")->fetch();
+  if ($field) {
+    db_query("ALTER TABLE {lai_xe} DROP COLUMN luong");
   }
 }
