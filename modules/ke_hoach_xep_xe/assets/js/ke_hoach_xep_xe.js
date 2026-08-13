@@ -1228,12 +1228,14 @@
         }
       }
       state.diaDiem = $.extend({ bai: [], cang: [], kho: [] }, cache.diaDiem || {});
+      state.cauHinh.diaChiKho = state.diaDiem.kho.slice();
 
       var html = '<option value="0">— Chọn —</option>';
       for (var j = 0; j < state.customers.length; j++) {
         html += '<option value="' + state.customers[j].nid + '">' + escHtml(state.customers[j].ten || ('#' + state.customers[j].nid)) + '</option>';
       }
       $form('#nid_khach_hang-input').html(html);
+      refreshLineSources();
     }
 
     function showLoading(show) {
@@ -1438,15 +1440,66 @@
       return '<span class="vehicle-inline-text">' + escHtml(text) + '</span>';
     }
 
+    function addDiaDiemToState(phanLoai, ten) {
+      if (!ten) return;
+      var key = null;
+      phanLoai = String(phanLoai || '').toLowerCase();
+      if (phanLoai === 'kho') key = 'kho';
+      else if (phanLoai === 'bãi') key = 'bai';
+      else if (phanLoai === 'cảng') key = 'cang';
+      if (!key) return;
+      if (state.diaDiem[key].indexOf(ten) === -1) state.diaDiem[key].push(ten);
+      if (key === 'kho') state.cauHinh.diaChiKho = state.diaDiem.kho.slice();
+    }
+
+    function openDanhMucCreate(phanLoai, onCreated) {
+      if (!window.Drupal || !Drupal.danhMuc || typeof Drupal.danhMuc.openCreate !== 'function') {
+        if (notyf) notyf.error('Không tải được công cụ tạo danh mục');
+        return;
+      }
+      Drupal.danhMuc.openCreate({ phanLoai: phanLoai, onCreated: onCreated });
+    }
+
+    function attachCreateOption($select, phanLoai, line, fieldName) {
+      if (!$select || !$select.length) return;
+      if (!$select.data('khxhCreateAttached')) {
+        $select.data('khxhCreateAttached', 1);
+        $select.prepend('<option value="__DANH_MUC_CREATE__">+ Tạo mới...</option>');
+      }
+      $select.off('select2:selecting.khxhCreate').on('select2:selecting.khxhCreate', function (e) {
+        if (!e.params || !e.params.args || !e.params.args.data) return;
+        if (e.params.args.data.id !== '__DANH_MUC_CREATE__') return;
+        e.preventDefault();
+        if ($select.select2) $select.select2('close');
+        openDanhMucCreate(phanLoai, function (data) {
+          var ten = data.ten || data.name || data.label || '';
+          if (!ten) return;
+          addDiaDiemToState(phanLoai, ten);
+          if (line && fieldName) line[fieldName] = ten;
+          var $opt = $select.find('option').filter(function () {
+            return $(this).val() === ten;
+          });
+          if (!$opt.length) {
+            $select.append($('<option>', { value: ten, text: ten }));
+          }
+          $select.val(ten).trigger('change');
+        });
+      });
+    }
+
     function initRowUi($row, line) {
       var dropdownParent = formDropdownParent();
       initSelect2($row.find('.line-customer-select')[0], 'Chọn khách hàng', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-hinh-thuc-select')[0], '— Chọn hình thức —', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true, dropdownParent: dropdownParent });
+      attachCreateOption($row.find('.line-kho-select'), 'Kho', line, 'dia_chi_kho');
       initSelect2($row.find('.line-bai-lay-select')[0], '— Chọn bãi lấy —', { dropdownParent: dropdownParent });
+      attachCreateOption($row.find('.line-bai-lay-select'), 'Bãi', line, 'bai_lay_cont');
       initSelect2($row.find('.line-bai-ha-select')[0], '— Chọn bãi hạ —', { dropdownParent: dropdownParent });
+      attachCreateOption($row.find('.line-bai-ha-select'), 'Bãi', line, 'bai_ha_cont');
       initSelect2($row.find('.line-cang-select')[0], '— Chọn cảng xuất —', { dropdownParent: dropdownParent });
+      attachCreateOption($row.find('.line-cang-select'), 'Cảng', line, 'cang_xuat');
       if (typeof flatpickr !== 'undefined' && $row.find('.line-cut-off-input')[0]) {
         flatpickr($row.find('.line-cut-off-input')[0], {
           enableTime: true,
@@ -1477,12 +1530,18 @@
       initSelect2($card.find('#nid_khach_hang-input')[0], '— Chọn khách hàng —');
       initSelect2($card.find('.line-driver-select')[0], '— Chọn lái xe —');
       initSelect2($card.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true });
+      attachCreateOption($card.find('.line-kho-select'), 'Kho', line, 'dia_chi_kho');
       initSelect2($card.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true });
       initSelect2($card.find('.line-bai-lay-select')[0], '— Chọn bãi lấy —');
+      attachCreateOption($card.find('.line-bai-lay-select'), 'Bãi', line, 'bai_lay_cont');
       initSelect2($card.find('.line-bai-ha-select')[0], '— Chọn bãi hạ —');
+      attachCreateOption($card.find('.line-bai-ha-select'), 'Bãi', line, 'bai_ha_cont');
       initSelect2($card.find('.line-bai-lay-thuc-te-select')[0], '— Theo bãi lấy kế hoạch —', { tags: true });
+      attachCreateOption($card.find('.line-bai-lay-thuc-te-select'), 'Bãi', line, 'bai_lay_thuc_te');
       initSelect2($card.find('.line-bai-ha-thuc-te-select')[0], '— Theo bãi hạ kế hoạch —', { tags: true });
+      attachCreateOption($card.find('.line-bai-ha-thuc-te-select'), 'Bãi', line, 'bai_ha_thuc_te');
       initSelect2($card.find('.line-cang-select')[0], '— Chọn cảng xuất —');
+      attachCreateOption($card.find('.line-cang-select'), 'Cảng', line, 'cang_xuat');
       if (typeof flatpickr !== 'undefined' && $card.find('.line-cut-off-input')[0]) {
         flatpickr($card.find('.line-cut-off-input')[0], {
           enableTime: true,

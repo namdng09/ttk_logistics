@@ -75,6 +75,10 @@ function danh_muc_theme() {
       'template' => 'danh-muc-list',
       'path' => $path,
     ),
+    'danh_muc_modal' => array(
+      'template' => 'danh-muc-modal',
+      'path' => $path,
+    ),
   );
 }
 
@@ -509,6 +513,16 @@ function _danh_muc_rest_delete($id) {
  ******************************************************************************/
 
 function danh_muc_page_list() {
+  danh_muc_add_modal_assets();
+
+  return theme('danh_muc_list_page');
+}
+
+/**
+ * Add CSS/JS/settings for the danh muc modal + list screen.
+ * Shared with other modules that embed the quick-create modal.
+ */
+function danh_muc_add_modal_assets() {
   drupal_add_css(drupal_get_path('module', 'danh_muc') . '/assets/css/danh_muc.css');
   drupal_add_js(drupal_get_path('module', 'danh_muc') . '/assets/js/danh_muc.js');
 
@@ -520,7 +534,6 @@ function danh_muc_page_list() {
     ),
     'phan_loai_options' => _danh_muc_phan_loai_options(),
     'phan_loai_co_phu_phi' => _danh_muc_phan_loai_co_phu_phi(),
+    'modal_html' => theme('danh_muc_modal'),
   )), 'setting');
-
-  return theme('danh_muc_list_page');
 }

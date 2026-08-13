@@ -3,6 +3,10 @@
   font-size: 0.85rem;
 }
 
+#danh-muc-modal {
+  z-index: 2000;
+}
+
 #table-danh-muc td {
   font-size: 0.85rem;
   vertical-align: middle;

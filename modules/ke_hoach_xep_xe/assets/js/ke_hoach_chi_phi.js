@@ -353,6 +353,49 @@
         width: '100%',
         dropdownParent: $('#ke-hoach-chi-phi-modal')
       });
+      attachCreateOption($select, '', function (ten) {
+        addLocationName(ten);
+      }, ['Kho', 'Bãi']);
+    });
+  }
+
+  function openDanhMucCreate(phanLoai, onCreated, phanLoaiOptions) {
+    if (!window.Drupal || !Drupal.danhMuc || typeof Drupal.danhMuc.openCreate !== 'function') {
+      notify('Không tải được công cụ tạo danh mục', 'error');
+      return;
+    }
+    var config = { onCreated: onCreated };
+    if (phanLoaiOptions && phanLoaiOptions.length) {
+      config.phanLoaiOptions = phanLoaiOptions;
+    } else if (phanLoai) {
+      config.phanLoai = phanLoai;
+    }
+    Drupal.danhMuc.openCreate(config);
+  }
+
+  function attachCreateOption($select, phanLoai, addToStateFn, phanLoaiOptions) {
+    if (!$select || !$select.length) return;
+    if (!$select.data('khcpCreateAttached')) {
+      $select.data('khcpCreateAttached', 1);
+      $select.prepend('<option value="__DANH_MUC_CREATE__">+ Tạo mới...</option>');
+    }
+    $select.off('select2:selecting.khcpCreate').on('select2:selecting.khcpCreate', function (e) {
+      if (!e.params || !e.params.args || !e.params.args.data) return;
+      if (e.params.args.data.id !== '__DANH_MUC_CREATE__') return;
+      e.preventDefault();
+      if ($select.select2) $select.select2('close');
+      openDanhMucCreate(phanLoai, function (data) {
+        var ten = data.ten || data.name || data.label || '';
+        if (!ten) return;
+        if (addToStateFn) addToStateFn(ten);
+        var $opt = $select.find('option').filter(function () {
+          return $(this).val() === ten;
+        });
+        if (!$opt.length) {
+          $select.append($('<option>', { value: ten, text: ten }));
+        }
+        $select.val(ten).trigger('change');
+      });
     });
   }
 
@@ -729,6 +772,10 @@
         allowClear: true,
         width: '100%',
         dropdownParent: $('#ke-hoach-chi-phi-modal')
+      });
+      attachCreateOption($select, 'Chi phí', function (ten) {
+        addExpenseName(ten);
+        if (state.expenseCatalogNames.indexOf(ten) === -1) state.expenseCatalogNames.push(ten);
       });
     });
   }

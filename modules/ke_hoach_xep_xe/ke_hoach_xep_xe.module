@@ -1308,6 +1308,10 @@ function ke_hoach_xep_xe_page_list() {
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_chi_phi.js', array('group' => JS_THEME, 'weight' => 3));
 
+  if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
+    danh_muc_add_modal_assets();
+  }
+
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'plan_type' => 'thuong',
     'list_title' => 'Danh sách kế hoạch xếp xe',
@@ -1327,6 +1331,11 @@ function ke_hoach_xep_xe_page_list() {
 function ke_hoach_cont_page_list($mode = 'overall') {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
+
+  if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
+    danh_muc_add_modal_assets();
+  }
+
   drupal_add_js(array('ke_hoach_cont' => array('mode' => $mode)), 'setting');
   if ($mode === 'cat_mooc') {
     return theme('ke_hoach_cont_list_page', array('mode' => $mode));
@@ -1341,6 +1350,10 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
 
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
+
+  if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
+    danh_muc_add_modal_assets();
+  }
 
   $data = NULL;
   $mode = 'create';
@@ -1386,6 +1399,10 @@ function ke_hoach_xep_xe_page_detail($id) {
 
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
+
+  if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
+    danh_muc_add_modal_assets();
+  }
 
   $data = _ke_hoach_xep_xe_enrich_row($row);
   drupal_add_js(array('ke_hoach_xep_xe' => array(
@@ -2041,6 +2058,11 @@ function ke_hoach_tuyen_xa_page_list() {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_chi_phi.js', array('group' => JS_THEME, 'weight' => 3));
+
+  if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
+    danh_muc_add_modal_assets();
+  }
+
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'plan_type' => 'tuyen_xa',
     'list_title' => 'Kế hoạch tuyến xa',

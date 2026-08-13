@@ -6,8 +6,11 @@
   var currentKeyword = '';
   var currentPhanLoai = '';
   var currentMode = 'create';
+  var quickCreateCallback = null;
+  var modalBound = false;
   var settings = Drupal.settings.danh_muc || {};
   var PHAN_LOAI_CO_PHU_PHI = settings.phan_loai_co_phu_phi || ['Bãi', 'Cảng', 'Kho'];
+  var PHAN_LOAI_OPTIONS = ['Phòng ban', 'Chức vụ', 'Chi phí', 'Kho', 'Cửa khẩu', 'Bãi', 'Cảng'];
 
   function hasPhuPhi(phanLoai) {
     return PHAN_LOAI_CO_PHU_PHI.indexOf(phanLoai) !== -1;
@@ -85,14 +88,149 @@
         notyf = new Notyf();
       }
 
+      if ($('#danh-muc-modal', context).length) {
+        bindModalEvents();
+      }
       if ($('#table-danh-muc', context).length) {
         loadList();
-        bindNativeEvents();
+        bindListEvents();
       }
     }
   };
 
-  function bindNativeEvents() {
+  function ensureModal() {
+    var modal = document.getElementById('danh-muc-modal');
+    if (modal) {
+      return modal;
+    }
+    var currentSettings = (Drupal.settings && Drupal.settings.danh_muc) ? Drupal.settings.danh_muc : settings;
+    var html = (currentSettings && currentSettings.modal_html) || '';
+    if (!html) {
+      return null;
+    }
+    var wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    var node = wrap.firstElementChild;
+    if (!node) {
+      return null;
+    }
+    document.body.appendChild(node);
+    bindModalEvents();
+    return node;
+  }
+
+  function setPhanLoaiOptions(list) {
+    var sel = document.querySelector('#form-danh-muc select[name="phan_loai"]');
+    if (!sel) return;
+    var current = sel.value;
+    sel.innerHTML = '';
+    var ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = 'Chọn phân loại';
+    sel.appendChild(ph);
+    for (var i = 0; i < list.length; i++) {
+      var o = document.createElement('option');
+      o.value = list[i];
+      o.textContent = list[i];
+      sel.appendChild(o);
+    }
+    sel.value = list.indexOf(current) !== -1 ? current : '';
+  }
+
+  Drupal.danhMuc = Drupal.danhMuc || {};
+  Drupal.danhMuc.openCreate = function (config) {
+    config = config || {};
+    var modal = ensureModal();
+    if (!modal) {
+      if (notyf) notyf.error('Không tải được form tạo danh mục');
+      return;
+    }
+    resetForm();
+    setFormMode('create');
+    if (config.phanLoaiOptions && config.phanLoaiOptions.length) {
+      setPhanLoaiOptions(config.phanLoaiOptions);
+    }
+    var loaiSelect = document.querySelector('#form-danh-muc select[name="phan_loai"]');
+    if (config.phanLoai && loaiSelect) {
+      loaiSelect.value = config.phanLoai;
+      togglePhuPhiSection(config.phanLoai);
+    }
+    quickCreateCallback = config.onCreated || null;
+    modalShow('danh-muc-modal');
+  };
+
+  function bindModalEvents() {
+    if (modalBound) return;
+    modalBound = true;
+    var doc = document;
+    var form = doc.getElementById('form-danh-muc');
+    if (!form) return;
+
+    // Enter key submit
+    form.addEventListener('keydown', function (e) {
+      if (e.which === 13 && !e.shiftKey) {
+        e.preventDefault();
+        var btn = doc.querySelector('.btn-luu-danh-muc');
+        if (btn && !btn.disabled) btn.click();
+      }
+    });
+
+    var loaiSelect = form.querySelector('select[name="phan_loai"]');
+    if (loaiSelect) {
+      loaiSelect.addEventListener('change', function () {
+        togglePhuPhiSection(this.value);
+      });
+    }
+
+    var btnThemPhi = doc.getElementById('btn-them-phu-phi');
+    if (btnThemPhi) {
+      btnThemPhi.addEventListener('click', function () {
+        addPhuPhiRow();
+      });
+    }
+
+    // Save button
+    var luuBtn = doc.querySelector('.btn-luu-danh-muc');
+    if (luuBtn) {
+      luuBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        submitForm();
+      });
+    }
+
+    // Modal events
+    var modal = doc.getElementById('danh-muc-modal');
+    if (modal) {
+      modal.addEventListener('hidden.bs.modal', function () {
+        resetForm();
+        quickCreateCallback = null;
+      });
+      modal.addEventListener('shown.bs.modal', function () {
+        initMoneyMasks();
+        var backdrops = doc.querySelectorAll('.modal-backdrop.show');
+        if (backdrops.length) {
+          backdrops[backdrops.length - 1].style.zIndex = '1900';
+        }
+        modal.style.zIndex = '2000';
+      });
+    }
+
+    // Delegated clicks (phu phi row remove)
+    doc.addEventListener('click', function (e) {
+      var t = e.target;
+      while (t && t !== doc) {
+        if (t.classList && t.classList.contains('btn-xoa-phu-phi')) {
+          e.preventDefault();
+          var row = t.closest('.phu-phi-row');
+          if (row) row.remove();
+          return;
+        }
+        t = t.parentElement;
+      }
+    });
+  }
+
+  function bindListEvents() {
     var doc = document;
 
     // Search
@@ -126,20 +264,6 @@
       }
     });
 
-    var loaiSelect = doc.querySelector('#form-danh-muc select[name="phan_loai"]');
-    if (loaiSelect) {
-      loaiSelect.addEventListener('change', function () {
-        togglePhuPhiSection(this.value);
-      });
-    }
-
-    var btnThemPhi = doc.getElementById('btn-them-phu-phi');
-    if (btnThemPhi) {
-      btnThemPhi.addEventListener('click', function () {
-        addPhuPhiRow();
-      });
-    }
-
     // Reload
     var reloadBtn = doc.querySelector('.btn-reload-danh-muc');
     if (reloadBtn) {
@@ -162,24 +286,6 @@
       });
     }
 
-    // Save button
-    var luuBtn = doc.querySelector('.btn-luu-danh-muc');
-    if (luuBtn) {
-      luuBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        submitForm();
-      });
-    }
-
-    // Modal events
-    var modal = doc.getElementById('danh-muc-modal');
-    modal.addEventListener('hidden.bs.modal', function () {
-      resetForm();
-    });
-    modal.addEventListener('shown.bs.modal', function () {
-      initMoneyMasks();
-    });
-
     // Delegated clicks (dropdown items, pagination)
     doc.addEventListener('click', function (e) {
       var t = e.target;
@@ -198,12 +304,6 @@
           if (t.classList.contains('btn-delete-danh-muc')) {
             e.preventDefault();
             confirmDelete(t.getAttribute('data-id'));
-            return;
-          }
-          if (t.classList.contains('btn-xoa-phu-phi')) {
-            e.preventDefault();
-            var row = t.closest('.phu-phi-row');
-            if (row) row.remove();
             return;
           }
           if (t.classList.contains('page-link')) {
@@ -363,9 +463,13 @@
         btn.innerHTML = '<i class="ti tabler-device-floppy me-1"></i> Lưu';
         if (res.status === 'success') {
           if (notyf) notyf.success(nid ? 'Cập nhật thành công' : 'Tạo mới thành công');
+          var createdData = res.data || null;
+          var callback = quickCreateCallback;
+          quickCreateCallback = null;
           modalHide('danh-muc-modal');
           resetForm();
-          loadList();
+          if (callback) callback(createdData);
+          if ($('#table-danh-muc').length) loadList();
         } else {
           if (notyf) notyf.error(res.message || 'Lỗi không xác định');
         }
@@ -615,6 +719,7 @@
     currentMode = 'create';
     showLoading(false);
     document.getElementById('form-danh-muc').reset();
+    setPhanLoaiOptions(PHAN_LOAI_OPTIONS);
     document.querySelector('#form-danh-muc input[name="nid"]').value = '';
     document.getElementById('danh-muc-modal-title').textContent = 'Thêm danh mục';
     document.getElementById('form-danh-muc').classList.remove('was-validated');
