@@ -280,16 +280,21 @@
     });
   }
 
-  function loadExpenseNames() {
-    return $.getJSON('/api/danh-muc', { phan_loai: 'Chi phí', limit: 500 })
+  function loadDanhMuc() {
+    return $.getJSON('/api/danh-muc', { phan_loai: 'Chi phí,Kho,Bãi,Cảng', limit: 500 })
       .done(function (response) {
         var items = response && response.data && response.data.items ? response.data.items : [];
         state.expenseNames = [];
         state.expenseCatalogNames = [];
+        state.locationNames = [];
         $.each(items, function (_, item) {
-          if (item && item.ten) {
+          if (!item || !item.ten) return;
+          if (String(item.phan_loai || '').toLowerCase() === 'chi phí') {
             state.expenseCatalogNames.push(item.ten);
             addExpenseName(item.ten);
+          }
+          else {
+            addLocationName(item.ten);
           }
         });
       });
@@ -309,17 +314,6 @@
     state.locationNames.sort(function (a, b) {
       return String(a).localeCompare(String(b), 'vi');
     });
-  }
-
-  function loadLocations() {
-    return $.getJSON('/api/danh-muc', { phan_loai: 'Kho,Bãi,Cảng', limit: 500 })
-      .done(function (response) {
-        var items = response && response.data && response.data.items ? response.data.items : [];
-        state.locationNames = [];
-        $.each(items, function (_, item) {
-          if (item && item.ten) addLocationName(item.ten);
-        });
-      });
   }
 
   function loadCustomerDinhMuc() {
@@ -1294,7 +1288,7 @@
     }
     modal.show();
     var planChain = loadPlanInfo().then(loadCustomerDinhMuc);
-    $.when(loadExpenseNames(), loadLocations(), planChain, loadOilRows(), fetchRows())
+    $.when(loadDanhMuc(), planChain, loadOilRows(), fetchRows())
       .done(function () {
         rebuildDinhMucRows(true);
       })
