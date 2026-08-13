@@ -56,35 +56,8 @@
   margin-top: .25rem;
 }
 
-.qltc-table {
-  background: #fff;
-  margin-bottom: 0;
-  border-color: #e6edf5;
-}
-
-.qltc-table thead th,
-.qltc-quy-table thead th {
-  background: #eef3f8 !important;
-  color: #334155;
-  font-size: .78rem;
-  font-weight: 700;
-  line-height: 1.2;
-  padding: .42rem .55rem !important;
-  vertical-align: middle;
-  white-space: nowrap;
-  border-bottom-color: #d4dee9 !important;
-}
-
 .qltc-table tbody td {
   vertical-align: middle;
-}
-
-.qltc-table.table-bordered > :not(caption) > * {
-  border-width: 1px 0;
-}
-
-.qltc-table.table-bordered > :not(caption) > * > * {
-  border-width: 0 1px;
 }
 
 .qltc-muted {
@@ -273,4 +246,17 @@
 
 .qltc-quy-history-table td {
   white-space: normal;
+}
+
+.flatpickr-calendar {
+  z-index: 99999 !important;
+}
+
+#qltc-pagination-wrap .pagination {
+  flex-wrap: wrap;
+  row-gap: .25rem;
+}
+
+#qltc-pagination-wrap .page-link {
+  cursor: pointer;
 }

@@ -167,18 +167,9 @@ function getMainMenuSoft()
                     </li>
 
                     <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'hop-dong') === 0) ? ' active' : '') . '">
-                        <a href="/hop-dong" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-file-text"></i>
-                            <div data-i18n="Hợp đồng">Hợp đồng</div>
-                        </a>
+                        <span class="menu-header-text" data-i18n="DANH MỤC">DANH MỤC</span>
                     </li>
 
-                     <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="Hệ Thống">Hệ Thống</span>
-                    </li>
                     <li class="menu-item' . ((strpos(current_path(), 'nhan-vien') === 0) ? ' active' : '') . '">
                         <a href="/nhan-vien" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-user-cog"></i>
@@ -192,22 +183,6 @@ function getMainMenuSoft()
                         </a>
                     </li>
 
-                    <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="DANH MỤC">DANH MỤC</span>
-                    </li>
-
-                    <li class="menu-item' . ((strpos(current_path(), 'danh-muc') === 0 && current_path() !== 'danh-muc-dia-diem') ? ' active' : '') . '">
-                        <a href="/danh-muc" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-category"></i>
-                            <div data-i18n="Danh mục">Danh mục</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((current_path() === 'danh-muc-dia-diem' || current_path() === 'danh-muc-bai') ? ' active' : '') . '">
-                        <a href="/danh-muc-dia-diem" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-building-warehouse"></i>
-                            <div data-i18n="Danh mục địa điểm">Danh mục địa điểm</div>
-                        </a>
-                    </li>
                     ' . ((strpos(current_path(), 'phuong-tien') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon icon-base ti tabler-truck"></i>
@@ -245,6 +220,27 @@ function getMainMenuSoft()
                         <a href="/lai-xe" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-users"></i>
                             <div data-i18n="Lái xe">Lái xe</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'danh-muc') === 0 && current_path() !== 'danh-muc-dia-diem') ? ' active' : '') . '">
+                        <a href="/danh-muc" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-category"></i>
+                            <div data-i18n="Danh mục">Danh mục</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((current_path() === 'danh-muc-dia-diem' || current_path() === 'danh-muc-bai') ? ' active' : '') . '">
+                        <a href="/danh-muc-dia-diem" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-building-warehouse"></i>
+                            <div data-i18n="Danh mục địa điểm">Danh mục địa điểm</div>
+                        </a>
+                    </li>
+                    <li class="menu-header small">
+                        <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'hop-dong') === 0) ? ' active' : '') . '">
+                        <a href="/hop-dong" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-file-text"></i>
+                            <div data-i18n="Hợp đồng">Hợp đồng</div>
                         </a>
                     </li>
                     <!-- Hệ thống -->

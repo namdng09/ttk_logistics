@@ -41,38 +41,40 @@
   <div class="qltc-modal-content" data-qltc-form-key="quy-adjust"><form id="qltc-quy-adjust-form" class="qltc-quy-adjust-form qltc-module-form qltc-bootstrap-form" method="post" data-action="<?php print check_plain(url('quan-ly-quy/ajax-adjust-save')); ?>"><input type="hidden" name="nid_quy" value="<?php print intval($quy->nid_quy); ?>"><input type="hidden" name="so_du_cu" value="<?php print check_plain(quan_ly_tai_chinh_format_money($old_balance)); ?>"><div class="alert alert-info py-2 mb-3"><strong>Lưu ý:</strong> Điều chỉnh số dư đầu kỳ không tạo phiếu thu/chi. Hệ thống sẽ lưu lịch sử điều chỉnh trong field_thong_tin_json để đối soát.</div><div class="row g-3 align-items-end"><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Mã quỹ</label><input type="text" class="form-control form-control-sm bg-light" value="<?php print check_plain($quy->ma_quy); ?>" readonly></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Tên quỹ</label><input type="text" class="form-control form-control-sm bg-light" value="<?php print check_plain($quy->ten_quy); ?>" readonly></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Số dư đầu kỳ hiện tại</label><input type="text" class="form-control form-control-sm text-end bg-light" value="<?php print check_plain(quan_ly_tai_chinh_format_money($old_balance)); ?>" readonly></div></div><div class="row g-3 align-items-end mt-1"><div class="col-12 col-md"><label class="form-label fw-semibold mb-1" for="qltc_so_du_moi">Số dư đầu kỳ mới <span class="text-danger">*</span></label><input type="text" inputmode="numeric" class="form-control form-control-sm text-end qltc-money-input qltc-adjust-new-balance" id="qltc_so_du_moi" name="so_du_moi" value="<?php print check_plain(quan_ly_tai_chinh_format_money($old_balance)); ?>" required></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1">Chênh lệch</label><input type="text" class="form-control form-control-sm text-end bg-light qltc-adjust-diff" value="0" readonly></div><div class="col-12 col-md"><label class="form-label fw-semibold mb-1" for="qltc_ngay_dieu_chinh">Ngày điều chỉnh</label><input type="text" class="form-control form-control-sm qltc-flatpickr-date" id="qltc_ngay_dieu_chinh" name="ngay_dieu_chinh" value="<?php print check_plain(date('d/m/Y')); ?>" autocomplete="off" data-flatpickr-month-select="dropdown"></div></div><div class="row g-3 mt-2"><div class="col-12"><label class="form-label fw-semibold mb-1" for="qltc_ly_do_dieu_chinh">Lý do điều chỉnh <span class="text-danger">*</span></label><textarea class="form-control form-control-sm" id="qltc_ly_do_dieu_chinh" name="ly_do" rows="3" placeholder="VD: Cập nhật số dư theo sao kê ngân hàng" required></textarea></div></div><div class="qltc-form-alert mt-3 d-none"></div><div class="d-flex justify-content-end gap-2 mt-4 pt-2"><button type="button" class="btn btn-label-secondary btn-sm" data-bs-dismiss="modal">Đóng</button><button type="submit" class="btn btn-warning btn-sm qltc-btn-save-adjust"><span class="spinner-border spinner-border-sm me-1 d-none qltc-btn-spinner" role="status" aria-hidden="true"></span><span class="qltc-btn-text"><i class="icon-base ti tabler-adjustments-dollar me-1"></i>Lưu điều chỉnh</span></button></div></form></div>
 <?php else: ?>
   <div class="qltc-page qltc-page-quy qltc-ajax-region" data-refresh-type="quy">
-    <div class="card qltc-filter">
-      <div class="card-body">
-        <form method="get" action="<?php print check_plain(url(isset($action) ? $action : 'quan-ly-quy')); ?>">
-          <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-3"><label>Từ ngày</label><input type="text" name="from_date" class="form-control form-control-sm" value="<?php print check_plain($filters['from_date']); ?>"></div>
-            <div class="col-12 col-md-3"><label>Đến ngày</label><input type="text" name="to_date" class="form-control form-control-sm" value="<?php print check_plain($filters['to_date']); ?>"></div>
-            <div class="col-12 col-md-2"><button class="btn btn-primary btn-sm w-100" type="submit"><i class="ti tabler-search me-1"></i>Lọc</button></div>
-          </div>
-        </form>
+    <div class="card">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h4 class="card-title mb-0">Quản lý quỹ</h4>
       </div>
-    </div>
-    <div class="card qltc-card">
       <div class="card-body">
-        <div class="qltc-title-row qltc-quy-title-row">
-          <div>
-            <h4 class="mb-1">Quản lý quỹ</h4>
-          </div>
-          <div class="qltc-toolbar qltc-actions">
-            <button type="button" class="btn btn-label-secondary btn-sm qltc-btn-reload" title="Làm mới">
-              <i class="ti tabler-refresh me-1"></i> Làm mới
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+          <div class="d-flex flex-wrap align-items-end gap-2">
+            <div>
+              <label class="form-label mb-1">Từ ngày</label>
+              <input type="text" name="from_date" id="qltc-filter-from-date" class="form-control qltc-flatpickr-date" value="<?php print check_plain($filters['from_date']); ?>" placeholder="dd/mm/yyyy" style="width:150px" autocomplete="off">
+            </div>
+            <div>
+              <label class="form-label mb-1">Đến ngày</label>
+              <input type="text" name="to_date" id="qltc-filter-to-date" class="form-control qltc-flatpickr-date" value="<?php print check_plain($filters['to_date']); ?>" placeholder="dd/mm/yyyy" style="width:150px" autocomplete="off">
+            </div>
+            <button type="button" class="btn btn-primary waves-effect waves-light qltc-btn-filter">
+              <i class="ti tabler-search me-1"></i>Lọc
             </button>
-            <a href="<?php print url('quan-ly-quy/them'); ?>" class="btn btn-primary btn-sm waves-effect waves-light qltc-quy-open-modal" data-url="<?php print url('quan-ly-quy/ajax-form'); ?>" data-title="Thêm quỹ"><i class="icon-base ti tabler-circle-plus me-1"></i> Thêm quỹ</a>
-            <a href="<?php print url('quan-ly-quy/chuyen-tien'); ?>" class="btn btn-label-primary btn-sm waves-effect qltc-ajax-modal" data-title="Chuyển tiền nội bộ"><i class="icon-base ti tabler-arrows-exchange me-1"></i> Chuyển tiền nội bộ</a>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <a href="<?php print url('quan-ly-quy/them'); ?>" class="btn btn-primary waves-effect waves-light qltc-quy-open-modal" data-url="<?php print url('quan-ly-quy/ajax-form'); ?>" data-title="Thêm quỹ"><i class="ti tabler-plus me-1"></i>Thêm quỹ</a>
+            <button type="button" class="btn btn-label-primary waves-effect qltc-quy-transfer-modal"><i class="ti tabler-arrows-exchange me-1"></i>Chuyển tiền nội bộ</button>
+            <button type="button" class="btn btn-label-secondary qltc-btn-reload waves-effect">
+              <i class="ti tabler-refresh me-1"></i>Làm mới
+            </button>
           </div>
         </div>
         <div id="qltc-quy-list-wrapper" data-api-url="<?php print url('api/quan-ly-quy'); ?>">
-          <div class="table-responsive text-nowrap qltc-table-wrap">
-            <table class="table table-bordered table-hover align-middle qltc-table qltc-quy-table mb-0">
-              <thead>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+              <thead class="table-light">
                 <tr>
-                  <th class="text-center qltc-action-th">CN</th>
-                  <th class="text-center">#</th>
+                  <th style="width:60px;text-align:center !important">CN</th>
+                  <th style="width:50px">#</th>
                   <th>Mã quỹ</th>
                   <th>Tên quỹ</th>
                   <th>Loại quỹ</th>
@@ -85,8 +87,8 @@
                 </tr>
               </thead>
               <tbody id="qltc-quy-table-body">
-                <?php if (!empty($table_items)): ?>
-                  <?php foreach ($table_items as $item): ?>
+                <?php if (!empty($table_items['items'])): ?>
+                  <?php foreach ($table_items['items'] as $item): ?>
                     <?php $quy = $item['quy']; $period = $item['period']; ?>
                     <tr>
                       <td class="text-center">
@@ -114,13 +116,17 @@
                     </tr>
                   <?php endforeach; ?>
                 <?php else: ?>
-                  <tr><td colspan="11" class="text-center">Chưa có quỹ nào.</td></tr>
+                  <tr><td colspan="11" class="text-center py-4 text-muted">Chưa có quỹ nào.</td></tr>
                 <?php endif; ?>
               </tbody>
             </table>
           </div>
         </div>
+
+        <?php print quan_ly_tai_chinh_quy_pagination_html($table_items); ?>
       </div>
     </div>
   </div>
+</div>
+
 <?php endif; ?>

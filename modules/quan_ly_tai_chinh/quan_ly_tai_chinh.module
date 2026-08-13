@@ -17,6 +17,12 @@ function quan_ly_tai_chinh_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/quan-ly-quy/chuyen-tien'] = array(
+    'page callback' => 'quan_ly_tai_chinh_quy_rest_transfer',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/quan-ly-quy/%'] = array(
     'page callback' => 'quan_ly_tai_chinh_quy_rest_item',
     'page arguments' => array(2),
@@ -650,28 +656,42 @@ function quan_ly_tai_chinh_quy_page() {
   quan_ly_tai_chinh_add_assets();
 
   $filters = quan_ly_tai_chinh_get_date_filters();
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
 
   return theme('quan_ly_tai_chinh_quy_page', array(
     'render_mode' => 'page',
     'action' => 'quan-ly-quy',
     'filters' => $filters,
-    'table_items' => quan_ly_tai_chinh_quy_table_data($filters),
+    'table_items' => quan_ly_tai_chinh_quy_table_data($filters, $page),
   ));
 }
 
 /**
  * Render riêng bảng danh sách quỹ để refresh bằng AJAX.
+ *
+ * Trả về mảng metadata gồm items + thông tin phân trang
+ * (theo mẫu màn hình khách hàng).
  */
-function quan_ly_tai_chinh_quy_table_data($filters = NULL) {
+function quan_ly_tai_chinh_quy_table_data($filters = NULL, $page = 1, $limit = 20) {
   if (!$filters) {
     $filters = quan_ly_tai_chinh_get_date_filters();
   }
 
+  $page = max(1, (int) $page);
+  $limit = max(1, min(100, (int) $limit));
+
   $quys = quan_ly_tai_chinh_quy_get_all(TRUE);
+  $total = count($quys);
+  $total_pages = (int) ceil($total / $limit);
+  if ($total_pages > 0 && $page > $total_pages) {
+    $page = $total_pages;
+  }
+  $offset = $total_pages > 0 ? ($page - 1) * $limit : 0;
+  $slice = array_slice($quys, $offset, $limit);
 
   $items = array();
-  $stt = 1;
-  foreach ($quys as $quy) {
+  $stt = $offset + 1;
+  foreach ($slice as $quy) {
     $period = quan_ly_tai_chinh_quy_period_summary($quy->nid_quy, $filters['from_time'], $filters['to_time']);
 
     $items[] = array(
@@ -681,7 +701,13 @@ function quan_ly_tai_chinh_quy_table_data($filters = NULL) {
     );
   }
 
-  return $items;
+  return array(
+    'items' => $items,
+    'total' => $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+  );
 }
 
 function quan_ly_tai_chinh_quy_table_html($filters = NULL) {
@@ -699,6 +725,48 @@ function quan_ly_tai_chinh_quy_ajax_list() {
     'success' => TRUE,
     'html' => quan_ly_tai_chinh_quy_table_html(),
   );
+}
+
+/**
+ * HTML phân trang danh sách quỹ (theo mẫu màn hình khách hàng).
+ *
+ * @param array $table_data Mảng trả về từ quan_ly_tai_chinh_quy_table_data().
+ */
+function quan_ly_tai_chinh_quy_pagination_html($table_data = array()) {
+  $total = isset($table_data['total']) ? (int) $table_data['total'] : 0;
+  $current = isset($table_data['current_page']) ? (int) $table_data['current_page'] : 1;
+  $total_pages = isset($table_data['total_pages']) ? (int) $table_data['total_pages'] : 1;
+
+  $lis = '';
+  if ($total_pages > 0) {
+    $lis .= '<li class="page-item' . ($current <= 1 ? ' disabled' : '') . '"><a class="page-link page-first" href="#" data-page="1"><i class="ti tabler-chevrons-left"></i></a></li>';
+    $lis .= '<li class="page-item' . ($current <= 1 ? ' disabled' : '') . '"><a class="page-link page-prev" href="#" data-page="' . ($current - 1) . '"><i class="ti tabler-chevron-left"></i></a></li>';
+
+    $start = max(1, $current - 2);
+    $end = min($total_pages, $current + 2);
+    if ($start > 1) {
+      $lis .= '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    }
+    for ($p = $start; $p <= $end; $p++) {
+      $lis .= '<li class="page-item' . ($p === $current ? ' active' : '') . '"><a class="page-link" href="#" data-page="' . $p . '">' . $p . '</a></li>';
+    }
+    if ($end < $total_pages) {
+      $lis .= '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    }
+
+    $lis .= '<li class="page-item' . ($current >= $total_pages ? ' disabled' : '') . '"><a class="page-link page-next" href="#" data-page="' . ($current + 1) . '"><i class="ti tabler-chevron-right"></i></a></li>';
+    $lis .= '<li class="page-item' . ($current >= $total_pages ? ' disabled' : '') . '"><a class="page-link page-last" href="#" data-page="' . $total_pages . '"><i class="ti tabler-chevrons-right"></i></a></li>';
+  }
+
+  return '<div id="qltc-pagination-wrap" class="mt-3"' . ($total_pages <= 0 ? ' style="display:none;"' : '') . '>' .
+    '<div class="d-flex flex-wrap justify-content-between align-items-center gap-3">' .
+    '<div class="text-muted small" id="qltc-pagination-info">Tổng số: ' . $total . ' bản ghi</div>' .
+    '<nav><ul class="pagination justify-content-center mb-0">' . $lis . '</ul></nav>' .
+    '<div class="d-flex align-items-center gap-2">' .
+    '<span class="text-muted small">Trang</span>' .
+    '<input type="text" class="form-control form-control-sm" id="qltc-pagination-jump" style="width:60px;text-align:center;" value="' . ($total_pages > 0 ? $current : 0) . '" data-total-pages="' . $total_pages . '" inputmode="numeric">' .
+    '<span class="text-muted small" id="qltc-pagination-total-pages">/ ' . $total_pages . '</span>' .
+    '</div></div></div>';
 }
 
 
@@ -1786,17 +1854,89 @@ function quan_ly_tai_chinh_quy_rest_item($id) {
 
 function _quan_ly_tai_chinh_quy_rest_list() {
   $filters = quan_ly_tai_chinh_get_date_filters();
+
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $offset = ($page - 1) * $limit;
+
+  $all = quan_ly_tai_chinh_quy_get_all(TRUE);
+  $total = count($all);
+  $total_pages = (int) ceil($total / $limit);
+  if ($total_pages > 0 && $page > $total_pages) {
+    $page = $total_pages;
+    $offset = ($page - 1) * $limit;
+  }
+
   $items = array();
-  foreach (quan_ly_tai_chinh_quy_get_all(TRUE) as $quy) {
+  foreach (array_slice($all, $offset, $limit) as $quy) {
     $items[] = quan_ly_tai_chinh_quy_to_api_item($quy, $filters);
   }
 
   return _quan_ly_tai_chinh_success(array(
     'items' => $items,
-    'total' => count($items),
-    'current_page' => 1,
-    'total_pages' => 1,
+    'total' => $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
   ));
+}
+
+function quan_ly_tai_chinh_quy_rest_transfer() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    return _quan_ly_tai_chinh_method_not_allowed('POST');
+  }
+  if (!user_access('quan ly tai chinh')) {
+    return _quan_ly_tai_chinh_unauthorized('Bạn không có quyền chuyển tiền nội bộ.');
+  }
+
+  $input = _quan_ly_tai_chinh_input();
+  $nid_quy = intval($input['nid_quy']);
+  $nid_quy_nhan = intval($input['nid_quy_nhan']);
+  $so_tien = quan_ly_tai_chinh_money_to_number($input['so_tien']);
+
+  $quy = $nid_quy ? quan_ly_tai_chinh_quy_load($nid_quy) : NULL;
+  $quy_nhan = $nid_quy_nhan ? quan_ly_tai_chinh_quy_load($nid_quy_nhan) : NULL;
+  if (!$quy || intval($quy->hoat_dong) !== 1 || !$quy_nhan || intval($quy_nhan->hoat_dong) !== 1) {
+    return _quan_ly_tai_chinh_fail('Quỹ chuyển hoặc quỹ nhận không hợp lệ.');
+  }
+  if ($nid_quy === $nid_quy_nhan) {
+    return _quan_ly_tai_chinh_fail('Quỹ nhận phải khác quỹ chuyển.');
+  }
+  if ($so_tien <= 0) {
+    return _quan_ly_tai_chinh_fail('Số tiền phải lớn hơn 0.');
+  }
+
+  $ngay = quan_ly_tai_chinh_parse_date($input['ngay_giao_dich']);
+
+  $fields = array(
+    'ma_giao_dich' => quan_ly_tai_chinh_generate_code('CQ'),
+    'loai_giao_dich' => 'chuyen_quy',
+    'nhom_giao_dich' => 'noi_bo',
+    'nid_quy' => $nid_quy,
+    'nid_quy_nhan' => $nid_quy_nhan,
+    'so_tien' => $so_tien,
+    'ngay_giao_dich' => $ngay,
+    'thang_luong' => date('Ym', $ngay),
+    'dien_giai' => trim(isset($input['dien_giai']) ? $input['dien_giai'] : ''),
+    'uid' => $GLOBALS['user']->uid,
+    'status' => 1,
+    'created' => REQUEST_TIME,
+    'changed' => REQUEST_TIME,
+  );
+
+  $txn = db_transaction();
+  try {
+    db_insert('qltc_giao_dich')->fields($fields)->execute();
+    quan_ly_tai_chinh_rebuild_quy_balance($nid_quy);
+    quan_ly_tai_chinh_rebuild_quy_balance($nid_quy_nhan);
+  }
+  catch (Exception $e) {
+    $txn->rollback();
+    watchdog('quan_ly_tai_chinh', 'Lỗi chuyển tiền nội bộ: %err', array('%err' => $e->getMessage()), WATCHDOG_ERROR);
+    return _quan_ly_tai_chinh_error('Không lưu được giao dịch chuyển tiền.');
+  }
+
+  return _quan_ly_tai_chinh_success($fields);
 }
 
 function _quan_ly_tai_chinh_quy_rest_get($id) {
