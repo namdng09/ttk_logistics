@@ -154,6 +154,9 @@
     if (config.phanLoai && loaiSelect) {
       loaiSelect.value = config.phanLoai;
       togglePhuPhiSection(config.phanLoai);
+      if (config.phanLoaiLocked) {
+        loaiSelect.setAttribute('disabled', 'disabled');
+      }
     }
     quickCreateCallback = config.onCreated || null;
     modalShow('danh-muc-modal');

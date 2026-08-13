@@ -1457,7 +1457,7 @@
         if (notyf) notyf.error('Không tải được công cụ tạo danh mục');
         return;
       }
-      Drupal.danhMuc.openCreate({ phanLoai: phanLoai, onCreated: onCreated });
+      Drupal.danhMuc.openCreate({ phanLoai: phanLoai, onCreated: onCreated, phanLoaiLocked: true });
     }
 
     function attachCreateOption($select, phanLoai, line, fieldName) {

@@ -369,6 +369,7 @@
       config.phanLoaiOptions = phanLoaiOptions;
     } else if (phanLoai) {
       config.phanLoai = phanLoai;
+      config.phanLoaiLocked = true;
     }
     Drupal.danhMuc.openCreate(config);
   }
