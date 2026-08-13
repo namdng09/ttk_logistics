@@ -364,21 +364,143 @@
     );
   }
 
-  function updateStatus(id, status) {
+  var statusModal = { id: 0, status: '', fp: null };
+
+  function monthToInput(val) {
+    var s = String(val || '').replace(/[^0-9]/g, '');
+    if (s.length !== 6) return '';
+    return s.slice(4) + '/' + s.slice(0, 4);
+  }
+
+  function inputToMonth(val) {
+    var m = String(val || '').trim().match(/^(\d{2})\/(\d{4})$/);
+    if (!m) return '';
+    var mm = parseInt(m[1], 10);
+    if (mm < 1 || mm > 12) return '';
+    return m[2] + m[1];
+  }
+
+  function initStatusMonthPicker() {
+    if (typeof flatpickr === 'undefined') return;
+    var $input = $('#ptkh-status-month');
+    if (statusModal.fp) statusModal.fp.destroy();
+    statusModal.fp = flatpickr($input[0], {
+      dateFormat: 'm/Y',
+      allowInput: true,
+      static: true,
+      disableMobile: true,
+      onChange: function (_, dateStr) {
+        $input.val(dateStr);
+        $input.removeClass('is-invalid');
+      }
+    });
+  }
+
+  function showStatusLoading(show) {
+    $('#ptkh-status-loading').toggle(!!show);
+  }
+
+  function openStatusModal(id, status) {
+    statusModal.id = parseInt(id, 10) || 0;
+    statusModal.status = status || '';
+    if (!statusModal.id || !statusModal.status) return;
+
+    var isApproved = status === 'da_duyet';
+    var labelMap = {
+      da_duyet: ['Khách đã duyệt', 'bg-label-success'],
+      chua_duyet: ['Chờ duyệt', 'bg-label-warning'],
+      khong_duyet: ['Không duyệt', 'bg-label-danger']
+    };
+    var lb = labelMap[status] || [status, 'bg-label-secondary'];
+
+    $('#ptkh-status-title').text('Cập nhật trạng thái: ' + lb[0]);
+    $('#ptkh-status-badge').html('<span class="badge ' + lb[1] + '">' + esc(lb[0]) + '</span>');
+    $('#ptkh-status-invoice-row').toggle(isApproved);
+    $('#ptkh-status-month-row').toggle(isApproved);
+    $('#ptkh-status-invoice, #ptkh-status-month').removeClass('is-invalid');
+    $('#ptkh-status-invoice').val('');
+    $('#ptkh-status-note').val('');
+    if (statusModal.fp) statusModal.fp.clear();
+    $('#ptkh-status-submit').html(isApproved
+      ? '<i class="ti tabler-circle-check me-1"></i>Xác nhận duyệt'
+      : '<i class="ti tabler-device-floppy me-1"></i>Xác nhận');
+
+    showStatusLoading(true);
+    $('#ptkh-status-modal').modal('show');
+
+    $.getJSON(API + '/' + statusModal.id).done(function (res) {
+      var item = res && res.data ? res.data : {};
+      $('#ptkh-status-invoice').val(item.so_hoa_don || '');
+      var lastNote = '';
+      var history = item.lich_su_duyet || [];
+      if (history.length && history[history.length - 1].ghi_chu) {
+        lastNote = history[history.length - 1].ghi_chu;
+      }
+      $('#ptkh-status-note').val(lastNote);
+      if (isApproved && statusModal.fp && item.thang_hach_toan) {
+        var mm = monthToInput(item.thang_hach_toan);
+        if (mm) {
+          statusModal.fp.setDate(new Date(parseInt(mm.slice(3), 10), parseInt(mm.slice(0, 2), 10) - 1, 1));
+        }
+      }
+      showStatusLoading(false);
+    }).fail(function (xhr) {
+      showStatusLoading(false);
+      notify(apiMsg(xhr), 'error');
+    });
+  }
+
+  function submitStatus() {
+    var id = statusModal.id;
+    var status = statusModal.status;
+    if (!id || !status) return;
     var payload = { trang_thai_duyet: status };
-    if (status === 'da_duyet') {
-      var invoice = window.prompt('Nhập số hóa đơn:');
-      if (!invoice) return;
-      var month = window.prompt('Nhập tháng hạch toán YYYYMM:', (new Date()).getFullYear().toString() + String((new Date()).getMonth() + 1).padStart(2, '0'));
-      if (!month) return;
+    var isApproved = status === 'da_duyet';
+    if (isApproved) {
+      var invoice = $('#ptkh-status-invoice').val().trim();
+      var month = inputToMonth($('#ptkh-status-month').val());
+      var valid = true;
+      if (!invoice) {
+        $('#ptkh-status-invoice').addClass('is-invalid');
+        valid = false;
+      }
+      else {
+        $('#ptkh-status-invoice').removeClass('is-invalid');
+      }
+      if (!month) {
+        $('#ptkh-status-month').addClass('is-invalid');
+        valid = false;
+      }
+      else {
+        $('#ptkh-status-month').removeClass('is-invalid');
+      }
+      if (!valid) {
+        notify('Vui lòng nhập số hóa đơn và tháng hạch toán.', 'error');
+        return;
+      }
       payload.so_hoa_don = invoice;
       payload.thang_hach_toan = month;
     }
-    var note = window.prompt('Ghi chú duyệt nếu có:', '');
-    if (note !== null) payload.ghi_chu = note;
-    $.ajax({ url: API + '/' + id, method: 'PUT', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify(payload) })
-      .done(function () { notify('Đã cập nhật trạng thái.', 'success'); loadList(); })
-      .fail(function (xhr) { notify(apiMsg(xhr), 'error'); });
+    var note = $('#ptkh-status-note').val().trim();
+    if (note) payload.ghi_chu = note;
+
+    var $btn = $('#ptkh-status-submit');
+    $btn.prop('disabled', true);
+    $.ajax({
+      url: API + '/' + id,
+      method: 'PUT',
+      contentType: 'application/json; charset=utf-8',
+      dataType: 'json',
+      data: JSON.stringify(payload)
+    }).done(function () {
+      notify('Đã cập nhật trạng thái.', 'success');
+      $('#ptkh-status-modal').modal('hide');
+      loadList();
+    }).fail(function (xhr) {
+      notify(apiMsg(xhr), 'error');
+    }).always(function () {
+      $btn.prop('disabled', false);
+    });
   }
 
   function bind() {
@@ -412,12 +534,25 @@
     $('#ptkh-create-submit').on('click', createVoucher);
     $(document).on('click', '.ptkh-view', function (e) { e.preventDefault(); openDetail($(this).data('id'), false); });
     $(document).on('click', '.ptkh-history', function (e) { e.preventDefault(); openDetail($(this).data('id'), true); });
-    $(document).on('click', '.ptkh-status', function (e) { e.preventDefault(); updateStatus($(this).data('id'), $(this).data('status')); });
+    $(document).on('click', '.ptkh-status', function (e) { e.preventDefault(); openStatusModal($(this).data('id'), $(this).data('status')); });
+    $('#ptkh-status-submit').on('click', submitStatus);
+    $('#ptkh-status-invoice, #ptkh-status-month').on('input', function () { $(this).removeClass('is-invalid'); });
+    $('#ptkh-status-modal').on('keydown', function (e) {
+      if (e.which === 13 && !$(e.target).is('textarea')) {
+        e.preventDefault();
+        if (!$('#ptkh-status-submit').prop('disabled')) submitStatus();
+      }
+    });
+    $('#ptkh-status-modal').on('hidden.bs.modal', function () {
+      showStatusLoading(false);
+      $('#ptkh-status-invoice, #ptkh-status-month').removeClass('is-invalid');
+    });
   }
 
   $(function () {
     bind();
     initDatePickers();
+    initStatusMonthPicker();
     initSelect2($('#ptkh-filter-status'), 'Tất cả');
     loadCustomers();
     loadList();

@@ -70,3 +70,32 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="ptkh-status-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="ptkh-status-title">Cập nhật trạng thái duyệt</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body position-relative">
+        <div class="ptkh-status-loading-overlay" id="ptkh-status-loading" style="display:none;"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></div>
+        <div class="mb-3">
+          <label class="form-label">Trạng thái</label>
+          <div id="ptkh-status-badge"></div>
+        </div>
+        <div class="mb-3" id="ptkh-status-invoice-row">
+          <label class="form-label">Số hóa đơn <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="ptkh-status-invoice" placeholder="Nhập số hóa đơn">
+        </div>
+        <div class="mb-3" id="ptkh-status-month-row">
+          <label class="form-label">Tháng hạch toán <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="ptkh-status-month" placeholder="MM/YYYY">
+          <div class="form-text text-muted">Chọn ngày bất kỳ trong tháng, hệ thống tự lấy tháng/năm.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Ghi chú</label>
+          <textarea class="form-control" id="ptkh-status-note" rows="3" placeholder="Ghi chú duyệt (nếu có)"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Huỷ</button><button type="button" class="btn btn-primary" id="ptkh-status-submit"><i class="ti tabler-device-floppy me-1"></i>Xác nhận</button></div>
+    </div>
+  </div>
+</div>
