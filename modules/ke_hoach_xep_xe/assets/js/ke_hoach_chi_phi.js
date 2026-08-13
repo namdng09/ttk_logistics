@@ -312,7 +312,7 @@
   }
 
   function loadLocations() {
-    return $.getJSON('/api/danh-muc-dinh-muc-dia-diem', { limit: 500 })
+    return $.getJSON('/api/danh-muc', { phan_loai: 'Kho,Bãi,Cảng', limit: 500 })
       .done(function (response) {
         var items = response && response.data && response.data.items ? response.data.items : [];
         state.locationNames = [];

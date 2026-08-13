@@ -1635,10 +1635,10 @@
     }
 
     $.ajax({
-      url: '/api/danh-muc-dinh-muc-dia-diem',
+      url: '/api/danh-muc',
       type: 'GET',
       dataType: 'json',
-      data: { limit: 500 },
+      data: { phan_loai: 'Kho,Bãi,Cảng', limit: 500 },
       success: collect,
       complete: function () {
         DINH_MUC_LOCATION_LIST = names;

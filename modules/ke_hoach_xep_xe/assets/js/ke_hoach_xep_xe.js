@@ -2499,7 +2499,7 @@
         return;
       }
       dropdownsLoading = true;
-      var pending = 5;
+      var pending = 4;
       function finish() {
         pending -= 1;
         if (pending === 0) {
@@ -2556,32 +2556,19 @@
         complete: finish
       });
       $.ajax({
-        url: '/api/danh-muc-dia-diem',
-        type: 'GET',
-        dataType: 'json',
-        data: { limit: 500 },
-        success: function (res) {
-          if (res.status === 'success' && res.data && res.data.items) {
-            for (var i = 0; i < res.data.items.length; i++) {
-              var phanLoai = String(res.data.items[i].phan_loai || '').toLowerCase();
-              if (phanLoai === 'bãi' && res.data.items[i].ten) state.diaDiem.bai.push(res.data.items[i].ten);
-              if (phanLoai === 'cảng' && res.data.items[i].ten) state.diaDiem.cang.push(res.data.items[i].ten);
-            }
-          }
-        },
-        complete: finish
-      });
-      $.ajax({
         url: '/api/danh-muc',
         type: 'GET',
         dataType: 'json',
-        data: { phan_loai: 'Kho', limit: 500 },
+        data: { phan_loai: 'Kho,Bãi,Cảng', limit: 500 },
         success: function (res) {
           if (res.status === 'success' && res.data && res.data.items) {
             state.diaDiem.kho = [];
             for (var i = 0; i < res.data.items.length; i++) {
-              var tenKho = res.data.items[i].ten || res.data.items[i].name || res.data.items[i].label || '';
-              if (tenKho) state.diaDiem.kho.push(tenKho);
+              var phanLoai = String(res.data.items[i].phan_loai || '').toLowerCase();
+              var ten = res.data.items[i].ten || res.data.items[i].name || res.data.items[i].label || '';
+              if (phanLoai === 'kho' && ten) state.diaDiem.kho.push(ten);
+              if (phanLoai === 'bãi' && ten) state.diaDiem.bai.push(ten);
+              if (phanLoai === 'cảng' && ten) state.diaDiem.cang.push(ten);
             }
             state.cauHinh.diaChiKho = state.diaDiem.kho.slice();
             refreshLineSources();

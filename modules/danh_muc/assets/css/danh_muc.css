@@ -13,3 +13,18 @@
 .btn-delete-danh-muc i {
   font-size: 1rem;
 }
+
+#phu-phi-repeater .phu-phi-row .input-group-text {
+  min-width: 42px;
+  justify-content: center;
+}
+
+#phu-phi-repeater .phu-phi-row .btn {
+  width: 100%;
+}
+
+#table-danh-muc td .text-muted,
+#table-danh-muc td .text-primary,
+#table-danh-muc td strong {
+  font-size: 0.85rem;
+}
