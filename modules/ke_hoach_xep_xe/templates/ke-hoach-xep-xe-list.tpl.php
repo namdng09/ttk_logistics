@@ -149,6 +149,9 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
     <div class="modal-content">
       <div class="modal-header khcp-modal-header">
         <div class="d-flex align-items-center gap-2 min-w-0">
+          <button type="button" class="btn btn-outline-secondary btn-sm waves-effect" data-bs-dismiss="modal">
+            <i class="icon-base ti tabler-arrow-left me-1"></i> Quay lại
+          </button>
           <h5 class="modal-title text-truncate mb-0">Chi phí kế hoạch</h5>
           <span class="badge bg-label-secondary border" id="khcp-plan-code">#--</span>
           <span class="text-muted small text-truncate" id="khcp-header-meta"></span>

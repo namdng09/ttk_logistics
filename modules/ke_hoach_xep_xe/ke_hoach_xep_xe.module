@@ -569,6 +569,8 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['bai_ha_thuc_te'] = !empty($line['bai_ha_thuc_te']) ? trim($line['bai_ha_thuc_te']) : '';
   $record['cang_xuat'] = !empty($line['cang_xuat']) ? trim($line['cang_xuat']) : '';
   $record['cut_off'] = !empty($line['cut_off']) ? trim($line['cut_off']) : '';
+  $record['ngay_bat_dau'] = !empty($line['ngay_bat_dau']) ? substr(_ke_hoach_xep_xe_filter_date($line['ngay_bat_dau']), 0, 10) : '';
+  $record['ngay_ket_thuc'] = !empty($line['ngay_ket_thuc']) ? substr(_ke_hoach_xep_xe_filter_date($line['ngay_ket_thuc']), 0, 10) : '';
   $record['hinh_thuc_van_tai'] = !empty($line['hinh_thuc_van_tai']) ? trim($line['hinh_thuc_van_tai']) : '';
   $record['ke_hoach_cont_ref_nid'] = !empty($line['ke_hoach_cont_ref_nid']) ? (int) $line['ke_hoach_cont_ref_nid'] : 0;
   $record['da_cat_mooc'] = !empty($line['da_cat_mooc']) ? 1 : 0;
@@ -960,6 +962,8 @@ function _ke_hoach_xep_xe_rest_create() {
           'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
           'cang_xuat' => $record['cang_xuat'],
           'cut_off' => $record['cut_off'],
+          'ngay_bat_dau' => $record['ngay_bat_dau'],
+          'ngay_ket_thuc' => $record['ngay_ket_thuc'],
           'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
           'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
           'da_cat_mooc' => $record['da_cat_mooc'],
@@ -1027,7 +1031,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch');
   }
 
-  $existing = db_query("SELECT nid, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  $existing = db_query("SELECT nid, trang_thai_van_chuyen, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -1049,6 +1053,9 @@ function _ke_hoach_xep_xe_rest_update($id) {
   }
 
   $record = _ke_hoach_xep_xe_build_record($input, $line);
+  if (!array_key_exists('trang_thai_van_chuyen', $line)) {
+    $record['trang_thai_van_chuyen'] = $existing->trang_thai_van_chuyen;
+  }
   $record['thong_tin_json'] = _ke_hoach_xep_xe_merge_json_text(isset($existing->thong_tin_json) ? $existing->thong_tin_json : '', $record['thong_tin_json']);
   _ke_hoach_xep_xe_apply_cont_logic($record);
 
@@ -1073,6 +1080,8 @@ function _ke_hoach_xep_xe_rest_update($id) {
         'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
         'cang_xuat' => $record['cang_xuat'],
         'cut_off' => $record['cut_off'],
+        'ngay_bat_dau' => $record['ngay_bat_dau'],
+        'ngay_ket_thuc' => $record['ngay_ket_thuc'],
         'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
         'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
         'da_cat_mooc' => $record['da_cat_mooc'],
@@ -1984,7 +1993,7 @@ function _ke_hoach_tuyen_xa_rest_update($id) {
   if (!user_access('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch tuyến xa');
   }
-  $existing = db_query("SELECT nid, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':id' => $id, ':loai' => 'tuyen_xa'))->fetch();
+  $existing = db_query("SELECT nid, trang_thai_van_chuyen, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':id' => $id, ':loai' => 'tuyen_xa'))->fetch();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch tuyến xa không tồn tại');
   }
@@ -1995,6 +2004,9 @@ function _ke_hoach_tuyen_xa_rest_update($id) {
   }
   $built = _ke_hoach_tuyen_xa_build_parent_record($input);
   $record = $built['parent'];
+  if (!array_key_exists('trang_thai_van_chuyen', $input)) {
+    $record['trang_thai_van_chuyen'] = $existing->trang_thai_van_chuyen;
+  }
   $record['thong_tin_json'] = _ke_hoach_xep_xe_merge_json_text(isset($existing->thong_tin_json) ? $existing->thong_tin_json : '', $record['thong_tin_json']);
   $transaction = db_transaction();
   try {
