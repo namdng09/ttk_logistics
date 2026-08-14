@@ -1081,7 +1081,7 @@
       html += '<tr class="qltc-ledger-row" data-ledger-id="' + escapeHtml(row.id || '') + '">' +
         '<td class="text-center">' + (i + 1) + '</td>' +
         '<td>' + escapeHtml(row.ngay_giao_dich_text || '') + '</td>' +
-        '<td><span class="fw-semibold">' + escapeHtml(row.ma_chung_tu || '-') + '</span><div class="small text-muted">' + escapeHtml(row.source_type || '') + (row.source_id ? ' #' + escapeHtml(row.source_id) : '') + '</div></td>' +
+        '<td><span class="fw-semibold">' + escapeHtml(row.ma_chung_tu || '-') + '</span></td>' +
         '<td>' + escapeHtml(ledgerTypeLabel(row.loai_bien_dong || '')) + '</td>' +
         '<td class="text-end text-success">' + (row.thu ? formatMoney(row.thu) : '') + '</td>' +
         '<td class="text-end text-danger">' + (row.chi ? formatMoney(row.chi) : '') + '</td>' +
