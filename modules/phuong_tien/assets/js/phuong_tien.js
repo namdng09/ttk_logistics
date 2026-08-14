@@ -39,6 +39,66 @@
     }
   }
 
+  function fileIsImage(file) {
+    var mime = file && file.mime ? String(file.mime).toLowerCase() : '';
+    var url = file && file.url ? String(file.url).toLowerCase() : '';
+    return mime.indexOf('image/') === 0 || /\.(jpg|jpeg|png|webp|gif)(\?|$)/.test(url);
+  }
+
+  function fileIsPdf(file) {
+    var mime = file && file.mime ? String(file.mime).toLowerCase() : '';
+    var url = file && file.url ? String(file.url).toLowerCase() : '';
+    return mime.indexOf('pdf') !== -1 || /\.pdf(\?|$)/.test(url);
+  }
+
+  function ensureVehicleFilePreviewModal() {
+    if (document.getElementById('phuong-tien-file-preview-modal')) return;
+    document.body.insertAdjacentHTML('beforeend',
+      '<div class="modal fade" id="phuong-tien-file-preview-modal" tabindex="-1" aria-hidden="true">' +
+        '<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">' +
+          '<div class="modal-content">' +
+            '<div class="modal-header">' +
+              '<h5 class="modal-title mb-0" id="phuong-tien-file-preview-title">Xem hồ sơ phương tiện</h5>' +
+              '<div class="d-flex align-items-center gap-2 ms-auto">' +
+                '<a class="btn btn-sm btn-label-primary" id="phuong-tien-file-preview-open" href="#" target="_blank" rel="noopener"><i class="ti tabler-external-link me-1"></i>Mở tab mới</a>' +
+                '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="modal-body text-center" id="phuong-tien-file-preview-body"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function openVehicleFilePreview(file) {
+    if (!file || !file.url) return;
+    ensureVehicleFilePreviewModal();
+    var title = file.ten_hien_thi || file.filename || 'Xem hồ sơ phương tiện';
+    document.getElementById('phuong-tien-file-preview-title').textContent = title;
+    document.getElementById('phuong-tien-file-preview-open').setAttribute('href', file.url);
+
+    var body = document.getElementById('phuong-tien-file-preview-body');
+    if (fileIsImage(file)) {
+      body.innerHTML = '<img src="' + escapeHtml(file.url) + '" alt="' + escapeHtml(file.filename || title) + '" class="phuong-tien-file-preview-img">';
+    } else if (fileIsPdf(file)) {
+      body.innerHTML =
+        '<div class="phuong-tien-file-preview-pdf">' +
+          '<iframe src="' + escapeHtml(file.url) + '" title="' + escapeHtml(title) + '"></iframe>' +
+        '</div>';
+    } else {
+      body.innerHTML =
+        '<div class="phuong-tien-file-preview-file">' +
+          '<i class="ti tabler-file"></i>' +
+          '<div class="fw-semibold mt-2">' + escapeHtml(title) + '</div>' +
+          '<a class="btn btn-primary mt-3" target="_blank" rel="noopener" href="' + escapeHtml(file.url) + '"><i class="ti tabler-external-link me-1"></i>Mở file</a>' +
+        '</div>';
+    }
+
+    var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(document.getElementById('phuong-tien-file-preview-modal')) : new bootstrap.Modal(document.getElementById('phuong-tien-file-preview-modal'));
+    modal.show();
+  }
+
   Drupal.behaviors.phuongTien = {
     attach: function (context, settings) {
       if (typeof Notyf !== 'undefined' && !notyf) {
@@ -772,7 +832,7 @@
       if (notyf) notyf.error('Không tìm thấy đường dẫn file');
       return;
     }
-    window.open(CURRENT_FILES[index].url, '_blank', 'noopener');
+    openVehicleFilePreview(CURRENT_FILES[index]);
   }
 
   function findFileIndex(fileId) {

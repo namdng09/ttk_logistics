@@ -31,6 +31,66 @@
     }
   }
 
+  function fileIsImage(file) {
+    var mime = file && file.mime ? String(file.mime).toLowerCase() : '';
+    var url = file && file.url ? String(file.url).toLowerCase() : '';
+    return mime.indexOf('image/') === 0 || /\.(jpg|jpeg|png|webp|gif)(\?|$)/.test(url);
+  }
+
+  function fileIsPdf(file) {
+    var mime = file && file.mime ? String(file.mime).toLowerCase() : '';
+    var url = file && file.url ? String(file.url).toLowerCase() : '';
+    return mime.indexOf('pdf') !== -1 || /\.pdf(\?|$)/.test(url);
+  }
+
+  function ensureDriverFilePreviewModal() {
+    if (document.getElementById('lai-xe-file-preview-modal')) return;
+    document.body.insertAdjacentHTML('beforeend',
+      '<div class="modal fade" id="lai-xe-file-preview-modal" tabindex="-1" aria-hidden="true">' +
+        '<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">' +
+          '<div class="modal-content">' +
+            '<div class="modal-header">' +
+              '<h5 class="modal-title mb-0" id="lai-xe-file-preview-title">Xem hồ sơ lái xe</h5>' +
+              '<div class="d-flex align-items-center gap-2 ms-auto">' +
+                '<a class="btn btn-sm btn-label-primary" id="lai-xe-file-preview-open" href="#" target="_blank" rel="noopener"><i class="ti tabler-external-link me-1"></i>Mở tab mới</a>' +
+                '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="modal-body text-center" id="lai-xe-file-preview-body"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function openDriverFilePreview(file) {
+    if (!file || !file.url) return;
+    ensureDriverFilePreviewModal();
+    var title = file.ten_hien_thi || file.filename || 'Xem hồ sơ lái xe';
+    document.getElementById('lai-xe-file-preview-title').textContent = title;
+    document.getElementById('lai-xe-file-preview-open').setAttribute('href', file.url);
+
+    var body = document.getElementById('lai-xe-file-preview-body');
+    if (fileIsImage(file)) {
+      body.innerHTML = '<img src="' + escapeHtml(file.url) + '" alt="' + escapeHtml(file.filename || title) + '" class="lai-xe-file-preview-img">';
+    } else if (fileIsPdf(file)) {
+      body.innerHTML =
+        '<div class="lai-xe-file-preview-pdf">' +
+          '<iframe src="' + escapeHtml(file.url) + '" title="' + escapeHtml(title) + '"></iframe>' +
+        '</div>';
+    } else {
+      body.innerHTML =
+        '<div class="lai-xe-file-preview-file">' +
+          '<i class="ti tabler-file"></i>' +
+          '<div class="fw-semibold mt-2">' + escapeHtml(title) + '</div>' +
+          '<a class="btn btn-primary mt-3" target="_blank" rel="noopener" href="' + escapeHtml(file.url) + '"><i class="ti tabler-external-link me-1"></i>Mở file</a>' +
+        '</div>';
+    }
+
+    var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(document.getElementById('lai-xe-file-preview-modal')) : new bootstrap.Modal(document.getElementById('lai-xe-file-preview-modal'));
+    modal.show();
+  }
+
   Drupal.behaviors.laiXe = {
     attach: function (context, settings) {
       if (typeof Notyf !== 'undefined' && !notyf) {
@@ -944,7 +1004,7 @@
       if (notyf) notyf.error('Không tìm thấy đường dẫn file');
       return;
     }
-    window.open(CURRENT_FILES[index].url, '_blank', 'noopener');
+    openDriverFilePreview(CURRENT_FILES[index]);
   }
 
   function findFileIndex(fileId) {
