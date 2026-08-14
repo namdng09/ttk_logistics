@@ -76,6 +76,18 @@
     return m[3] + '/' + m[2] + '/' + m[1] + (m[4] ? ' ' + m[4] + ':' + m[5] : '');
   }
 
+  function dateDashText(v) {
+    if (!v) return '';
+    var raw = String(v).trim();
+    var iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return iso[3] + '-' + iso[2] + '-' + iso[1];
+    var slash = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (slash) return slash[1] + '-' + slash[2] + '-' + slash[3];
+    var dash = raw.match(/^(\d{2})-(\d{2})-(\d{4})/);
+    if (dash) return dash[1] + '-' + dash[2] + '-' + dash[3];
+    return raw;
+  }
+
   function statusBadge(s) {
     var map = {
       chua_thanh_toan: ['Chưa thanh toán', 'bg-label-secondary'],
@@ -548,18 +560,22 @@
       '<div class="col-md-3"><div class="cnkh-info-box"><div class="text-muted small">Người thực hiện</div><strong>' + esc(user.name || user.username || '') + '</strong></div></div>' +
       '<div class="col-md-3"><div class="cnkh-info-box"><div class="text-muted small">Tổng tiền</div><strong>' + moneyText(data.tong_tien) + '</strong></div></div>' +
       '</div>';
-    html += '<div class="table-responsive"><table class="table table-sm table-bordered align-middle"><thead><tr><th>#</th><th>Ngày vận chuyển</th><th>Số BKG</th><th>Loại cont</th><th>Số cont</th><th>Tuyến</th><th class="text-end">Doanh thu</th><th class="text-end">Chi hộ</th><th class="text-end">Tổng</th></tr></thead><tbody>';
+    html += '<div class="table-responsive"><table class="table table-sm table-bordered align-middle cnkh-voucher-detail-table"><thead><tr><th>#</th><th>Ngày VC</th><th>Số BKG</th><th>Container</th><th>Tuyến</th><th class="text-end">Doanh thu</th><th class="text-end">Chi hộ</th><th class="text-end">Tổng</th></tr></thead><tbody>';
     if (!rows.length) {
-      html += '<tr><td colspan="9" class="text-center text-muted py-3">Không có dữ liệu.</td></tr>';
+      html += '<tr><td colspan="8" class="text-center text-muted py-3">Không có dữ liệu.</td></tr>';
     }
     else {
       $.each(rows, function (idx, row) {
+        var loaiCont = $.trim(row.loai_cont || '');
+        var soCont = $.trim(row.so_cont || '');
+        var container = (loaiCont ? esc(loaiCont) : '<em class="text-muted">loại cont</em>') +
+          ' - ' +
+          (soCont ? esc(soCont) : '<em class="text-muted">số cont</em>');
         html += '<tr>' +
           '<td>' + (idx + 1) + '</td>' +
-          '<td>' + esc(row.ngay || '') + '</td>' +
+          '<td>' + esc(dateDashText(row.ngay || '')) + '</td>' +
           '<td>' + esc(row.so_bkg || '') + '</td>' +
-          '<td>' + esc(row.loai_cont || '') + '</td>' +
-          '<td>' + esc(row.so_cont || '') + '</td>' +
+          '<td>' + container + '</td>' +
           '<td>' + esc(row.tuyen || '') + '</td>' +
           '<td class="text-end">' + moneyText(row.tong_doanh_thu) + '</td>' +
           '<td class="text-end">' + moneyText(row.tong_chi_ho_khach_hang) + '</td>' +
