@@ -15,6 +15,9 @@
       </div>
       <div class="col-12 col-md-8">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
+          <button type="button" class="btn btn-label-primary btn-open-ptkh-create">
+            <i class="ti tabler-file-plus me-1"></i>Tạo phiếu trả KH
+          </button>
           <button type="button" class="btn btn-primary btn-them-ke-hoach-tuyen-xa">
             <i class="ti tabler-plus me-1"></i>Thêm tuyến xa
           </button>
@@ -63,6 +66,68 @@
           <input type="text" class="form-control form-control-sm" id="pagination-ke-hoach-tuyen-xa-jump" style="width:60px;text-align:center;" inputmode="numeric">
           <span class="text-muted small" id="pagination-ke-hoach-tuyen-xa-total-pages"></span>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="khxh-ptkh-create-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tạo phiếu trả khách hàng</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body position-relative">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Khách hàng <span class="text-danger">*</span></label>
+            <select id="khxh-ptkh-create-customer" class="form-select khxh-ptkh-customer-select">
+              <option value="">Chọn khách hàng</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Từ ngày</label>
+            <input type="text" id="khxh-ptkh-create-from" class="form-control flatpickr-date date-mask" placeholder="dd/mm/yyyy">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Đến ngày</label>
+            <input type="text" id="khxh-ptkh-create-to" class="form-control flatpickr-date date-mask" placeholder="dd/mm/yyyy">
+          </div>
+          <div class="col-md-2">
+            <button type="button" class="btn btn-label-primary w-100" id="khxh-ptkh-load-candidates">
+              <i class="ti tabler-filter me-1"></i>Lọc
+            </button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover align-middle khxh-ptkh-candidate-table">
+            <thead class="table-light">
+              <tr>
+                <th class="text-center" style="width:44px"><input type="checkbox" id="khxh-ptkh-check-all"></th>
+                <th>Kế hoạch</th>
+                <th>Ngày</th>
+                <th>Tuyến</th>
+                <th class="text-end">Doanh thu</th>
+                <th class="text-end">Chi hộ</th>
+                <th class="text-end">Tổng</th>
+              </tr>
+            </thead>
+            <tbody id="khxh-ptkh-candidate-body">
+              <tr><td colspan="7" class="text-center text-muted py-4">Chọn khách hàng rồi bấm Lọc.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="d-flex justify-content-end gap-3 mt-3">
+          <div class="khxh-ptkh-total-box"><span>Đã chọn</span><strong id="khxh-ptkh-selected-count">0</strong></div>
+          <div class="khxh-ptkh-total-box"><span>Tổng tiền</span><strong id="khxh-ptkh-selected-total">0</strong></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary" id="khxh-ptkh-create-submit">
+          <i class="ti tabler-device-floppy me-1"></i>Tạo phiếu
+        </button>
       </div>
     </div>
   </div>

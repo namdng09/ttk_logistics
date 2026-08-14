@@ -22,6 +22,10 @@
   var listSearchDropdownCallbacks = [];
   var nestedContEditContext = null;
   var nestedContRestorePending = null;
+  var ptkhCreateState = {
+    customersLoaded: false,
+    candidates: []
+  };
   var listSearchDropdownData = {
     customers: [],
     kho: [],
@@ -458,6 +462,191 @@
       }
       var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
       modal.show();
+    });
+
+    $(document).on('click', '.btn-open-ptkh-create', function (e) {
+      e.preventDefault();
+      openPtkhCreateModal();
+    });
+    $(document).on('click', '#khxh-ptkh-load-candidates', loadPtkhCandidates);
+    $(document).on('change', '#khxh-ptkh-check-all', function () {
+      $('.khxh-ptkh-plan-check:not(:disabled)').prop('checked', this.checked);
+      updatePtkhSelectedTotal();
+    });
+    $(document).on('change', '.khxh-ptkh-plan-check', updatePtkhSelectedTotal);
+    $(document).on('click', '#khxh-ptkh-create-submit', createPtkhVoucher);
+  }
+
+  function ptkhMoney(v) {
+    v = parseInt(v || 0, 10) || 0;
+    return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function notifyPtkh(message, type) {
+    if (typeof Notyf !== 'undefined' && !notyf) notyf = new Notyf();
+    if (notyf) type === 'error' ? notyf.error(message) : notyf.success(message);
+    else window.alert(message);
+  }
+
+  function resetPtkhCandidates(message) {
+    ptkhCreateState.candidates = [];
+    $('#khxh-ptkh-check-all').prop('checked', false);
+    $('#khxh-ptkh-candidate-body').html('<tr><td colspan="7" class="text-center text-muted py-4">' + escHtml(message || 'Chọn khách hàng rồi bấm Lọc.') + '</td></tr>');
+    updatePtkhSelectedTotal();
+  }
+
+  function loadPtkhCustomers(done) {
+    var $select = $('#khxh-ptkh-create-customer');
+    if (!$select.length) return;
+    if (ptkhCreateState.customersLoaded) {
+      initSelect2($select[0], 'Chọn khách hàng', { dropdownParent: $('#khxh-ptkh-create-modal') });
+      if (done) done();
+      return;
+    }
+    $select.prop('disabled', true);
+    $.getJSON('/api/khach-hang', { limit: 500 }).done(function (res) {
+      var items = res && res.data ? (res.data.items || []) : [];
+      var html = '<option value="">Chọn khách hàng</option>';
+      $.each(items, function (_, item) {
+        var label = item.ten || item.ma_kh || ('Khách hàng #' + item.nid);
+        html += '<option value="' + escHtml(item.nid) + '">' + escHtml(label) + '</option>';
+      });
+      $select.html(html);
+      ptkhCreateState.customersLoaded = true;
+    }).fail(function (xhr) {
+      notifyPtkh(apiMsg(xhr), 'error');
+    }).always(function () {
+      $select.prop('disabled', false);
+      initSelect2($select[0], 'Chọn khách hàng', { dropdownParent: $('#khxh-ptkh-create-modal') });
+      if (done) done();
+    });
+  }
+
+  function initPtkhDatePickers() {
+    if (typeof flatpickr === 'undefined') return;
+    $('#khxh-ptkh-create-modal .flatpickr-date').each(function () {
+      if (this._flatpickr) return;
+      flatpickr(this, {
+        dateFormat: 'd/m/Y',
+        allowInput: true,
+        static: true
+      });
+    });
+  }
+
+  function openPtkhCreateModal() {
+    var modalEl = document.getElementById('khxh-ptkh-create-modal');
+    if (!modalEl) {
+      notifyPtkh('Không tìm thấy modal tạo phiếu trả khách hàng.', 'error');
+      return;
+    }
+    resetPtkhCandidates('Chọn khách hàng rồi bấm Lọc.');
+    loadPtkhCustomers();
+    initPtkhDatePickers();
+    if (window.bootstrap && bootstrap.Modal) {
+      var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
+      modal.show();
+    } else {
+      $('#khxh-ptkh-create-modal').modal('show');
+    }
+  }
+
+  function loadPtkhCandidates() {
+    var customer = $('#khxh-ptkh-create-customer').val();
+    if (!customer) {
+      resetPtkhCandidates('Chọn khách hàng rồi bấm Lọc.');
+      notifyPtkh('Vui lòng chọn khách hàng.', 'error');
+      return;
+    }
+    $('#khxh-ptkh-check-all').prop('checked', false);
+    $('#khxh-ptkh-load-candidates').prop('disabled', true);
+    $('#khxh-ptkh-candidate-body').html('<tr><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>');
+    $.getJSON('/api/phieu-tra-khach-hang/candidates', {
+      nid_khach_hang: customer,
+      from_date: $('#khxh-ptkh-create-from').val() || '',
+      to_date: $('#khxh-ptkh-create-to').val() || ''
+    }).done(function (res) {
+      if (!res || res.status !== 'success') {
+        ptkhCreateState.candidates = [];
+        $('#khxh-ptkh-candidate-body').html('<tr><td colspan="7" class="text-center text-danger py-4">' + escHtml((res && res.message) || 'Không tải được kế hoạch đủ điều kiện.') + '</td></tr>');
+        updatePtkhSelectedTotal();
+        return;
+      }
+      ptkhCreateState.candidates = res && res.data ? (res.data.items || []) : [];
+      renderPtkhCandidates();
+    }).fail(function (xhr) {
+      ptkhCreateState.candidates = [];
+      $('#khxh-ptkh-candidate-body').html('<tr><td colspan="7" class="text-center text-danger py-4">' + escHtml(apiMsg(xhr)) + '</td></tr>');
+      updatePtkhSelectedTotal();
+    }).always(function () {
+      $('#khxh-ptkh-load-candidates').prop('disabled', false);
+    });
+  }
+
+  function renderPtkhCandidates() {
+    $('#khxh-ptkh-check-all').prop('checked', false);
+    if (!ptkhCreateState.candidates.length) {
+      $('#khxh-ptkh-candidate-body').html('<tr><td colspan="7" class="text-center text-muted py-4">Không có kế hoạch đủ điều kiện.</td></tr>');
+      updatePtkhSelectedTotal();
+      return;
+    }
+    $('#khxh-ptkh-candidate-body').html($.map(ptkhCreateState.candidates, function (item) {
+      return '<tr>' +
+        '<td class="text-center"><input type="checkbox" class="khxh-ptkh-plan-check" value="' + escHtml(item.nid) + '" data-total="' + escHtml(item.tong_tien || 0) + '"></td>' +
+        '<td><strong>' + escHtml(item.label || '') + '</strong><div class="small text-muted">#' + escHtml(item.nid || '') + '</div></td>' +
+        '<td>' + escHtml(apiToDate(item.ngay || '')) + '</td>' +
+        '<td>' + escHtml(item.tuyen || '-') + '</td>' +
+        '<td class="text-end khxh-ptkh-money">' + ptkhMoney(item.tong_doanh_thu) + '</td>' +
+        '<td class="text-end khxh-ptkh-money">' + ptkhMoney(item.tong_chi_ho_khach_hang) + '</td>' +
+        '<td class="text-end khxh-ptkh-money fw-semibold">' + ptkhMoney(item.tong_tien) + '</td>' +
+      '</tr>';
+    }).join(''));
+    updatePtkhSelectedTotal();
+  }
+
+  function updatePtkhSelectedTotal() {
+    var count = 0;
+    var total = 0;
+    $('.khxh-ptkh-plan-check:checked').each(function () {
+      count += 1;
+      total += parseInt($(this).data('total') || 0, 10) || 0;
+    });
+    $('#khxh-ptkh-selected-count').text(count);
+    $('#khxh-ptkh-selected-total').text(ptkhMoney(total));
+  }
+
+  function createPtkhVoucher() {
+    var ids = $('.khxh-ptkh-plan-check:checked').map(function () {
+      return parseInt(this.value, 10);
+    }).get();
+    if (!ids.length) {
+      notifyPtkh('Vui lòng chọn kế hoạch.', 'error');
+      return;
+    }
+    $('#khxh-ptkh-create-submit').prop('disabled', true);
+    $.ajax({
+      url: '/api/phieu-tra-khach-hang',
+      method: 'POST',
+      contentType: 'application/json; charset=utf-8',
+      dataType: 'json',
+      data: JSON.stringify({
+        nid_khach_hang: $('#khxh-ptkh-create-customer').val(),
+        tu_ngay: $('#khxh-ptkh-create-from').val(),
+        den_ngay: $('#khxh-ptkh-create-to').val(),
+        nid_ke_hoach: ids
+      })
+    }).done(function (res) {
+      if (!res || res.status !== 'success') {
+        notifyPtkh((res && res.message) || 'Tạo phiếu trả khách hàng thất bại.', 'error');
+        return;
+      }
+      notifyPtkh('Đã tạo phiếu trả khách hàng.', 'success');
+      $('#khxh-ptkh-create-modal').modal('hide');
+      resetPtkhCandidates('Chọn khách hàng rồi bấm Lọc.');
+    }).fail(function (xhr) {
+      notifyPtkh(apiMsg(xhr), 'error');
+    }).always(function () {
+      $('#khxh-ptkh-create-submit').prop('disabled', false);
     });
   }
 

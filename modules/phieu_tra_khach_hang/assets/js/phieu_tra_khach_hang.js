@@ -504,6 +504,10 @@
   }
 
   function bind() {
+    function openCreateModal() {
+      resetCandidates('Chọn khách hàng rồi bấm Lọc.');
+      $('#ptkh-create-modal').modal('show');
+    }
     $('#ptkh-search').on('click', reloadFromFilter);
     $('#ptkh-reload').on('click', resetFilters);
     $('#ptkh-keyword').on('keydown', function (e) { if (e.which === 13) reloadFromFilter(); });
@@ -527,7 +531,7 @@
         }
       }
     });
-    $('#ptkh-open-create').on('click', function () { resetCandidates('Chọn khách hàng rồi bấm Lọc.'); $('#ptkh-create-modal').modal('show'); });
+    $('#ptkh-open-create').on('click', openCreateModal);
     $(document).on('click', '#ptkh-load-candidates', loadCandidates);
     $('#ptkh-check-all').on('change', function () { $('.ptkh-plan-check:not(:disabled)').prop('checked', this.checked); updateSelectedTotal(); });
     $(document).on('change', '.ptkh-plan-check', updateSelectedTotal);
@@ -547,6 +551,14 @@
       showStatusLoading(false);
       $('#ptkh-status-invoice, #ptkh-status-month').removeClass('is-invalid');
     });
+    try {
+      var url = new URL(window.location.href);
+      if (url.searchParams.get('open_create') === '1') {
+        url.searchParams.delete('open_create');
+        window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : '') + url.hash);
+        setTimeout(openCreateModal, 0);
+      }
+    } catch (e) {}
   }
 
   $(function () {

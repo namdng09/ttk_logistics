@@ -1243,6 +1243,40 @@ body .flatpickr-calendar {
   text-align: center;
 }
 
+.khxh-ptkh-money {
+  font-variant-numeric: tabular-nums;
+}
+
+.khxh-ptkh-total-box {
+  min-width: 140px;
+  border: 1px solid #e6e6f0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: #fff;
+  text-align: right;
+}
+
+.khxh-ptkh-total-box span {
+  display: block;
+  color: #6f6b7d;
+  font-size: 12px;
+}
+
+.khxh-ptkh-total-box strong {
+  font-size: 16px;
+}
+
+.khxh-ptkh-candidate-table thead th {
+  padding: .6rem .75rem;
+  background: #f5f5f9;
+  color: #384551;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .khcp-col-name {
   width: 20%;
 }
