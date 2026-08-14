@@ -789,20 +789,44 @@
     return '<div class="detail-info-item"><div class="detail-info-label">' + escHtml(label) + '</div><div class="detail-info-value">' + valueOrMuted(value) + '</div></div>';
   }
 
+  function detailSectionTitle(icon, title, meta) {
+    return '<div class="detail-section-head">' +
+      '<div class="detail-section-icon"><i class="ti ' + escHtml(icon) + '"></i></div>' +
+      '<div class="min-w-0"><div class="detail-section-title">' + escHtml(title) + '</div>' +
+      (meta ? '<div class="detail-section-meta">' + escHtml(meta) + '</div>' : '') +
+      '</div></div>';
+  }
+
+  function detailBadge(value, colorClass, placeholder) {
+    return value ? '<span class="badge rounded-pill ' + escHtml(colorClass || 'bg-label-secondary') + ' border">' + escHtml(value) + '</span>' : valueOrMuted('', placeholder);
+  }
+
+  function detailRoutePoint(label, value) {
+    return '<div class="detail-route-point"><span>' + escHtml(label) + '</span><strong>' + valueOrMuted(value) + '</strong></div>';
+  }
+
   function transportCardHtml(title, row, emptyText) {
     if (!row) {
-      return '<div class="detail-transport-card detail-transport-empty"><div class="detail-transport-title">' + escHtml(title) + '</div><div class="text-muted">' + escHtml(emptyText || 'Chưa có dữ liệu') + '</div></div>';
+      return '<div class="detail-transport-card detail-transport-empty"><div class="detail-transport-title"><span>' + escHtml(title) + '</span></div><div class="text-muted">' + escHtml(emptyText || 'Chưa có dữ liệu') + '</div></div>';
     }
     var driver = row.lai_xe || {};
     var vehicle = row.phuong_tien || {};
     var mooc = row.mooc || {};
+    var routeFrom = row.bai_lay_thuc_te || row.bai_lay_cont || row.diem_di || '';
+    var routeMid = row.dia_chi_kho || row.cua_khau || '';
+    var routeTo = row.bai_ha_thuc_te || row.bai_ha_cont || row.diem_den || '';
     var html = '<div class="detail-transport-card">' +
-      '<div class="detail-transport-title">' + escHtml(title) + '</div>' +
-      '<div class="detail-info-grid detail-info-grid-compact">' +
-        detailItem('Đầu kéo', vehicle.bks || '') +
-        detailItem('Mooc', mooc.bks || '') +
-        detailItem('Lái xe', driver.ten || '') +
-        detailItem('SĐT lái xe', driver.sdt || '') +
+      '<div class="detail-transport-title"><span>' + escHtml(title) + '</span>' + (row.so_bkg ? '<small>' + escHtml(row.so_bkg) + '</small>' : '') + '</div>' +
+      '<div class="detail-route-inline">' +
+        '<span>' + valueOrMuted(routeFrom, 'Điểm đi') + '</span>' +
+        (routeMid ? '<i class="ti tabler-arrow-right"></i><span>' + escHtml(routeMid) + '</span>' : '') +
+        '<i class="ti tabler-arrow-right"></i><span>' + valueOrMuted(routeTo, 'Điểm đến') + '</span>' +
+      '</div>' +
+      '<div class="detail-transport-meta">' +
+        '<div><span>Đầu kéo</span><strong>' + valueOrMuted(vehicle.bks || '') + '</strong></div>' +
+        '<div><span>Lái xe</span><strong>' + valueOrMuted(driver.ten || '') + '</strong></div>' +
+        '<div><span>SĐT</span><strong>' + valueOrMuted(driver.sdt || '') + '</strong></div>' +
+        '<div><span>Mooc</span><strong>' + valueOrMuted(mooc.bks || '') + '</strong></div>' +
       '</div>' +
     '</div>';
     return html;
@@ -811,33 +835,42 @@
   function renderDetailModal(d) {
     var khName = (d.khach_hang && d.khach_hang.ten) || '';
     var hinhThuc = d.hinh_thuc_van_tai ? (HINH_THUC_MAP[d.hinh_thuc_van_tai] || d.hinh_thuc_van_tai) : '';
+    var hinhThucColor = d.hinh_thuc_van_tai ? (HINH_THUC_COLOR[d.hinh_thuc_van_tai] || 'bg-label-secondary') : 'bg-label-secondary';
     var diemDen = d.bai_ha_thuc_te || d.bai_ha_cont || '';
+    var contText = [d.loai_cont || '', d.so_cont || ''].filter(Boolean).join(' - ');
+    var statusColor = d.trang_thai_van_chuyen === 'Hoàn thành' ? 'bg-label-success' : 'bg-label-primary';
     var commonHtml = '' +
+      '<div class="detail-summary-strip">' +
+        '<div><span>Khách hàng</span><strong>' + valueOrMuted(khName) + '</strong></div>' +
+        '<div><span>Booking</span><strong>' + valueOrMuted(d.so_bkg || '') + '</strong></div>' +
+        '<div><span>Container</span><strong>' + valueOrMuted(contText) + '</strong></div>' +
+        '<div><span>Trạng thái</span><strong>' + detailBadge(d.trang_thai_van_chuyen || '', statusColor) + '</strong></div>' +
+      '</div>' +
       '<div class="detail-info-grid">' +
         detailItem('Ngày lập KH', d.created ? d.created.substring(0, 16) : '') +
-        detailItem('Khách hàng', khName) +
-        detailItem('Hình thức vận tải', hinhThuc) +
-        detailItem('Trạng thái', d.trang_thai_van_chuyen || '') +
+        '<div class="detail-info-item"><div class="detail-info-label">Hình thức vận tải</div><div class="detail-info-value">' + detailBadge(hinhThuc, hinhThucColor, 'Chưa chọn') + '</div></div>' +
         detailItem('Cut-off', apiToDatetime(d.cut_off || '')) +
         detailItem('Ngày bắt đầu', apiToDate(d.ngay_bat_dau || '')) +
         detailItem('Ngày kết thúc', apiToDate(d.ngay_ket_thuc || '')) +
         detailItem('Ghi chú', d.ghi_chu || '') +
       '</div>';
     var containerHtml = '' +
-      '<div class="detail-info-grid">' +
-        detailItem('Số BKG', d.so_bkg || '') +
-        detailItem('Số cont', d.so_cont || '') +
-        detailItem('Loại cont', d.loai_cont || '') +
-        detailItem('Seal chính', d.so_seal_chinh || '') +
-        detailItem('Seal phụ', d.so_seal_tam || '') +
-        detailItem('Địa chỉ kho', d.dia_chi_kho || '') +
-        detailItem('Bãi lấy', d.bai_lay_cont || '') +
-        detailItem('Bãi lấy thực tế', d.bai_lay_thuc_te || '') +
-        detailItem('Bãi hạ', d.bai_ha_cont || '') +
-        detailItem('Bãi hạ thực tế', d.bai_ha_thuc_te || '') +
-        detailItem('Điểm đến', diemDen) +
-        detailItem('Cảng xuất', d.cang_xuat || '') +
-        detailItem('Đủ hàng', parseInt(d.da_du_hang, 10) === 1 ? 'Đủ hàng' : 'Chưa đủ') +
+      '<div class="detail-container-layout">' +
+        '<div class="detail-container-main">' +
+          '<div class="detail-container-code">' + valueOrMuted(contText || d.so_bkg || '', 'Chưa có container') + '</div>' +
+          '<div class="detail-container-sub">' +
+            '<span>BKG: ' + (d.so_bkg ? escHtml(d.so_bkg) : 'Chưa có') + '</span>' +
+            '<span>Seal chính: ' + (d.so_seal_chinh ? escHtml(d.so_seal_chinh) : 'Chưa có') + '</span>' +
+            '<span>Seal phụ: ' + (d.so_seal_tam ? escHtml(d.so_seal_tam) : 'Chưa có') + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="detail-container-status">' + detailBadge(parseInt(d.da_du_hang, 10) === 1 ? 'Đủ hàng' : 'Chưa đủ hàng', parseInt(d.da_du_hang, 10) === 1 ? 'bg-label-success' : 'bg-label-warning') + '</div>' +
+      '</div>' +
+      '<div class="detail-route-grid">' +
+        detailRoutePoint('Bãi lấy', d.bai_lay_thuc_te || d.bai_lay_cont || '') +
+        detailRoutePoint('Địa chỉ đóng/ trả hàng (Kho)', d.dia_chi_kho || '') +
+        detailRoutePoint('Bãi hạ', d.bai_ha_thuc_te || d.bai_ha_cont || '') +
+        detailRoutePoint('Cảng xuất', d.cang_xuat || '') +
       '</div>';
     var transportHtml = '<div class="detail-transport-grid">' +
       transportCardHtml('Kéo lên', d.cont_ref || d, 'Chưa có kế hoạch kéo lên') +
@@ -848,9 +881,9 @@
     $('#ke-hoach-detail-subtitle').text((d.so_bkg || 'Kế hoạch') + (d.so_cont ? ' - ' + d.so_cont : ''));
     $('#ke-hoach-detail-edit-btn').attr('href', '/ke-hoach-xep-xe/' + d.nid + '/sua');
     $('#ke-hoach-detail-content').html(
-      '<div class="detail-card"><div class="detail-section-title">Thông tin chung</div>' + commonHtml + '</div>' +
-      '<div class="detail-card"><div class="detail-section-title">Thông tin container</div>' + containerHtml + '</div>' +
-      '<div class="detail-card"><div class="detail-section-title">Thông tin vận chuyển</div>' + transportHtml + '</div>' +
+      '<div class="detail-card">' + detailSectionTitle('tabler-info-circle', 'Thông tin chung', 'Tổng quan kế hoạch và tiến độ') + commonHtml + '</div>' +
+      '<div class="detail-card">' + detailSectionTitle('tabler-container', 'Thông tin container', 'Booking, seal và tuyến điểm') + containerHtml + '</div>' +
+      '<div class="detail-card">' + detailSectionTitle('tabler-route', 'Thông tin vận chuyển', 'Phương tiện và lái xe theo chiều kéo') + transportHtml + '</div>' +
       filesHtml
     );
   }
