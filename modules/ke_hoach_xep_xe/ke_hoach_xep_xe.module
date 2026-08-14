@@ -36,6 +36,20 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/ke-hoach-xep-xe/%/file'] = array(
+    'page callback' => 'ke_hoach_xep_xe_file_collection',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/ke-hoach-xep-xe/%/file/%'] = array(
+    'page callback' => 'ke_hoach_xep_xe_file_item',
+    'page arguments' => array(2, 4),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/ke-hoach-xep-xe/%'] = array(
     'page callback' => 'ke_hoach_xep_xe_rest_item',
     'page arguments' => array(2),
@@ -45,6 +59,20 @@ function ke_hoach_xep_xe_menu() {
   );
   $items['api/ke-hoach-tuyen-xa'] = array(
     'page callback' => 'ke_hoach_tuyen_xa_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/ke-hoach-tuyen-xa/%/file'] = array(
+    'page callback' => 'ke_hoach_xep_xe_file_collection',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/ke-hoach-tuyen-xa/%/file/%'] = array(
+    'page callback' => 'ke_hoach_xep_xe_file_item',
+    'page arguments' => array(2, 4),
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
@@ -296,6 +324,100 @@ function _ke_hoach_xep_xe_merge_json_text($existing, $incoming) {
   $incoming_json = _ke_hoach_xep_xe_json_decode($incoming);
   $merged = array_merge($existing_json, $incoming_json);
   return !empty($merged) ? _ke_hoach_xep_xe_json_encode($merged) : '';
+}
+
+function _ke_hoach_xep_xe_file_groups() {
+  return array(
+    'lay_cont_rong' => 'Nhận/lấy cont rỗng bãi/depot/cảng',
+    'giao_cont_rong_cho_kho' => 'Giao cont rỗng cho kho',
+    'nhan_cont_hang_tu_kho' => 'Nhận cont hàng từ kho',
+    'ha_cont' => 'Hạ cont',
+  );
+}
+
+function _ke_hoach_xep_xe_file_group_label($group) {
+  $groups = _ke_hoach_xep_xe_file_groups();
+  return isset($groups[$group]) ? $groups[$group] : 'Khác';
+}
+
+function _ke_hoach_xep_xe_normalize_files(array $json) {
+  if (empty($json['hinh_anh_chung_tu']) || !is_array($json['hinh_anh_chung_tu'])) {
+    $json['hinh_anh_chung_tu'] = array();
+  }
+  foreach ($json['hinh_anh_chung_tu'] as &$file) {
+    if (!empty($file['uri'])) {
+      $file['url'] = file_create_url($file['uri']);
+    }
+    $file['nhom_label'] = _ke_hoach_xep_xe_file_group_label(!empty($file['nhom']) ? $file['nhom'] : '');
+    $file['is_image'] = !empty($file['mime']) && strpos($file['mime'], 'image/') === 0;
+  }
+  unset($file);
+  return $json;
+}
+
+function _ke_hoach_xep_xe_file_index($files, $file_id) {
+  foreach ($files as $index => $file) {
+    if (!empty($file['id']) && (string) $file['id'] === (string) $file_id) {
+      return $index;
+    }
+  }
+  return -1;
+}
+
+function _ke_hoach_xep_xe_upload_entries($field) {
+  if (empty($_FILES[$field])) {
+    return array();
+  }
+  $raw = $_FILES[$field];
+  if (is_array($raw['name'])) {
+    $items = array();
+    foreach ($raw['name'] as $index => $name) {
+      if ($name === '') continue;
+      $items[] = array(
+        'name' => $name,
+        'type' => isset($raw['type'][$index]) ? $raw['type'][$index] : '',
+        'tmp_name' => isset($raw['tmp_name'][$index]) ? $raw['tmp_name'][$index] : '',
+        'error' => isset($raw['error'][$index]) ? $raw['error'][$index] : 0,
+        'size' => isset($raw['size'][$index]) ? $raw['size'][$index] : 0,
+      );
+    }
+    return $items;
+  }
+  return !empty($raw['name']) ? array($raw) : array();
+}
+
+function _ke_hoach_xep_xe_save_upload_entry(array $upload, $dir) {
+  if (empty($upload['name']) || !empty($upload['error'])) return NULL;
+  $max_size = 10 * 1024 * 1024;
+  $size = isset($upload['size']) ? (int) $upload['size'] : 0;
+  if ($size <= 0 || $size > $max_size) return FALSE;
+
+  $original = drupal_basename($upload['name']);
+  $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+  $allowed_ext = array('jpg', 'jpeg', 'png', 'webp', 'pdf');
+  if (!in_array($ext, $allowed_ext)) return FALSE;
+  if (empty($upload['tmp_name']) || !is_uploaded_file($upload['tmp_name'])) return FALSE;
+
+  $safe_name = file_munge_filename($original, 'jpg jpeg png webp pdf', FALSE);
+  $destination = file_unmanaged_save_data(file_get_contents($upload['tmp_name']), $dir . '/' . $safe_name, FILE_EXISTS_RENAME);
+  if (!$destination) return FALSE;
+
+  $mime = file_get_mimetype($destination);
+  $allowed_mime = array('image/jpeg', 'image/png', 'image/webp', 'application/pdf');
+  if ($mime && !in_array($mime, $allowed_mime)) {
+    file_unmanaged_delete($destination);
+    return FALSE;
+  }
+
+  global $user;
+  $file = new stdClass();
+  $file->uid = isset($user->uid) ? (int) $user->uid : 0;
+  $file->filename = $original;
+  $file->uri = $destination;
+  $file->filemime = $mime ?: 'application/octet-stream';
+  $file->filesize = filesize($destination);
+  $file->status = FILE_STATUS_PERMANENT;
+  return file_save($file);
 }
 
 function _ke_hoach_xep_xe_parse_money($value) {
@@ -738,7 +860,9 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
     $result['is_cont_keo_ve'] = (bool) db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1", array(':nid' => $result['nid']))->fetchField();
   }
   $json = _ke_hoach_xep_xe_json_decode(isset($result['thong_tin_json']) ? $result['thong_tin_json'] : '');
+  $json = _ke_hoach_xep_xe_normalize_files($json);
   $result['thong_tin_json'] = $json;
+  $result['hinh_anh_chung_tu'] = $json['hinh_anh_chung_tu'];
   $result['ghi_chu'] = !empty($json['ghi_chu']) ? $json['ghi_chu'] : '';
   $result['hinh_thuc_tinh_luong_lai_xe'] = !empty($json['hinh_thuc_tinh_luong_lai_xe']) ? $json['hinh_thuc_tinh_luong_lai_xe'] : 'khoan';
   $result['hinh_thuc_status_text'] = _ke_hoach_xep_xe_hinh_thuc_status_text($result);
@@ -775,6 +899,147 @@ function _ke_hoach_xep_xe_statuses() {
     'Hạ cảng',
     'Hoàn thành',
   );
+}
+
+function ke_hoach_xep_xe_file_collection($id) {
+  $id = (int) $id;
+  if (!$id) return _ke_hoach_xep_xe_fail('ID không hợp lệ');
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'POST':
+      return _ke_hoach_xep_xe_file_upload($id);
+    default:
+      return _ke_hoach_xep_xe_method_not_allowed('POST');
+  }
+}
+
+function ke_hoach_xep_xe_file_item($id, $file_id) {
+  $id = (int) $id;
+  $file_id = trim((string) $file_id);
+  if (!$id || $file_id === '') return _ke_hoach_xep_xe_fail('Thông tin file không hợp lệ');
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'DELETE':
+      return _ke_hoach_xep_xe_file_delete($id, $file_id);
+    default:
+      return _ke_hoach_xep_xe_method_not_allowed('DELETE');
+  }
+}
+
+function _ke_hoach_xep_xe_file_context($id) {
+  $row = db_query("SELECT nid, loai_ke_hoach, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => (int) $id))->fetch();
+  if (!$row) return NULL;
+  $json = _ke_hoach_xep_xe_json_decode(isset($row->thong_tin_json) ? $row->thong_tin_json : '');
+  $json = _ke_hoach_xep_xe_normalize_files($json);
+  $row->thong_tin_json = $json;
+  return $row;
+}
+
+function _ke_hoach_xep_xe_save_file_context($id, array $json) {
+  db_update('ke_hoach_xep_xe')
+    ->fields(array(
+      'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json),
+      'changed' => _ke_hoach_xep_xe_now(),
+    ))
+    ->condition('nid', (int) $id)
+    ->execute();
+}
+
+function _ke_hoach_xep_xe_file_upload($id) {
+  if (!user_access('ke_hoach_xep_xe_create')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền upload chứng từ kế hoạch');
+  }
+
+  $context = _ke_hoach_xep_xe_file_context($id);
+  if (!$context) return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
+
+  $nhom = !empty($_POST['nhom']) ? trim($_POST['nhom']) : 'lay_cont_rong';
+  $groups = _ke_hoach_xep_xe_file_groups();
+  if (!isset($groups[$nhom])) {
+    return _ke_hoach_xep_xe_fail('Nhóm chứng từ không hợp lệ');
+  }
+
+  $uploads = _ke_hoach_xep_xe_upload_entries('plan_files');
+  if (empty($uploads)) {
+    return _ke_hoach_xep_xe_fail('Vui lòng chọn file cần upload');
+  }
+
+  $dir = 'public://ke_hoach_xep_xe_files/' . (int) $id;
+  if (!file_prepare_directory($dir, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
+    return _ke_hoach_xep_xe_error('Không thể tạo thư mục lưu chứng từ kế hoạch');
+  }
+
+  global $user;
+  $json = $context->thong_tin_json;
+  $saved = array();
+  $failed = 0;
+  foreach ($uploads as $upload) {
+    $file = _ke_hoach_xep_xe_save_upload_entry($upload, $dir);
+    if (!$file) {
+      $failed++;
+      continue;
+    }
+    $item = array(
+      'id' => 'file_' . REQUEST_TIME . '_' . (int) $file->fid,
+      'nhom' => $nhom,
+      'nhom_label' => _ke_hoach_xep_xe_file_group_label($nhom),
+      'ten_hien_thi' => !empty($_POST['ten_hien_thi']) ? trim($_POST['ten_hien_thi']) : $file->filename,
+      'fid' => (int) $file->fid,
+      'filename' => $file->filename,
+      'uri' => $file->uri,
+      'url' => file_create_url($file->uri),
+      'mime' => $file->filemime,
+      'size' => (int) $file->filesize,
+      'is_image' => strpos($file->filemime, 'image/') === 0,
+      'uploaded' => REQUEST_TIME,
+      'uploaded_text' => date('d/m/Y H:i', REQUEST_TIME),
+      'uid' => isset($user->uid) ? (int) $user->uid : 0,
+    );
+    $json['hinh_anh_chung_tu'][] = $item;
+    $saved[] = $item;
+  }
+
+  if (empty($saved)) {
+    return _ke_hoach_xep_xe_fail('File không hợp lệ. Chỉ hỗ trợ ảnh JPG, JPEG, PNG, WEBP hoặc PDF tối đa 10MB');
+  }
+
+  _ke_hoach_xep_xe_save_file_context($id, $json);
+  $json = _ke_hoach_xep_xe_normalize_files($json);
+
+  watchdog('ke_hoach_xep_xe', 'Upload %count chứng từ cho kế hoạch #%id', array('%count' => count($saved), '%id' => $id));
+
+  return _ke_hoach_xep_xe_success(array(
+    'nid' => $id,
+    'uploaded' => $saved,
+    'failed' => $failed,
+    'hinh_anh_chung_tu' => $json['hinh_anh_chung_tu'],
+  ));
+}
+
+function _ke_hoach_xep_xe_file_delete($id, $file_id) {
+  if (!user_access('ke_hoach_xep_xe_create')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá chứng từ kế hoạch');
+  }
+
+  $context = _ke_hoach_xep_xe_file_context($id);
+  if (!$context) return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
+
+  $json = $context->thong_tin_json;
+  $index = _ke_hoach_xep_xe_file_index($json['hinh_anh_chung_tu'], $file_id);
+  if ($index < 0) return _ke_hoach_xep_xe_not_found('File không tồn tại');
+
+  $deleted = $json['hinh_anh_chung_tu'][$index];
+  if (!empty($deleted['fid'])) {
+    $file = file_load((int) $deleted['fid']);
+    if ($file) file_delete($file, TRUE);
+  }
+  array_splice($json['hinh_anh_chung_tu'], $index, 1);
+  _ke_hoach_xep_xe_save_file_context($id, $json);
+  $json = _ke_hoach_xep_xe_normalize_files($json);
+
+  return _ke_hoach_xep_xe_success(array(
+    'nid' => $id,
+    'deleted' => TRUE,
+    'hinh_anh_chung_tu' => $json['hinh_anh_chung_tu'],
+  ));
 }
 
 function _ke_hoach_xep_xe_query_condition_loai($query, $loai_ke_hoach = 'thuong', $alias = 'kh') {

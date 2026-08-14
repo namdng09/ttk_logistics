@@ -83,6 +83,14 @@
     dong_hang_trong_ngay: 'bg-label-danger',
     roi_cont: 'bg-label-secondary'
   };
+  var PLAN_FILE_GROUPS = {
+    lay_cont_rong: '1. Nhận/lấy cont rỗng bãi/depot/cảng',
+    giao_cont_rong_cho_kho: '2. Giao cont rỗng cho kho',
+    nhan_cont_hang_tu_kho: '3. Nhận cont hàng từ kho',
+    ha_cont: '4. Hạ cont'
+  };
+  var PLAN_FILE_GROUP_ORDER = ['lay_cont_rong', 'giao_cont_rong_cho_kho', 'nhan_cont_hang_tu_kho', 'ha_cont'];
+  var planFilePreviewMap = {};
 
   function apiMsg(jqXHR) {
     try {
@@ -154,6 +162,106 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function planFilesFromRow(row) {
+    if (!row) return [];
+    if (row.hinh_anh_chung_tu && $.isArray(row.hinh_anh_chung_tu)) return row.hinh_anh_chung_tu;
+    if (row.thong_tin_json && row.thong_tin_json.hinh_anh_chung_tu && $.isArray(row.thong_tin_json.hinh_anh_chung_tu)) return row.thong_tin_json.hinh_anh_chung_tu;
+    return [];
+  }
+
+  function planFileIsImage(file) {
+    return !!(file && ((file.is_image === true) || String(file.mime || '').indexOf('image/') === 0));
+  }
+
+  function planFileSize(size) {
+    size = parseInt(size, 10) || 0;
+    if (!size) return '';
+    if (size < 1024) return size + ' B';
+    if (size < 1024 * 1024) return Math.round(size / 1024) + ' KB';
+    return (size / 1024 / 1024).toFixed(1).replace('.0', '') + ' MB';
+  }
+
+  function ensurePlanFilePreviewModal() {
+    if ($('#khxh-plan-file-preview-modal').length) return;
+    $('body').append(
+      '<div class="modal fade" id="khxh-plan-file-preview-modal" tabindex="-1" aria-hidden="true">' +
+        '<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">' +
+          '<div class="modal-content">' +
+            '<div class="modal-header">' +
+              '<h5 class="modal-title mb-0" id="khxh-plan-file-preview-title">Xem chứng từ</h5>' +
+              '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+            '</div>' +
+            '<div class="modal-body text-center" id="khxh-plan-file-preview-body"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function openPlanFilePreview(file) {
+    if (!file || !file.url) return;
+    ensurePlanFilePreviewModal();
+    $('#khxh-plan-file-preview-title').text(file.ten_hien_thi || file.filename || 'Xem chứng từ');
+    if (planFileIsImage(file)) {
+      $('#khxh-plan-file-preview-body').html('<img src="' + escHtml(file.url) + '" alt="' + escHtml(file.filename || '') + '" class="khxh-plan-file-preview-img">');
+    } else {
+      $('#khxh-plan-file-preview-body').html(
+        '<div class="khxh-plan-file-preview-file">' +
+          '<i class="ti tabler-file-type-pdf text-danger"></i>' +
+          '<div class="fw-semibold mt-2">' + escHtml(file.ten_hien_thi || file.filename || '') + '</div>' +
+          '<a class="btn btn-primary mt-3" target="_blank" rel="noopener" href="' + escHtml(file.url) + '"><i class="ti tabler-external-link me-1"></i>Mở file</a>' +
+        '</div>'
+      );
+    }
+    var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(document.getElementById('khxh-plan-file-preview-modal')) : new bootstrap.Modal(document.getElementById('khxh-plan-file-preview-modal'));
+    modal.show();
+  }
+
+  function renderPlanFilesHtml(files, editable) {
+    files = files || [];
+    planFilePreviewMap = {};
+    var byGroup = {};
+    for (var i = 0; i < PLAN_FILE_GROUP_ORDER.length; i++) byGroup[PLAN_FILE_GROUP_ORDER[i]] = [];
+    for (var j = 0; j < files.length; j++) {
+      var group = files[j].nhom || 'lay_cont_rong';
+      if (!byGroup[group]) byGroup[group] = [];
+      byGroup[group].push(files[j]);
+    }
+    var html = '';
+    for (var g = 0; g < PLAN_FILE_GROUP_ORDER.length; g++) {
+      var key = PLAN_FILE_GROUP_ORDER[g];
+      var groupFiles = byGroup[key] || [];
+      html += '<div class="khxh-plan-file-group" data-group="' + escHtml(key) + '">' +
+        '<div class="khxh-plan-file-group-title">' +
+          '<span>' + escHtml(PLAN_FILE_GROUPS[key]) + '</span>' +
+          '<span class="badge rounded-pill bg-label-secondary border">' + groupFiles.length + '</span>' +
+        '</div>';
+      if (!groupFiles.length) {
+        html += '<div class="khxh-plan-file-empty">Chưa có file</div>';
+      } else {
+        html += '<div class="khxh-plan-file-grid">';
+        for (var k = 0; k < groupFiles.length; k++) {
+          var f = groupFiles[k];
+          if (f.id) planFilePreviewMap[String(f.id)] = f;
+          var isImage = planFileIsImage(f);
+          html += '<div class="khxh-plan-file-item" data-file-id="' + escHtml(f.id || '') + '">' +
+            '<button type="button" class="khxh-plan-file-thumb btn-plan-file-preview" data-file-id="' + escHtml(f.id || '') + '">' +
+              (isImage
+                ? '<img src="' + escHtml(f.url || '') + '" alt="' + escHtml(f.filename || '') + '">'
+                : '<span class="khxh-plan-file-pdf"><i class="ti tabler-file-type-pdf"></i></span>') +
+            '</button>' +
+            '<div class="khxh-plan-file-name text-truncate" title="' + escHtml(f.filename || '') + '">' + escHtml(f.ten_hien_thi || f.filename || '') + '</div>' +
+            '<div class="khxh-plan-file-meta">' + escHtml(f.uploaded_text || '') + (f.size ? ' · ' + escHtml(planFileSize(f.size)) : '') + '</div>' +
+            (editable ? '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-plan-file-delete" data-file-id="' + escHtml(f.id || '') + '" title="Xoá"><i class="ti tabler-trash"></i></button>' : '') +
+          '</div>';
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    return html;
   }
 
   function apiToDate(val) {
@@ -453,6 +561,14 @@
     if (bindGlobalCreateModal._bound) return;
     bindGlobalCreateModal._bound = true;
 
+    $(document).on('click', '.btn-plan-file-preview', function (e) {
+      e.preventDefault();
+      var id = String($(this).attr('data-file-id') || '');
+      if (id && planFilePreviewMap[id]) {
+        openPlanFilePreview(planFilePreviewMap[id]);
+      }
+    });
+
     $(document).on('click', '.btn-open-create-ke-hoach', function (e) {
       e.preventDefault();
       var modalEl = document.getElementById('ke-hoach-fullscreen-modal');
@@ -727,12 +843,15 @@
       transportCardHtml('Kéo lên', d.cont_ref || d, 'Chưa có kế hoạch kéo lên') +
       transportCardHtml('Kéo về', d.cont_keo_ve_by || null, 'Chưa có kế hoạch kéo về') +
     '</div>';
+    var files = planFilesFromRow(d);
+    var filesHtml = '<div class="detail-card"><div class="detail-section-title">Chứng từ hình ảnh kế hoạch</div>' + renderPlanFilesHtml(files, false) + '</div>';
     $('#ke-hoach-detail-subtitle').text((d.so_bkg || 'Kế hoạch') + (d.so_cont ? ' - ' + d.so_cont : ''));
     $('#ke-hoach-detail-edit-btn').attr('href', '/ke-hoach-xep-xe/' + d.nid + '/sua');
     $('#ke-hoach-detail-content').html(
       '<div class="detail-card"><div class="detail-section-title">Thông tin chung</div>' + commonHtml + '</div>' +
       '<div class="detail-card"><div class="detail-section-title">Thông tin container</div>' + containerHtml + '</div>' +
-      '<div class="detail-card"><div class="detail-section-title">Thông tin vận chuyển</div>' + transportHtml + '</div>'
+      '<div class="detail-card"><div class="detail-section-title">Thông tin vận chuyển</div>' + transportHtml + '</div>' +
+      filesHtml
     );
   }
 
@@ -1357,6 +1476,7 @@
 	    var activeContPickerLineKey = null;
 	    var activePickerType = 'vehicle';
 	    var formModal = null;
+    var selectedPlanFiles = [];
     var dropdownsLoaded = false;
     var dropdownsLoading = false;
     function $form(selector) {
@@ -2659,6 +2779,7 @@
       updateEditTitle(row);
       $form('#nid-input').val(row.nid || '');
       updateCompleteButton(row);
+      renderEditPlanFiles(planFilesFromRow(row));
       state.pendingContDestinationUpdates = {};
       state.lines = [];
       addLine({
@@ -2692,6 +2813,105 @@
       });
       $form('#nid_khach_hang-input').val(khachHangId).trigger('change');
       if ($form('#so_bkg-input').length) $form('#so_bkg-input').val(row.so_bkg || '');
+    }
+
+    function planFileApiBase() {
+      return (currentPlanType() === 'tuyen_xa' ? '/api/ke-hoach-tuyen-xa/' : '/api/ke-hoach-xep-xe/') + ($form('#nid-input').val() || '');
+    }
+
+    function renderEditPlanFiles(files) {
+      files = files || [];
+      $form('#khxh-plan-files-count').text(files.length + ' file');
+      $form('#khxh-plan-files-body').html(renderPlanFilesHtml(files, true));
+      if (editData) {
+        editData.hinh_anh_chung_tu = files;
+        editData.thong_tin_json = editData.thong_tin_json || {};
+        editData.thong_tin_json.hinh_anh_chung_tu = files;
+      }
+    }
+
+    function uploadEditPlanFiles() {
+      var nid = parseInt($form('#nid-input').val(), 10) || 0;
+      if (!nid) {
+        if (notyf) notyf.error('Vui lòng lưu kế hoạch trước khi upload chứng từ');
+        return;
+      }
+      var input = $form('#khxh-plan-file-input')[0];
+      var files = input && input.files && input.files.length ? Array.prototype.slice.call(input.files) : selectedPlanFiles;
+      if (!files || !files.length) {
+        if (notyf) notyf.error('Vui lòng chọn file cần upload');
+        return;
+      }
+      var formData = new FormData();
+      for (var i = 0; i < files.length; i++) {
+        formData.append('plan_files[]', files[i], files[i].name || ('file_' + i));
+      }
+      formData.append('nhom', $form('#khxh-plan-file-group').val() || 'lay_cont_rong');
+
+      var $btn = $form('#khxh-plan-file-upload');
+      $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang upload');
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', planFileApiBase() + '/file', true);
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+      xhr.onload = function () {
+        var res = null;
+        try { res = JSON.parse(xhr.responseText || '{}'); } catch (e) {}
+        $btn.prop('disabled', false).html('<i class="ti tabler-upload me-1"></i>Upload');
+        if (xhr.status >= 200 && xhr.status < 300 && res && res.status === 'success' && res.data) {
+          selectedPlanFiles = [];
+          if (input) input.value = '';
+          renderEditPlanFiles(res.data.hinh_anh_chung_tu || []);
+          if (notyf) notyf.success('Upload chứng từ thành công');
+          if (parseInt(res.data.failed || 0, 10) > 0 && notyf) {
+            notyf.error('Có ' + res.data.failed + ' file không hợp lệ');
+          }
+        } else if (notyf) {
+          notyf.error((res && res.message) || 'Upload không thành công');
+        }
+      };
+      xhr.onerror = function () {
+        $btn.prop('disabled', false).html('<i class="ti tabler-upload me-1"></i>Upload');
+        if (notyf) notyf.error('Lỗi kết nối server');
+      };
+      xhr.send(formData);
+    }
+
+    function deleteEditPlanFile(fileId) {
+      var doDelete = function () {
+        $.ajax({
+          url: planFileApiBase() + '/file/' + encodeURIComponent(fileId),
+          type: 'DELETE',
+          dataType: 'json',
+          success: function (res) {
+            if (res.status === 'success' && res.data) {
+              renderEditPlanFiles(res.data.hinh_anh_chung_tu || []);
+              if (notyf) notyf.success('Đã xoá chứng từ');
+            } else if (notyf) {
+              notyf.error(res.message || 'Xoá chứng từ thất bại');
+            }
+          },
+          error: function (jqXHR) {
+            if (notyf) notyf.error(apiMsg(jqXHR));
+          }
+        });
+      };
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: 'Xoá chứng từ?',
+          text: 'File sẽ bị xoá khỏi kế hoạch này.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Xoá',
+          cancelButtonText: 'Huỷ',
+          confirmButtonColor: '#d33',
+          customClass: { confirmButton: 'btn btn-danger', cancelButton: 'btn btn-label-secondary ms-1' },
+          buttonsStyling: false
+        }).then(function (result) {
+          if (result.isConfirmed) doDelete();
+        });
+      } else if (confirm('Xoá chứng từ này?')) {
+        doDelete();
+      }
     }
 
     function loadEditDetail(done) {
@@ -2829,7 +3049,7 @@
     $(document).on('change', '#nid_khach_hang-input', function () {
       loadCauHinh(parseInt($(this).val(), 10) || 0);
     });
-    $form('#add-line-btn, #reset-lines-btn, #save-btn, #complete-plan-btn, #vehicle-picker-search, #ke-hoach-form').off();
+    $form('#add-line-btn, #reset-lines-btn, #save-btn, #complete-plan-btn, #vehicle-picker-search, #ke-hoach-form, #khxh-plan-file-upload, #khxh-plan-file-input').off();
     $form('#add-line-btn').on('click', function () {
       syncAllLines();
       addLine({});
@@ -2855,6 +3075,16 @@
     });
     $form('#vehicle-picker-search').on('input', function () {
       renderVehicleTable($(this).val());
+    });
+    $form('#khxh-plan-file-input').on('change', function () {
+      selectedPlanFiles = this.files && this.files.length ? Array.prototype.slice.call(this.files) : [];
+    });
+    $form('#khxh-plan-file-upload').on('click', function () {
+      uploadEditPlanFiles();
+    });
+    $formApp.off('click.khxhPlanFiles', '.btn-plan-file-delete').on('click.khxhPlanFiles', '.btn-plan-file-delete', function (e) {
+      e.preventDefault();
+      deleteEditPlanFile($(this).attr('data-file-id'));
     });
     $form('#complete-plan-btn').on('click', function () {
       var $btn = $(this);

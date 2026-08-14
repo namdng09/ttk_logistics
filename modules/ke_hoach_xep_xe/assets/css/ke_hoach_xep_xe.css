@@ -543,6 +543,135 @@ body .flatpickr-calendar {
   background: #fff;
 }
 
+.khxh-plan-files-card {
+  border-radius: 8px;
+}
+
+.khxh-plan-files-title {
+  font-weight: 600;
+  color: #384551;
+}
+
+.khxh-plan-files-body {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.khxh-plan-file-group {
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.khxh-plan-file-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  background: #eef3f8;
+  color: #384551;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.khxh-plan-file-empty {
+  padding: 0.85rem;
+  color: #a1acb8;
+  font-size: 0.84rem;
+  font-style: italic;
+}
+
+.khxh-plan-file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.khxh-plan-file-item {
+  position: relative;
+  min-width: 0;
+  border: 1px solid #eceef1;
+  border-radius: 8px;
+  padding: 0.45rem;
+  background: #fff;
+}
+
+.khxh-plan-file-item:hover {
+  background: #f8fbff;
+}
+
+.khxh-plan-file-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid #e6e8ef;
+  border-radius: 6px;
+  padding: 0;
+  overflow: hidden;
+  background: #f7f8fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.khxh-plan-file-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.khxh-plan-file-pdf {
+  font-size: 2.4rem;
+  color: #ea5455;
+}
+
+.khxh-plan-file-name {
+  margin-top: 0.45rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.khxh-plan-file-meta {
+  font-size: 0.74rem;
+  color: #a1acb8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.khxh-plan-file-item .btn-plan-file-delete {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.85rem;
+  height: 1.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.khxh-plan-file-preview-img {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.khxh-plan-file-preview-file {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.khxh-plan-file-preview-file .ti {
+  font-size: 4rem;
+}
+
 .ke-hoach-table-wrap {
   display: block;
   width: 100%;
