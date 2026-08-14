@@ -213,6 +213,25 @@
                 <div class="card-header py-2"><strong>Thông tin ngân hàng khách hàng</strong></div>
                 <div class="card-body">
                   <div id="cnkh-pay-bank-info" class="cnkh-bank-current"></div>
+                  <div class="row g-2 cnkh-bank-input-form d-none mt-2">
+                    <div class="col-md-4">
+                      <label class="form-label">Ngân hàng <span class="text-danger">*</span></label>
+                      <select class="form-select" id="cnkh-bank-name" style="width:100%">
+                        <option value="">Chọn ngân hàng</option>
+                      </select>
+                      <div class="invalid-feedback">Vui lòng chọn ngân hàng.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Số tài khoản <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="cnkh-bank-account-number">
+                      <div class="invalid-feedback">Vui lòng nhập số tài khoản.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Chủ tài khoản <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="cnkh-bank-account-name">
+                      <div class="invalid-feedback">Vui lòng nhập chủ tài khoản.</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -453,6 +453,7 @@ function _cnkh_create_payment() {
 
   $transaction = db_transaction();
   try {
+    $saved_bank = _cnkh_save_customer_bank_from_input($customer_id, $input);
     $result = thu_chi_giao_dich_save_values($values);
     if (empty($result['success']) || empty($result['gd_id'])) {
       throw new Exception(!empty($result['message']) ? $result['message'] : 'Không tạo được phiếu thu');
@@ -468,6 +469,8 @@ function _cnkh_create_payment() {
     $json['thang_cong_no'] = $month;
     $json['payment_scope'] = !empty($input['payment_scope']) ? (string) $input['payment_scope'] : 'selected';
     $json['payment_method'] = !empty($input['payment_method']) ? (string) $input['payment_method'] : '';
+    $selected_bank = _cnkh_payment_selected_bank($input, $saved_bank);
+    if (!empty($selected_bank)) $json['ngan_hang_khach_hang'] = $selected_bank;
     $bill = _cnkh_save_payment_bill();
     if (!empty($bill)) $json['bill_thanh_toan'] = $bill;
     db_update('qltc_phieu_thu_chi')->fields(array('thong_tin_json' => _cnkh_json_encode($json), 'changed' => REQUEST_TIME))->condition('nid', $gd_id)->execute();
@@ -483,6 +486,64 @@ function _cnkh_create_payment() {
     return _cnkh_fail($e->getMessage());
   }
   return _cnkh_success(array('nid_phieu_thu_chi' => $gd_id, 'so_tien' => $allocated_total, 'message' => 'Đã tạo và duyệt phiếu thu công nợ'));
+}
+
+function _cnkh_payment_selected_bank(array $input, array $saved_bank = array()) {
+  if (!empty($saved_bank)) return $saved_bank;
+  $bank_name = isset($input['selected_bank_ngan_hang']) ? trim((string) $input['selected_bank_ngan_hang']) : '';
+  $account_number = isset($input['selected_bank_so_tai_khoan']) ? trim((string) $input['selected_bank_so_tai_khoan']) : '';
+  $account_name = isset($input['selected_bank_ten_tai_khoan']) ? trim((string) $input['selected_bank_ten_tai_khoan']) : '';
+  if ($bank_name === '' && $account_number === '' && $account_name === '') return array();
+  return array(
+    'ten_tai_khoan' => $account_name,
+    'so_tai_khoan' => $account_number,
+    'ngan_hang' => $bank_name,
+  );
+}
+
+function _cnkh_save_customer_bank_from_input($customer_id, array $input) {
+  $bank_name = isset($input['bank_ngan_hang']) ? trim((string) $input['bank_ngan_hang']) : '';
+  $account_number = isset($input['bank_so_tai_khoan']) ? trim((string) $input['bank_so_tai_khoan']) : '';
+  $account_name = isset($input['bank_ten_tai_khoan']) ? trim((string) $input['bank_ten_tai_khoan']) : '';
+  if ($bank_name === '' && $account_number === '' && $account_name === '') return array();
+  if ($bank_name === '' || $account_number === '' || $account_name === '') {
+    throw new Exception('Vui lòng nhập đầy đủ ngân hàng, số tài khoản và chủ tài khoản');
+  }
+  if (!db_table_exists('khach_hang')) {
+    throw new Exception('Không tìm thấy bảng khách hàng để lưu thông tin ngân hàng');
+  }
+  $raw = db_select('khach_hang', 'kh')
+    ->fields('kh', array('thong_tin_ngan_hang'))
+    ->condition('kh.nid', (int) $customer_id)
+    ->range(0, 1)
+    ->execute()
+    ->fetchField();
+  if ($raw === FALSE) {
+    throw new Exception('Khách hàng không tồn tại');
+  }
+  $banks = array();
+  if (!empty($raw)) {
+    $decoded = json_decode($raw, TRUE);
+    if (is_array($decoded)) $banks = $decoded;
+  }
+  $next = array(
+    'ten_tai_khoan' => $account_name,
+    'so_tai_khoan' => $account_number,
+    'ngan_hang' => $bank_name,
+  );
+  foreach ($banks as $bank) {
+    if (!is_array($bank)) continue;
+    if (trim((string) (isset($bank['so_tai_khoan']) ? $bank['so_tai_khoan'] : '')) === $account_number
+      && trim((string) (isset($bank['ngan_hang']) ? $bank['ngan_hang'] : '')) === $bank_name) {
+      return $bank;
+    }
+  }
+  $banks[] = $next;
+  db_update('khach_hang')
+    ->fields(array('thong_tin_ngan_hang' => _cnkh_json_encode($banks), 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))
+    ->condition('nid', (int) $customer_id)
+    ->execute();
+  return $next;
 }
 
 function _cnkh_save_payment_bill() {

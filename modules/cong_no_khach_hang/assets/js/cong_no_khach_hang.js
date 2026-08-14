@@ -9,6 +9,8 @@
     expanded: {},
     payment: null
   };
+  var BANK_LIST = [];
+  var BANK_LIST_LOADED = false;
   var notyf;
 
   function settings() {
@@ -88,6 +90,58 @@
     if (!$.fn.select2 || !$el.length) return;
     if ($el.data('select2')) $el.select2('destroy');
     $el.select2($.extend({ width: '100%', allowClear: true }, opts || {}));
+  }
+
+  function loadBankList(done) {
+    if (BANK_LIST_LOADED) {
+      if (done) done();
+      return;
+    }
+    var cached = '';
+    try { cached = localStorage.getItem('bankList'); } catch (e) {}
+    if (cached) {
+      try {
+        BANK_LIST = JSON.parse(cached) || [];
+        BANK_LIST_LOADED = BANK_LIST.length > 0;
+      } catch (e) {}
+    }
+    if (BANK_LIST_LOADED) {
+      if (done) done();
+      return;
+    }
+    $.ajax({
+      url: 'https://api.vietqr.io/v2/banks',
+      type: 'GET',
+      dataType: 'json'
+    }).done(function (res) {
+      BANK_LIST = (res && res.data) || [];
+      BANK_LIST_LOADED = BANK_LIST.length > 0;
+      try { localStorage.setItem('bankList', JSON.stringify(BANK_LIST)); } catch (e) {}
+    }).always(function () {
+      if (done) done();
+    });
+  }
+
+  function initBankSelect(value) {
+    var $select = $('#cnkh-bank-name');
+    var html = '<option value="">Chọn ngân hàng</option>';
+    $.each(BANK_LIST, function (_, bank) {
+      var val = bank.shortName || bank.code || bank.name || '';
+      var label = (bank.shortName || bank.code || '') + (bank.name ? ' - ' + bank.name : '');
+      html += '<option value="' + esc(val) + '">' + esc(label || val) + '</option>';
+    });
+    $select.html(html);
+    if (value) {
+      var found = false;
+      $select.find('option').each(function () {
+        if ($(this).val() === value) found = true;
+      });
+      if (!found) {
+        $select.append('<option value="' + esc(value) + '">' + esc(value) + '</option>');
+      }
+      $select.val(value);
+    }
+    initSelect2($select, { placeholder: 'Chọn ngân hàng', dropdownParent: $('#cnkh-payment-modal') });
   }
 
   function initMonthYearFilters() {
@@ -391,16 +445,27 @@
 
   function renderPaymentBankInfo(customer) {
     var banks = customer && $.isArray(customer.thong_tin_ngan_hang) ? customer.thong_tin_ngan_hang : [];
+    $('#cnkh-bank-name,#cnkh-bank-account-number,#cnkh-bank-account-name').val('').prop('required', false);
+    $('.cnkh-bank-input-form').addClass('d-none');
     if (!banks.length) {
       $('#cnkh-pay-bank-info').html('<div class="alert alert-warning py-2 mb-0">Khách hàng chưa có thông tin ngân hàng.</div>');
+      $('.cnkh-bank-input-form').removeClass('d-none');
+      $('#cnkh-bank-name,#cnkh-bank-account-number,#cnkh-bank-account-name').prop('required', true);
+      loadBankList(function () { initBankSelect(''); });
       return;
     }
-    var html = '';
-    $.each(banks, function (_, bank) {
-      html += '<div class="cnkh-bank-line">' +
-        '<div class="fw-semibold">' + esc(bank.ngan_hang || '-') + '</div>' +
-        '<div class="small text-muted">STK: <strong>' + esc(bank.so_tai_khoan || '-') + '</strong> · Chủ TK: <strong>' + esc(bank.ten_tai_khoan || '-') + '</strong></div>' +
-        '</div>';
+    var html = '<div class="small text-muted mb-2">Chọn tài khoản ngân hàng dùng cho lần thanh toán này.</div>';
+    $.each(banks, function (idx, bank) {
+      html += '<label class="cnkh-bank-line cnkh-bank-choice">' +
+        '<input class="form-check-input cnkh-bank-choice-input" type="radio" name="cnkh-bank-choice" value="' + idx + '"' + (idx === 0 ? ' checked' : '') +
+          ' data-ngan-hang="' + esc(bank.ngan_hang || '') + '"' +
+          ' data-so-tai-khoan="' + esc(bank.so_tai_khoan || '') + '"' +
+          ' data-ten-tai-khoan="' + esc(bank.ten_tai_khoan || '') + '">' +
+        '<span class="min-w-0">' +
+          '<span class="fw-semibold d-block">' + esc(bank.ngan_hang || '-') + '</span>' +
+          '<span class="small text-muted d-block">STK: <strong>' + esc(bank.so_tai_khoan || '-') + '</strong> · Chủ TK: <strong>' + esc(bank.ten_tai_khoan || '-') + '</strong></span>' +
+        '</span>' +
+        '</label>';
     });
     $('#cnkh-pay-bank-info').html(html);
   }
@@ -437,6 +502,18 @@
     payload.append('ghi_chu', $('#cnkh-pay-note').val());
     payload.append('payment_scope', $('input[name="cnkh-payment-method"]:checked').val() === 'total' ? 'total' : state.payment.scope);
     payload.append('payment_method', $('input[name="cnkh-payment-method"]:checked').val() || 'voucher');
+    if (!$('.cnkh-bank-input-form').hasClass('d-none')) {
+      payload.append('bank_ngan_hang', $('#cnkh-bank-name').val());
+      payload.append('bank_so_tai_khoan', $('#cnkh-bank-account-number').val());
+      payload.append('bank_ten_tai_khoan', $('#cnkh-bank-account-name').val());
+    } else {
+      var $bankChoice = $('input[name="cnkh-bank-choice"]:checked');
+      if ($bankChoice.length) {
+        payload.append('selected_bank_ngan_hang', $bankChoice.attr('data-ngan-hang') || '');
+        payload.append('selected_bank_so_tai_khoan', $bankChoice.attr('data-so-tai-khoan') || '');
+        payload.append('selected_bank_ten_tai_khoan', $bankChoice.attr('data-ten-tai-khoan') || '');
+      }
+    }
     var billInput = $('#cnkh-pay-bill')[0];
     if (billInput && billInput.files && billInput.files[0]) {
       payload.append('bill_file', billInput.files[0]);

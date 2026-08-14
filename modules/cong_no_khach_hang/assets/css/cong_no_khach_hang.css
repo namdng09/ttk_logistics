@@ -394,6 +394,24 @@
   background: #f8fafc;
 }
 
+.cnkh-bank-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+
+.cnkh-bank-choice:has(.cnkh-bank-choice-input:checked) {
+  border-color: var(--bs-primary, #696cff);
+  background: rgba(105, 108, 255, .055);
+}
+
+.cnkh-bank-choice-input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
 @media (max-width: 767.98px) {
   .cnkh-payment-context {
     grid-template-columns: 1fr;
