@@ -27,6 +27,7 @@
   var QUY_TRANSFER_API = '/api/quan-ly-quy/chuyen-tien';
   var QUY_PAGE_LIMIT = 20;
   var quyCurrentPage = 1;
+  var quyUserOptions = null;
 
   Drupal.behaviors = Drupal.behaviors || {};
 
@@ -130,6 +131,14 @@
         e.preventDefault();
         e.stopPropagation();
         deleteQuy($(this));
+        return false;
+      });
+
+    $(document)
+      .off('click' + NS, '.qltc-ledger-phieu-detail')
+      .on('click' + NS, '.qltc-ledger-phieu-detail', function (e) {
+        e.preventDefault();
+        toggleLedgerPhieuDetail($(this));
         return false;
       });
 
@@ -298,6 +307,7 @@
       $modal.find('.qltc-runtime-modal-body').html(renderQuyForm(null));
       initMoneyInputs($modal);
       initFlatpickrInputs($modal);
+      initQuyUserSelect($modal, 0);
       return;
     }
 
@@ -331,6 +341,7 @@
         else {
           setModalSize($modal, 'modal-lg');
           $modal.find('.qltc-runtime-modal-body').html(renderQuyForm(response.data));
+          initQuyUserSelect($modal, response.data.nguoi_quan_ly ? response.data.nguoi_quan_ly.uid : 0);
         }
 
         initMoneyInputs($modal);
@@ -371,6 +382,7 @@
       ten_quy: $form.find('[name="ten_quy"]').val(),
       loai_quy: $form.find('[name="loai_quy"]').val(),
       so_du_dau_ky: $form.find('[name="so_du_dau_ky"]').val(),
+      uid_nguoi_quan_ly: $form.find('[name="uid_nguoi_quan_ly"]').val(),
       ghi_chu: $form.find('[name="ghi_chu"]').val()
     };
 
@@ -926,6 +938,52 @@
     return match ? parseInt(match[1], 10) : 0;
   }
 
+  function initQuyUserSelect($modal, selectedUid) {
+    var $select = $modal.find('.qltc-quy-manager-select');
+    if (!$select.length) return;
+    selectedUid = parseInt(selectedUid || $select.attr('data-selected') || 0, 10) || 0;
+    $select.prop('disabled', true);
+
+    function applyOptions(items) {
+      var html = '<option value="">Chọn người quản lý quỹ</option>';
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var uid = parseInt(item.uid, 10) || 0;
+        var label = item.name || ('User #' + uid);
+        html += '<option value="' + uid + '"' + (uid === selectedUid ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+      }
+      $select.html(html).prop('disabled', false);
+      if ($.fn.select2) {
+        if ($select.data('select2')) {
+          try { $select.select2('destroy'); } catch (ignore) {}
+        }
+        $select.select2({
+          dropdownParent: $modal,
+          width: '100%',
+          allowClear: true,
+          placeholder: 'Chọn người quản lý quỹ'
+        });
+      }
+    }
+
+    if (quyUserOptions) {
+      applyOptions(quyUserOptions);
+      return;
+    }
+
+    $.ajax({
+      url: QUY_API_BASE,
+      type: 'GET',
+      dataType: 'json',
+      data: { options: 'users' }
+    }).done(function (response) {
+      quyUserOptions = isSuccessResponse(response) && response.data ? (response.data.items || []) : [];
+      applyOptions(quyUserOptions);
+    }).fail(function () {
+      $select.prop('disabled', false);
+    });
+  }
+
   function renderQuyForm(item) {
     item = item || {};
     var isEdit = !!item.nid;
@@ -938,6 +996,7 @@
       '<div class="col-12 col-md-3"><div class="row g-1"><div class="col-12"><label class="form-label fw-semibold">Loại quỹ</label><select class="form-select" name="loai_quy"><option value="tien_mat"' + ((item.loai_quy || 'tien_mat') === 'tien_mat' ? ' selected' : '') + '>Tiền mặt</option><option value="ngan_hang"' + (item.loai_quy === 'ngan_hang' ? ' selected' : '') + '>Ngân hàng</option><option value="vi_noi_bo"' + (item.loai_quy === 'vi_noi_bo' ? ' selected' : '') + '>Ví nội bộ</option></select></div></div></div>' +
       '<div class="col-12 col-md-3"><div class="row g-1"><div class="col-12"><label class="form-label fw-semibold">Số dư đầu kỳ</label><input type="text" inputmode="numeric" class="form-control text-end qltc-money-input' + (isEdit ? ' bg-light' : '') + '" name="so_du_dau_ky" value="' + formatMoney(item.so_du_dau_ky || 0) + '" placeholder="0"' + (isEdit ? ' readonly disabled data-qltc-locked="1"' : '') + '>' + (isEdit ? '<div class="form-text small text-muted">Không cho sửa số dư đầu kỳ sau khi tạo quỹ.</div>' : '') + '</div></div></div>' +
       '</div>' +
+      '<div class="row g-3 mt-2"><div class="col-12 col-md-6"><label class="form-label fw-semibold">Người quản lý quỹ</label><select class="form-select qltc-quy-manager-select" name="uid_nguoi_quan_ly" data-selected="' + escapeHtml(item.nguoi_quan_ly ? item.nguoi_quan_ly.uid : 0) + '"><option value="">Chọn người quản lý quỹ</option></select></div></div>' +
       '<div class="row g-3 mt-2 qltc-quy-note-row"><div class="col-12"><div class="row g-1"><div class="col-12"><label class="form-label fw-semibold">Ghi chú</label><textarea class="form-control" name="ghi_chu" rows="3" placeholder="Nhập ghi chú nếu có">' + escapeHtml(item.ghi_chu || '') + '</textarea></div></div></div></div>' +
       '<div class="qltc-form-alert mt-3 d-none"></div>' +
       '<div class="qltc-modal-actions d-flex justify-content-end gap-2 mt-4 pt-2"><button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button><button type="submit" class="btn btn-primary qltc-btn-save-quy"><span class="spinner-border spinner-border-sm me-1 d-none qltc-btn-spinner" role="status" aria-hidden="true"></span><span class="qltc-btn-text"><i class="icon-base ti tabler-device-floppy me-1"></i>' + (isEdit ? 'Cập nhật quỹ' : 'Lưu quỹ') + '</span></button></div>' +
@@ -958,12 +1017,113 @@
   }
 
   function renderQuyDetail(item) {
+    var manager = item.nguoi_quan_ly || {};
     return '<div class="qltc-modal-content qltc-quy-detail" data-qltc-form-key="quy-detail">' +
-      '<div class="row g-3 mb-3"><div class="col-12 col-md-3"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Mã quỹ</div><div class="fw-semibold">' + escapeHtml(item.ma_quy || '') + '</div></div></div></div><div class="col-12 col-md-3"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Tên quỹ</div><div class="fw-semibold">' + escapeHtml(item.ten_quy || '') + '</div></div></div></div><div class="col-12 col-md-3"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Loại quỹ</div><div class="fw-semibold">' + escapeHtml(loaiQuyLabel(item.loai_quy || '')) + '</div></div></div></div><div class="col-12 col-md-3"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Trạng thái</div><span class="badge bg-label-success">Đang hoạt động</span></div></div></div></div>' +
-      '<div class="row g-3 mb-3"><div class="col-12 col-md-4"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Số dư đầu kỳ</div><div class="h5 mb-0 text-primary">' + formatMoney(item.so_du_dau_ky || 0) + '</div></div></div></div><div class="col-12 col-md-4"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Số dư hiện tại</div><div class="h5 mb-0 text-success">' + formatMoney(item.so_du_hien_tai || 0) + '</div></div></div></div><div class="col-12 col-md-4"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Cập nhật gần nhất</div><div class="fw-semibold">' + escapeHtml(item.changed ? formatDateTime(item.changed) : '-') + '</div></div></div></div></div>' +
+      '<div class="row g-3 mb-3">' +
+      renderQuyInfoCard('Mã quỹ', item.ma_quy || '', 'col-12 col-md-3') +
+      renderQuyInfoCard('Tên quỹ', item.ten_quy || '', 'col-12 col-md-3') +
+      renderQuyInfoCard('Loại quỹ', loaiQuyLabel(item.loai_quy || ''), 'col-12 col-md-3') +
+      '<div class="col-12 col-md-3"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">Trạng thái</div><span class="badge bg-label-success">Đang hoạt động</span></div></div></div>' +
+      '</div>' +
+      '<div class="row g-3 mb-3">' +
+      renderQuyInfoCard('Số dư đầu kỳ', formatMoney(item.so_du_dau_ky || 0), 'col-12 col-md-3', 'h5 mb-0 text-primary') +
+      renderQuyInfoCard('Số dư hiện tại', formatMoney(item.so_du_hien_tai || 0), 'col-12 col-md-3', 'h5 mb-0 text-success') +
+      renderQuyInfoCard('Người quản lý quỹ', manager.name || '-', 'col-12 col-md-3') +
+      renderQuyInfoCard('Cập nhật gần nhất', item.changed ? formatDateTime(item.changed) : '-', 'col-12 col-md-3') +
+      '</div>' +
       (item.ghi_chu ? '<div class="alert alert-secondary py-2 mb-3"><strong>Ghi chú:</strong> ' + escapeHtml(item.ghi_chu) + '</div>' : '') +
+      renderQuyManagerHistory(item.lich_su_nguoi_quan_ly || []) +
+      renderQuyBalanceHistory(item.lich_su_dieu_chinh_so_du || []) +
+      renderQuyLedger(item.so_cai_quy || []) +
       '<div class="d-flex justify-content-end mt-3"><button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button></div>' +
       '</div>';
+  }
+
+  function renderQuyInfoCard(label, value, colClass, valueClass) {
+    return '<div class="' + escapeHtml(colClass || 'col-12 col-md-3') + '"><div class="card h-100 border"><div class="card-body py-3"><div class="text-muted small mb-1">' + escapeHtml(label) + '</div><div class="' + escapeHtml(valueClass || 'fw-semibold') + '">' + escapeHtml(value || '-') + '</div></div></div></div>';
+  }
+
+  function renderQuySectionHeader(title, icon, countText) {
+    return '<div class="d-flex align-items-center justify-content-between gap-2 mt-4 mb-2"><h6 class="mb-0 fw-semibold"><i class="icon-base ti ' + escapeHtml(icon || 'tabler-history') + ' me-1"></i>' + escapeHtml(title) + '</h6><span class="badge bg-label-primary">' + escapeHtml(countText || '0 dòng') + '</span></div>';
+  }
+
+  function renderQuyManagerHistory(rows) {
+    var html = renderQuySectionHeader('Lịch sử thay đổi người quản lý quỹ', 'tabler-user-cog', rows.length + ' lần đổi');
+    if (!rows.length) return html + '<div class="alert alert-info py-2 mb-0">Chưa có lịch sử thay đổi người quản lý quỹ.</div>';
+    html += '<div class="table-responsive text-nowrap"><table class="table table-bordered table-hover align-middle qltc-table qltc-quy-history-table"><thead class="table-light"><tr><th style="width:60px" class="text-center">#</th><th>Thời gian</th><th>Người quản lý cũ</th><th>Người quản lý mới</th><th>Người thực hiện</th></tr></thead><tbody>';
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      html += '<tr><td class="text-center">' + (i + 1) + '</td><td>' + escapeHtml(row.time_text || '') + '</td><td>' + escapeHtml(row.uid_cu_label || '-') + '</td><td><strong>' + escapeHtml(row.uid_moi_label || '-') + '</strong></td><td>' + escapeHtml(row.nguoi_thuc_hien_label || '-') + '</td></tr>';
+    }
+    return html + '</tbody></table></div>';
+  }
+
+  function renderQuyBalanceHistory(rows) {
+    var html = renderQuySectionHeader('Lịch sử điều chỉnh số dư đầu kỳ', 'tabler-history', rows.length + ' lần điều chỉnh');
+    if (!rows.length) return html + '<div class="alert alert-info py-2 mb-0">Chưa có lịch sử điều chỉnh số dư đầu kỳ.</div>';
+    html += '<div class="table-responsive text-nowrap"><table class="table table-bordered table-hover align-middle qltc-table qltc-quy-history-table"><thead class="table-light"><tr><th style="width:60px" class="text-center">#</th><th>Thời gian</th><th class="text-end">Số dư cũ</th><th class="text-end">Số dư mới</th><th class="text-end">Chênh lệch</th><th>Người thực hiện</th><th>Lý do</th></tr></thead><tbody>';
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var diff = parseMoney(row.chenh_lech || 0);
+      var diffClass = diff > 0 ? 'text-success' : (diff < 0 ? 'text-danger' : 'text-muted');
+      html += '<tr><td class="text-center">' + (i + 1) + '</td><td>' + escapeHtml(row.time_text || '') + '</td><td class="text-end">' + formatMoney(row.so_du_cu || 0) + '</td><td class="text-end"><strong>' + formatMoney(row.so_du_moi || 0) + '</strong></td><td class="text-end"><span class="' + diffClass + ' fw-semibold">' + (diff > 0 ? '+' : '') + formatMoney(diff) + '</span></td><td>' + escapeHtml(row.nguoi_thuc_hien_label || '-') + '</td><td>' + escapeHtml(row.ly_do || '-') + '</td></tr>';
+    }
+    return html + '</tbody></table></div>';
+  }
+
+  function renderQuyLedger(rows) {
+    var html = renderQuySectionHeader('Lịch sử biến động sổ cái quỹ', 'tabler-receipt-2', rows.length + ' biến động');
+    if (!rows.length) return html + '<div class="alert alert-info py-2 mb-0">Chưa có biến động sổ cái quỹ.</div>';
+    html += '<div class="table-responsive text-nowrap"><table class="table table-bordered table-hover align-middle qltc-table qltc-quy-history-table qltc-quy-ledger-table"><thead class="table-light"><tr><th style="width:60px" class="text-center">#</th><th>Ngày GD</th><th>Mã chứng từ</th><th>Loại</th><th class="text-end">Thu</th><th class="text-end">Chi</th><th class="text-end">Số dư trước</th><th class="text-end">Số dư sau</th><th>Người thực hiện</th><th style="width:70px" class="text-center">CN</th></tr></thead><tbody>';
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var canView = row.co_the_xem_phieu && row.nid_phieu;
+      html += '<tr class="qltc-ledger-row" data-ledger-id="' + escapeHtml(row.id || '') + '">' +
+        '<td class="text-center">' + (i + 1) + '</td>' +
+        '<td>' + escapeHtml(row.ngay_giao_dich_text || '') + '</td>' +
+        '<td><span class="fw-semibold">' + escapeHtml(row.ma_chung_tu || '-') + '</span><div class="small text-muted">' + escapeHtml(row.source_type || '') + (row.source_id ? ' #' + escapeHtml(row.source_id) : '') + '</div></td>' +
+        '<td>' + escapeHtml(ledgerTypeLabel(row.loai_bien_dong || '')) + '</td>' +
+        '<td class="text-end text-success">' + (row.thu ? formatMoney(row.thu) : '') + '</td>' +
+        '<td class="text-end text-danger">' + (row.chi ? formatMoney(row.chi) : '') + '</td>' +
+        '<td class="text-end">' + formatMoney(row.so_du_truoc || 0) + '</td>' +
+        '<td class="text-end"><strong>' + formatMoney(row.so_du_sau || 0) + '</strong></td>' +
+        '<td>' + escapeHtml(row.nguoi_thuc_hien && row.nguoi_thuc_hien.name ? row.nguoi_thuc_hien.name : '-') + '</td>' +
+        '<td class="text-center">' + (canView ? '<button type="button" class="btn btn-sm btn-icon btn-label-info qltc-ledger-phieu-detail" data-id="' + escapeHtml(row.nid_phieu) + '" title="Xem phiếu"><i class="ti tabler-eye"></i></button>' : '') + '</td>' +
+      '</tr>';
+    }
+    return html + '</tbody></table></div>';
+  }
+
+  function ledgerTypeLabel(value) {
+    var labels = {
+      thu: 'Thu',
+      chi: 'Chi',
+      chuyen_den: 'Chuyển đến',
+      chuyen_di: 'Chuyển đi'
+    };
+    return labels[value] || value || '-';
+  }
+
+  function toggleLedgerPhieuDetail($btn) {
+    var id = parseInt($btn.attr('data-id'), 10) || 0;
+    var $row = $btn.closest('tr');
+    var $next = $row.next('.qltc-ledger-detail-row');
+    if ($next.length) {
+      $next.remove();
+      return;
+    }
+    $row.siblings('.qltc-ledger-detail-row').remove();
+    $row.after('<tr class="qltc-ledger-detail-row"><td colspan="10"><div class="py-4 text-center text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Đang tải chi tiết phiếu...</div></td></tr>');
+    $.ajax({
+      url: '/thu-chi/ajax-detail/' + id,
+      type: 'GET',
+      dataType: 'json'
+    }).done(function (response) {
+      var html = isSuccessResponse(response) ? (response.html || '') : renderAlert(response.message || 'Không tải được chi tiết phiếu.', 'danger');
+      $row.next('.qltc-ledger-detail-row').find('td').html('<div class="qltc-ledger-inline-detail">' + html + '</div>');
+    }).fail(function (xhr) {
+      $row.next('.qltc-ledger-detail-row').find('td').html(renderAlert(getAjaxErrorMessage(xhr, 'Không tải được chi tiết phiếu.'), 'danger'));
+    });
   }
 
   function currentDate() {

@@ -318,6 +318,16 @@ function quan_ly_tai_chinh_ensure_quy_table() {
     }
     return FALSE;
   }
+  if (!db_field_exists('qltc_quy', 'uid_nguoi_quan_ly')) {
+    db_add_field('qltc_quy', 'uid_nguoi_quan_ly', array(
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 0,
+    ));
+  }
+  if (!db_index_exists('qltc_quy', 'uid_nguoi_quan_ly')) {
+    db_add_index('qltc_quy', 'uid_nguoi_quan_ly', array('uid_nguoi_quan_ly'));
+  }
   return TRUE;
 }
 
@@ -601,6 +611,7 @@ function quan_ly_tai_chinh_quy_node_to_object($node) {
   $quy->ghi_chu = $info['ghi_chu'];
   $quy->so_du_dau_ky = isset($node->so_du_dau_ky) ? quan_ly_tai_chinh_money_to_number($node->so_du_dau_ky) : quan_ly_tai_chinh_money_to_number(quan_ly_tai_chinh_node_get_field_value($node, 'field_so_du_dau_ky', 0));
   $quy->so_du_hien_tai = isset($node->so_du_hien_tai) ? quan_ly_tai_chinh_money_to_number($node->so_du_hien_tai) : quan_ly_tai_chinh_money_to_number(quan_ly_tai_chinh_node_get_field_value($node, 'field_so_du_hien_tai', 0));
+  $quy->uid_nguoi_quan_ly = isset($node->uid_nguoi_quan_ly) ? intval($node->uid_nguoi_quan_ly) : 0;
   $quy->field_hoat_dong = isset($node->hoat_dong) ? intval($node->hoat_dong) : intval(quan_ly_tai_chinh_node_get_field_value($node, 'field_hoat_dong', 1));
   $quy->hoat_dong = $quy->field_hoat_dong;
   $quy->status = intval($node->status);
@@ -1030,6 +1041,7 @@ function quan_ly_tai_chinh_quy_ajax_save() {
   $ten_quy = isset($_POST['ten_quy']) ? trim($_POST['ten_quy']) : '';
   $loai_quy = isset($_POST['loai_quy']) ? trim($_POST['loai_quy']) : 'tien_mat';
   $so_du_dau_ky = isset($_POST['so_du_dau_ky']) ? quan_ly_tai_chinh_money_to_number($_POST['so_du_dau_ky']) : 0;
+  $uid_nguoi_quan_ly = isset($_POST['uid_nguoi_quan_ly']) ? intval($_POST['uid_nguoi_quan_ly']) : 0;
   $ghi_chu = isset($_POST['ghi_chu']) ? trim($_POST['ghi_chu']) : '';
 
   if ($ma_quy === '') {
@@ -1047,6 +1059,13 @@ function quan_ly_tai_chinh_quy_ajax_save() {
 
   if (quan_ly_tai_chinh_quy_find_nid_by_ma($ma_quy, $nid_quy)) {
     return array('success' => FALSE, 'message' => 'Mã quỹ đã tồn tại, vui lòng nhập mã khác.');
+  }
+
+  if ($uid_nguoi_quan_ly > 0) {
+    $manager = user_load($uid_nguoi_quan_ly);
+    if (!$manager || empty($manager->status)) {
+      return array('success' => FALSE, 'message' => 'Người quản lý quỹ không hợp lệ.');
+    }
   }
 
   $now = REQUEST_TIME;
@@ -1067,6 +1086,18 @@ function quan_ly_tai_chinh_quy_ajax_save() {
 
     $current_json = quan_ly_tai_chinh_quy_node_get_json_data($existing);
     $json_data = array_merge($current_json, $json_data);
+    $old_manager_uid = isset($existing->uid_nguoi_quan_ly) ? intval($existing->uid_nguoi_quan_ly) : 0;
+    if ($old_manager_uid !== $uid_nguoi_quan_ly) {
+      if (empty($json_data['lich_su_nguoi_quan_ly']) || !is_array($json_data['lich_su_nguoi_quan_ly'])) {
+        $json_data['lich_su_nguoi_quan_ly'] = array();
+      }
+      $json_data['lich_su_nguoi_quan_ly'][] = array(
+        'time' => $now,
+        'uid_cu' => $old_manager_uid,
+        'uid_moi' => $uid_nguoi_quan_ly,
+        'uid_thuc_hien' => isset($user->uid) ? intval($user->uid) : 0,
+      );
+    }
 
     db_update('qltc_quy')
       ->fields(array(
@@ -1075,6 +1106,7 @@ function quan_ly_tai_chinh_quy_ajax_save() {
         'loai_quy' => $loai_quy,
         'ghi_chu' => $ghi_chu,
         'thong_tin_json' => quan_ly_tai_chinh_json_encode($json_data),
+        'uid_nguoi_quan_ly' => $uid_nguoi_quan_ly,
         'uid' => isset($user->uid) ? intval($user->uid) : 0,
         'status' => 0,
         'hoat_dong' => 1,
@@ -1095,6 +1127,7 @@ function quan_ly_tai_chinh_quy_ajax_save() {
         'thong_tin_json' => quan_ly_tai_chinh_json_encode($json_data),
         'so_du_dau_ky' => $so_du_dau_ky,
         'so_du_hien_tai' => $so_du_dau_ky,
+        'uid_nguoi_quan_ly' => $uid_nguoi_quan_ly,
         'uid' => isset($user->uid) ? intval($user->uid) : 0,
         'status' => 0,
         'hoat_dong' => 1,
@@ -1802,8 +1835,9 @@ function quan_ly_tai_chinh_quy_to_api_item($quy, array $filters = array()) {
   $from_time = !empty($filters['from_time']) ? intval($filters['from_time']) : strtotime(date('Y-m-01 00:00:00'));
   $to_time = !empty($filters['to_time']) ? intval($filters['to_time']) : strtotime(date('Y-m-t 23:59:59'));
   $period = quan_ly_tai_chinh_quy_period_summary($quy->nid_quy, $from_time, $to_time);
+  $with_detail = !empty($filters['with_detail']);
 
-  return array(
+  $item = array(
     'nid' => intval($quy->nid_quy),
     'ma_quy' => $quy->ma_quy,
     'ten_quy' => $quy->ten_quy,
@@ -1811,11 +1845,122 @@ function quan_ly_tai_chinh_quy_to_api_item($quy, array $filters = array()) {
     'ghi_chu' => $quy->ghi_chu,
     'so_du_dau_ky' => $quy->so_du_dau_ky,
     'so_du_hien_tai' => $quy->so_du_hien_tai,
+    'nguoi_quan_ly' => quan_ly_tai_chinh_user_api_info(isset($quy->uid_nguoi_quan_ly) ? intval($quy->uid_nguoi_quan_ly) : 0),
     'hoat_dong' => intval($quy->hoat_dong),
     'created' => intval($quy->created),
     'changed' => intval($quy->changed),
     'period' => $period,
   );
+
+  if ($with_detail) {
+    $json = quan_ly_tai_chinh_quy_node_get_json_data($quy);
+    $item['lich_su_nguoi_quan_ly'] = quan_ly_tai_chinh_quy_manager_history_api($json);
+    $item['lich_su_dieu_chinh_so_du'] = quan_ly_tai_chinh_quy_balance_history_api($json);
+    $item['so_cai_quy'] = quan_ly_tai_chinh_quy_ledger_api(intval($quy->nid_quy));
+  }
+
+  return $item;
+}
+
+function quan_ly_tai_chinh_user_api_info($uid) {
+  $uid = intval($uid);
+  return array(
+    'uid' => $uid,
+    'name' => $uid ? quan_ly_tai_chinh_user_display_name($uid) : '',
+  );
+}
+
+function quan_ly_tai_chinh_user_options_api() {
+  $items = array();
+  $query = db_select('users', 'u')
+    ->fields('u', array('uid', 'name'))
+    ->condition('uid', 0, '>')
+    ->condition('status', 1)
+    ->orderBy('name', 'ASC')
+    ->range(0, 500);
+  foreach ($query->execute() as $row) {
+    $items[] = array(
+      'uid' => intval($row->uid),
+      'name' => $row->name,
+    );
+  }
+  return $items;
+}
+
+function quan_ly_tai_chinh_quy_manager_history_api(array $json) {
+  $items = !empty($json['lich_su_nguoi_quan_ly']) && is_array($json['lich_su_nguoi_quan_ly']) ? $json['lich_su_nguoi_quan_ly'] : array();
+  usort($items, 'quan_ly_tai_chinh_quy_history_sort_desc');
+  foreach ($items as &$item) {
+    $old_uid = isset($item['uid_cu']) ? intval($item['uid_cu']) : 0;
+    $new_uid = isset($item['uid_moi']) ? intval($item['uid_moi']) : 0;
+    $uid = isset($item['uid_thuc_hien']) ? intval($item['uid_thuc_hien']) : (isset($item['nguoi_thuc_hien']) ? intval($item['nguoi_thuc_hien']) : 0);
+    $time = quan_ly_tai_chinh_quy_history_time($item);
+    $item['uid_cu_label'] = $old_uid ? quan_ly_tai_chinh_user_display_name($old_uid) : '-';
+    $item['uid_moi_label'] = $new_uid ? quan_ly_tai_chinh_user_display_name($new_uid) : '-';
+    $item['nguoi_thuc_hien_label'] = quan_ly_tai_chinh_user_display_name($uid);
+    $item['time_text'] = $time ? date('d/m/Y H:i', $time) : '';
+  }
+  unset($item);
+  return $items;
+}
+
+function quan_ly_tai_chinh_quy_balance_history_api(array $json) {
+  $items = !empty($json['lich_su_dieu_chinh_so_du']) && is_array($json['lich_su_dieu_chinh_so_du']) ? $json['lich_su_dieu_chinh_so_du'] : array();
+  usort($items, 'quan_ly_tai_chinh_quy_history_sort_desc');
+  foreach ($items as &$item) {
+    $old_balance = isset($item['so_du_cu']) ? quan_ly_tai_chinh_money_to_number($item['so_du_cu']) : 0;
+    $new_balance = isset($item['so_du_moi']) ? quan_ly_tai_chinh_money_to_number($item['so_du_moi']) : 0;
+    $diff = isset($item['chenh_lech']) ? quan_ly_tai_chinh_money_to_number($item['chenh_lech']) : ($new_balance - $old_balance);
+    $uid = isset($item['nguoi_thuc_hien']) ? intval($item['nguoi_thuc_hien']) : 0;
+    $time = quan_ly_tai_chinh_quy_history_time($item);
+    $item['so_du_cu'] = $old_balance;
+    $item['so_du_moi'] = $new_balance;
+    $item['chenh_lech'] = $diff;
+    $item['nguoi_thuc_hien_label'] = quan_ly_tai_chinh_user_display_name($uid);
+    $item['time_text'] = $time ? date('d/m/Y H:i', $time) : (!empty($item['ngay_dieu_chinh_text']) ? $item['ngay_dieu_chinh_text'] : '');
+  }
+  unset($item);
+  return $items;
+}
+
+function quan_ly_tai_chinh_quy_ledger_api($nid_quy, $limit = 200) {
+  $items = array();
+  quan_ly_tai_chinh_ensure_so_cai_quy_table();
+  if (!$nid_quy || !db_table_exists('qltc_so_cai_quy')) {
+    return $items;
+  }
+  $query = db_select('qltc_so_cai_quy', 'sc')
+    ->fields('sc')
+    ->condition('nid_quy', intval($nid_quy))
+    ->condition('status', 1)
+    ->orderBy('ngay_giao_dich', 'DESC')
+    ->orderBy('id', 'DESC')
+    ->range(0, intval($limit));
+  foreach ($query->execute() as $row) {
+    $delta = quan_ly_tai_chinh_money_to_number($row->bien_dong);
+    $items[] = array(
+      'id' => intval($row->id),
+      'nid_quy' => intval($row->nid_quy),
+      'source_type' => $row->source_type,
+      'source_id' => intval($row->source_id),
+      'source_line' => $row->source_line,
+      'nid_phieu' => intval($row->nid_phieu),
+      'ma_chung_tu' => $row->ma_chung_tu,
+      'loai_bien_dong' => $row->loai_bien_dong,
+      'ngay_giao_dich' => intval($row->ngay_giao_dich),
+      'ngay_giao_dich_text' => !empty($row->ngay_giao_dich) ? date('d/m/Y', intval($row->ngay_giao_dich)) : '',
+      'so_tien' => quan_ly_tai_chinh_money_to_number($row->so_tien),
+      'bien_dong' => $delta,
+      'thu' => $delta > 0 ? $delta : 0,
+      'chi' => $delta < 0 ? abs($delta) : 0,
+      'so_du_truoc' => quan_ly_tai_chinh_money_to_number($row->so_du_truoc),
+      'so_du_sau' => quan_ly_tai_chinh_money_to_number($row->so_du_sau),
+      'nguoi_thuc_hien' => quan_ly_tai_chinh_user_api_info(!empty($row->uid_thuc_hien) ? intval($row->uid_thuc_hien) : 0),
+      'ghi_chu' => $row->ghi_chu,
+      'co_the_xem_phieu' => $row->source_type === 'phieu_thu_chi' && intval($row->nid_phieu) > 0,
+    );
+  }
+  return $items;
 }
 
 function quan_ly_tai_chinh_quy_rest_collection() {
@@ -1853,6 +1998,10 @@ function quan_ly_tai_chinh_quy_rest_item($id) {
 }
 
 function _quan_ly_tai_chinh_quy_rest_list() {
+  if (!empty($_GET['options']) && $_GET['options'] === 'users') {
+    return _quan_ly_tai_chinh_success(array('items' => quan_ly_tai_chinh_user_options_api()));
+  }
+
   $filters = quan_ly_tai_chinh_get_date_filters();
 
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
@@ -1945,7 +2094,7 @@ function _quan_ly_tai_chinh_quy_rest_get($id) {
     return _quan_ly_tai_chinh_not_found('Không tìm thấy quỹ');
   }
 
-  return _quan_ly_tai_chinh_success(quan_ly_tai_chinh_quy_to_api_item($quy));
+  return _quan_ly_tai_chinh_success(quan_ly_tai_chinh_quy_to_api_item($quy, array('with_detail' => TRUE)));
 }
 
 function _quan_ly_tai_chinh_quy_rest_create() {

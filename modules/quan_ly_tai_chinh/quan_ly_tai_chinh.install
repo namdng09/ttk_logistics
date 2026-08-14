@@ -35,6 +35,7 @@ function quan_ly_tai_chinh_schema() {
       'thong_tin_json' => array('type' => 'text', 'not null' => FALSE),
       'so_du_dau_ky' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
       'so_du_hien_tai' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'uid_nguoi_quan_ly' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
       'uid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
       'status' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
       'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
@@ -48,6 +49,7 @@ function quan_ly_tai_chinh_schema() {
     'indexes' => array(
       'ten_quy' => array('ten_quy'),
       'loai_quy' => array('loai_quy'),
+      'uid_nguoi_quan_ly' => array('uid_nguoi_quan_ly'),
       'hoat_dong' => array('hoat_dong'),
     ),
   );
@@ -285,4 +287,28 @@ function quan_ly_tai_chinh_update_7105() {
   }
 
   return 'Đã đổi tên ' . intval($renamed) . ' cột của bảng qltc_giao_dich / qltc_so_cai_quy theo quy tắc nid_<entity>.';
+}
+
+/**
+ * Thêm người quản lý quỹ.
+ */
+function quan_ly_tai_chinh_update_7106() {
+  if (!db_table_exists('qltc_quy')) {
+    return 'Bảng qltc_quy chưa tồn tại.';
+  }
+
+  if (!db_field_exists('qltc_quy', 'uid_nguoi_quan_ly')) {
+    db_add_field('qltc_quy', 'uid_nguoi_quan_ly', array(
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 0,
+      'description' => 'UID người quản lý quỹ hiện tại.',
+    ));
+  }
+
+  if (!db_index_exists('qltc_quy', 'uid_nguoi_quan_ly')) {
+    db_add_index('qltc_quy', 'uid_nguoi_quan_ly', array('uid_nguoi_quan_ly'));
+  }
+
+  return 'Đã thêm uid_nguoi_quan_ly cho quỹ.';
 }
