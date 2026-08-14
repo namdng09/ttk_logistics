@@ -46,6 +46,20 @@ function lai_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/lai-xe/%/file'] = array(
+    'page callback' => 'lai_xe_rest_file_collection',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/lai-xe/%/file/%'] = array(
+    'page callback' => 'lai_xe_rest_file_item',
+    'page arguments' => array(2, 4),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/lai-xe/%'] = array(
     'page callback' => 'lai_xe_rest_item',
     'page arguments' => array(2),
@@ -144,6 +158,137 @@ function _lai_xe_method_not_allowed($allowed) {
   return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
 }
 
+function _lai_xe_json_decode($raw) {
+  if (is_array($raw)) {
+    return $raw;
+  }
+  if (!is_string($raw) || trim($raw) === '') {
+    return array();
+  }
+  $decoded = json_decode($raw, TRUE);
+  return is_array($decoded) ? $decoded : array();
+}
+
+function _lai_xe_json_encode($data) {
+  return json_encode(is_array($data) ? $data : array(), JSON_UNESCAPED_UNICODE);
+}
+
+function _lai_xe_normalize_record($row) {
+  if (!$row) {
+    return $row;
+  }
+
+  if (isset($row->thong_tin_ngan_hang) && $row->thong_tin_ngan_hang) {
+    $ngan_hang = json_decode($row->thong_tin_ngan_hang, TRUE);
+    $row->thong_tin_ngan_hang = is_array($ngan_hang) ? $ngan_hang : array();
+  }
+  else {
+    $row->thong_tin_ngan_hang = array();
+  }
+
+  $json = _lai_xe_json_decode(isset($row->thong_tin_json) ? $row->thong_tin_json : '');
+  if (empty($json['files']) || !is_array($json['files'])) {
+    $json['files'] = array();
+  }
+  foreach ($json['files'] as &$file) {
+    if (!empty($file['uri'])) {
+      $file['url'] = file_create_url($file['uri']);
+    }
+  }
+  unset($file);
+
+  $row->thong_tin_json = $json;
+  $row->files = $json['files'];
+  return $row;
+}
+
+function _lai_xe_load_record($id) {
+  $row = db_query("SELECT * FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => (int) $id))->fetch();
+  return $row ? _lai_xe_normalize_record($row) : NULL;
+}
+
+function _lai_xe_file_type_label($type) {
+  $labels = array(
+    'cccd_truoc' => 'CCCD mặt trước',
+    'cccd_sau' => 'CCCD mặt sau',
+    'bang_lai' => 'Bằng lái',
+    'anh_chan_dung' => 'Ảnh chân dung',
+    'giay_kham_suc_khoe' => 'Giấy khám sức khoẻ',
+    'khac' => 'Khác',
+  );
+  return isset($labels[$type]) ? $labels[$type] : 'Khác';
+}
+
+function _lai_xe_ensure_thong_tin_json_field() {
+  if (db_table_exists('lai_xe') && !db_field_exists('lai_xe', 'thong_tin_json')) {
+    db_add_field('lai_xe', 'thong_tin_json', array(
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => FALSE,
+    ));
+  }
+}
+
+function _lai_xe_file_index($files, $file_id) {
+  foreach ($files as $index => $file) {
+    if (!empty($file['id']) && (string) $file['id'] === (string) $file_id) {
+      return $index;
+    }
+  }
+  return -1;
+}
+
+function _lai_xe_save_uploaded_file($field, $dir) {
+  if (empty($_FILES[$field]) || empty($_FILES[$field]['name'])) {
+    return NULL;
+  }
+
+  $upload = $_FILES[$field];
+  if (!empty($upload['error'])) {
+    return NULL;
+  }
+
+  $max_size = 10 * 1024 * 1024;
+  $size = isset($upload['size']) ? (int) $upload['size'] : 0;
+  if ($size <= 0 || $size > $max_size) {
+    return FALSE;
+  }
+
+  $original = drupal_basename($upload['name']);
+  $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+  $allowed_ext = array('jpg', 'jpeg', 'png', 'webp', 'pdf');
+  if (!in_array($ext, $allowed_ext)) {
+    return FALSE;
+  }
+
+  if (!is_uploaded_file($upload['tmp_name'])) {
+    return FALSE;
+  }
+
+  $safe_name = file_munge_filename($original, 'jpg jpeg png webp pdf', FALSE);
+  $destination = file_unmanaged_save_data(file_get_contents($upload['tmp_name']), $dir . '/' . $safe_name, FILE_EXISTS_RENAME);
+  if (!$destination) {
+    return FALSE;
+  }
+
+  $mime = file_get_mimetype($destination);
+  $allowed_mime = array('image/jpeg', 'image/png', 'image/webp', 'application/pdf');
+  if ($mime && !in_array($mime, $allowed_mime)) {
+    file_unmanaged_delete($destination);
+    return FALSE;
+  }
+
+  global $user;
+  $file = new stdClass();
+  $file->uid = isset($user->uid) ? (int) $user->uid : 0;
+  $file->filename = $original;
+  $file->uri = $destination;
+  $file->filemime = $mime ?: 'application/octet-stream';
+  $file->filesize = filesize($destination);
+  $file->status = FILE_STATUS_PERMANENT;
+  return file_save($file);
+}
+
 /**
  * Check unique fields, skip empty values.
  * Returns error only if duplicate exists AND is active (hoat_dong = 1).
@@ -236,17 +381,10 @@ function _lai_xe_rest_list() {
 
   $total_pages = (int) ceil($total / $limit);
 
-  // Decode thong_tin_ngan_hang JSON
   $items = array();
   if ($rows) {
     foreach ($rows as $row) {
-      if (isset($row->thong_tin_ngan_hang) && $row->thong_tin_ngan_hang) {
-        $decoded = json_decode($row->thong_tin_ngan_hang, TRUE);
-        $row->thong_tin_ngan_hang = is_array($decoded) ? $decoded : array();
-      } else {
-        $row->thong_tin_ngan_hang = array();
-      }
-      $items[] = $row;
+      $items[] = _lai_xe_normalize_record($row);
     }
   }
 
@@ -273,6 +411,8 @@ function _lai_xe_rest_create() {
   $dup = _lai_xe_check_unique($input);
   if ($dup) return $dup;
 
+  _lai_xe_ensure_thong_tin_json_field();
+
   $transaction = db_transaction();
   try {
     $nid = db_insert('lai_xe')
@@ -290,13 +430,14 @@ function _lai_xe_rest_create() {
         'ngay_nhan_viec' => isset($input['ngay_nhan_viec']) ? $input['ngay_nhan_viec'] : '',
         'dod' => isset($input['dod']) ? $input['dod'] : '',
         'thong_tin_ngan_hang' => isset($input['thong_tin_ngan_hang']) ? json_encode($input['thong_tin_ngan_hang'], JSON_UNESCAPED_UNICODE) : NULL,
+        'thong_tin_json' => _lai_xe_json_encode(array('files' => array())),
         'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
         'created' => date('Y-m-d H:i:s', REQUEST_TIME),
         'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
       ))
       ->execute();
 
-    $row = db_query("SELECT * FROM {lai_xe} WHERE nid = :id", array(':id' => $nid))->fetch();
+    $row = _lai_xe_load_record($nid);
 
     watchdog('lai_xe', 'Tạo lái xe #%id: %ten', array(
       '%id' => $nid,
@@ -338,16 +479,9 @@ function lai_xe_rest_item($id) {
 }
 
 function _lai_xe_rest_get($id) {
-  $row = db_query("SELECT * FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  $row = _lai_xe_load_record($id);
   if (!$row) {
     return _lai_xe_not_found('Lái xe không tồn tại');
-  }
-  // Decode thong_tin_ngan_hang JSON
-  if (isset($row->thong_tin_ngan_hang) && $row->thong_tin_ngan_hang) {
-    $decoded = json_decode($row->thong_tin_ngan_hang, TRUE);
-    $row->thong_tin_ngan_hang = is_array($decoded) ? $decoded : array();
-  } else {
-    $row->thong_tin_ngan_hang = array();
   }
   return _lai_xe_success($row);
 }
@@ -395,7 +529,7 @@ function _lai_xe_rest_update($id) {
       ->condition('nid', $id)
       ->execute();
 
-    $row = db_query("SELECT * FROM {lai_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+    $row = _lai_xe_load_record($id);
 
     watchdog('lai_xe', 'Cập nhật lái xe #%id', array('%id' => $id));
 
@@ -440,6 +574,195 @@ function _lai_xe_rest_delete($id) {
     watchdog('lai_xe', 'Lỗi xoá lái xe #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
     return _lai_xe_error('Lỗi hệ thống khi xoá lái xe');
   }
+}
+
+/*******************************************************************************
+ * REST: DRIVER FILES — POST /api/lai-xe/{id}/file, PUT/DELETE /file/{file_id}
+ ******************************************************************************/
+
+function lai_xe_rest_file_collection($id) {
+  $id = (int) $id;
+  if (!$id) {
+    return _lai_xe_fail('ID không hợp lệ');
+  }
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'POST':
+      return _lai_xe_rest_file_upload($id);
+    default:
+      return _lai_xe_method_not_allowed('POST');
+  }
+}
+
+function lai_xe_rest_file_item($id, $file_id) {
+  $id = (int) $id;
+  $file_id = trim((string) $file_id);
+  if (!$id || $file_id === '') {
+    return _lai_xe_fail('Thông tin file không hợp lệ');
+  }
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'PUT':
+      return _lai_xe_rest_file_update($id, $file_id);
+    case 'DELETE':
+      return _lai_xe_rest_file_delete($id, $file_id);
+    default:
+      return _lai_xe_method_not_allowed('PUT, DELETE');
+  }
+}
+
+function _lai_xe_load_file_context($id) {
+  _lai_xe_ensure_thong_tin_json_field();
+  $row = db_query("SELECT nid, ten, thong_tin_json FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => (int) $id))->fetch();
+  if (!$row) {
+    return NULL;
+  }
+  $json = _lai_xe_json_decode(isset($row->thong_tin_json) ? $row->thong_tin_json : '');
+  if (empty($json['files']) || !is_array($json['files'])) {
+    $json['files'] = array();
+  }
+  $row->thong_tin_json = $json;
+  return $row;
+}
+
+function _lai_xe_save_file_context($id, $json) {
+  db_update('lai_xe')
+    ->fields(array(
+      'thong_tin_json' => _lai_xe_json_encode($json),
+      'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+    ))
+    ->condition('nid', (int) $id)
+    ->execute();
+}
+
+function _lai_xe_rest_file_upload($id) {
+  if (!user_access('lai_xe_create')) {
+    return _lai_xe_unauthorized('Bạn không có quyền upload hồ sơ lái xe');
+  }
+
+  $context = _lai_xe_load_file_context($id);
+  if (!$context) {
+    return _lai_xe_not_found('Lái xe không tồn tại');
+  }
+
+  if (empty($_FILES['driver_file'])) {
+    return _lai_xe_fail('Vui lòng chọn file cần upload');
+  }
+
+  $dir = 'public://lai_xe_files/' . (int) $id;
+  if (!file_prepare_directory($dir, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
+    return _lai_xe_error('Không thể tạo thư mục lưu hồ sơ lái xe');
+  }
+
+  $file = _lai_xe_save_uploaded_file('driver_file', $dir);
+  if (!$file) {
+    return _lai_xe_fail('File không hợp lệ. Chỉ hỗ trợ ảnh JPG, JPEG, PNG, WEBP hoặc PDF tối đa 10MB');
+  }
+
+  global $user;
+  $loai = !empty($_POST['loai']) ? trim($_POST['loai']) : 'khac';
+  $title = !empty($_POST['ten_hien_thi']) ? trim($_POST['ten_hien_thi']) : $file->filename;
+  $item = array(
+    'id' => 'file_' . REQUEST_TIME . '_' . (int) $file->fid,
+    'loai' => $loai,
+    'loai_label' => _lai_xe_file_type_label($loai),
+    'ten_hien_thi' => $title,
+    'fid' => (int) $file->fid,
+    'filename' => $file->filename,
+    'uri' => $file->uri,
+    'url' => file_create_url($file->uri),
+    'mime' => $file->filemime,
+    'size' => (int) $file->filesize,
+    'uploaded' => REQUEST_TIME,
+    'uploaded_text' => date('d/m/Y H:i', REQUEST_TIME),
+    'uid' => isset($user->uid) ? (int) $user->uid : 0,
+  );
+
+  $json = $context->thong_tin_json;
+  $json['files'][] = $item;
+  _lai_xe_save_file_context($id, $json);
+
+  watchdog('lai_xe', 'Upload hồ sơ lái xe #%id: %file', array('%id' => $id, '%file' => $file->filename));
+
+  return _lai_xe_success(array(
+    'nid' => $id,
+    'file' => $item,
+    'files' => $json['files'],
+  ));
+}
+
+function _lai_xe_rest_file_update($id, $file_id) {
+  if (!user_access('lai_xe_create')) {
+    return _lai_xe_unauthorized('Bạn không có quyền sửa hồ sơ lái xe');
+  }
+
+  $context = _lai_xe_load_file_context($id);
+  if (!$context) {
+    return _lai_xe_not_found('Lái xe không tồn tại');
+  }
+
+  $json = $context->thong_tin_json;
+  $index = _lai_xe_file_index($json['files'], $file_id);
+  if ($index < 0) {
+    return _lai_xe_not_found('File không tồn tại');
+  }
+
+  $input = _lai_xe_input();
+  if (isset($input['loai'])) {
+    $json['files'][$index]['loai'] = trim($input['loai']) ?: 'khac';
+    $json['files'][$index]['loai_label'] = _lai_xe_file_type_label($json['files'][$index]['loai']);
+  }
+  if (isset($input['ten_hien_thi'])) {
+    $title = trim($input['ten_hien_thi']);
+    $json['files'][$index]['ten_hien_thi'] = $title !== '' ? $title : (isset($json['files'][$index]['filename']) ? $json['files'][$index]['filename'] : '');
+  }
+
+  _lai_xe_save_file_context($id, $json);
+
+  return _lai_xe_success(array(
+    'nid' => $id,
+    'file' => $json['files'][$index],
+    'files' => $json['files'],
+  ));
+}
+
+function _lai_xe_rest_file_delete($id, $file_id) {
+  if (!user_access('lai_xe_create')) {
+    return _lai_xe_unauthorized('Bạn không có quyền xoá hồ sơ lái xe');
+  }
+
+  $context = _lai_xe_load_file_context($id);
+  if (!$context) {
+    return _lai_xe_not_found('Lái xe không tồn tại');
+  }
+
+  $json = $context->thong_tin_json;
+  $index = _lai_xe_file_index($json['files'], $file_id);
+  if ($index < 0) {
+    return _lai_xe_not_found('File không tồn tại');
+  }
+
+  $deleted = $json['files'][$index];
+  if (!empty($deleted['fid'])) {
+    $file = file_load((int) $deleted['fid']);
+    if ($file) {
+      file_delete($file, TRUE);
+    }
+  }
+
+  array_splice($json['files'], $index, 1);
+  _lai_xe_save_file_context($id, $json);
+
+  watchdog('lai_xe', 'Xoá hồ sơ lái xe #%id: %file', array(
+    '%id' => $id,
+    '%file' => !empty($deleted['filename']) ? $deleted['filename'] : $file_id,
+  ));
+
+  return _lai_xe_success(array(
+    'nid' => $id,
+    'deleted' => TRUE,
+    'files' => $json['files'],
+  ));
 }
 
 /*******************************************************************************

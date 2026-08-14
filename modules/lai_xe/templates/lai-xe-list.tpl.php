@@ -155,6 +155,67 @@
                 </div>
               </div>
             </div>
+
+            <!-- Driver Files -->
+            <div class="col-12">
+              <div class="lai-xe-file-section" id="lai-xe-file-section">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                  <label class="form-label mb-0"><i class="ti tabler-files me-2"></i>Hồ sơ tài liệu</label>
+                  <span class="badge rounded-pill bg-label-secondary border" id="lai-xe-file-count">0 file</span>
+                </div>
+
+                <div class="alert alert-light border py-2 px-3 mb-2 small" id="lai-xe-file-create-note" style="display:none;">
+                  Lưu thông tin lái xe trước khi upload hồ sơ.
+                </div>
+
+                <div class="lai-xe-file-upload row g-2 align-items-end mb-2" id="lai-xe-file-upload">
+                  <div class="col-12 col-lg-3">
+                    <label class="form-label">Loại hồ sơ</label>
+                    <select class="form-select form-select-sm" id="lx-file-type" name="loai" form="lai-xe-file-form">
+                      <option value="cccd_truoc">CCCD mặt trước</option>
+                      <option value="cccd_sau">CCCD mặt sau</option>
+                      <option value="bang_lai">Bằng lái</option>
+                      <option value="anh_chan_dung">Ảnh chân dung</option>
+                      <option value="giay_kham_suc_khoe">Giấy khám sức khoẻ</option>
+                      <option value="khac">Khác</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label">Tên hiển thị</label>
+                    <input type="text" class="form-control form-control-sm" id="lx-file-title" name="ten_hien_thi" form="lai-xe-file-form" placeholder="VD: CCCD mặt trước">
+                  </div>
+                  <div class="col-12 col-lg-3">
+                    <label class="form-label">File</label>
+                    <input type="file" class="form-control form-control-sm" id="lx-file-input" name="driver_file" form="lai-xe-file-form" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf">
+                  </div>
+                  <div class="col-12 col-lg-2">
+                    <button type="button" class="btn btn-sm btn-primary w-100" id="btn-upload-lai-xe-file">
+                      <i class="ti tabler-upload me-1"></i>Upload
+                    </button>
+                  </div>
+                </div>
+
+                <div class="table-responsive lai-xe-file-table-wrap">
+                  <table class="table table-bordered table-hover table-sm align-middle mb-0 lai-xe-file-table">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width:56px">#</th>
+                        <th style="width:170px">Loại hồ sơ</th>
+                        <th>Tên file</th>
+                        <th style="width:120px" class="text-end">Dung lượng</th>
+                        <th style="width:150px" class="text-center">Ngày upload</th>
+                        <th style="width:120px" class="text-center">CN</th>
+                      </tr>
+                    </thead>
+                    <tbody id="lai-xe-file-tbody">
+                      <tr>
+                        <td colspan="6" class="text-center text-muted py-3">Chưa có hồ sơ</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -164,8 +225,7 @@
           </button>
         </div>
       </form>
+      <form id="lai-xe-file-form" enctype="multipart/form-data" style="display:none;"></form>
     </div>
   </div>
 </div>
-
-

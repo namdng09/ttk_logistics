@@ -85,6 +85,11 @@ function phuong_tien_schema() {
         'length' => 10,
         'not null' => FALSE,
       ),
+      'thong_tin_json' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ),
       'hoat_dong' => array(
         'type' => 'int',
         'size' => 'tiny',
@@ -128,5 +133,15 @@ function phuong_tien_update_7004() {
   $check = db_query("SHOW INDEX FROM {phuong_tien} WHERE Key_name = 'bks'")->fetch();
   if ($check) {
     db_query("ALTER TABLE {phuong_tien} DROP INDEX `bks`");
+  }
+}
+
+function phuong_tien_update_7005() {
+  if (!db_field_exists('phuong_tien', 'thong_tin_json')) {
+    db_add_field('phuong_tien', 'thong_tin_json', array(
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => FALSE,
+    ));
   }
 }

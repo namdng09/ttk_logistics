@@ -6,6 +6,18 @@
   var currentKeyword = '';
   var BANK_LIST = [];
   var BANK_LIST_LOADED = false;
+  var CURRENT_DRIVER_ID = '';
+  var CURRENT_FILES = [];
+  var CURRENT_FORM_MODE = 'create';
+  var SELECTED_DRIVER_FILE = null;
+  var FILE_TYPE_LABELS = {
+    cccd_truoc: 'CCCD mặt trước',
+    cccd_sau: 'CCCD mặt sau',
+    bang_lai: 'Bằng lái',
+    anh_chan_dung: 'Ảnh chân dung',
+    giay_kham_suc_khoe: 'Giấy khám sức khoẻ',
+    khac: 'Khác'
+  };
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -35,6 +47,8 @@
 
   function bindNativeEvents() {
     var doc = document;
+    if (doc.body.getAttribute('data-lai-xe-bound') === '1') return;
+    doc.body.setAttribute('data-lai-xe-bound', '1');
 
     // Search
     doc.getElementById('btn-search-lai-xe').addEventListener('click', function () {
@@ -54,6 +68,7 @@
     // Enter key submit
     doc.getElementById('form-lai-xe').addEventListener('keydown', function (e) {
       if (e.which === 13 && !e.shiftKey) {
+        if (e.target && e.target.closest && e.target.closest('#lai-xe-file-section')) return;
         e.preventDefault();
         var btn = doc.querySelector('.btn-luu-lai-xe');
         if (btn && !btn.disabled) btn.click();
@@ -107,6 +122,19 @@
       });
     }
 
+    var uploadFileBtn = document.getElementById('btn-upload-lai-xe-file');
+    if (uploadFileBtn) {
+      uploadFileBtn.addEventListener('click', function () {
+        uploadDriverFile();
+      });
+    }
+    var fileInput = document.getElementById('lx-file-input');
+    if (fileInput) {
+      fileInput.addEventListener('change', function () {
+        SELECTED_DRIVER_FILE = this.files && this.files.length ? this.files[0] : null;
+      });
+    }
+
     // Delegated clicks (dropdown items, pagination)
     doc.addEventListener('click', function (e) {
       var t = e.target;
@@ -138,6 +166,31 @@
               }
               row.remove();
             }
+            return;
+          }
+          if (t.classList.contains('btn-lx-file-view')) {
+            e.preventDefault();
+            viewDriverFile(t.getAttribute('data-file-id'));
+            return;
+          }
+          if (t.classList.contains('btn-lx-file-edit')) {
+            e.preventDefault();
+            editDriverFileRow(t.getAttribute('data-file-id'));
+            return;
+          }
+          if (t.classList.contains('btn-lx-file-cancel')) {
+            e.preventDefault();
+            renderFileSection();
+            return;
+          }
+          if (t.classList.contains('btn-lx-file-save')) {
+            e.preventDefault();
+            saveDriverFileMeta(t.getAttribute('data-file-id'));
+            return;
+          }
+          if (t.classList.contains('btn-lx-file-delete')) {
+            e.preventDefault();
+            confirmDeleteDriverFile(t.getAttribute('data-file-id'));
             return;
           }
           // Pagination jump
@@ -422,6 +475,7 @@
   }
 
   function setFormMode(mode) {
+    CURRENT_FORM_MODE = mode;
     var inputs = document.querySelectorAll('#form-lai-xe input, #form-lai-xe textarea, #form-lai-xe select');
     var btn = document.querySelector('.btn-luu-lai-xe');
     for (var i = 0; i < inputs.length; i++) {
@@ -451,6 +505,7 @@
         $sel.select2(mode === 'view' ? 'disable' : 'enable');
       }
     }
+    renderFileSection();
   }
 
   function initRepeater() {
@@ -634,6 +689,9 @@
     showLoading(false);
     document.getElementById('form-lai-xe').reset();
     document.querySelector('#form-lai-xe input[name="nid"]').value = '';
+    CURRENT_DRIVER_ID = '';
+    CURRENT_FILES = [];
+    SELECTED_DRIVER_FILE = null;
     document.getElementById('lai-xe-modal-title').textContent = 'Thêm lái xe';
     var selBang = document.querySelector('#form-lai-xe select[name="loai_bang_lai"]');
     if (selBang) initLoaiBangLaiSelect(selBang, '');
@@ -642,6 +700,9 @@
   }
 
   function populateForm(d) {
+    CURRENT_DRIVER_ID = d.nid || '';
+    CURRENT_FILES = d.files || (d.thong_tin_json && d.thong_tin_json.files ? d.thong_tin_json.files : []);
+    document.querySelector('#form-lai-xe input[name="nid"]').value = CURRENT_DRIVER_ID;
     document.querySelector('#form-lai-xe input[name="ten"]').value = d.ten || '';
     document.querySelector('#form-lai-xe input[name="ma_nhan_vien"]').value = d.ma_nhan_vien || '';
     document.querySelector('#form-lai-xe input[name="sdt"]').value = d.sdt || '';
@@ -668,6 +729,278 @@
     } else {
       addNganHangRow();
     }
+    renderFileSection();
+  }
+
+  function renderFileSection() {
+    var tbody = document.getElementById('lai-xe-file-tbody');
+    if (!tbody) return;
+
+    var count = document.getElementById('lai-xe-file-count');
+    var note = document.getElementById('lai-xe-file-create-note');
+    var upload = document.getElementById('lai-xe-file-upload');
+    var canUpload = CURRENT_FORM_MODE !== 'view' && !!CURRENT_DRIVER_ID;
+
+    if (count) count.textContent = (CURRENT_FILES.length || 0) + ' file';
+    if (note) note.style.display = CURRENT_DRIVER_ID ? 'none' : '';
+    if (upload) upload.style.display = canUpload ? '' : 'none';
+
+    if (!CURRENT_FILES.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Chưa có hồ sơ</td></tr>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < CURRENT_FILES.length; i++) {
+      var f = CURRENT_FILES[i] || {};
+      var title = f.ten_hien_thi || f.filename || '';
+      html += '<tr data-file-id="' + escapeHtml(f.id || '') + '">' +
+        '<td class="text-center text-muted">' + (i + 1) + '</td>' +
+        '<td><span class="badge bg-label-secondary border">' + escapeHtml(fileTypeLabel(f.loai)) + '</span></td>' +
+        '<td><div class="d-flex align-items-center gap-2 min-w-0">' +
+          '<i class="ti ' + fileIcon(f) + '"></i>' +
+          '<div class="min-w-0"><div class="fw-medium text-truncate">' + escapeHtml(title) + '</div>' +
+          '<div class="small text-muted text-truncate">' + escapeHtml(f.filename || '') + '</div></div>' +
+        '</div></td>' +
+        '<td class="text-end">' + escapeHtml(formatFileSize(f.size)) + '</td>' +
+        '<td class="text-center">' + escapeHtml(fileUploadedText(f)) + '</td>' +
+        '<td class="text-center">' + fileActions(f) + '</td>' +
+      '</tr>';
+    }
+    tbody.innerHTML = html;
+  }
+
+  function fileActions(file) {
+    var id = escapeHtml(file && file.id ? file.id : '');
+    var html = '<div class="d-flex justify-content-center gap-1">' +
+      '<button type="button" class="btn btn-sm btn-icon btn-label-primary btn-lx-file-view" data-file-id="' + id + '" title="Xem"><i class="ti tabler-eye"></i></button>';
+    if (CURRENT_FORM_MODE !== 'view') {
+      html += '<button type="button" class="btn btn-sm btn-icon btn-label-warning btn-lx-file-edit" data-file-id="' + id + '" title="Sửa"><i class="ti tabler-edit"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-lx-file-delete" data-file-id="' + id + '" title="Xoá"><i class="ti tabler-trash"></i></button>';
+    }
+    return html + '</div>';
+  }
+
+  function editDriverFileRow(fileId) {
+    var index = findFileIndex(fileId);
+    if (index < 0 || CURRENT_FORM_MODE === 'view') return;
+    var f = CURRENT_FILES[index] || {};
+    var row = document.querySelector('#lai-xe-file-tbody tr[data-file-id="' + cssEscape(fileId) + '"]');
+    if (!row) return;
+
+    row.innerHTML =
+      '<td class="text-center text-muted">' + (index + 1) + '</td>' +
+      '<td><select class="form-select form-select-sm lx-file-edit-type">' + fileTypeOptions(f.loai) + '</select></td>' +
+      '<td><input type="text" class="form-control form-control-sm lx-file-edit-title" value="' + escapeHtml(f.ten_hien_thi || f.filename || '') + '"></td>' +
+      '<td class="text-end">' + escapeHtml(formatFileSize(f.size)) + '</td>' +
+      '<td class="text-center">' + escapeHtml(fileUploadedText(f)) + '</td>' +
+      '<td class="text-center"><div class="d-flex justify-content-center gap-1">' +
+        '<button type="button" class="btn btn-sm btn-icon btn-primary text-white btn-lx-file-save" data-file-id="' + escapeHtml(fileId) + '" title="Lưu"><i class="ti tabler-check"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-lx-file-cancel" title="Huỷ"><i class="ti tabler-x"></i></button>' +
+      '</div></td>';
+  }
+
+  function uploadDriverFile() {
+    if (!CURRENT_DRIVER_ID) {
+      if (notyf) notyf.error('Vui lòng lưu lái xe trước khi upload hồ sơ');
+      return;
+    }
+
+    var input = document.querySelector('#lai-xe-file-upload input[type="file"]');
+    var btn = document.getElementById('btn-upload-lai-xe-file');
+    var selectedFile = input && input.files && input.files.length ? input.files[0] : SELECTED_DRIVER_FILE;
+    if (!selectedFile && (!input || !input.value)) {
+      if (notyf) notyf.error('Vui lòng chọn file cần upload');
+      return;
+    }
+
+    var formData = new FormData();
+    if (selectedFile) {
+      formData.append('driver_file', selectedFile, selectedFile.name || 'driver_file');
+    }
+    formData.append('loai', document.getElementById('lx-file-type').value || 'khac');
+    formData.append('ten_hien_thi', document.getElementById('lx-file-title').value || '');
+
+    btn.setAttribute('disabled', 'disabled');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang upload';
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/lai-xe/' + CURRENT_DRIVER_ID + '/file', true);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.onload = function () {
+      var res = null;
+      try {
+        res = JSON.parse(xhr.responseText || '{}');
+      } catch (e) {}
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        btn.removeAttribute('disabled');
+        btn.innerHTML = '<i class="ti tabler-upload me-1"></i>Upload';
+        if (res && res.status === 'success' && res.data) {
+          CURRENT_FILES = res.data.files || [];
+          input.value = '';
+          SELECTED_DRIVER_FILE = null;
+          document.getElementById('lx-file-title').value = '';
+          renderFileSection();
+          if (notyf) notyf.success('Upload hồ sơ thành công');
+        } else {
+          if (notyf) notyf.error((res && res.message) || 'Upload không thành công');
+        }
+      } else {
+        btn.removeAttribute('disabled');
+        btn.innerHTML = '<i class="ti tabler-upload me-1"></i>Upload';
+        if (notyf) notyf.error((res && res.message) || 'Upload không thành công');
+      }
+    };
+    xhr.onerror = function () {
+      btn.removeAttribute('disabled');
+      btn.innerHTML = '<i class="ti tabler-upload me-1"></i>Upload';
+      if (notyf) notyf.error('Lỗi kết nối server');
+    };
+    xhr.send(formData);
+  }
+
+  function saveDriverFileMeta(fileId) {
+    var row = document.querySelector('#lai-xe-file-tbody tr[data-file-id="' + cssEscape(fileId) + '"]');
+    if (!row || !CURRENT_DRIVER_ID) return;
+    var btn = row.querySelector('.btn-lx-file-save');
+    var payload = {
+      loai: row.querySelector('.lx-file-edit-type').value || 'khac',
+      ten_hien_thi: row.querySelector('.lx-file-edit-title').value || ''
+    };
+    if (btn) {
+      btn.setAttribute('disabled', 'disabled');
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    }
+
+    $.ajax({
+      url: '/api/lai-xe/' + CURRENT_DRIVER_ID + '/file/' + encodeURIComponent(fileId),
+      type: 'PUT',
+      contentType: 'application/json',
+      data: JSON.stringify(payload),
+      dataType: 'json',
+      success: function (res) {
+        if (res.status === 'success' && res.data) {
+          CURRENT_FILES = res.data.files || [];
+          renderFileSection();
+          if (notyf) notyf.success('Cập nhật hồ sơ thành công');
+        } else {
+          renderFileSection();
+          if (notyf) notyf.error(res.message || 'Cập nhật không thành công');
+        }
+      },
+      error: function (jqXHR) {
+        renderFileSection();
+        if (notyf) notyf.error(apiMsg(jqXHR));
+      }
+    });
+  }
+
+  function confirmDeleteDriverFile(fileId) {
+    if (!CURRENT_DRIVER_ID) return;
+    var done = function () { deleteDriverFile(fileId); };
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: 'Xác nhận xoá',
+        text: 'Bạn có chắc chắn muốn xoá file hồ sơ này?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Xoá',
+        cancelButtonText: 'Huỷ',
+        confirmButtonColor: '#d33',
+        customClass: { confirmButton: 'btn btn-danger', cancelButton: 'btn btn-label-secondary ms-1' },
+        buttonsStyling: false
+      }).then(function (result) {
+        if (result.isConfirmed) done();
+      });
+    } else if (confirm('Xác nhận xoá file hồ sơ này?')) {
+      done();
+    }
+  }
+
+  function deleteDriverFile(fileId) {
+    $.ajax({
+      url: '/api/lai-xe/' + CURRENT_DRIVER_ID + '/file/' + encodeURIComponent(fileId),
+      type: 'DELETE',
+      dataType: 'json',
+      success: function (res) {
+        if (res.status === 'success' && res.data) {
+          CURRENT_FILES = res.data.files || [];
+          renderFileSection();
+          if (notyf) notyf.success('Xoá hồ sơ thành công');
+        } else {
+          if (notyf) notyf.error(res.message || 'Xoá không thành công');
+        }
+      },
+      error: function (jqXHR) {
+        if (notyf) notyf.error(apiMsg(jqXHR));
+      }
+    });
+  }
+
+  function viewDriverFile(fileId) {
+    var index = findFileIndex(fileId);
+    if (index < 0 || !CURRENT_FILES[index].url) {
+      if (notyf) notyf.error('Không tìm thấy đường dẫn file');
+      return;
+    }
+    window.open(CURRENT_FILES[index].url, '_blank', 'noopener');
+  }
+
+  function findFileIndex(fileId) {
+    for (var i = 0; i < CURRENT_FILES.length; i++) {
+      if (String(CURRENT_FILES[i].id) === String(fileId)) return i;
+    }
+    return -1;
+  }
+
+  function fileTypeLabel(type) {
+    return FILE_TYPE_LABELS[type] || FILE_TYPE_LABELS.khac;
+  }
+
+  function fileTypeOptions(value) {
+    var html = '';
+    for (var key in FILE_TYPE_LABELS) {
+      if (!Object.prototype.hasOwnProperty.call(FILE_TYPE_LABELS, key)) continue;
+      html += '<option value="' + escapeHtml(key) + '"' + (key === value ? ' selected' : '') + '>' + escapeHtml(FILE_TYPE_LABELS[key]) + '</option>';
+    }
+    return html;
+  }
+
+  function fileIcon(file) {
+    var mime = file && file.mime ? String(file.mime) : '';
+    return mime.indexOf('pdf') !== -1 ? 'tabler-file-type-pdf text-danger' : 'tabler-photo text-info';
+  }
+
+  function fileUploadedText(file) {
+    if (!file) return '';
+    if (file.uploaded_text) return file.uploaded_text;
+    if (file.uploaded) {
+      var d = new Date(parseInt(file.uploaded, 10) * 1000);
+      if (!isNaN(d.getTime())) {
+        return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+      }
+    }
+    return '';
+  }
+
+  function formatFileSize(size) {
+    size = parseInt(size, 10) || 0;
+    if (!size) return '';
+    if (size < 1024) return size + ' B';
+    if (size < 1024 * 1024) return Math.round(size / 1024) + ' KB';
+    return (size / 1024 / 1024).toFixed(1).replace('.0', '') + ' MB';
+  }
+
+  function pad2(n) {
+    return n < 10 ? '0' + n : String(n);
+  }
+
+  function cssEscape(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+      return window.CSS.escape(value);
+    }
+    return String(value).replace(/"/g, '\\"');
   }
 
   function initDatePickers() {

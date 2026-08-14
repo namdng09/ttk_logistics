@@ -73,6 +73,11 @@ function lai_xe_schema() {
         'type' => 'text',
         'not null' => FALSE,
       ),
+      'thong_tin_json' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ),
       'hoat_dong' => array(
         'type' => 'int',
         'size' => 'tiny',
@@ -185,5 +190,15 @@ function lai_xe_update_7008() {
   $field = db_query("SHOW COLUMNS FROM {lai_xe} LIKE 'luong'")->fetch();
   if ($field) {
     db_query("ALTER TABLE {lai_xe} DROP COLUMN luong");
+  }
+}
+
+function lai_xe_update_7009() {
+  if (!db_field_exists('lai_xe', 'thong_tin_json')) {
+    db_add_field('lai_xe', 'thong_tin_json', array(
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => FALSE,
+    ));
   }
 }

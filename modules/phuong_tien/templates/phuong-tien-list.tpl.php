@@ -163,6 +163,66 @@
               <label class="form-label">Hạn phù hiệu</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="han_phu_hieu" placeholder="dd/MM/yyyy">
             </div>
+
+            <div class="col-12">
+              <div class="phuong-tien-file-section" id="phuong-tien-file-section">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                  <label class="form-label mb-0"><i class="ti tabler-files me-2"></i>Hồ sơ tài liệu</label>
+                  <span class="badge rounded-pill bg-label-secondary border" id="phuong-tien-file-count">0 file</span>
+                </div>
+
+                <div class="alert alert-light border py-2 px-3 mb-2 small" id="phuong-tien-file-create-note" style="display:none;">
+                  Lưu thông tin phương tiện trước khi upload hồ sơ.
+                </div>
+
+                <div class="phuong-tien-file-upload row g-2 align-items-end mb-2" id="phuong-tien-file-upload">
+                  <div class="col-12 col-lg-3">
+                    <label class="form-label">Loại hồ sơ</label>
+                    <select class="form-select form-select-sm" id="pt-file-type" name="loai" form="phuong-tien-file-form">
+                      <option value="dang_ky_xe">Đăng ký xe</option>
+                      <option value="dang_kiem">Đăng kiểm</option>
+                      <option value="bao_hiem_than_vo">Bảo hiểm thân vỏ</option>
+                      <option value="bao_hiem_tnds">Bảo hiểm TNDS</option>
+                      <option value="phu_hieu">Phù hiệu</option>
+                      <option value="khac">Khác</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label">Tên hiển thị</label>
+                    <input type="text" class="form-control form-control-sm" id="pt-file-title" name="ten_hien_thi" form="phuong-tien-file-form" placeholder="VD: Đăng kiểm xe">
+                  </div>
+                  <div class="col-12 col-lg-3">
+                    <label class="form-label">File</label>
+                    <input type="file" class="form-control form-control-sm" id="pt-file-input" name="vehicle_file" form="phuong-tien-file-form" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf">
+                  </div>
+                  <div class="col-12 col-lg-2">
+                    <button type="button" class="btn btn-sm btn-primary w-100" id="btn-upload-phuong-tien-file">
+                      <i class="ti tabler-upload me-1"></i>Upload
+                    </button>
+                  </div>
+                </div>
+
+                <div class="table-responsive phuong-tien-file-table-wrap">
+                  <table class="table table-bordered table-hover table-sm align-middle mb-0 phuong-tien-file-table">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width:56px">#</th>
+                        <th style="width:170px">Loại hồ sơ</th>
+                        <th>Tên file</th>
+                        <th style="width:120px" class="text-end">Dung lượng</th>
+                        <th style="width:150px" class="text-center">Ngày upload</th>
+                        <th style="width:120px" class="text-center">CN</th>
+                      </tr>
+                    </thead>
+                    <tbody id="phuong-tien-file-tbody">
+                      <tr>
+                        <td colspan="6" class="text-center text-muted py-3">Chưa có hồ sơ</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -172,6 +232,7 @@
           </button>
         </div>
       </form>
+      <form id="phuong-tien-file-form" enctype="multipart/form-data" style="display:none;"></form>
     </div>
   </div>
 </div>

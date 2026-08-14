@@ -46,6 +46,20 @@ function phuong_tien_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/phuong-tien/%/file'] = array(
+    'page callback' => 'phuong_tien_rest_file_collection',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/phuong-tien/%/file/%'] = array(
+    'page callback' => 'phuong_tien_rest_file_item',
+    'page arguments' => array(2, 4),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/phuong-tien/%'] = array(
     'page callback' => 'phuong_tien_rest_item',
     'page arguments' => array(2),
@@ -168,6 +182,103 @@ function _phuong_tien_method_not_allowed($allowed) {
   drupal_add_http_header('Status', '405 Method Not Allowed');
   drupal_add_http_header('Allow', $allowed);
   return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+function _phuong_tien_json_decode($raw) {
+  if (is_array($raw)) return $raw;
+  if (!is_string($raw) || trim($raw) === '') return array();
+  $decoded = json_decode($raw, TRUE);
+  return is_array($decoded) ? $decoded : array();
+}
+
+function _phuong_tien_json_encode($data) {
+  return json_encode(is_array($data) ? $data : array(), JSON_UNESCAPED_UNICODE);
+}
+
+function _phuong_tien_ensure_thong_tin_json_field() {
+  if (db_table_exists('phuong_tien') && !db_field_exists('phuong_tien', 'thong_tin_json')) {
+    db_add_field('phuong_tien', 'thong_tin_json', array(
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => FALSE,
+    ));
+  }
+}
+
+function _phuong_tien_normalize_record($row) {
+  if (!$row) return $row;
+  $json = _phuong_tien_json_decode(isset($row->thong_tin_json) ? $row->thong_tin_json : '');
+  if (empty($json['files']) || !is_array($json['files'])) {
+    $json['files'] = array();
+  }
+  foreach ($json['files'] as &$file) {
+    if (!empty($file['uri'])) {
+      $file['url'] = file_create_url($file['uri']);
+    }
+  }
+  unset($file);
+  $row->thong_tin_json = $json;
+  $row->files = $json['files'];
+  return $row;
+}
+
+function _phuong_tien_file_type_label($type) {
+  $labels = array(
+    'dang_ky_xe' => 'Đăng ký xe',
+    'dang_kiem' => 'Đăng kiểm',
+    'bao_hiem_than_vo' => 'Bảo hiểm thân vỏ',
+    'bao_hiem_tnds' => 'Bảo hiểm TNDS',
+    'phu_hieu' => 'Phù hiệu',
+    'khac' => 'Khác',
+  );
+  return isset($labels[$type]) ? $labels[$type] : 'Khác';
+}
+
+function _phuong_tien_file_index($files, $file_id) {
+  foreach ($files as $index => $file) {
+    if (!empty($file['id']) && (string) $file['id'] === (string) $file_id) {
+      return $index;
+    }
+  }
+  return -1;
+}
+
+function _phuong_tien_save_uploaded_file($field, $dir) {
+  if (empty($_FILES[$field]) || empty($_FILES[$field]['name'])) return NULL;
+
+  $upload = $_FILES[$field];
+  if (!empty($upload['error'])) return NULL;
+
+  $max_size = 10 * 1024 * 1024;
+  $size = isset($upload['size']) ? (int) $upload['size'] : 0;
+  if ($size <= 0 || $size > $max_size) return FALSE;
+
+  $original = drupal_basename($upload['name']);
+  $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+  $allowed_ext = array('jpg', 'jpeg', 'png', 'webp', 'pdf');
+  if (!in_array($ext, $allowed_ext)) return FALSE;
+  if (!is_uploaded_file($upload['tmp_name'])) return FALSE;
+
+  $safe_name = file_munge_filename($original, 'jpg jpeg png webp pdf', FALSE);
+  $destination = file_unmanaged_save_data(file_get_contents($upload['tmp_name']), $dir . '/' . $safe_name, FILE_EXISTS_RENAME);
+  if (!$destination) return FALSE;
+
+  $mime = file_get_mimetype($destination);
+  $allowed_mime = array('image/jpeg', 'image/png', 'image/webp', 'application/pdf');
+  if ($mime && !in_array($mime, $allowed_mime)) {
+    file_unmanaged_delete($destination);
+    return FALSE;
+  }
+
+  global $user;
+  $file = new stdClass();
+  $file->uid = isset($user->uid) ? (int) $user->uid : 0;
+  $file->filename = $original;
+  $file->uri = $destination;
+  $file->filemime = $mime ?: 'application/octet-stream';
+  $file->filesize = filesize($destination);
+  $file->status = FILE_STATUS_PERMANENT;
+  return file_save($file);
 }
 
 /**
@@ -338,6 +449,7 @@ function _phuong_tien_rest_list() {
     unset($row->lai_xe_ten);
     unset($row->lai_xe_sdt);
     unset($row->lai_xe_bang_lai);
+    _phuong_tien_normalize_record($row);
   }
   unset($row);
 
@@ -382,6 +494,8 @@ function _phuong_tien_rest_create() {
     if ($err) return $err;
   }
 
+  _phuong_tien_ensure_thong_tin_json_field();
+
   $transaction = db_transaction();
   try {
     $nid = db_insert('phuong_tien')
@@ -401,6 +515,7 @@ function _phuong_tien_rest_create() {
         'han_bao_hiem_tnds' => isset($input['han_bao_hiem_tnds']) ? $input['han_bao_hiem_tnds'] : '',
         'ngay_phu_hieu' => isset($input['ngay_phu_hieu']) ? $input['ngay_phu_hieu'] : '',
         'han_phu_hieu' => isset($input['han_phu_hieu']) ? $input['han_phu_hieu'] : '',
+        'thong_tin_json' => _phuong_tien_json_encode(array('files' => array())),
         'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
         'created' => date('Y-m-d H:i:s', REQUEST_TIME),
         'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
@@ -408,6 +523,7 @@ function _phuong_tien_rest_create() {
       ->execute();
 
     $row = db_query("SELECT * FROM {phuong_tien} WHERE nid = :id", array(':id' => $nid))->fetch();
+    _phuong_tien_normalize_record($row);
 
     watchdog('phuong_tien', 'Tạo phương tiện #%id: %bks', array(
       '%id' => $nid,
@@ -477,6 +593,7 @@ function _phuong_tien_rest_get($id) {
   unset($row->lai_xe_ten);
   unset($row->lai_xe_sdt);
   unset($row->lai_xe_bang_lai);
+  _phuong_tien_normalize_record($row);
 
   return _phuong_tien_success($row);
 }
@@ -543,6 +660,7 @@ function _phuong_tien_rest_update($id) {
       ->execute();
 
     $row = db_query("SELECT * FROM {phuong_tien} WHERE nid = :id", array(':id' => $id))->fetch();
+    _phuong_tien_normalize_record($row);
 
     watchdog('phuong_tien', 'Cập nhật phương tiện #%id', array('%id' => $id));
 
@@ -584,6 +702,193 @@ function _phuong_tien_rest_delete($id) {
     watchdog('phuong_tien', 'Lỗi xoá phương tiện #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
     return _phuong_tien_error('Lỗi hệ thống khi xoá phương tiện');
   }
+}
+
+/*******************************************************************************
+ * REST: VEHICLE FILES — POST /api/phuong-tien/{id}/file, PUT/DELETE /file/{file_id}
+ ******************************************************************************/
+
+function phuong_tien_rest_file_collection($id) {
+  $id = (int) $id;
+  if (!$id) {
+    return _phuong_tien_fail('ID không hợp lệ');
+  }
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'POST':
+      return _phuong_tien_rest_file_upload($id);
+    default:
+      return _phuong_tien_method_not_allowed('POST');
+  }
+}
+
+function phuong_tien_rest_file_item($id, $file_id) {
+  $id = (int) $id;
+  $file_id = trim((string) $file_id);
+  if (!$id || $file_id === '') {
+    return _phuong_tien_fail('Thông tin file không hợp lệ');
+  }
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'PUT':
+      return _phuong_tien_rest_file_update($id, $file_id);
+    case 'DELETE':
+      return _phuong_tien_rest_file_delete($id, $file_id);
+    default:
+      return _phuong_tien_method_not_allowed('PUT, DELETE');
+  }
+}
+
+function _phuong_tien_load_file_context($id) {
+  _phuong_tien_ensure_thong_tin_json_field();
+  $row = db_query("SELECT nid, bks, thong_tin_json FROM {phuong_tien} WHERE nid = :id AND hoat_dong = 1", array(':id' => (int) $id))->fetch();
+  if (!$row) return NULL;
+  $json = _phuong_tien_json_decode(isset($row->thong_tin_json) ? $row->thong_tin_json : '');
+  if (empty($json['files']) || !is_array($json['files'])) {
+    $json['files'] = array();
+  }
+  $row->thong_tin_json = $json;
+  return $row;
+}
+
+function _phuong_tien_save_file_context($id, $json) {
+  db_update('phuong_tien')
+    ->fields(array(
+      'thong_tin_json' => _phuong_tien_json_encode($json),
+      'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+    ))
+    ->condition('nid', (int) $id)
+    ->execute();
+}
+
+function _phuong_tien_rest_file_upload($id) {
+  if (!user_access('phuong_tien_create')) {
+    return _phuong_tien_unauthorized('Bạn không có quyền upload hồ sơ phương tiện');
+  }
+
+  $context = _phuong_tien_load_file_context($id);
+  if (!$context) {
+    return _phuong_tien_not_found('Phương tiện không tồn tại');
+  }
+
+  if (empty($_FILES['vehicle_file'])) {
+    return _phuong_tien_fail('Vui lòng chọn file cần upload');
+  }
+
+  $dir = 'public://phuong_tien_files/' . (int) $id;
+  if (!file_prepare_directory($dir, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
+    return _phuong_tien_error('Không thể tạo thư mục lưu hồ sơ phương tiện');
+  }
+
+  $file = _phuong_tien_save_uploaded_file('vehicle_file', $dir);
+  if (!$file) {
+    return _phuong_tien_fail('File không hợp lệ. Chỉ hỗ trợ ảnh JPG, JPEG, PNG, WEBP hoặc PDF tối đa 10MB');
+  }
+
+  global $user;
+  $loai = !empty($_POST['loai']) ? trim($_POST['loai']) : 'khac';
+  $title = !empty($_POST['ten_hien_thi']) ? trim($_POST['ten_hien_thi']) : $file->filename;
+  $item = array(
+    'id' => 'file_' . REQUEST_TIME . '_' . (int) $file->fid,
+    'loai' => $loai,
+    'loai_label' => _phuong_tien_file_type_label($loai),
+    'ten_hien_thi' => $title,
+    'fid' => (int) $file->fid,
+    'filename' => $file->filename,
+    'uri' => $file->uri,
+    'url' => file_create_url($file->uri),
+    'mime' => $file->filemime,
+    'size' => (int) $file->filesize,
+    'uploaded' => REQUEST_TIME,
+    'uploaded_text' => date('d/m/Y H:i', REQUEST_TIME),
+    'uid' => isset($user->uid) ? (int) $user->uid : 0,
+  );
+
+  $json = $context->thong_tin_json;
+  $json['files'][] = $item;
+  _phuong_tien_save_file_context($id, $json);
+
+  watchdog('phuong_tien', 'Upload hồ sơ phương tiện #%id: %file', array('%id' => $id, '%file' => $file->filename));
+
+  return _phuong_tien_success(array(
+    'nid' => $id,
+    'file' => $item,
+    'files' => $json['files'],
+  ));
+}
+
+function _phuong_tien_rest_file_update($id, $file_id) {
+  if (!user_access('phuong_tien_create')) {
+    return _phuong_tien_unauthorized('Bạn không có quyền sửa hồ sơ phương tiện');
+  }
+
+  $context = _phuong_tien_load_file_context($id);
+  if (!$context) {
+    return _phuong_tien_not_found('Phương tiện không tồn tại');
+  }
+
+  $json = $context->thong_tin_json;
+  $index = _phuong_tien_file_index($json['files'], $file_id);
+  if ($index < 0) {
+    return _phuong_tien_not_found('File không tồn tại');
+  }
+
+  $input = _phuong_tien_input();
+  if (isset($input['loai'])) {
+    $json['files'][$index]['loai'] = trim($input['loai']) ?: 'khac';
+    $json['files'][$index]['loai_label'] = _phuong_tien_file_type_label($json['files'][$index]['loai']);
+  }
+  if (isset($input['ten_hien_thi'])) {
+    $title = trim($input['ten_hien_thi']);
+    $json['files'][$index]['ten_hien_thi'] = $title !== '' ? $title : (isset($json['files'][$index]['filename']) ? $json['files'][$index]['filename'] : '');
+  }
+
+  _phuong_tien_save_file_context($id, $json);
+
+  return _phuong_tien_success(array(
+    'nid' => $id,
+    'file' => $json['files'][$index],
+    'files' => $json['files'],
+  ));
+}
+
+function _phuong_tien_rest_file_delete($id, $file_id) {
+  if (!user_access('phuong_tien_create')) {
+    return _phuong_tien_unauthorized('Bạn không có quyền xoá hồ sơ phương tiện');
+  }
+
+  $context = _phuong_tien_load_file_context($id);
+  if (!$context) {
+    return _phuong_tien_not_found('Phương tiện không tồn tại');
+  }
+
+  $json = $context->thong_tin_json;
+  $index = _phuong_tien_file_index($json['files'], $file_id);
+  if ($index < 0) {
+    return _phuong_tien_not_found('File không tồn tại');
+  }
+
+  $deleted = $json['files'][$index];
+  if (!empty($deleted['fid'])) {
+    $file = file_load((int) $deleted['fid']);
+    if ($file) {
+      file_delete($file, TRUE);
+    }
+  }
+
+  array_splice($json['files'], $index, 1);
+  _phuong_tien_save_file_context($id, $json);
+
+  watchdog('phuong_tien', 'Xoá hồ sơ phương tiện #%id: %file', array(
+    '%id' => $id,
+    '%file' => !empty($deleted['filename']) ? $deleted['filename'] : $file_id,
+  ));
+
+  return _phuong_tien_success(array(
+    'nid' => $id,
+    'deleted' => TRUE,
+    'files' => $json['files'],
+  ));
 }
 
 /*******************************************************************************
