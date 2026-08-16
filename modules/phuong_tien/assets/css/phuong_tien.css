@@ -10,6 +10,11 @@
   cursor: default;
 }
 
+.phuong-tien-specs-cell {
+  font-size: inherit;
+  line-height: 1.45;
+}
+
 .phuong-tien-form-section-title {
   display: flex;
   align-items: center;

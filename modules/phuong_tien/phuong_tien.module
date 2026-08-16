@@ -195,6 +195,10 @@ function _phuong_tien_json_encode($data) {
   return json_encode(is_array($data) ? $data : array(), JSON_UNESCAPED_UNICODE);
 }
 
+function _phuong_tien_numeric_only($value) {
+  return preg_replace('/[^\d]/', '', (string) $value);
+}
+
 function _phuong_tien_ensure_thong_tin_json_field() {
   if (db_table_exists('phuong_tien') && !db_field_exists('phuong_tien', 'thong_tin_json')) {
     db_add_field('phuong_tien', 'thong_tin_json', array(
@@ -535,7 +539,7 @@ function _phuong_tien_rest_create() {
         'so_cau' => isset($input['so_cau']) && $input['so_cau'] !== '' ? (int) $input['so_cau'] : NULL,
         'loai_mooc' => isset($input['loai_mooc']) ? $input['loai_mooc'] : '',
         'so_truc' => isset($input['so_truc']) && $input['so_truc'] !== '' ? (int) $input['so_truc'] : NULL,
-        'chieu_dai_mooc' => isset($input['chieu_dai_mooc']) ? $input['chieu_dai_mooc'] : '',
+        'chieu_dai_mooc' => isset($input['chieu_dai_mooc']) ? _phuong_tien_numeric_only($input['chieu_dai_mooc']) : '',
         'gia_mua' => isset($input['gia_mua']) && $input['gia_mua'] !== '' ? $input['gia_mua'] : NULL,
         'ngay_mua' => isset($input['ngay_mua']) ? $input['ngay_mua'] : '',
         'so_dang_kiem' => isset($input['so_dang_kiem']) ? $input['so_dang_kiem'] : '',
@@ -684,6 +688,9 @@ function _phuong_tien_rest_update($id) {
       $val = $input[$f];
       if (in_array($f, $nullable) && is_string($val) && trim($val) === '') {
         $val = NULL;
+      }
+      if ($f === 'chieu_dai_mooc') {
+        $val = _phuong_tien_numeric_only($val);
       }
       $update[$f] = $val;
     }

@@ -200,6 +200,23 @@
       weightFields[wf].addEventListener('input', updateTotalWeight);
       weightFields[wf].addEventListener('change', updateTotalWeight);
     }
+    var integerFields = doc.querySelectorAll('#form-phuong-tien .integer-only');
+    for (var intIndex = 0; intIndex < integerFields.length; intIndex++) {
+      integerFields[intIndex].addEventListener('keydown', blockNonIntegerKey);
+      integerFields[intIndex].addEventListener('input', normalizeIntegerInput);
+      integerFields[intIndex].addEventListener('paste', function () {
+        var el = this;
+        setTimeout(function () { normalizeIntegerInput.call(el); }, 0);
+      });
+    }
+    doc.addEventListener('beforeinput', function (e) {
+      if (!e.target || !e.target.classList || !e.target.classList.contains('integer-only')) return;
+      if (e.data && /[^0-9]/.test(e.data)) e.preventDefault();
+    });
+    doc.addEventListener('input', function (e) {
+      if (!e.target || !e.target.classList || !e.target.classList.contains('integer-only')) return;
+      normalizeIntegerInput.call(e.target);
+    });
 
     // Modal events
     var modal = doc.getElementById('phuong-tien-modal');
@@ -347,6 +364,9 @@
     } else if (data.loai_phuong_tien === 'mooc') {
       data.so_cau = '';
     }
+    data.so_cau = numericOnly(data.so_cau);
+    data.so_truc = numericOnly(data.so_truc);
+    data.chieu_dai_mooc = numericOnly(data.chieu_dai_mooc);
 
     var nid = data.nid;
     var url = nid ? '/api/phuong-tien/' + nid : '/api/phuong-tien';
@@ -480,11 +500,11 @@
       var mooc = [];
       if (item.loai_mooc) mooc.push(escapeHtml(LOAI_MOOC_MAP[item.loai_mooc] || item.loai_mooc));
       if (item.so_truc) mooc.push(escapeHtml(item.so_truc) + ' trục');
-      if (item.chieu_dai_mooc) mooc.push(escapeHtml(item.chieu_dai_mooc));
+      if (item.chieu_dai_mooc) mooc.push(escapeHtml(item.chieu_dai_mooc) + ' Feet');
       if (mooc.length) lines.push(mooc.join(' - '));
     }
     if (!lines.length) return '<span class="text-muted fst-italic">Chưa có</span>';
-    return '<div class="small">' + lines.join('<br>') + '</div>';
+    return '<div class="phuong-tien-specs-cell">' + lines.join('<br>') + '</div>';
   }
 
   function formatMoney(n) {
@@ -500,6 +520,21 @@
     var raw = String(value || '').replace(/\./g, '').replace(/,/g, '.').replace(/[^\d.-]/g, '');
     var num = parseFloat(raw);
     return isNaN(num) ? 0 : num;
+  }
+
+  function numericOnly(value) {
+    return String(value || '').replace(/[^\d]/g, '');
+  }
+
+  function blockNonIntegerKey(e) {
+    if (['e', 'E', '+', '-', '.', ','].indexOf(e.key) !== -1) {
+      e.preventDefault();
+    }
+  }
+
+  function normalizeIntegerInput() {
+    var clean = numericOnly(this.value);
+    if (this.value !== clean) this.value = clean;
   }
 
   function updateTotalWeight() {

@@ -8,7 +8,7 @@
     <div class="row mb-3 align-items-center">
       <div class="col-12 col-md-4 mb-2 mb-md-0">
         <div class="input-group">
-          <input type="text" class="form-control" id="search-phuong-tien" placeholder="Tìm kiếm (BKS, mã TS, hãng xe)...">
+          <input type="text" class="form-control" id="search-phuong-tien" placeholder="Tìm kiếm (BKS, mã TS, nhãn hiệu)...">
           <button class="btn btn-primary" type="button" id="btn-search-phuong-tien">
             <i class="ti tabler-search"></i> Tìm
           </button>
@@ -43,7 +43,7 @@
             <th>BKS</th>
             <th>Mã Tài sản</th>
             <th>Loại</th>
-            <th>Hãng xe</th>
+            <th>Nhãn hiệu</th>
             <th>Thông số</th>
             <th>Lái xe</th>
           </tr>
@@ -117,8 +117,8 @@
               <div class="invalid-feedback">Vui lòng chọn loại phương tiện</div>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Hãng xe</label>
-              <input type="text" class="form-control" name="hang_xe" placeholder="VD: Honda, Hyundai...">
+              <label class="form-label">Nhãn hiệu</label>
+              <input type="text" class="form-control" name="hang_xe" placeholder="VD: HYUNDAI, CIMC, DONGFENG...">
             </div>
             <div class="col-md-4">
               <label class="form-label">Màu sắc</label>
@@ -157,7 +157,7 @@
             </div>
             <div class="col-md-4 pt-dau-keo-field">
               <label class="form-label">Số cầu</label>
-              <input type="text" class="form-control" name="so_cau" placeholder="VD: 2" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <input type="number" class="form-control integer-only" name="so_cau" placeholder="VD: 2" min="0" step="1" inputmode="numeric" pattern="[0-9]*" onkeydown="return ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','Home','End'].indexOf(event.key) !== -1 || /^[0-9]$/.test(event.key)" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
             </div>
 
             <div class="col-12 pt-mooc-field">
@@ -178,11 +178,14 @@
             </div>
             <div class="col-md-4 pt-mooc-field">
               <label class="form-label">Số trục</label>
-              <input type="text" class="form-control" name="so_truc" placeholder="VD: 3" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <input type="number" class="form-control integer-only" name="so_truc" placeholder="VD: 3" min="0" step="1" inputmode="numeric" pattern="[0-9]*" onkeydown="return ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','Home','End'].indexOf(event.key) !== -1 || /^[0-9]$/.test(event.key)" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
             </div>
             <div class="col-md-4 pt-mooc-field">
               <label class="form-label">Chiều dài mooc</label>
-              <input type="text" class="form-control" name="chieu_dai_mooc" placeholder="VD: 45 Feet">
+              <div class="input-group">
+                <input type="number" class="form-control integer-only" name="chieu_dai_mooc" placeholder="VD: 45" min="0" step="1" inputmode="numeric" pattern="[0-9]*" onkeydown="return ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','Home','End'].indexOf(event.key) !== -1 || /^[0-9]$/.test(event.key)" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                <span class="input-group-text">Feet</span>
+              </div>
             </div>
 
             <div class="col-12">
