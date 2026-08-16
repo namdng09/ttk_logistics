@@ -1,0 +1,190 @@
+.lssx-table th {
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.lssx-table td {
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+#lssx-modal .modal-content {
+  height: 100%;
+}
+
+#lssx-modal #lssx-form {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#lssx-modal .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#lssx-modal .modal-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid #e6e8ef;
+  background: #fff;
+}
+
+.lssx-section-title {
+  min-height: 36px;
+  margin-bottom: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #e6e8ef;
+  border-radius: 0.375rem;
+  background: #eef3f8;
+  color: #566a7f;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.lssx-modal-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.lssx-hang-muc-table > thead > tr > th {
+  white-space: nowrap;
+  background: #dfdfe3 !important;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  line-height: 1.2;
+  font-size: 0.78rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.lssx-hang-muc-table td {
+  font-size: 0.84rem;
+}
+
+.lssx-hang-muc-table tbody tr:hover td {
+  background: #f8fbff;
+}
+
+.lssx-hang-muc-table .form-control {
+  min-height: 32px;
+}
+
+.lssx-file-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.lssx-file-group {
+  border: 1px solid #e6e8ef;
+  border-radius: 0.375rem;
+  background: #fff;
+  overflow: hidden;
+}
+
+.lssx-file-group-title {
+  padding: 0.5rem 0.75rem;
+  background: #eef3f8;
+  color: #566a7f;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.lssx-file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.lssx-file-item {
+  position: relative;
+  min-width: 0;
+  border: 1px solid #e6e8ef;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  background: #fff;
+}
+
+.lssx-file-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 0;
+  border-radius: 0.375rem;
+  background: #f5f6f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+}
+
+.lssx-file-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lssx-file-thumb .ti {
+  font-size: 2.5rem;
+}
+
+.lssx-file-name {
+  margin-top: 0.45rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lssx-file-meta {
+  font-size: 0.74rem;
+  color: #a1acb8;
+}
+
+.lssx-file-item .btn-lssx-file-delete {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.85rem;
+  height: 1.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lssx-preview-img {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.lssx-preview-pdf {
+  width: 100%;
+  height: 75vh;
+  min-height: 520px;
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.lssx-preview-pdf iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.flatpickr-calendar {
+  z-index: 99999 !important;
+}

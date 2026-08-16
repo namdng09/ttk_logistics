@@ -1,0 +1,586 @@
+<?php
+
+/**
+ * @file
+ * Lịch Sử Sửa Xe — custom schema, RESTful API + modal CRUD.
+ */
+
+function lich_su_sua_xe_permission() {
+  return array(
+    'lich_su_sua_xe_view' => array('title' => t('Xem lịch sử sửa xe')),
+    'lich_su_sua_xe_create' => array('title' => t('Tạo/sửa lịch sử sửa xe')),
+    'lich_su_sua_xe_delete' => array('title' => t('Xoá lịch sử sửa xe')),
+  );
+}
+
+function lich_su_sua_xe_init() {
+  $path = current_path();
+  if (strpos($path, 'api/lich-su-sua-xe') === 0) {
+    drupal_add_http_header('Access-Control-Allow-Origin', '*');
+    drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    drupal_add_http_header('Access-Control-Max-Age', '86400');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      drupal_add_http_header('Status', '204 No Content');
+      drupal_exit();
+    }
+  }
+}
+
+function lich_su_sua_xe_menu() {
+  $items = array();
+
+  $items['api/lich-su-sua-xe'] = array(
+    'page callback' => 'lich_su_sua_xe_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/lich-su-sua-xe/%/file'] = array(
+    'page callback' => 'lich_su_sua_xe_rest_file_collection',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/lich-su-sua-xe/%/file/%'] = array(
+    'page callback' => 'lich_su_sua_xe_rest_file_item',
+    'page arguments' => array(2, 4),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/lich-su-sua-xe/%'] = array(
+    'page callback' => 'lich_su_sua_xe_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  $items['lich-su-sua-xe'] = array(
+    'title' => 'Lịch sử sửa xe',
+    'page callback' => 'lich_su_sua_xe_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+function lich_su_sua_xe_theme() {
+  $path = drupal_get_path('module', 'lich_su_sua_xe') . '/templates';
+  return array(
+    'lich_su_sua_xe_list_page' => array(
+      'template' => 'lich-su-sua-xe-list',
+      'path' => $path,
+    ),
+  );
+}
+
+/*******************************************************************************
+ * Helpers
+ ******************************************************************************/
+
+function _lssx_input() {
+  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+}
+
+function _lssx_success($data = NULL) {
+  $response = array('status' => 'success');
+  if ($data !== NULL) {
+    $response['data'] = $data;
+  }
+  return $response;
+}
+
+function _lssx_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _lssx_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _lssx_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _lssx_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function _lssx_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+function _lssx_json_decode($raw) {
+  if (is_array($raw)) return $raw;
+  if (!is_string($raw) || trim($raw) === '') return array();
+  $decoded = json_decode($raw, TRUE);
+  return is_array($decoded) ? $decoded : array();
+}
+
+function _lssx_json_encode($data) {
+  return json_encode(is_array($data) ? $data : array(), JSON_UNESCAPED_UNICODE);
+}
+
+function _lssx_numeric_only($value) {
+  return preg_replace('/[^\d]/', '', (string) $value);
+}
+
+function _lssx_money_value($value) {
+  $clean = preg_replace('/[^\d]/', '', (string) $value);
+  return $clean === '' ? NULL : $clean;
+}
+
+function _lssx_default_json($json = array()) {
+  $json = is_array($json) ? $json : array();
+  if (empty($json['hang_muc']) || !is_array($json['hang_muc'])) $json['hang_muc'] = array();
+  if (empty($json['files']) || !is_array($json['files'])) $json['files'] = array();
+  foreach ($json['files'] as &$file) {
+    if (!empty($file['uri'])) {
+      $file['url'] = file_create_url($file['uri']);
+    }
+  }
+  unset($file);
+  return $json;
+}
+
+function _lssx_normalize_hang_muc($items) {
+  $result = array();
+  if (!is_array($items)) return $result;
+  foreach ($items as $item) {
+    if (!is_array($item)) continue;
+    $ten = isset($item['ten_hang_muc']) ? trim((string) $item['ten_hang_muc']) : '';
+    if ($ten === '') continue;
+    $so_luong = isset($item['so_luong']) ? (int) _lssx_numeric_only($item['so_luong']) : 1;
+    $don_gia = isset($item['don_gia']) ? _lssx_money_value($item['don_gia']) : 0;
+    $thanh_tien = isset($item['thanh_tien']) ? _lssx_money_value($item['thanh_tien']) : NULL;
+    if ($thanh_tien === NULL) {
+      $thanh_tien = ((float) $don_gia) * max(1, $so_luong);
+    }
+    $result[] = array(
+      'ten_hang_muc' => $ten,
+      'so_luong' => max(1, $so_luong),
+      'don_gia' => $don_gia !== NULL ? $don_gia : 0,
+      'thanh_tien' => $thanh_tien,
+      'co_bao_hanh' => !empty($item['co_bao_hanh']) ? 1 : 0,
+      'ngay_het_bao_hanh' => isset($item['ngay_het_bao_hanh']) ? trim((string) $item['ngay_het_bao_hanh']) : '',
+      'ghi_chu_bao_hanh' => isset($item['ghi_chu_bao_hanh']) ? trim((string) $item['ghi_chu_bao_hanh']) : '',
+    );
+  }
+  return $result;
+}
+
+function _lssx_total_hang_muc($items) {
+  $total = 0;
+  foreach ($items as $item) {
+    $total += isset($item['thanh_tien']) ? (float) $item['thanh_tien'] : 0;
+  }
+  return $total;
+}
+
+function _lssx_normalize_record($row) {
+  if (!$row) return $row;
+  $json = _lssx_default_json(_lssx_json_decode(isset($row->thong_tin_json) ? $row->thong_tin_json : ''));
+  $row->thong_tin_json = $json;
+  $row->hang_muc = $json['hang_muc'];
+  $row->files = $json['files'];
+
+  $row->phuong_tien = !empty($row->pt_nid) ? (object) array(
+    'nid' => (int) $row->pt_nid,
+    'bks' => $row->pt_bks,
+    'ma_tai_san' => $row->pt_ma_tai_san,
+    'loai_phuong_tien' => $row->pt_loai_phuong_tien,
+    'nhan_hieu' => $row->pt_hang_xe,
+  ) : NULL;
+  $row->lai_xe_mang_di_sua = !empty($row->lx_nid) ? (object) array(
+    'nid' => (int) $row->lx_nid,
+    'ten' => $row->lx_ten,
+    'sdt' => $row->lx_sdt,
+  ) : NULL;
+
+  unset($row->pt_nid, $row->pt_bks, $row->pt_ma_tai_san, $row->pt_loai_phuong_tien, $row->pt_hang_xe);
+  unset($row->lx_nid, $row->lx_ten, $row->lx_sdt);
+  return $row;
+}
+
+function _lssx_select_query() {
+  $query = db_select('lich_su_sua_xe', 'lssx');
+  $query->fields('lssx');
+  $query->leftJoin('phuong_tien', 'pt', 'lssx.nid_phuong_tien = pt.nid');
+  $query->addField('pt', 'nid', 'pt_nid');
+  $query->addField('pt', 'bks', 'pt_bks');
+  $query->addField('pt', 'ma_tai_san', 'pt_ma_tai_san');
+  $query->addField('pt', 'loai_phuong_tien', 'pt_loai_phuong_tien');
+  $query->addField('pt', 'hang_xe', 'pt_hang_xe');
+  $query->leftJoin('lai_xe', 'lx', 'lssx.nid_lai_xe_mang_di_sua = lx.nid');
+  $query->addField('lx', 'nid', 'lx_nid');
+  $query->addField('lx', 'ten', 'lx_ten');
+  $query->addField('lx', 'sdt', 'lx_sdt');
+  return $query;
+}
+
+function _lssx_load_record($id) {
+  $query = _lssx_select_query();
+  $query->condition('lssx.nid', (int) $id);
+  $query->condition('lssx.hoat_dong', 1);
+  $row = $query->execute()->fetch();
+  return $row ? _lssx_normalize_record($row) : NULL;
+}
+
+function _lssx_validate_refs($input) {
+  $nid_phuong_tien = isset($input['nid_phuong_tien']) ? (int) $input['nid_phuong_tien'] : 0;
+  if ($nid_phuong_tien <= 0) {
+    return _lssx_fail('Phương tiện là bắt buộc');
+  }
+  $pt_exists = db_query("SELECT nid FROM {phuong_tien} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid_phuong_tien))->fetchField();
+  if (!$pt_exists) {
+    return _lssx_fail('Phương tiện không tồn tại hoặc đã bị xoá');
+  }
+  $nid_lai_xe = isset($input['nid_lai_xe_mang_di_sua']) ? (int) $input['nid_lai_xe_mang_di_sua'] : 0;
+  if ($nid_lai_xe > 0) {
+    $lx_exists = db_query("SELECT nid FROM {lai_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid_lai_xe))->fetchField();
+    if (!$lx_exists) {
+      return _lssx_fail('Lái xe mang đi sửa không tồn tại hoặc đã bị xoá');
+    }
+  }
+  return NULL;
+}
+
+function _lssx_payload_fields($input, $existing_json = array()) {
+  $json = _lssx_default_json($existing_json);
+  if (array_key_exists('hang_muc', $input)) {
+    $json['hang_muc'] = _lssx_normalize_hang_muc($input['hang_muc']);
+  }
+  if (array_key_exists('thay_nhot', $input) && is_array($input['thay_nhot'])) {
+    $json['thay_nhot'] = $input['thay_nhot'];
+  }
+
+  $tong = isset($input['tong_chi_phi']) && trim((string) $input['tong_chi_phi']) !== ''
+    ? _lssx_money_value($input['tong_chi_phi'])
+    : _lssx_total_hang_muc($json['hang_muc']);
+
+  return array(
+    'nid_phuong_tien' => isset($input['nid_phuong_tien']) ? (int) $input['nid_phuong_tien'] : 0,
+    'ngay_sua' => isset($input['ngay_sua']) ? trim((string) $input['ngay_sua']) : '',
+    'loai_sua_chua' => isset($input['loai_sua_chua']) ? trim((string) $input['loai_sua_chua']) : '',
+    'nid_lai_xe_mang_di_sua' => !empty($input['nid_lai_xe_mang_di_sua']) ? (int) $input['nid_lai_xe_mang_di_sua'] : NULL,
+    'co_so_sua_chua' => isset($input['co_so_sua_chua']) ? trim((string) $input['co_so_sua_chua']) : '',
+    'so_km_luc_sua' => isset($input['so_km_luc_sua']) && trim((string) $input['so_km_luc_sua']) !== '' ? (int) _lssx_numeric_only($input['so_km_luc_sua']) : NULL,
+    'so_km_nhac_tiep_theo' => isset($input['so_km_nhac_tiep_theo']) && trim((string) $input['so_km_nhac_tiep_theo']) !== '' ? (int) _lssx_numeric_only($input['so_km_nhac_tiep_theo']) : NULL,
+    'ngay_nhac_tiep_theo' => isset($input['ngay_nhac_tiep_theo']) ? trim((string) $input['ngay_nhac_tiep_theo']) : '',
+    'thoi_gian_sua' => isset($input['thoi_gian_sua']) ? trim((string) $input['thoi_gian_sua']) : '',
+    'tinh_trang_xe' => isset($input['tinh_trang_xe']) ? trim((string) $input['tinh_trang_xe']) : '',
+    'tong_chi_phi' => $tong,
+    'ghi_chu' => isset($input['ghi_chu']) ? trim((string) $input['ghi_chu']) : '',
+    'thong_tin_json' => _lssx_json_encode($json),
+  );
+}
+
+/*******************************************************************************
+ * REST collection/item
+ ******************************************************************************/
+
+function lich_su_sua_xe_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _lssx_rest_list();
+    case 'POST':
+      return _lssx_rest_create();
+    default:
+      return _lssx_method_not_allowed('GET, POST');
+  }
+}
+
+function _lssx_rest_list() {
+  if (!user_access('lich_su_sua_xe_view')) {
+    return _lssx_unauthorized('Bạn không có quyền xem lịch sử sửa xe');
+  }
+
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(200, (int) $_GET['limit'])) : 20;
+  $offset = ($page - 1) * $limit;
+  $query = _lssx_select_query();
+  $query->condition('lssx.hoat_dong', 1);
+
+  if (!empty($_GET['nid_phuong_tien'])) {
+    $query->condition('lssx.nid_phuong_tien', (int) $_GET['nid_phuong_tien']);
+  }
+  if (!empty($_GET['nid_lai_xe_mang_di_sua'])) {
+    $query->condition('lssx.nid_lai_xe_mang_di_sua', (int) $_GET['nid_lai_xe_mang_di_sua']);
+  }
+  if (!empty($_GET['loai_sua_chua'])) {
+    $query->condition('lssx.loai_sua_chua', $_GET['loai_sua_chua']);
+  }
+  if (!empty($_GET['tu_ngay'])) {
+    $query->where("STR_TO_DATE(lssx.ngay_sua, '%d/%m/%Y') >= STR_TO_DATE(:lssx_tu_ngay, '%d/%m/%Y')", array(':lssx_tu_ngay' => $_GET['tu_ngay']));
+  }
+  if (!empty($_GET['den_ngay'])) {
+    $query->where("STR_TO_DATE(lssx.ngay_sua, '%d/%m/%Y') <= STR_TO_DATE(:lssx_den_ngay, '%d/%m/%Y')", array(':lssx_den_ngay' => $_GET['den_ngay']));
+  }
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like($_GET['keyword']) . '%';
+    $query->condition(db_or()
+      ->condition('pt.bks', $like, 'LIKE')
+      ->condition('pt.ma_tai_san', $like, 'LIKE')
+      ->condition('lssx.co_so_sua_chua', $like, 'LIKE')
+      ->condition('lssx.ghi_chu', $like, 'LIKE')
+      ->condition('lx.ten', $like, 'LIKE')
+    );
+  }
+
+  $count = clone $query;
+  $total = $count->countQuery()->execute()->fetchField();
+  $query->orderBy('lssx.ngay_sua', 'DESC');
+  $query->orderBy('lssx.nid', 'DESC');
+  $query->range($offset, $limit);
+  $rows = $query->execute()->fetchAll();
+  foreach ($rows as &$row) {
+    _lssx_normalize_record($row);
+  }
+  unset($row);
+  $total_pages = (int) ceil($total / $limit);
+
+  return _lssx_success(array(
+    'items' => $rows ?: array(),
+    'total' => (int) $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+  ));
+}
+
+function _lssx_rest_create() {
+  if (!user_access('lich_su_sua_xe_create')) {
+    return _lssx_unauthorized('Bạn không có quyền tạo lịch sử sửa xe');
+  }
+  $input = _lssx_input();
+  $ref_err = _lssx_validate_refs($input);
+  if ($ref_err) return $ref_err;
+  if (empty($input['ngay_sua'])) {
+    return _lssx_fail('Ngày sửa là bắt buộc');
+  }
+
+  $fields = _lssx_payload_fields($input);
+  $fields['hoat_dong'] = 1;
+  $fields['created'] = date('Y-m-d H:i:s', REQUEST_TIME);
+  $fields['changed'] = date('Y-m-d H:i:s', REQUEST_TIME);
+
+  $transaction = db_transaction();
+  try {
+    $nid = db_insert('lich_su_sua_xe')->fields($fields)->execute();
+    $row = _lssx_load_record($nid);
+    return _lssx_success($row);
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('lich_su_sua_xe', 'Lỗi tạo lịch sử sửa xe: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _lssx_error('Lỗi hệ thống khi tạo lịch sử sửa xe');
+  }
+}
+
+function lich_su_sua_xe_rest_item($id) {
+  $id = (int) $id;
+  if (!$id) return _lssx_fail('ID không hợp lệ');
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _lssx_rest_get($id);
+    case 'PUT':
+      return _lssx_rest_update($id);
+    case 'DELETE':
+      return _lssx_rest_delete($id);
+    default:
+      return _lssx_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+function _lssx_rest_get($id) {
+  if (!user_access('lich_su_sua_xe_view')) {
+    return _lssx_unauthorized('Bạn không có quyền xem lịch sử sửa xe');
+  }
+  $row = _lssx_load_record($id);
+  if (!$row) return _lssx_not_found('Lịch sử sửa xe không tồn tại');
+  return _lssx_success($row);
+}
+
+function _lssx_rest_update($id) {
+  if (!user_access('lich_su_sua_xe_create')) {
+    return _lssx_unauthorized('Bạn không có quyền sửa lịch sử sửa xe');
+  }
+  $existing = db_query("SELECT * FROM {lich_su_sua_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  if (!$existing) return _lssx_not_found('Lịch sử sửa xe không tồn tại');
+
+  $input = _lssx_input();
+  $ref_err = _lssx_validate_refs($input);
+  if ($ref_err) return $ref_err;
+  if (empty($input['ngay_sua'])) {
+    return _lssx_fail('Ngày sửa là bắt buộc');
+  }
+
+  $existing_json = _lssx_json_decode($existing->thong_tin_json);
+  $fields = _lssx_payload_fields($input, $existing_json);
+  $fields['changed'] = date('Y-m-d H:i:s', REQUEST_TIME);
+
+  $transaction = db_transaction();
+  try {
+    db_update('lich_su_sua_xe')->fields($fields)->condition('nid', $id)->execute();
+    return _lssx_success(_lssx_load_record($id));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('lich_su_sua_xe', 'Lỗi cập nhật lịch sử sửa xe #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _lssx_error('Lỗi hệ thống khi cập nhật lịch sử sửa xe');
+  }
+}
+
+function _lssx_rest_delete($id) {
+  if (!user_access('lich_su_sua_xe_delete')) {
+    return _lssx_unauthorized('Bạn không có quyền xoá lịch sử sửa xe');
+  }
+  $existing = db_query("SELECT nid FROM {lich_su_sua_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  if (!$existing) return _lssx_not_found('Lịch sử sửa xe không tồn tại');
+  db_update('lich_su_sua_xe')
+    ->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))
+    ->condition('nid', $id)
+    ->execute();
+  return _lssx_success(array('nid' => $id, 'deleted' => TRUE));
+}
+
+/*******************************************************************************
+ * Files
+ ******************************************************************************/
+
+function _lssx_save_uploaded_file($field, $dir) {
+  if (empty($_FILES[$field]) || empty($_FILES[$field]['name'])) return NULL;
+  $upload = $_FILES[$field];
+  if (is_array($upload['name'])) return NULL;
+  if (!empty($upload['error'])) return NULL;
+  $size = isset($upload['size']) ? (int) $upload['size'] : 0;
+  if ($size <= 0 || $size > 10 * 1024 * 1024) return FALSE;
+  $original = drupal_basename($upload['name']);
+  $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+  if (!in_array($ext, array('jpg', 'jpeg', 'png', 'webp', 'pdf'))) return FALSE;
+  if (!is_uploaded_file($upload['tmp_name'])) return FALSE;
+
+  file_prepare_directory($dir, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS);
+  $safe_name = file_munge_filename($original, 'jpg jpeg png webp pdf', FALSE);
+  $destination = file_unmanaged_save_data(file_get_contents($upload['tmp_name']), $dir . '/' . $safe_name, FILE_EXISTS_RENAME);
+  if (!$destination) return FALSE;
+  $mime = file_get_mimetype($destination);
+  if ($mime && !in_array($mime, array('image/jpeg', 'image/png', 'image/webp', 'application/pdf'))) {
+    file_unmanaged_delete($destination);
+    return FALSE;
+  }
+
+  global $user;
+  $file = new stdClass();
+  $file->uid = isset($user->uid) ? (int) $user->uid : 0;
+  $file->filename = $original;
+  $file->uri = $destination;
+  $file->filemime = $mime ?: 'application/octet-stream';
+  $file->filesize = filesize($destination);
+  $file->status = FILE_STATUS_PERMANENT;
+  return file_save($file);
+}
+
+function _lssx_load_file_context($id) {
+  $row = db_query("SELECT nid, thong_tin_json FROM {lich_su_sua_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => (int) $id))->fetch();
+  if (!$row) return NULL;
+  $row->thong_tin_json = _lssx_default_json(_lssx_json_decode($row->thong_tin_json));
+  return $row;
+}
+
+function _lssx_save_file_context($id, $json) {
+  db_update('lich_su_sua_xe')
+    ->fields(array('thong_tin_json' => _lssx_json_encode(_lssx_default_json($json)), 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))
+    ->condition('nid', (int) $id)
+    ->execute();
+}
+
+function _lssx_file_index($files, $file_id) {
+  foreach ($files as $index => $file) {
+    if (!empty($file['id']) && (string) $file['id'] === (string) $file_id) return $index;
+  }
+  return -1;
+}
+
+function lich_su_sua_xe_rest_file_collection($id) {
+  $id = (int) $id;
+  if (!$id) return _lssx_fail('ID không hợp lệ');
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _lssx_method_not_allowed('POST');
+  if (!user_access('lich_su_sua_xe_create')) return _lssx_unauthorized('Bạn không có quyền upload file');
+
+  $context = _lssx_load_file_context($id);
+  if (!$context) return _lssx_not_found('Lịch sử sửa xe không tồn tại');
+  $nhom = !empty($_POST['nhom']) ? trim($_POST['nhom']) : 'chung_tu';
+  if (!in_array($nhom, array('anh_truoc', 'anh_sau', 'chung_tu'))) $nhom = 'chung_tu';
+
+  $saved = _lssx_save_uploaded_file('repair_file', 'public://lich_su_sua_xe_files/' . $id);
+  if ($saved === FALSE) return _lssx_fail('File không hợp lệ. Chỉ hỗ trợ ảnh/PDF tối đa 10MB');
+  if (!$saved) return _lssx_fail('Server chưa nhận được file upload');
+
+  $json = $context->thong_tin_json;
+  $entry = array(
+    'id' => uniqid('file_', TRUE),
+    'fid' => (int) $saved->fid,
+    'nhom' => $nhom,
+    'filename' => $saved->filename,
+    'ten_hien_thi' => !empty($_POST['ten_hien_thi']) ? trim($_POST['ten_hien_thi']) : $saved->filename,
+    'uri' => $saved->uri,
+    'url' => file_create_url($saved->uri),
+    'mime' => $saved->filemime,
+    'size' => (int) $saved->filesize,
+    'uploaded' => REQUEST_TIME,
+    'uploaded_text' => date('d/m/Y H:i', REQUEST_TIME),
+  );
+  $json['files'][] = $entry;
+  _lssx_save_file_context($id, $json);
+  return _lssx_success(array('nid' => $id, 'files' => _lssx_default_json($json)['files']));
+}
+
+function lich_su_sua_xe_rest_file_item($id, $file_id) {
+  $id = (int) $id;
+  $file_id = trim((string) $file_id);
+  if (!$id || $file_id === '') return _lssx_fail('Thông tin file không hợp lệ');
+  if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') return _lssx_method_not_allowed('DELETE');
+  if (!user_access('lich_su_sua_xe_create')) return _lssx_unauthorized('Bạn không có quyền xoá file');
+
+  $context = _lssx_load_file_context($id);
+  if (!$context) return _lssx_not_found('Lịch sử sửa xe không tồn tại');
+  $json = $context->thong_tin_json;
+  $index = _lssx_file_index($json['files'], $file_id);
+  if ($index < 0) return _lssx_not_found('File không tồn tại');
+  $deleted = $json['files'][$index];
+  if (!empty($deleted['fid'])) {
+    $file = file_load((int) $deleted['fid']);
+    if ($file) file_delete($file, TRUE);
+  }
+  array_splice($json['files'], $index, 1);
+  _lssx_save_file_context($id, $json);
+  return _lssx_success(array('nid' => $id, 'deleted' => TRUE, 'files' => _lssx_default_json($json)['files']));
+}
+
+/*******************************************************************************
+ * UI
+ ******************************************************************************/
+
+function lich_su_sua_xe_page_list() {
+  drupal_add_css(drupal_get_path('module', 'lich_su_sua_xe') . '/assets/css/lich_su_sua_xe.css');
+  drupal_add_js(drupal_get_path('module', 'lich_su_sua_xe') . '/assets/js/lich_su_sua_xe.js');
+  drupal_add_js(array('lich_su_sua_xe' => array(
+    'permissions' => array(
+      'view' => user_access('lich_su_sua_xe_view'),
+      'create' => user_access('lich_su_sua_xe_create'),
+      'delete' => user_access('lich_su_sua_xe_delete'),
+    ),
+  )), 'setting');
+  return theme('lich_su_sua_xe_list_page');
+}

@@ -1,0 +1,111 @@
+<?php
+
+/**
+ * @file
+ * Schema cho module lịch sử sửa xe.
+ */
+
+function lich_su_sua_xe_schema() {
+  $schema['lich_su_sua_xe'] = array(
+    'description' => 'Lịch sử sửa chữa, bảo dưỡng phương tiện.',
+    'fields' => array(
+      'nid' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'nid_phuong_tien' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'ngay_sua' => array(
+        'type' => 'varchar',
+        'length' => 10,
+        'not null' => FALSE,
+      ),
+      'loai_sua_chua' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ),
+      'nid_lai_xe_mang_di_sua' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'co_so_sua_chua' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
+      'so_km_luc_sua' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'so_km_nhac_tiep_theo' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'ngay_nhac_tiep_theo' => array(
+        'type' => 'varchar',
+        'length' => 10,
+        'not null' => FALSE,
+      ),
+      'thoi_gian_sua' => array(
+        'type' => 'varchar',
+        'length' => 100,
+        'not null' => FALSE,
+      ),
+      'tinh_trang_xe' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ),
+      'tong_chi_phi' => array(
+        'type' => 'numeric',
+        'precision' => 18,
+        'scale' => 2,
+        'not null' => FALSE,
+      ),
+      'ghi_chu' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'thong_tin_json' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ),
+      'hoat_dong' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'created' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
+      ),
+      'changed' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'hoat_dong' => array('hoat_dong'),
+      'nid_phuong_tien' => array('nid_phuong_tien'),
+      'ngay_sua' => array('ngay_sua'),
+      'loai_sua_chua' => array('loai_sua_chua'),
+      'nid_lai_xe_mang_di_sua' => array('nid_lai_xe_mang_di_sua'),
+    ),
+  );
+
+  return $schema;
+}

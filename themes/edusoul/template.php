@@ -183,7 +183,7 @@ function getMainMenuSoft()
                         </a>
                     </li>
 
-                    ' . ((strpos(current_path(), 'phuong-tien') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
+                    ' . ((strpos(current_path(), 'phuong-tien') === 0 || strpos(current_path(), 'lich-su-sua-xe') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon icon-base ti tabler-truck"></i>
                             <div data-i18n="Phương tiện">Phương tiện</div>
@@ -212,6 +212,11 @@ function getMainMenuSoft()
                             <li class="menu-item' . ((current_path() === 'phuong-tien/phu-hieu') ? ' active' : '') . '">
                                 <a href="/phuong-tien/phu-hieu" class="menu-link">
                                     <div data-i18n="Phù hiệu">Phù hiệu</div>
+                                </a>
+                            </li>
+                            <li class="menu-item' . ((strpos(current_path(), 'lich-su-sua-xe') === 0) ? ' active' : '') . '">
+                                <a href="/lich-su-sua-xe" class="menu-link">
+                                    <div data-i18n="Lịch sử sửa xe">Lịch sử sửa xe</div>
                                 </a>
                             </li>
                         </ul>
