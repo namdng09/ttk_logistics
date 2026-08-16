@@ -29,9 +29,46 @@ function phuong_tien_schema() {
         'length' => 100,
         'not null' => FALSE,
       ),
+      'mau_sac' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ),
       'nam_san_xuat' => array(
         'type' => 'int',
         'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'tai_trong' => array(
+        'type' => 'numeric',
+        'precision' => 12,
+        'scale' => 2,
+        'not null' => FALSE,
+      ),
+      'tu_trong' => array(
+        'type' => 'numeric',
+        'precision' => 12,
+        'scale' => 2,
+        'not null' => FALSE,
+      ),
+      'so_cau' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'loai_mooc' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ),
+      'so_truc' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'chieu_dai_mooc' => array(
+        'type' => 'varchar',
+        'length' => 20,
         'not null' => FALSE,
       ),
       'gia_mua' => array(
@@ -81,6 +118,16 @@ function phuong_tien_schema() {
         'not null' => FALSE,
       ),
       'han_phu_hieu' => array(
+        'type' => 'varchar',
+        'length' => 10,
+        'not null' => FALSE,
+      ),
+      'so_giay_phep_lien_van' => array(
+        'type' => 'varchar',
+        'length' => 100,
+        'not null' => FALSE,
+      ),
+      'han_giay_phep_lien_van' => array(
         'type' => 'varchar',
         'length' => 10,
         'not null' => FALSE,
@@ -143,5 +190,25 @@ function phuong_tien_update_7005() {
       'size' => 'big',
       'not null' => FALSE,
     ));
+  }
+}
+
+function phuong_tien_update_7006() {
+  $fields = array(
+    'mau_sac' => array('type' => 'varchar', 'length' => 50, 'not null' => FALSE),
+    'tai_trong' => array('type' => 'numeric', 'precision' => 12, 'scale' => 2, 'not null' => FALSE),
+    'tu_trong' => array('type' => 'numeric', 'precision' => 12, 'scale' => 2, 'not null' => FALSE),
+    'so_cau' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE),
+    'loai_mooc' => array('type' => 'varchar', 'length' => 50, 'not null' => FALSE),
+    'so_truc' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE),
+    'chieu_dai_mooc' => array('type' => 'varchar', 'length' => 20, 'not null' => FALSE),
+    'so_giay_phep_lien_van' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+    'han_giay_phep_lien_van' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+  );
+
+  foreach ($fields as $field => $spec) {
+    if (!db_field_exists('phuong_tien', $field)) {
+      db_add_field('phuong_tien', $field, $spec);
+    }
   }
 }

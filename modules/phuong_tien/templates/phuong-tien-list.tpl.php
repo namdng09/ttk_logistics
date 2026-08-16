@@ -44,12 +44,13 @@
             <th>Mã Tài sản</th>
             <th>Loại</th>
             <th>Hãng xe</th>
+            <th>Thông số</th>
             <th>Lái xe</th>
           </tr>
         </thead>
         <tbody id="table-phuong-tien-tbody">
           <tr id="loading-row">
-            <td colspan="7" class="text-center py-4">
+            <td colspan="8" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -94,6 +95,9 @@
           <input type="hidden" name="nid" value="">
 
           <div class="row g-3">
+            <div class="col-12">
+              <div class="phuong-tien-form-section-title">Thông tin chung</div>
+            </div>
             <div class="col-md-4">
               <label class="form-label">Biển kiểm soát <span class="text-danger">*</span></label>
               <input type="text" class="form-control" name="bks" required placeholder="VD: 15H12345">
@@ -117,8 +121,24 @@
               <input type="text" class="form-control" name="hang_xe" placeholder="VD: Honda, Hyundai...">
             </div>
             <div class="col-md-4">
+              <label class="form-label">Màu sắc</label>
+              <input type="text" class="form-control" name="mau_sac" placeholder="VD: Trắng, xanh...">
+            </div>
+            <div class="col-md-4">
               <label class="form-label">Năm sản xuất</label>
               <input type="text" class="form-control" name="nam_san_xuat" placeholder="2026" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Tải trọng</label>
+              <input type="text" class="form-control weight-mask pt-weight-field" name="tai_trong" placeholder="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Tự trọng</label>
+              <input type="text" class="form-control weight-mask pt-weight-field" name="tu_trong" placeholder="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Tổng trọng lượng</label>
+              <input type="text" class="form-control bg-light" id="pt-tong-trong-luong" placeholder="Tự tính" readonly>
             </div>
             <div class="col-md-4">
               <label class="form-label">Giá mua</label>
@@ -130,6 +150,43 @@
             <div class="col-md-4">
               <label class="form-label">Ngày mua</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="ngay_mua" placeholder="dd/MM/yyyy">
+            </div>
+
+            <div class="col-12 pt-dau-keo-field">
+              <div class="phuong-tien-form-section-title">Thông số đầu kéo</div>
+            </div>
+            <div class="col-md-4 pt-dau-keo-field">
+              <label class="form-label">Số cầu</label>
+              <input type="text" class="form-control" name="so_cau" placeholder="VD: 2" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+            </div>
+
+            <div class="col-12 pt-mooc-field">
+              <div class="phuong-tien-form-section-title">Thông số rơ mooc</div>
+            </div>
+            <div class="col-md-4 pt-mooc-field">
+              <label class="form-label">Loại mooc</label>
+              <select class="form-select" name="loai_mooc">
+                <option value="">Chọn loại mooc</option>
+                <option value="xuong">Xương</option>
+                <option value="san">Sàn</option>
+                <option value="long">Lồng</option>
+                <option value="ben">Ben</option>
+                <option value="bon">Bồn</option>
+                <option value="container">Container</option>
+                <option value="khac">Khác</option>
+              </select>
+            </div>
+            <div class="col-md-4 pt-mooc-field">
+              <label class="form-label">Số trục</label>
+              <input type="text" class="form-control" name="so_truc" placeholder="VD: 3" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+            </div>
+            <div class="col-md-4 pt-mooc-field">
+              <label class="form-label">Chiều dài mooc</label>
+              <input type="text" class="form-control" name="chieu_dai_mooc" placeholder="VD: 45 Feet">
+            </div>
+
+            <div class="col-12">
+              <div class="phuong-tien-form-section-title">Giấy tờ và thời hạn</div>
             </div>
             <div class="col-md-4">
               <label class="form-label">Số đăng kiểm</label>
@@ -162,6 +219,14 @@
             <div class="col-md-4">
               <label class="form-label">Hạn phù hiệu</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="han_phu_hieu" placeholder="dd/MM/yyyy">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Số giấy phép liên vận</label>
+              <input type="text" class="form-control" name="so_giay_phep_lien_van" placeholder="Nhập số giấy phép liên vận">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Hạn giấy phép liên vận</label>
+              <input type="text" class="form-control flatpickr-date date-mask" name="han_giay_phep_lien_van" placeholder="dd/MM/yyyy">
             </div>
 
             <div class="col-12">

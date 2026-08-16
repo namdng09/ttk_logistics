@@ -205,6 +205,27 @@ function _phuong_tien_ensure_thong_tin_json_field() {
   }
 }
 
+function _phuong_tien_ensure_extended_fields() {
+  if (!db_table_exists('phuong_tien')) return;
+  _phuong_tien_ensure_thong_tin_json_field();
+  $fields = array(
+    'mau_sac' => array('type' => 'varchar', 'length' => 50, 'not null' => FALSE),
+    'tai_trong' => array('type' => 'numeric', 'precision' => 12, 'scale' => 2, 'not null' => FALSE),
+    'tu_trong' => array('type' => 'numeric', 'precision' => 12, 'scale' => 2, 'not null' => FALSE),
+    'so_cau' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE),
+    'loai_mooc' => array('type' => 'varchar', 'length' => 50, 'not null' => FALSE),
+    'so_truc' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE),
+    'chieu_dai_mooc' => array('type' => 'varchar', 'length' => 20, 'not null' => FALSE),
+    'so_giay_phep_lien_van' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+    'han_giay_phep_lien_van' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+  );
+  foreach ($fields as $field => $spec) {
+    if (!db_field_exists('phuong_tien', $field)) {
+      db_add_field('phuong_tien', $field, $spec);
+    }
+  }
+}
+
 function _phuong_tien_normalize_record($row) {
   if (!$row) return $row;
   $json = _phuong_tien_json_decode(isset($row->thong_tin_json) ? $row->thong_tin_json : '');
@@ -393,6 +414,7 @@ function phuong_tien_rest_collection() {
 }
 
 function _phuong_tien_rest_list() {
+  _phuong_tien_ensure_extended_fields();
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
   $limit = isset($_GET['limit']) ? max(1, min(500, (int) $_GET['limit'])) : 20;
   $offset = ($page - 1) * $limit;
@@ -418,6 +440,8 @@ function _phuong_tien_rest_list() {
       ->condition('pt.bks', $like, 'LIKE')
       ->condition('pt.ma_tai_san', $like, 'LIKE')
       ->condition('pt.hang_xe', $like, 'LIKE')
+      ->condition('pt.mau_sac', $like, 'LIKE')
+      ->condition('pt.so_giay_phep_lien_van', $like, 'LIKE')
       ->condition('pt.loai_phuong_tien', $like, 'LIKE');
     $query->condition($or);
   }
@@ -494,7 +518,7 @@ function _phuong_tien_rest_create() {
     if ($err) return $err;
   }
 
-  _phuong_tien_ensure_thong_tin_json_field();
+  _phuong_tien_ensure_extended_fields();
 
   $transaction = db_transaction();
   try {
@@ -504,7 +528,14 @@ function _phuong_tien_rest_create() {
         'ma_tai_san' => isset($input['ma_tai_san']) && trim($input['ma_tai_san']) !== '' ? $input['ma_tai_san'] : NULL,
         'loai_phuong_tien' => isset($input['loai_phuong_tien']) ? $input['loai_phuong_tien'] : '',
         'hang_xe' => isset($input['hang_xe']) ? $input['hang_xe'] : '',
+        'mau_sac' => isset($input['mau_sac']) ? $input['mau_sac'] : '',
         'nam_san_xuat' => isset($input['nam_san_xuat']) && $input['nam_san_xuat'] !== '' ? (int) $input['nam_san_xuat'] : NULL,
+        'tai_trong' => isset($input['tai_trong']) && $input['tai_trong'] !== '' ? $input['tai_trong'] : NULL,
+        'tu_trong' => isset($input['tu_trong']) && $input['tu_trong'] !== '' ? $input['tu_trong'] : NULL,
+        'so_cau' => isset($input['so_cau']) && $input['so_cau'] !== '' ? (int) $input['so_cau'] : NULL,
+        'loai_mooc' => isset($input['loai_mooc']) ? $input['loai_mooc'] : '',
+        'so_truc' => isset($input['so_truc']) && $input['so_truc'] !== '' ? (int) $input['so_truc'] : NULL,
+        'chieu_dai_mooc' => isset($input['chieu_dai_mooc']) ? $input['chieu_dai_mooc'] : '',
         'gia_mua' => isset($input['gia_mua']) && $input['gia_mua'] !== '' ? $input['gia_mua'] : NULL,
         'ngay_mua' => isset($input['ngay_mua']) ? $input['ngay_mua'] : '',
         'so_dang_kiem' => isset($input['so_dang_kiem']) ? $input['so_dang_kiem'] : '',
@@ -515,6 +546,8 @@ function _phuong_tien_rest_create() {
         'han_bao_hiem_tnds' => isset($input['han_bao_hiem_tnds']) ? $input['han_bao_hiem_tnds'] : '',
         'ngay_phu_hieu' => isset($input['ngay_phu_hieu']) ? $input['ngay_phu_hieu'] : '',
         'han_phu_hieu' => isset($input['han_phu_hieu']) ? $input['han_phu_hieu'] : '',
+        'so_giay_phep_lien_van' => isset($input['so_giay_phep_lien_van']) ? $input['so_giay_phep_lien_van'] : '',
+        'han_giay_phep_lien_van' => isset($input['han_giay_phep_lien_van']) ? $input['han_giay_phep_lien_van'] : '',
         'thong_tin_json' => _phuong_tien_json_encode(array('files' => array())),
         'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
         'created' => date('Y-m-d H:i:s', REQUEST_TIME),
@@ -562,6 +595,7 @@ function phuong_tien_rest_item($id) {
 }
 
 function _phuong_tien_rest_get($id) {
+  _phuong_tien_ensure_extended_fields();
   $query = db_select('phuong_tien', 'pt');
   $query->fields('pt');
   $query->leftJoin('phuong_tien_lai_xe', 'ptlx', 'pt.nid = ptlx.nid_phuong_tien AND ptlx.hoat_dong = 1');
@@ -599,6 +633,7 @@ function _phuong_tien_rest_get($id) {
 }
 
 function _phuong_tien_rest_update($id) {
+  _phuong_tien_ensure_extended_fields();
   if (!user_access('phuong_tien_create')) {
     return _phuong_tien_unauthorized('Bạn không có quyền sửa phương tiện');
   }
@@ -635,11 +670,13 @@ function _phuong_tien_rest_update($id) {
 
   $fields = array(
     'bks', 'ma_tai_san', 'loai_phuong_tien', 'hang_xe', 'nam_san_xuat',
-    'gia_mua', 'ngay_mua', 'so_dang_kiem', 'han_dang_kiem',
+    'mau_sac', 'tai_trong', 'tu_trong', 'so_cau', 'loai_mooc', 'so_truc',
+    'chieu_dai_mooc', 'gia_mua', 'ngay_mua', 'so_dang_kiem', 'han_dang_kiem',
     'so_bao_hiem_than_vo', 'han_bao_hiem_than_vo', 'so_bao_hiem_tnds',
-    'han_bao_hiem_tnds', 'ngay_phu_hieu', 'han_phu_hieu', 'hoat_dong',
+    'han_bao_hiem_tnds', 'ngay_phu_hieu', 'han_phu_hieu',
+    'so_giay_phep_lien_van', 'han_giay_phep_lien_van', 'hoat_dong',
   );
-  $nullable = array('ma_tai_san', 'nam_san_xuat', 'gia_mua');
+  $nullable = array('ma_tai_san', 'nam_san_xuat', 'gia_mua', 'tai_trong', 'tu_trong', 'so_cau', 'so_truc');
 
   $update = array('changed' => date('Y-m-d H:i:s', REQUEST_TIME));
   foreach ($fields as $f) {

@@ -17,6 +17,15 @@
     dau_keo: 'bg-label-primary',
     mooc: 'bg-label-warning',
   };
+  var LOAI_MOOC_MAP = {
+    xuong: 'Xương',
+    san: 'Sàn',
+    long: 'Lồng',
+    ben: 'Ben',
+    bon: 'Bồn',
+    container: 'Container',
+    khac: 'Khác'
+  };
   var FILE_TYPE_LABELS = {
     dang_ky_xe: 'Đăng ký xe',
     dang_kiem: 'Đăng kiểm',
@@ -180,6 +189,18 @@
       });
     }
 
+    var loaiSelect = doc.querySelector('#form-phuong-tien select[name="loai_phuong_tien"]');
+    if (loaiSelect) {
+      loaiSelect.addEventListener('change', function () {
+        toggleVehicleSpecificFields(true);
+      });
+    }
+    var weightFields = doc.querySelectorAll('#form-phuong-tien .pt-weight-field');
+    for (var wf = 0; wf < weightFields.length; wf++) {
+      weightFields[wf].addEventListener('input', updateTotalWeight);
+      weightFields[wf].addEventListener('change', updateTotalWeight);
+    }
+
     // Modal events
     var modal = doc.getElementById('phuong-tien-modal');
     modal.addEventListener('hidden.bs.modal', function () {
@@ -312,8 +333,19 @@
         if (inp.classList.contains('money-mask')) {
           val = val.replace(/\./g, '');
         }
+        if (inp.classList.contains('weight-mask')) {
+          val = val.replace(/\./g, '').replace(/,/g, '.').replace(/[^\d.-]/g, '');
+        }
         data[inp.name] = val;
       }
+    }
+
+    if (data.loai_phuong_tien === 'dau_keo') {
+      data.loai_mooc = '';
+      data.so_truc = '';
+      data.chieu_dai_mooc = '';
+    } else if (data.loai_phuong_tien === 'mooc') {
+      data.so_cau = '';
     }
 
     var nid = data.nid;
@@ -364,7 +396,7 @@
   function loadList() {
     var tbody = $('#table-phuong-tien-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="7" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="8" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -378,7 +410,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="7" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="8" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -392,7 +424,7 @@
         }
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="7" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="8" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -403,6 +435,7 @@
           var stt = (data.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(item.nid);
           var giaMua = item.gia_mua ? formatMoney(item.gia_mua) : '';
+          var specs = renderVehicleSpecs(item);
           var laixeName = '';
           var laixeSDT = '';
           if (item.lai_xe) {
@@ -419,6 +452,7 @@
             '<td>' + escapeHtml(item.ma_tai_san || '') + '</td>' +
             '<td><span class="badge ' + (LOAI_PHUONG_TIEN_COLOR[item.loai_phuong_tien] || 'bg-label-secondary') + '">' + escapeHtml(LOAI_PHUONG_TIEN_MAP[item.loai_phuong_tien] || item.loai_phuong_tien || '') + '</span></td>' +
             '<td>' + escapeHtml(item.hang_xe || '') + '</td>' +
+            '<td>' + specs + '</td>' +
             '<td>' + laixeName + laixeSDT + '</td>' +
             '</tr>';
         }
@@ -427,10 +461,30 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="7" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="8" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
+  }
+
+  function renderVehicleSpecs(item) {
+    var lines = [];
+    if (item.mau_sac) lines.push('Màu: ' + escapeHtml(item.mau_sac));
+    if (item.tai_trong || item.tu_trong) {
+      lines.push('TL: ' + escapeHtml(formatMoney(item.tai_trong || 0) || '0') + ' / TT: ' + escapeHtml(formatMoney(item.tu_trong || 0) || '0'));
+    }
+    if (item.loai_phuong_tien === 'dau_keo' && item.so_cau) {
+      lines.push('Số cầu: ' + escapeHtml(item.so_cau));
+    }
+    if (item.loai_phuong_tien === 'mooc') {
+      var mooc = [];
+      if (item.loai_mooc) mooc.push(escapeHtml(LOAI_MOOC_MAP[item.loai_mooc] || item.loai_mooc));
+      if (item.so_truc) mooc.push(escapeHtml(item.so_truc) + ' trục');
+      if (item.chieu_dai_mooc) mooc.push(escapeHtml(item.chieu_dai_mooc));
+      if (mooc.length) lines.push(mooc.join(' - '));
+    }
+    if (!lines.length) return '<span class="text-muted fst-italic">Chưa có</span>';
+    return '<div class="small">' + lines.join('<br>') + '</div>';
   }
 
   function formatMoney(n) {
@@ -440,6 +494,53 @@
     if (isNaN(num)) return '';
     var intPart = num % 1 === 0 ? String(Math.round(num)) : String(Math.floor(num));
     return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function parseNumberValue(value) {
+    var raw = String(value || '').replace(/\./g, '').replace(/,/g, '.').replace(/[^\d.-]/g, '');
+    var num = parseFloat(raw);
+    return isNaN(num) ? 0 : num;
+  }
+
+  function updateTotalWeight() {
+    var tai = document.querySelector('#form-phuong-tien input[name="tai_trong"]');
+    var tu = document.querySelector('#form-phuong-tien input[name="tu_trong"]');
+    var total = document.getElementById('pt-tong-trong-luong');
+    if (!total) return;
+    var sum = parseNumberValue(tai ? tai.value : '') + parseNumberValue(tu ? tu.value : '');
+    total.value = sum > 0 ? formatMoney(sum) : '';
+  }
+
+  function toggleVehicleSpecificFields(clearIrrelevant) {
+    var select = document.querySelector('#form-phuong-tien select[name="loai_phuong_tien"]');
+    var type = select ? select.value : '';
+    var dauKeoFields = document.querySelectorAll('#form-phuong-tien .pt-dau-keo-field');
+    var moocFields = document.querySelectorAll('#form-phuong-tien .pt-mooc-field');
+    for (var i = 0; i < dauKeoFields.length; i++) {
+      dauKeoFields[i].style.display = type === 'dau_keo' ? '' : 'none';
+    }
+    for (var j = 0; j < moocFields.length; j++) {
+      moocFields[j].style.display = type === 'mooc' ? '' : 'none';
+    }
+    if (clearIrrelevant && CURRENT_FORM_MODE !== 'view') {
+      if (type === 'dau_keo') {
+        setFieldValue('loai_mooc', '');
+        setFieldValue('so_truc', '');
+        setFieldValue('chieu_dai_mooc', '');
+      } else if (type === 'mooc') {
+        setFieldValue('so_cau', '');
+      } else {
+        setFieldValue('so_cau', '');
+        setFieldValue('loai_mooc', '');
+        setFieldValue('so_truc', '');
+        setFieldValue('chieu_dai_mooc', '');
+      }
+    }
+  }
+
+  function setFieldValue(name, value) {
+    var el = document.querySelector('#form-phuong-tien [name="' + name + '"]');
+    if (el) el.value = value;
   }
 
   function buildActions(nid) {
@@ -592,6 +693,7 @@
       }
     }
     if (btn) btn.style.display = mode === 'view' ? 'none' : '';
+    toggleVehicleSpecificFields(false);
     renderFileSection();
   }
 
@@ -604,6 +706,7 @@
     SELECTED_VEHICLE_FILE = null;
     document.getElementById('phuong-tien-modal-title').textContent = 'Thêm phương tiện';
     setFormMode('create');
+    updateTotalWeight();
   }
 
   function populateForm(d) {
@@ -614,7 +717,14 @@
     document.querySelector('#form-phuong-tien input[name="ma_tai_san"]').value = d.ma_tai_san || '';
     document.querySelector('#form-phuong-tien select[name="loai_phuong_tien"]').value = d.loai_phuong_tien || '';
     document.querySelector('#form-phuong-tien input[name="hang_xe"]').value = d.hang_xe || '';
+    document.querySelector('#form-phuong-tien input[name="mau_sac"]').value = d.mau_sac || '';
     document.querySelector('#form-phuong-tien input[name="nam_san_xuat"]').value = d.nam_san_xuat || '';
+    document.querySelector('#form-phuong-tien input[name="tai_trong"]').value = d.tai_trong ? formatMoney(d.tai_trong) : '';
+    document.querySelector('#form-phuong-tien input[name="tu_trong"]').value = d.tu_trong ? formatMoney(d.tu_trong) : '';
+    document.querySelector('#form-phuong-tien input[name="so_cau"]').value = d.so_cau || '';
+    document.querySelector('#form-phuong-tien select[name="loai_mooc"]').value = d.loai_mooc || '';
+    document.querySelector('#form-phuong-tien input[name="so_truc"]').value = d.so_truc || '';
+    document.querySelector('#form-phuong-tien input[name="chieu_dai_mooc"]').value = d.chieu_dai_mooc || '';
     document.querySelector('#form-phuong-tien input[name="gia_mua"]').value = d.gia_mua ? formatMoney(d.gia_mua) : '';
     document.querySelector('#form-phuong-tien input[name="ngay_mua"]').value = d.ngay_mua || '';
     document.querySelector('#form-phuong-tien input[name="so_dang_kiem"]').value = d.so_dang_kiem || '';
@@ -625,6 +735,10 @@
     document.querySelector('#form-phuong-tien input[name="han_bao_hiem_tnds"]').value = d.han_bao_hiem_tnds || '';
     document.querySelector('#form-phuong-tien input[name="ngay_phu_hieu"]').value = d.ngay_phu_hieu || '';
     document.querySelector('#form-phuong-tien input[name="han_phu_hieu"]').value = d.han_phu_hieu || '';
+    document.querySelector('#form-phuong-tien input[name="so_giay_phep_lien_van"]').value = d.so_giay_phep_lien_van || '';
+    document.querySelector('#form-phuong-tien input[name="han_giay_phep_lien_van"]').value = d.han_giay_phep_lien_van || '';
+    toggleVehicleSpecificFields(false);
+    updateTotalWeight();
     renderFileSection();
   }
 
@@ -929,6 +1043,22 @@
           this.value = formatted;
           this.setSelectionRange(cursor + diff, cursor + diff);
         }
+      });
+    });
+    $('.weight-mask').each(function () {
+      if (this.hasAttribute('readonly')) return;
+      if (this._weightHandler) return;
+      this._weightHandler = true;
+      this.addEventListener('input', function () {
+        var cursor = this.selectionStart;
+        var raw = this.value.replace(/[^\d]/g, '');
+        var formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        if (formatted !== this.value) {
+          var diff = formatted.length - this.value.length;
+          this.value = formatted;
+          this.setSelectionRange(cursor + diff, cursor + diff);
+        }
+        updateTotalWeight();
       });
     });
   }
