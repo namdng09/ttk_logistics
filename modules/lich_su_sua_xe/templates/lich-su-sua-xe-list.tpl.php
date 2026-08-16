@@ -92,18 +92,18 @@
           <input type="hidden" name="nid" value="">
 
           <div class="lssx-section-title">Thông tin sửa xe</div>
-          <div class="row g-3">
-            <div class="col-12 col-lg-4">
+          <div class="row g-2 lssx-info-grid">
+            <div class="col-12 col-xl-4">
               <label class="form-label">Phương tiện <span class="text-danger">*</span></label>
               <select class="form-select" name="nid_phuong_tien" required></select>
               <div class="invalid-feedback">Vui lòng chọn phương tiện</div>
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-6 col-md-3 col-xl-2">
               <label class="form-label">Ngày sửa <span class="text-danger">*</span></label>
               <input type="text" class="form-control flatpickr-date date-mask" name="ngay_sua" placeholder="dd/MM/yyyy" required>
               <div class="invalid-feedback">Vui lòng nhập ngày sửa</div>
             </div>
-            <div class="col-6 col-lg-3">
+            <div class="col-6 col-md-3 col-xl-2">
               <label class="form-label">Loại sửa chữa</label>
               <select class="form-select" name="loai_sua_chua">
                 <option value="">Chọn loại</option>
@@ -114,23 +114,23 @@
                 <option value="khac">Khác</option>
               </select>
             </div>
-            <div class="col-12 col-lg-3">
+            <div class="col-12 col-md-6 col-xl-4">
               <label class="form-label">Lái xe mang đi sửa</label>
               <select class="form-select" name="nid_lai_xe_mang_di_sua"></select>
             </div>
-            <div class="col-12 col-lg-4">
+            <div class="col-12 col-xl-4">
               <label class="form-label">Cơ sở sửa chữa</label>
               <input type="text" class="form-control" name="co_so_sua_chua" placeholder="Tên gara/cơ sở sửa chữa">
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-6 col-md-3 col-xl-2">
               <label class="form-label">Số km lúc sửa</label>
               <input type="text" class="form-control integer-mask" name="so_km_luc_sua" placeholder="0" inputmode="numeric">
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-6 col-md-3 col-xl-2">
               <label class="form-label">Thời gian sửa</label>
               <input type="text" class="form-control" name="thoi_gian_sua" placeholder="VD: 2 ngày">
             </div>
-            <div class="col-12 col-lg-3">
+            <div class="col-12 col-md-3 col-xl-2">
               <label class="form-label">Tình trạng xe</label>
               <select class="form-select" name="tinh_trang_xe">
                 <option value="">Chọn tình trạng</option>
@@ -140,22 +140,22 @@
                 <option value="ngung_hoat_dong">Ngưng hoạt động</option>
               </select>
             </div>
-            <div class="col-12 col-lg-4">
+            <div class="col-12 col-md-3 col-xl-2">
               <label class="form-label">Tổng chi phí</label>
               <div class="input-group">
                 <input type="text" class="form-control money-mask" name="tong_chi_phi" placeholder="0">
                 <span class="input-group-text">đ</span>
               </div>
             </div>
-            <div class="col-6 col-lg-3">
+            <div class="col-6 col-md-3 col-xl-2">
               <label class="form-label">Km nhắc tiếp theo</label>
               <input type="text" class="form-control integer-mask" name="so_km_nhac_tiep_theo" placeholder="0" inputmode="numeric">
             </div>
-            <div class="col-6 col-lg-3">
+            <div class="col-6 col-md-3 col-xl-2">
               <label class="form-label">Ngày nhắc tiếp theo</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="ngay_nhac_tiep_theo" placeholder="dd/MM/yyyy">
             </div>
-            <div class="col-12 col-lg-6">
+            <div class="col-12 col-md-6 col-xl-8">
               <label class="form-label">Ghi chú</label>
               <input type="text" class="form-control" name="ghi_chu" placeholder="Ghi chú thêm">
             </div>

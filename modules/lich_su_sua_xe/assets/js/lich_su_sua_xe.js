@@ -162,8 +162,8 @@
     }
     $('[name="nid_phuong_tien"]').html(options);
     $('#lssx-filter-phuong-tien').html(filterOptions);
-    initSelect2($('#lssx-filter-phuong-tien'), 'Tất cả phương tiện', $('body'));
-    initSelect2($('#lssx-form [name="nid_phuong_tien"]'), 'Chọn phương tiện', $('#lssx-modal'));
+    initSelect2(document.getElementById('lssx-filter-phuong-tien'), 'Tất cả phương tiện');
+    initSelect2(document.querySelector('#lssx-form [name="nid_phuong_tien"]'), 'Chọn phương tiện');
   }
 
   function fillDriverSelects() {
@@ -340,7 +340,7 @@
     files = d.files || [];
     hangMuc = d.hang_muc || [];
     field('nid').val(currentId);
-    field('nid_phuong_tien').val(d.nid_phuong_tien || '').trigger('change');
+    setSelect2Value('#lssx-form [name="nid_phuong_tien"]', d.nid_phuong_tien || '', d.phuong_tien ? vehicleLabel(d.phuong_tien) : '');
     field('ngay_sua').val(d.ngay_sua || '');
     field('loai_sua_chua').val(d.loai_sua_chua || '');
     field('nid_lai_xe_mang_di_sua').val(d.nid_lai_xe_mang_di_sua || '');
@@ -417,6 +417,7 @@
     $('#lssx-modal-title').text('Thêm lịch sử sửa xe');
     $('#lssx-file-input').val('');
     $('#lssx-file-title').val('');
+    clearSelect2Value('#lssx-form [name="nid_phuong_tien"]');
     addHangMucRow({});
     renderFiles();
     setMode('create');
@@ -658,10 +659,43 @@
 
   function clearFilters() {
     $('#lssx-filter-keyword').val('');
-    $('#lssx-filter-phuong-tien').val('').trigger('change');
-    $('#lssx-filter-tu-ngay').val('');
-    $('#lssx-filter-den-ngay').val('');
+    clearSelect2Value('#lssx-filter-phuong-tien');
+    clearDateInput('#lssx-filter-tu-ngay');
+    clearDateInput('#lssx-filter-den-ngay');
     currentPage = 1;
+  }
+
+  function clearSelect2Value(selector) {
+    setSelect2Value(selector, '');
+  }
+
+  function setSelect2Value(selector, value, label) {
+    var jq = _jq();
+    var $el = jq ? jq(selector) : $(selector);
+    if (!$el || !$el.length) return;
+    value = value == null ? '' : String(value);
+    if (value && !$el.find('option[value="' + escSelectorValue(value) + '"]').length) {
+      var text = label || value;
+      if (typeof window.Option === 'function') {
+        $el.append(new window.Option(text, value, true, true));
+      } else {
+        $el.append('<option value="' + escAttr(value) + '">' + esc(text) + '</option>');
+      }
+    }
+    $el.val(value);
+    if (typeof $el.trigger === 'function') $el.trigger('change');
+  }
+
+  function clearDateInput(selector) {
+    var el = document.querySelector(selector);
+    if (!el) return;
+    try {
+      if (el._flatpickr) {
+        el._flatpickr.clear();
+        return;
+      }
+    } catch (e) {}
+    el.value = '';
   }
 
   function showLoading(show) {
@@ -673,7 +707,7 @@
   }
 
   function vehicleLabel(item) {
-    return (item.bks || '') + (item.hang_xe ? ' - ' + item.hang_xe : '') + (item.ma_tai_san ? ' - ' + item.ma_tai_san : '');
+    return (item.bks || '') + ((item.hang_xe || item.nhan_hieu) ? ' - ' + (item.hang_xe || item.nhan_hieu) : '') + (item.ma_tai_san ? ' - ' + item.ma_tai_san : '');
   }
 
   function intClean(value) {
@@ -694,6 +728,10 @@
 
   function escAttr(value) {
     return esc(value).replace(/"/g, '&quot;');
+  }
+
+  function escSelectorValue(value) {
+    return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   }
 
   function apiMsg(jqXHR) {
@@ -769,19 +807,43 @@
     });
   }
 
-  function initSelect2($el, placeholder, dropdownParent) {
-    if (!$el || !$el.length || !$.fn || !$.fn.select2) return;
+  function initSelect2(el, placeholder, options) {
+    var jq = _jq();
+    if (!jq || !el) return;
+    var $el = jq(el);
+    if (!$el.length || typeof $el.select2 !== 'function') return;
     try {
       if ($el.data && $el.data('select2')) {
         $el.select2('destroy');
       }
     } catch (e) {}
-    $el.select2({
+    var opts = jq.extend({
       placeholder: placeholder || 'Chọn',
       allowClear: true,
-      width: '100%',
-      dropdownParent: dropdownParent && dropdownParent.length ? dropdownParent : $('body')
-    });
+      width: '100%'
+    }, options || {});
+    if (!opts.dropdownParent) {
+      var $modal = $el.closest('.modal');
+      if ($modal.length) opts.dropdownParent = $modal;
+    }
+    $el.select2(opts);
+    var focusSearch = function () {
+      window.setTimeout(function () {
+        var search = document.querySelector('.select2-container--open .select2-search__field');
+        if (search) search.focus();
+      }, 0);
+    };
+    if (typeof $el.off === 'function' && typeof $el.on === 'function') {
+      $el.off('select2:open.khxhFocus').on('select2:open.khxhFocus', focusSearch);
+    } else if (typeof $el.unbind === 'function' && typeof $el.bind === 'function') {
+      $el.unbind('select2:open.khxhFocus').bind('select2:open.khxhFocus', focusSearch);
+    }
+  }
+
+  function _jq() {
+    if (typeof $ === 'function' && $.fn && typeof $.fn.select2 === 'function') return $;
+    if (typeof jQuery !== 'undefined' && jQuery.fn && typeof jQuery.fn.select2 === 'function') return jQuery;
+    return null;
   }
 
   function formatMoneyInputKeepingCaret(input) {

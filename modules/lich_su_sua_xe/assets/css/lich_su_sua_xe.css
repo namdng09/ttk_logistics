@@ -43,6 +43,52 @@
   font-weight: 700;
 }
 
+.lssx-info-grid .form-label {
+  margin-bottom: 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #566a7f;
+}
+
+.lssx-info-grid .form-control,
+.lssx-info-grid .form-select,
+.lssx-info-grid .select2-container--default .select2-selection--single {
+  min-height: 36px;
+  height: 36px;
+}
+
+#lssx-modal .select2-container .select2-selection--single,
+.lssx-card .select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+#lssx-modal .select2-container .select2-selection--single .select2-selection__rendered,
+.lssx-card .select2-container .select2-selection--single .select2-selection__rendered {
+  line-height: 1.5;
+  padding: 0;
+  padding-right: 1.75rem;
+  font-size: 0.85rem;
+}
+
+#lssx-modal .select2-container .select2-selection--single .select2-selection__arrow,
+.lssx-card .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+  top: 0;
+  right: 0.375rem;
+  width: 1rem;
+}
+
+#lssx-modal .select2-container .select2-selection--single .select2-selection__clear,
+.lssx-card .select2-container .select2-selection--single .select2-selection__clear {
+  position: relative;
+  z-index: 1;
+  font-size: 0.875rem;
+}
+
 .lssx-modal-loading {
   position: absolute;
   inset: 0;
