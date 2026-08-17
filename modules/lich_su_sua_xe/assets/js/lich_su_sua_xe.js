@@ -31,6 +31,10 @@
     can_bao_duong: 'Cần bảo dưỡng',
     ngung_hoat_dong: 'Ngưng hoạt động'
   };
+  var LOAI_PHUONG_TIEN_LABEL = {
+    dau_keo: 'Đầu kéo',
+    mooc: 'Mooc'
+  };
 
   Drupal.behaviors.lichSuSuaXe = {
     attach: function (context) {
@@ -397,7 +401,7 @@
           '<div class="lssx-view-card-title"><i class="ti tabler-info-circle"></i>Thông tin sửa xe</div>' +
           '<div class="lssx-view-grid">' +
             viewInfoItem('Phương tiện', vehicleLabel(vehicle)) +
-            viewInfoItem('Loại phương tiện', vehicle.loai_phuong_tien || '') +
+            viewInfoItem('Loại phương tiện', vehicleTypeLabel(vehicle.loai_phuong_tien)) +
             viewInfoItem('Cơ sở sửa chữa', d.co_so_sua_chua || '') +
             viewInfoItem('Lái xe mang đi sửa', driver.ten || '') +
             viewInfoItem('Số km lúc sửa', d.so_km_luc_sua ? money(d.so_km_luc_sua) + ' km' : '') +
@@ -897,7 +901,17 @@
   }
 
   function vehicleLabel(item) {
-    return (item.bks || '') + ((item.hang_xe || item.nhan_hieu) ? ' - ' + (item.hang_xe || item.nhan_hieu) : '') + (item.ma_tai_san ? ' - ' + item.ma_tai_san : '');
+    item = item || {};
+    var parts = [];
+    if (item.bks) parts.push(item.bks);
+    if (item.loai_phuong_tien) parts.push(vehicleTypeLabel(item.loai_phuong_tien));
+    if (item.hang_xe || item.nhan_hieu) parts.push(item.hang_xe || item.nhan_hieu);
+    if (item.ma_tai_san) parts.push(item.ma_tai_san);
+    return parts.length ? parts.join(' · ') : '';
+  }
+
+  function vehicleTypeLabel(value) {
+    return LOAI_PHUONG_TIEN_LABEL[value] || value || '';
   }
 
   function intClean(value) {

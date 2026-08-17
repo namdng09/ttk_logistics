@@ -53,7 +53,7 @@
             <th>Loại phương tiện</th>
             <th id="th-so">Số</th>
             <th id="th-han">Hạn</th>
-            <th style="width:100px;text-align:center">Tháng còn lại</th>
+            <th style="width:90px;text-align:center">Còn lại</th>
             <th style="width:130px;text-align:center">Trạng thái</th>
           </tr>
         </thead>
