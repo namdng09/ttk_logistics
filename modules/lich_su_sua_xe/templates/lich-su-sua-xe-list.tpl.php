@@ -72,6 +72,29 @@
   </div>
 </div>
 
+<div class="modal fade" id="lssx-view-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="min-w-0">
+          <h5 class="modal-title mb-0" id="lssx-view-title">Chi tiết lịch sử sửa xe</h5>
+          <div class="small text-muted" id="lssx-view-subtitle"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body position-relative">
+        <div id="lssx-view-loading" class="lssx-modal-loading" style="display:none;">
+          <div class="spinner-border text-primary" role="status"></div>
+        </div>
+        <div id="lssx-view-body"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="lssx-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen">
     <div class="modal-content">

@@ -309,11 +309,12 @@
   }
 
   function openView(id) {
-    resetForm();
-    setMode('view');
-    $('#lssx-modal-title').text('Chi tiết lịch sử sửa xe');
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('lssx-modal')).show();
-    loadDetail(id);
+    $('#lssx-view-title').text('Chi tiết lịch sử sửa xe');
+    $('#lssx-view-subtitle').text('');
+    $('#lssx-view-body').html('');
+    showViewLoading(true);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('lssx-view-modal')).show();
+    loadViewDetail(id);
   }
 
   function openEdit(id) {
@@ -340,6 +341,94 @@
         toastError(apiMsg(jqXHR));
       }
     });
+  }
+
+  function loadViewDetail(id) {
+    $.ajax({
+      url: '/api/lich-su-sua-xe/' + id,
+      type: 'GET',
+      dataType: 'json',
+      success: function (res) {
+        showViewLoading(false);
+        if (res.status === 'success' && res.data) renderViewDetail(res.data);
+        else toastError(res.message || 'Không tải được chi tiết');
+      },
+      error: function (jqXHR) {
+        showViewLoading(false);
+        toastError(apiMsg(jqXHR));
+      }
+    });
+  }
+
+  function renderViewDetail(d) {
+    previewMap = {};
+    var vehicle = d.phuong_tien || {};
+    var driver = d.lai_xe_mang_di_sua || {};
+    var items = d.hang_muc || [];
+    var detailFiles = d.files || [];
+    var total = parseFloat(d.tong_chi_phi || 0) || viewItemsTotal(items);
+    var statusLabel = TINH_TRANG_LABEL[d.tinh_trang_xe] || d.tinh_trang_xe || 'Chưa cập nhật';
+    var typeLabel = LOAI_LABEL[d.loai_sua_chua] || d.loai_sua_chua || 'Chưa phân loại';
+    var bks = vehicle.bks || 'Chưa chọn phương tiện';
+
+    $('#lssx-view-title').text(bks);
+    $('#lssx-view-subtitle').text(typeLabel + (d.ngay_sua ? ' · ' + d.ngay_sua : ''));
+
+    var html = '';
+    html += '<div class="lssx-view-hero">' +
+      '<div class="min-w-0">' +
+        '<div class="lssx-view-eyebrow">Lịch sử sửa xe</div>' +
+        '<div class="lssx-view-bks">' + esc(bks) + '</div>' +
+        '<div class="lssx-view-meta">' +
+          '<span><i class="ti tabler-calendar-event"></i>' + viewText(d.ngay_sua) + '</span>' +
+          '<span><i class="ti tabler-tool"></i>' + esc(typeLabel) + '</span>' +
+          '<span><i class="ti tabler-user"></i>' + viewText(driver.ten) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="lssx-view-total">' +
+        '<span>Tổng chi phí</span>' +
+        '<strong>' + money(total) + ' đ</strong>' +
+      '</div>' +
+    '</div>';
+
+    html += '<div class="row g-3 mt-1">' +
+      '<div class="col-12 col-lg-8">' +
+        '<div class="lssx-view-card h-100">' +
+          '<div class="lssx-view-card-title"><i class="ti tabler-info-circle"></i>Thông tin sửa xe</div>' +
+          '<div class="lssx-view-grid">' +
+            viewInfoItem('Phương tiện', vehicleLabel(vehicle)) +
+            viewInfoItem('Loại phương tiện', vehicle.loai_phuong_tien || '') +
+            viewInfoItem('Cơ sở sửa chữa', d.co_so_sua_chua || '') +
+            viewInfoItem('Lái xe mang đi sửa', driver.ten || '') +
+            viewInfoItem('Số km lúc sửa', d.so_km_luc_sua ? money(d.so_km_luc_sua) + ' km' : '') +
+            viewInfoItem('Thời gian sửa', d.thoi_gian_sua || '') +
+            viewInfoItem('Tình trạng xe', statusLabel) +
+            viewInfoItem('Ghi chú', d.ghi_chu || '', 'wide') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="col-12 col-lg-4">' +
+        '<div class="lssx-view-card h-100">' +
+          '<div class="lssx-view-card-title"><i class="ti tabler-bell-ringing"></i>Nhắc bảo dưỡng</div>' +
+          '<div class="lssx-view-reminders">' +
+            '<div><span>Km nhắc tiếp theo</span><strong>' + viewText(d.so_km_nhac_tiep_theo ? money(d.so_km_nhac_tiep_theo) + ' km' : '') + '</strong></div>' +
+            '<div><span>Ngày nhắc tiếp theo</span><strong>' + viewText(d.ngay_nhac_tiep_theo) + '</strong></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+    html += '<div class="lssx-view-card mt-3">' +
+      '<div class="lssx-view-card-title"><i class="ti tabler-list-details"></i>Hạng mục sửa chữa và bảo hành</div>' +
+      renderViewItemsTable(items) +
+    '</div>';
+
+    html += '<div class="lssx-view-card mt-3">' +
+      '<div class="lssx-view-card-title"><i class="ti tabler-photo"></i>Ảnh và chứng từ <span class="badge rounded-pill bg-label-secondary border ms-1">' + detailFiles.length + ' file</span></div>' +
+      renderViewFiles(detailFiles) +
+    '</div>';
+
+    $('#lssx-view-body').html(html);
   }
 
   function populateForm(d) {
@@ -589,7 +678,8 @@
     setMode(currentMode);
   }
 
-  function fileItemHtml(file) {
+  function fileItemHtml(file, editable) {
+    editable = editable !== false;
     var isImg = isImage(file);
     return '<div class="lssx-file-item">' +
       '<button type="button" class="lssx-file-thumb btn-lssx-file-preview" data-file-id="' + esc(file.id || '') + '">' +
@@ -597,7 +687,7 @@
       '</button>' +
       '<div class="lssx-file-name">' + esc(file.ten_hien_thi || file.filename || '') + '</div>' +
       '<div class="lssx-file-meta">' + esc(formatFileSize(file.size)) + '</div>' +
-      '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-lssx-file-delete" data-file-id="' + esc(file.id || '') + '"><i class="ti tabler-trash"></i></button>' +
+      (editable ? '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-lssx-file-delete" data-file-id="' + esc(file.id || '') + '"><i class="ti tabler-trash"></i></button>' : '') +
       '</div>';
   }
 
@@ -712,8 +802,98 @@
     $('#lssx-modal-loading').toggle(!!show);
   }
 
+  function showViewLoading(show) {
+    $('#lssx-view-loading').toggle(!!show);
+  }
+
   function field(name) {
     return $('#lssx-form [name="' + name + '"]');
+  }
+
+  function viewText(value) {
+    if (value === null || value === undefined || String(value).trim() === '') {
+      return '<span class="text-muted fst-italic">Chưa có</span>';
+    }
+    return esc(value);
+  }
+
+  function viewInfoItem(label, value, extraClass) {
+    return '<div class="lssx-view-info-item ' + (extraClass || '') + '">' +
+      '<span>' + esc(label) + '</span>' +
+      '<strong>' + viewText(value) + '</strong>' +
+      '</div>';
+  }
+
+  function viewItemsTotal(items) {
+    var total = 0;
+    items = items || [];
+    for (var i = 0; i < items.length; i++) {
+      total += parseFloat(items[i].thanh_tien || 0) || 0;
+    }
+    return total;
+  }
+
+  function renderViewItemsTable(items) {
+    items = items || [];
+    if (!items.length) {
+      return '<div class="lssx-view-empty">Chưa có hạng mục sửa chữa</div>';
+    }
+    var html = '<div class="table-responsive"><table class="table table-bordered table-sm align-middle mb-0 lssx-view-table">' +
+      '<thead><tr>' +
+        '<th style="width:48px">#</th>' +
+        '<th>Hạng mục/phụ kiện</th>' +
+        '<th class="text-end" style="width:130px">Đơn giá</th>' +
+        '<th class="text-center" style="width:70px">SL</th>' +
+        '<th class="text-end" style="width:140px">Thành tiền</th>' +
+        '<th style="width:120px">Bảo hành</th>' +
+        '<th style="width:120px">Hết BH</th>' +
+        '<th>Ghi chú BH</th>' +
+      '</tr></thead><tbody>';
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var hasWarranty = parseInt(item.co_bao_hanh, 10) ? true : false;
+      html += '<tr>' +
+        '<td class="text-center text-muted">' + (i + 1) + '</td>' +
+        '<td><strong>' + viewText(item.ten_hang_muc) + '</strong></td>' +
+        '<td class="text-end">' + money(item.don_gia) + '</td>' +
+        '<td class="text-center">' + esc(item.so_luong || 1) + '</td>' +
+        '<td class="text-end fw-semibold">' + money(item.thanh_tien) + ' đ</td>' +
+        '<td>' + (hasWarranty ? '<span class="badge bg-label-success border">Có BH</span>' : '<span class="badge bg-label-secondary border">Không BH</span>') + '</td>' +
+        '<td>' + viewText(item.ngay_het_bao_hanh) + '</td>' +
+        '<td>' + viewText(item.ghi_chu_bao_hanh) + '</td>' +
+      '</tr>';
+    }
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  function renderViewFiles(list) {
+    var oldFiles = files;
+    var oldMode = currentMode;
+    files = list || [];
+    currentMode = 'view_detail';
+    var byGroup = { anh_truoc: [], anh_sau: [], chung_tu: [] };
+    for (var i = 0; i < files.length; i++) {
+      var group = files[i].nhom || 'chung_tu';
+      if (!byGroup[group]) byGroup[group] = [];
+      byGroup[group].push(files[i]);
+      if (files[i].id) previewMap[files[i].id] = files[i];
+    }
+    var html = '';
+    $.each(byGroup, function (group, groupFiles) {
+      html += '<div class="lssx-file-group"><div class="lssx-file-group-title"><span>' + esc(FILE_GROUP_LABEL[group] || group) + '</span><span class="badge rounded-pill bg-label-secondary border">' + groupFiles.length + '</span></div>';
+      if (!groupFiles.length) {
+        html += '<div class="lssx-file-empty">Chưa có file</div>';
+      } else {
+        html += '<div class="lssx-file-grid">';
+        for (var j = 0; j < groupFiles.length; j++) html += fileItemHtml(groupFiles[j], false);
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    files = oldFiles;
+    currentMode = oldMode;
+    return '<div class="lssx-file-list">' + html + '</div>';
   }
 
   function vehicleLabel(item) {
