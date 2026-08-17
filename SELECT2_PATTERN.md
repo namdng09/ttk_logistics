@@ -1,6 +1,6 @@
 # Select2 Pattern
 
-Mẫu chuẩn hiện tại lấy theo input `Bãi lấy thực tế` trong modal kế hoạch xếp xe.
+Mẫu chuẩn hiện tại lấy theo input `Khách hàng *` trong modal kế hoạch xếp xe.
 
 ## CSS chuẩn
 
@@ -13,8 +13,6 @@ Mẫu chuẩn hiện tại lấy theo input `Bãi lấy thực tế` trong modal
 }
 
 #your-scope .select2-container .select2-selection--single {
-  display: flex;
-  align-items: center;
   height: calc(1.5em + 0.75rem + 2px);
   padding: 0.375rem 0.75rem;
   border-radius: 0.375rem;
@@ -23,7 +21,6 @@ Mẫu chuẩn hiện tại lấy theo input `Bãi lấy thực tế` trong modal
 }
 
 #your-scope .select2-container .select2-selection--single .select2-selection__rendered {
-  width: 100%;
   line-height: 1.5;
   padding: 0;
   padding-right: 1.75rem;
@@ -41,22 +38,39 @@ Mẫu chuẩn hiện tại lấy theo input `Bãi lấy thực tế` trong modal
   position: relative;
   z-index: 1;
   font-size: 0.875rem;
-  line-height: 1.5;
 }
 ```
 
 Không thêm `margin-right` cho `.select2-selection__clear`. Dấu `x` đã được Select2 mặc định xử lý bằng `float: right`; khoảng trống bên phải nằm ở `padding-right` của `.select2-selection__rendered`.
 
+Nếu chỉ cần sửa một input filter riêng, scope trực tiếp vào select đó để không ảnh hưởng các Select2 khác:
+
+```css
+#your-filter-select + .select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+```
+
 ## JS init cơ bản
 
 ```javascript
-function initSelect2(el, placeholder, options) {
-  if (!$.fn || !$.fn.select2 || !el) return;
+function _jq() {
+  return (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ :
+    (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function') ? jQuery : null;
+}
 
-  var $el = $(el);
+function initSelect2(el, placeholder, options) {
+  var jq = _jq();
+  if (!jq || !el) return;
+
+  var $el = jq(el);
   if ($el.data('select2')) $el.select2('destroy');
 
-  var opts = $.extend({
+  var opts = jq.extend({
     placeholder: placeholder || '— Chọn —',
     allowClear: true,
     width: '100%'
@@ -68,8 +82,21 @@ function initSelect2(el, placeholder, options) {
   }
 
   $el.select2(opts);
+  $el.off('select2:open.khxhFocus').on('select2:open.khxhFocus', function () {
+    window.setTimeout(function () {
+      var search = document.querySelector('.select2-container--open .select2-search__field');
+      if (search) search.focus();
+    }, 0);
+  });
 }
 ```
+
+Quy tắc dùng:
+
+- Populate `<option>` trước, init Select2 sau.
+- Nếu re-init, luôn `destroy()` instance cũ trước.
+- Trong modal, truyền `dropdownParent` hoặc để helper tự lấy `.closest('.modal')`.
+- Với filter ngoài modal, có thể truyền `dropdownParent: jq('body')` nếu dropdown bị lệch/che.
 
 ## Cho phép nhập thêm item mới
 

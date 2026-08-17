@@ -162,8 +162,15 @@
     }
     $('[name="nid_phuong_tien"]').html(options);
     $('#lssx-filter-phuong-tien').html(filterOptions);
-    initSelect2(document.getElementById('lssx-filter-phuong-tien'), 'Tất cả phương tiện');
+    initFilterVehicleSelect2();
     initSelect2(document.querySelector('#lssx-form [name="nid_phuong_tien"]'), 'Chọn phương tiện');
+  }
+
+  function initFilterVehicleSelect2() {
+    var jq = _jq();
+    initSelect2(document.getElementById('lssx-filter-phuong-tien'), 'Tất cả phương tiện', {
+      dropdownParent: jq ? jq('body') : undefined
+    });
   }
 
   function fillDriverSelects() {
@@ -557,17 +564,20 @@
   function renderFiles() {
     previewMap = {};
     var byGroup = { anh_truoc: [], anh_sau: [], chung_tu: [] };
+    var total = 0;
     for (var i = 0; i < files.length; i++) {
       var group = files[i].nhom || 'chung_tu';
       if (!byGroup[group]) byGroup[group] = [];
       byGroup[group].push(files[i]);
       previewMap[files[i].id] = files[i];
+      total += 1;
     }
+    $('#lssx-files-count').text(total + ' file');
     var html = '';
     $.each(byGroup, function (group, list) {
-      html += '<div class="lssx-file-group"><div class="lssx-file-group-title">' + esc(FILE_GROUP_LABEL[group] || group) + '</div>';
+      html += '<div class="lssx-file-group"><div class="lssx-file-group-title"><span>' + esc(FILE_GROUP_LABEL[group] || group) + '</span><span class="badge rounded-pill bg-label-secondary border">' + list.length + '</span></div>';
       if (!list.length) {
-        html += '<div class="text-muted fst-italic small px-2 pb-2">Chưa có file</div>';
+        html += '<div class="lssx-file-empty">Chưa có file</div>';
       } else {
         html += '<div class="lssx-file-grid">';
         for (var j = 0; j < list.length; j++) html += fileItemHtml(list[j]);
@@ -583,7 +593,7 @@
     var isImg = isImage(file);
     return '<div class="lssx-file-item">' +
       '<button type="button" class="lssx-file-thumb btn-lssx-file-preview" data-file-id="' + esc(file.id || '') + '">' +
-        (isImg ? '<img src="' + esc(file.url || '') + '" alt="">' : '<span><i class="ti tabler-file-type-pdf text-danger"></i></span>') +
+        (isImg ? '<img src="' + esc(file.url || '') + '" alt="">' : '<span class="lssx-file-pdf"><i class="ti tabler-file-type-pdf"></i></span>') +
       '</button>' +
       '<div class="lssx-file-name">' + esc(file.ten_hien_thi || file.filename || '') + '</div>' +
       '<div class="lssx-file-meta">' + esc(formatFileSize(file.size)) + '</div>' +

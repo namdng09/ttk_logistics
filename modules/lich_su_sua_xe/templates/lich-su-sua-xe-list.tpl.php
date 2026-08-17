@@ -174,44 +174,54 @@
                   <th style="width:110px">Bảo hành</th>
                   <th style="width:150px">Hết BH</th>
                   <th>Ghi chú BH</th>
-                  <th style="width:56px"></th>
+                  <th style="width:56px" class="text-center lssx-hang-muc-add-cell">
+                    <button type="button" class="btn btn-sm btn-icon btn-primary text-white" id="btn-lssx-add-hang-muc" title="Thêm hạng mục">
+                      <i class="ti tabler-plus"></i>
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody id="lssx-hang-muc-body"></tbody>
             </table>
           </div>
-          <button type="button" class="btn btn-sm btn-label-primary mt-2" id="btn-lssx-add-hang-muc">
-            <i class="ti tabler-plus me-1"></i>Thêm hạng mục
-          </button>
 
-          <div class="lssx-section-title mt-3">Ảnh và chứng từ</div>
-          <div class="alert alert-light border py-2 px-3 small mb-2" id="lssx-file-create-note" style="display:none;">
-            Lưu lịch sử sửa xe trước khi upload ảnh/chứng từ.
+          <div class="card lssx-files-card mt-3" id="lssx-files-card">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 bg-white">
+              <div class="d-flex align-items-center gap-2 min-w-0">
+                <span class="lssx-files-title">Ảnh và chứng từ</span>
+                <span class="badge rounded-pill bg-label-secondary border" id="lssx-files-count">0 file</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-light border py-2 px-3 small mb-3" id="lssx-file-create-note" style="display:none;">
+                Lưu lịch sử sửa xe trước khi upload ảnh/chứng từ.
+              </div>
+              <div class="row g-2 align-items-end mb-3" id="lssx-file-upload">
+                <div class="col-12 col-lg-3">
+                  <label class="form-label">Phân loại</label>
+                  <select class="form-select form-select-sm" id="lssx-file-group">
+                    <option value="anh_truoc">Ảnh trước sửa</option>
+                    <option value="anh_sau">Ảnh sau sửa</option>
+                    <option value="chung_tu">Chứng từ/Hóa đơn</option>
+                  </select>
+                </div>
+                <div class="col-12 col-lg-4">
+                  <label class="form-label">Tên hiển thị</label>
+                  <input type="text" class="form-control form-control-sm" id="lssx-file-title" placeholder="VD: Ảnh vỏ trước khi thay">
+                </div>
+                <div class="col-12 col-lg-3">
+                  <label class="form-label">File</label>
+                  <input type="file" class="form-control form-control-sm" id="lssx-file-input" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf">
+                </div>
+                <div class="col-12 col-lg-2">
+                  <button type="button" class="btn btn-sm btn-primary w-100" id="btn-lssx-upload-file">
+                    <i class="ti tabler-upload me-1"></i>Upload
+                  </button>
+                </div>
+              </div>
+              <div id="lssx-file-list" class="lssx-file-list"></div>
+            </div>
           </div>
-          <div class="row g-2 align-items-end mb-2" id="lssx-file-upload">
-            <div class="col-12 col-lg-3">
-              <label class="form-label">Nhóm file</label>
-              <select class="form-select form-select-sm" id="lssx-file-group">
-                <option value="anh_truoc">Ảnh trước sửa</option>
-                <option value="anh_sau">Ảnh sau sửa</option>
-                <option value="chung_tu">Chứng từ/Hóa đơn</option>
-              </select>
-            </div>
-            <div class="col-12 col-lg-4">
-              <label class="form-label">Tên hiển thị</label>
-              <input type="text" class="form-control form-control-sm" id="lssx-file-title" placeholder="VD: Ảnh vỏ trước khi thay">
-            </div>
-            <div class="col-12 col-lg-3">
-              <label class="form-label">File</label>
-              <input type="file" class="form-control form-control-sm" id="lssx-file-input" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf">
-            </div>
-            <div class="col-12 col-lg-2">
-              <button type="button" class="btn btn-sm btn-primary w-100" id="btn-lssx-upload-file">
-                <i class="ti tabler-upload me-1"></i>Upload
-              </button>
-            </div>
-          </div>
-          <div id="lssx-file-list" class="lssx-file-list"></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
