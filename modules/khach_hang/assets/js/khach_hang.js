@@ -11,6 +11,8 @@
 
   var notyf;
   var KHACH_HANG_INITIALIZED = false;
+  var KHACH_HANG_EVENTS_BOUND = false;
+  var quickCreateCallback = null;
   var currentPage = 1;
   var currentKeyword = '';
   var currentPhanLoai = '';
@@ -52,18 +54,61 @@
     }
   }
 
+  function ensureModal() {
+    var modal = document.getElementById('khach-hang-modal');
+    if (modal) {
+      return modal;
+    }
+    var html = Drupal.settings && Drupal.settings.khach_hang ? (Drupal.settings.khach_hang.modal_html || '') : '';
+    if (!html) {
+      return null;
+    }
+    var wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    var node = wrap.firstElementChild;
+    if (!node) {
+      return null;
+    }
+    document.body.appendChild(node);
+    bindNativeEvents();
+    return node;
+  }
+
   function initKhachHang(context) {
     context = context || document;
-    if (KHACH_HANG_INITIALIZED || !$('#table-khach-hang', context).length) return;
-    KHACH_HANG_INITIALIZED = true;
-
     if (typeof Notyf !== 'undefined' && !notyf) {
       notyf = new Notyf();
     }
-
-    loadList();
     bindNativeEvents();
+    if (!KHACH_HANG_INITIALIZED && $('#table-khach-hang', context).length) {
+      KHACH_HANG_INITIALIZED = true;
+      loadList();
+    }
   }
+
+  Drupal.khachHang = Drupal.khachHang || {};
+  Drupal.khachHang.openCreate = function (config) {
+    config = config || {};
+    if (typeof Notyf !== 'undefined' && !notyf) {
+      notyf = new Notyf();
+    }
+    var modal = ensureModal();
+    if (!modal) {
+      if (notyf) notyf.error('Không tải được form tạo khách hàng');
+      return;
+    }
+    resetForm();
+    setFormMode('create');
+    document.getElementById('khach-hang-modal-title').textContent = config.title || 'Thêm khách hàng';
+    quickCreateCallback = typeof config.onCreated === 'function' ? config.onCreated : null;
+    ensureFormSupportData(function () {
+      initTagify();
+      setTagifyValue(config.phanLoai || ['Khách hàng']);
+      initRepeater();
+      initDatePickers();
+    });
+    modalShow('khach-hang-modal');
+  };
 
   Drupal.behaviors.khachHang = {
     attach: function (context, settings) {
@@ -76,38 +121,53 @@
   });
 
   function bindNativeEvents() {
+    if (KHACH_HANG_EVENTS_BOUND) return;
+    if (!document.getElementById('form-khach-hang') && !document.getElementById('table-khach-hang')) return;
+    KHACH_HANG_EVENTS_BOUND = true;
     var doc = document;
 
     // Search
-    doc.getElementById('btn-search-khach-hang').addEventListener('click', function () {
-      currentKeyword = doc.getElementById('search-khach-hang').value.trim();
-      currentPage = 1;
-      loadList();
-    });
-
-    doc.getElementById('search-khach-hang').addEventListener('keypress', function (e) {
-      if (e.which === 13) {
-        currentKeyword = this.value.trim();
+    var searchBtn = doc.getElementById('btn-search-khach-hang');
+    var searchInput = doc.getElementById('search-khach-hang');
+    if (searchBtn && searchInput) {
+      searchBtn.addEventListener('click', function () {
+        currentKeyword = searchInput.value.trim();
         currentPage = 1;
         loadList();
-      }
-    });
+      });
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('keypress', function (e) {
+        if (e.which === 13) {
+          currentKeyword = this.value.trim();
+          currentPage = 1;
+          loadList();
+        }
+      });
+    }
 
     // Filter phan loai
-    doc.getElementById('filter-phan-loai').addEventListener('change', function () {
-      currentPhanLoai = this.value;
-      currentPage = 1;
-      loadList();
-    });
+    var phanLoaiFilter = doc.getElementById('filter-phan-loai');
+    if (phanLoaiFilter) {
+      phanLoaiFilter.addEventListener('change', function () {
+        currentPhanLoai = this.value;
+        currentPage = 1;
+        loadList();
+      });
+    }
 
     // Enter key submit
-    doc.getElementById('form-khach-hang').addEventListener('keydown', function (e) {
-      if (e.which === 13 && !e.shiftKey) {
-        e.preventDefault();
-        var btn = doc.querySelector('.btn-luu-khach-hang');
-        if (btn && !btn.disabled) btn.click();
-      }
-    });
+    var formKhachHang = doc.getElementById('form-khach-hang');
+    if (formKhachHang) {
+      formKhachHang.addEventListener('keydown', function (e) {
+        if (e.which === 13 && !e.shiftKey) {
+          e.preventDefault();
+          var btn = doc.querySelector('.btn-luu-khach-hang');
+          if (btn && !btn.disabled) btn.click();
+        }
+      });
+    }
 
     // Reload
     var reloadBtn = doc.querySelector('.btn-reload-khach-hang');
@@ -115,8 +175,8 @@
       reloadBtn.addEventListener('click', function () {
         currentKeyword = '';
         currentPhanLoai = '';
-        doc.getElementById('search-khach-hang').value = '';
-        doc.getElementById('filter-phan-loai').value = '';
+        if (searchInput) searchInput.value = '';
+        if (phanLoaiFilter) phanLoaiFilter.value = '';
         currentPage = 1;
         loadList();
       });
@@ -145,13 +205,26 @@
 
     // Modal events
     var modal = doc.getElementById('khach-hang-modal');
-    modal.addEventListener('hidden.bs.modal', function () {
-      resetForm();
-    });
-    modal.addEventListener('shown.bs.modal', function () {
-      initTagify();
-      initDatePickers();
-    });
+    if (modal) {
+      modal.addEventListener('hidden.bs.modal', function () {
+        resetForm();
+        quickCreateCallback = null;
+        modal.style.zIndex = '';
+        var hasParentModal = document.getElementById('ke-hoach-fullscreen-modal') && document.getElementById('ke-hoach-fullscreen-modal').classList.contains('show');
+        hasParentModal = hasParentModal || (document.getElementById('ke-hoach-edit-fullscreen-modal') && document.getElementById('ke-hoach-edit-fullscreen-modal').classList.contains('show'));
+        hasParentModal = hasParentModal || (document.getElementById('ke-hoach-tuyen-xa-edit-fullscreen-modal') && document.getElementById('ke-hoach-tuyen-xa-edit-fullscreen-modal').classList.contains('show'));
+        if (hasParentModal) document.body.classList.add('modal-open');
+      });
+      modal.addEventListener('shown.bs.modal', function () {
+        initTagify();
+        initDatePickers();
+        var backdrops = document.querySelectorAll('.modal-backdrop.show');
+        if (backdrops.length) {
+          backdrops[backdrops.length - 1].style.zIndex = '2090';
+        }
+        modal.style.zIndex = '2100';
+      });
+    }
 
     // Add bank info row
     var btnThemNh = doc.getElementById('btn-them-ngan-hang');
@@ -310,16 +383,19 @@
     }
 
     // Pagination jump keypress
-    doc.getElementById('pagination-jump').addEventListener('keypress', function (e) {
-      if (e.which === 13) {
-        var page = parseInt(this.value);
-        var total = parseInt(this.getAttribute('data-total-pages'));
-        if (page > 0 && page <= total) {
-          currentPage = page;
-          loadList();
+    var paginationJump = doc.getElementById('pagination-jump');
+    if (paginationJump) {
+      paginationJump.addEventListener('keypress', function (e) {
+        if (e.which === 13) {
+          var page = parseInt(this.value);
+          var total = parseInt(this.getAttribute('data-total-pages'));
+          if (page > 0 && page <= total) {
+            currentPage = page;
+            loadList();
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   /* =====================================================
@@ -809,6 +885,10 @@
 
   function addWarehouse(data) {
     var tpl = document.getElementById('tpl-kho-card');
+    var list = document.getElementById('kho-list');
+    if (!tpl || !list) {
+      return;
+    }
     var div = document.createElement('div');
     div.innerHTML = tpl.innerHTML;
     var card = div.querySelector('.kho-card');
@@ -830,12 +910,15 @@
       addPriceRow(card);
     }
 
-    document.getElementById('kho-list').appendChild(card);
+    list.appendChild(card);
     refreshKhoSummary(card);
   }
 
   function addPriceRow($warehouse, data) {
     var tpl = document.getElementById('tpl-dong-gia');
+    if (!tpl) {
+      return;
+    }
     var wrapper = document.createElement('div');
     wrapper.innerHTML = '<table><tbody>' + tpl.innerHTML + '</tbody></table>';
     var row = wrapper.querySelector('tr');
@@ -1021,9 +1104,14 @@
         btn.innerHTML = '<i class="ti tabler-device-floppy me-1"></i> Lưu';
         if (res.status === 'success') {
           if (notyf) notyf.success(nid ? 'Cập nhật thành công' : 'Tạo mới thành công');
+          if (!nid && quickCreateCallback && res.data) {
+            quickCreateCallback(res.data);
+          }
           modalHide('khach-hang-modal');
           resetForm();
-          loadList();
+          if (document.getElementById('table-khach-hang')) {
+            loadList();
+          }
         } else {
           if (notyf) notyf.error(res.message || 'Lỗi không xác định');
         }
@@ -1186,8 +1274,9 @@
      ===================================================== */
 
   function showLoading(show) {
-    var loading = document.getElementById('modal-loading');
-    loading.style.display = show ? '' : 'none';
+    var modal = document.getElementById('khach-hang-modal');
+    var loading = modal ? modal.querySelector('#modal-loading') : document.getElementById('modal-loading');
+    if (loading) loading.style.display = show ? '' : 'none';
   }
 
   function openViewModal(id) {

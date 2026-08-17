@@ -20,6 +20,7 @@
   var listSearchDropdownsLoaded = false;
   var listSearchDropdownsLoading = false;
   var listSearchDropdownCallbacks = [];
+  var customerQuickCreateLoading = false;
   var nestedContEditContext = null;
   var nestedContRestorePending = null;
   var ptkhCreateState = {
@@ -1794,12 +1795,130 @@
       if (key === 'kho') state.cauHinh.diaChiKho = state.diaDiem.kho.slice();
     }
 
+    function addCustomerToState(customer) {
+      if (!customer || !customer.nid) return;
+      var id = parseInt(customer.nid, 10) || 0;
+      if (!id) return;
+      for (var i = 0; i < state.customers.length; i++) {
+        if ((parseInt(state.customers[i].nid, 10) || 0) === id) {
+          state.customers[i] = $.extend({}, state.customers[i], customer);
+          return;
+        }
+      }
+      state.customers.unshift(customer);
+    }
+
     function openDanhMucCreate(phanLoai, onCreated) {
       if (!window.Drupal || !Drupal.danhMuc || typeof Drupal.danhMuc.openCreate !== 'function') {
         if (notyf) notyf.error('Không tải được công cụ tạo danh mục');
         return;
       }
       Drupal.danhMuc.openCreate({ phanLoai: phanLoai, onCreated: onCreated, phanLoaiLocked: true });
+    }
+
+    function customerQuickCreateSettings() {
+      return (settings && settings.khach_hang_quick_create) || {};
+    }
+
+    function ensureCustomerQuickCreateCss(config) {
+      if (!config || !config.css_path || document.getElementById('khach-hang-quick-create-css')) return;
+      var link = document.createElement('link');
+      link.id = 'khach-hang-quick-create-css';
+      link.rel = 'stylesheet';
+      link.href = config.css_path;
+      document.head.appendChild(link);
+    }
+
+    function waitForCustomerQuickCreate(done, failed, attempts) {
+      attempts = attempts || 0;
+      if (window.Drupal && Drupal.khachHang && typeof Drupal.khachHang.openCreate === 'function') {
+        done();
+        return;
+      }
+      if (attempts >= 40) {
+        failed();
+        return;
+      }
+      window.setTimeout(function () {
+        waitForCustomerQuickCreate(done, failed, attempts + 1);
+      }, 50);
+    }
+
+    function loadCustomerQuickCreateTool(done, failed) {
+      var config = customerQuickCreateSettings();
+      if (!config || !config.modal_html || !config.js_path) {
+        failed('missing_customer_tool_config');
+        return;
+      }
+
+      Drupal.settings = Drupal.settings || {};
+      Drupal.settings.khach_hang = Drupal.settings.khach_hang || {};
+      if (!Drupal.settings.khach_hang.modal_html) {
+        Drupal.settings.khach_hang.modal_html = config.modal_html;
+      }
+      ensureCustomerQuickCreateCss(config);
+
+      var existing = document.getElementById('khach-hang-quick-create-js');
+      if (existing) {
+        waitForCustomerQuickCreate(done, failed);
+        return;
+      }
+
+      customerQuickCreateLoading = true;
+      var script = document.createElement('script');
+      script.id = 'khach-hang-quick-create-js';
+      script.src = config.js_path;
+      script.async = false;
+      script.onload = function () {
+        customerQuickCreateLoading = false;
+        waitForCustomerQuickCreate(done, failed);
+      };
+      script.onerror = function () {
+        customerQuickCreateLoading = false;
+        failed('script_load_failed');
+      };
+      document.body.appendChild(script);
+    }
+
+    function openCustomerCreate(onCreated) {
+      if (!window.Drupal || !Drupal.khachHang || typeof Drupal.khachHang.openCreate !== 'function') {
+        if (customerQuickCreateLoading) {
+          if (notyf) notyf.error('Đang tải công cụ tạo khách hàng, vui lòng thử lại sau vài giây');
+          return;
+        }
+        loadCustomerQuickCreateTool(function () {
+          openCustomerCreate(onCreated);
+        }, function (reason) {
+          if (notyf) notyf.error('Không tải được công cụ tạo khách hàng');
+        });
+        return;
+      }
+      Drupal.khachHang.openCreate({ onCreated: onCreated, phanLoai: ['Khách hàng'] });
+    }
+
+    function attachCustomerCreateOption($select, line) {
+      if (!$select || !$select.length) return;
+      if (!$select.data('khxhCustomerCreateAttached')) {
+        $select.data('khxhCustomerCreateAttached', 1);
+        $select.prepend('<option value="__KHACH_HANG_CREATE__">+ Tạo mới...</option>');
+      }
+      $select.off('select2:selecting.khxhCustomerCreate').on('select2:selecting.khxhCustomerCreate', function (e) {
+        if (!e.params || !e.params.args || !e.params.args.data) return;
+        if (e.params.args.data.id !== '__KHACH_HANG_CREATE__') return;
+        e.preventDefault();
+        if ($select.select2) $select.select2('close');
+        openCustomerCreate(function (data) {
+          var id = parseInt(data.nid, 10) || 0;
+          if (!id) return;
+          var ten = data.ten || data.name || ('#' + id);
+          addCustomerToState(data);
+          if (line) line.nid_khach_hang = id;
+          if (!$select.find('option[value="' + id + '"]').length) {
+            $select.append($('<option>', { value: id, text: ten }));
+          }
+          $select.val(String(id)).trigger('change');
+        });
+      });
     }
 
     function attachCreateOption($select, phanLoai, line, fieldName) {
@@ -1832,6 +1951,7 @@
     function initRowUi($row, line) {
       var dropdownParent = formDropdownParent();
       initSelect2($row.find('.line-customer-select')[0], 'Chọn khách hàng', { dropdownParent: dropdownParent });
+      attachCustomerCreateOption($row.find('.line-customer-select'), line);
       initSelect2($row.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-hinh-thuc-select')[0], '— Chọn hình thức —', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true, dropdownParent: dropdownParent });
@@ -1870,6 +1990,7 @@
 
     function initCardUi($card, line) {
       initSelect2($card.find('#nid_khach_hang-input')[0], '— Chọn khách hàng —');
+      attachCustomerCreateOption($card.find('#nid_khach_hang-input'), line);
       initSelect2($card.find('.line-driver-select')[0], '— Chọn lái xe —');
       initSelect2($card.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true });
       attachCreateOption($card.find('.line-kho-select'), 'Kho', line, 'dia_chi_kho');
@@ -3394,6 +3515,7 @@
       loadDropdowns(function () {
         try {
           initSelect2($form('#nid_khach_hang-input')[0], '— Chọn khách hàng —', { dropdownParent: formDropdownParent() });
+          attachCustomerCreateOption($form('#nid_khach_hang-input'));
           loadEditDetail(function (row) {
             try {
               if (row) {

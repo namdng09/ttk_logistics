@@ -359,10 +359,17 @@ function edusoul_preprocess_html(&$variables)
     elseif (user_is_logged_in()) {
         drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 10));
         drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 12));
+        if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
+            danh_muc_add_modal_assets();
+        }
+        if (module_exists('khach_hang') && function_exists('khach_hang_add_modal_assets')) {
+            khach_hang_add_modal_assets();
+        }
         drupal_add_js(array('ke_hoach_xep_xe' => array(
             'mode' => 'create',
             'data' => NULL,
             'statuses' => function_exists('_ke_hoach_xep_xe_statuses') ? _ke_hoach_xep_xe_statuses() : array(),
+            'khach_hang_quick_create' => function_exists('_ke_hoach_xep_xe_khach_hang_quick_create_settings') ? _ke_hoach_xep_xe_khach_hang_quick_create_settings() : array(),
             'permissions' => array(
                 'view' => user_access('ke_hoach_xep_xe_view'),
                 'create' => user_access('ke_hoach_xep_xe_create'),

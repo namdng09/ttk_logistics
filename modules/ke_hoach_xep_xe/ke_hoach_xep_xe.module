@@ -901,6 +901,34 @@ function _ke_hoach_xep_xe_statuses() {
   );
 }
 
+function _ke_hoach_xep_xe_khach_hang_quick_create_settings() {
+  if (!module_exists('khach_hang')) {
+    return array();
+  }
+
+  $module_path = drupal_get_path('module', 'khach_hang');
+  $js_path = $module_path . '/assets/js/khach_hang.js';
+  $css_path = $module_path . '/assets/css/khach_hang.css';
+  $js_version = file_exists($js_path) ? filemtime($js_path) . '-' . filesize($js_path) : REQUEST_TIME;
+  $css_version = file_exists($css_path) ? filemtime($css_path) . '-' . filesize($css_path) : REQUEST_TIME;
+  if (function_exists('khach_hang_modal_html')) {
+    $modal_html = khach_hang_modal_html();
+  }
+  else {
+    $modal_html = theme('khach_hang_modal');
+    if (trim($modal_html) === '') {
+      $template = $module_path . '/templates/khach-hang-modal.tpl.php';
+      $modal_html = file_exists($template) ? file_get_contents($template) : '';
+    }
+  }
+
+  return array(
+    'modal_html' => $modal_html,
+    'js_path' => base_path() . $js_path . '?v=' . rawurlencode($js_version),
+    'css_path' => base_path() . $css_path . '?v=' . rawurlencode($css_version),
+  );
+}
+
 function ke_hoach_xep_xe_file_collection($id) {
   $id = (int) $id;
   if (!$id) return _ke_hoach_xep_xe_fail('ID không hợp lệ');
@@ -1585,6 +1613,9 @@ function ke_hoach_xep_xe_page_list() {
   if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
     danh_muc_add_modal_assets();
   }
+  if (module_exists('khach_hang') && function_exists('khach_hang_add_modal_assets')) {
+    khach_hang_add_modal_assets();
+  }
 
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'plan_type' => 'thuong',
@@ -1592,6 +1623,7 @@ function ke_hoach_xep_xe_page_list() {
     'create_title' => 'Tạo kế hoạch xếp xe',
     'create_button_text' => 'Tạo kế hoạch',
     'statuses' => _ke_hoach_xep_xe_statuses(),
+    'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
       'view' => user_access('ke_hoach_xep_xe_view'),
       'create' => user_access('ke_hoach_xep_xe_create'),
@@ -1608,6 +1640,9 @@ function ke_hoach_cont_page_list($mode = 'overall') {
 
   if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
     danh_muc_add_modal_assets();
+  }
+  if (module_exists('khach_hang') && function_exists('khach_hang_add_modal_assets')) {
+    khach_hang_add_modal_assets();
   }
 
   drupal_add_js(array('ke_hoach_cont' => array('mode' => $mode)), 'setting');
@@ -1628,6 +1663,9 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
   if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
     danh_muc_add_modal_assets();
   }
+  if (module_exists('khach_hang') && function_exists('khach_hang_add_modal_assets')) {
+    khach_hang_add_modal_assets();
+  }
 
   $data = NULL;
   $mode = 'create';
@@ -1647,6 +1685,7 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
     'plan_type' => !empty($data['loai_ke_hoach']) && $data['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong',
     'data' => $data,
     'statuses' => _ke_hoach_xep_xe_statuses(),
+    'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
       'view' => user_access('ke_hoach_xep_xe_view'),
       'create' => user_access('ke_hoach_xep_xe_create'),
@@ -1677,11 +1716,15 @@ function ke_hoach_xep_xe_page_detail($id) {
   if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
     danh_muc_add_modal_assets();
   }
+  if (module_exists('khach_hang') && function_exists('khach_hang_add_modal_assets')) {
+    khach_hang_add_modal_assets();
+  }
 
   $data = _ke_hoach_xep_xe_enrich_row($row);
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'mode' => 'detail',
     'data' => $data,
+    'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
       'create' => user_access('ke_hoach_xep_xe_create'),
       'delete' => user_access('ke_hoach_xep_xe_delete'),
@@ -2339,6 +2382,9 @@ function ke_hoach_tuyen_xa_page_list() {
   if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
     danh_muc_add_modal_assets();
   }
+  if (module_exists('khach_hang') && function_exists('khach_hang_add_modal_assets')) {
+    khach_hang_add_modal_assets();
+  }
 
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'plan_type' => 'tuyen_xa',
@@ -2346,6 +2392,7 @@ function ke_hoach_tuyen_xa_page_list() {
     'create_title' => 'Tạo kế hoạch tuyến xa',
     'create_button_text' => 'Thêm kế hoạch tuyến xa',
     'statuses' => _ke_hoach_xep_xe_statuses(),
+    'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
       'view' => user_access('ke_hoach_xep_xe_view'),
       'create' => user_access('ke_hoach_xep_xe_create'),

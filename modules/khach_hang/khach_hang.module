@@ -81,6 +81,10 @@ function khach_hang_theme() {
       'template' => 'khach-hang-list',
       'path' => $path,
     ),
+    'khach_hang_modal' => array(
+      'template' => 'khach-hang-modal',
+      'path' => $path,
+    ),
   );
 }
 
@@ -90,6 +94,112 @@ function khach_hang_theme() {
 
 function _khach_hang_input() {
   return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+}
+
+function khach_hang_modal_html() {
+  $html = theme('khach_hang_modal');
+  if (trim($html) !== '') {
+    return $html;
+  }
+
+  $template = drupal_get_path('module', 'khach_hang') . '/templates/khach-hang-modal.tpl.php';
+  if (file_exists($template)) {
+    $html = file_get_contents($template);
+    if (trim($html) !== '') {
+      return $html;
+    }
+  }
+
+  return <<<'HTML'
+<div class="modal fade" id="khach-hang-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="khach-hang-modal-title">Thêm khách hàng</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="position:relative;">
+        <div id="modal-loading" class="text-center py-4" style="position:absolute;inset:0;display:none;background:rgba(255,255,255,0.85);z-index:10;border-radius:0.375rem;">
+          <div class="spinner-border text-primary" style="position:sticky;top:50%;margin-top:6rem;" role="status">
+            <span class="visually-hidden">Đang tải...</span>
+          </div>
+        </div>
+        <form id="form-khach-hang" class="needs-validation" novalidate>
+          <input type="hidden" name="nid" value="">
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <label class="form-label">Tên công ty / Khách hàng <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="ten" required placeholder="Công ty TNHH ABC">
+              <div class="invalid-feedback">Vui lòng nhập tên</div>
+            </div>
+            <div class="col-lg-3">
+              <label class="form-label">Tên ngắn gọn</label>
+              <input type="text" class="form-control" name="ma_kh" placeholder="ABC">
+            </div>
+            <div class="col-lg-3">
+              <label class="form-label">MST / CCCD</label>
+              <input type="text" class="form-control" name="cccd_mst" placeholder="0201234567">
+            </div>
+            <div class="col-lg-6">
+              <label class="form-label">Phân loại <span class="text-danger">*</span></label>
+              <input id="tagifyPhanLoai" class="form-control" name="phan_loai_tags" placeholder="Chọn phân loại" required>
+              <div class="invalid-feedback">Vui lòng chọn phân loại</div>
+            </div>
+            <div class="col-lg-3">
+              <label class="form-label">SĐT</label>
+              <input type="tel" class="form-control" name="sdt" placeholder="0901234567" inputmode="numeric">
+            </div>
+            <div class="col-lg-3">
+              <label class="form-label">Ngày sinh</label>
+              <input type="text" class="form-control flatpickr-date date-mask" name="dob" placeholder="dd/MM/yyyy">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Địa chỉ</label>
+              <input type="text" class="form-control" name="dia_chi" placeholder="Số nhà, phường, quận, thành phố">
+            </div>
+          </div>
+          <div class="section mt-4 khach-hang-bank-section">
+            <div class="section-head d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label mb-0 fw-bold khach-hang-section-title"><i class="ti tabler-building-bank me-2"></i>Thông tin ngân hàng</label>
+              <button type="button" class="btn btn-sm btn-icon btn-primary text-white" id="btn-them-ngan-hang" title="Thêm ngân hàng">
+                <i class="ti tabler-plus"></i>
+              </button>
+            </div>
+            <div id="ngan-hang-repeater"></div>
+          </div>
+          <div class="section mt-4 mb-3 khach-hang-warehouse-pricing-section d-none">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label mb-0 fw-bold"><i class="ti tabler-truck me-2"></i>Địa chỉ kho & Bảng giá cước vận chuyển</label>
+              <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-kho">
+                <i class="ti tabler-plus me-1"></i>Thêm kho
+              </button>
+            </div>
+            <div id="kho-list"></div>
+          </div>
+          <div class="row g-3 mt-1 mb-3">
+            <div class="col-lg-6">
+              <label class="form-label">NV Kinh doanh</label>
+              <select id="nv-kinh-doanh-select" class="form-select" name="nv_kinh_doanh">
+                <option value="">Chọn nhân viên</option>
+              </select>
+            </div>
+            <div class="col-lg-6">
+              <label class="form-label">Ghi chú</label>
+              <input type="text" class="form-control" name="ghi_chu" placeholder="Ghi chú">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary btn-luu-khach-hang">
+          <i class="ti tabler-device-floppy me-1"></i> Lưu
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+HTML;
 }
 
 function _khach_hang_success($data = NULL) {
@@ -799,6 +909,11 @@ function _khach_hang_dinh_muc_rest_update($id) {
  ******************************************************************************/
 
 function khach_hang_page_list() {
+  khach_hang_add_modal_assets(FALSE, TRUE);
+  return theme('khach_hang_list_page');
+}
+
+function khach_hang_add_modal_assets($with_modal_html = TRUE, $with_xlsx = FALSE) {
   $module_path = drupal_get_path('module', 'khach_hang');
   $css_path = $module_path . '/assets/css/khach_hang.css';
   $xlsx_path = $module_path . '/assets/vendor/xlsx.full.min.js';
@@ -814,27 +929,30 @@ function khach_hang_page_list() {
     'preprocess' => FALSE,
     'version' => $css_version,
   ));
-  drupal_add_js($xlsx_path, array(
-    'type' => 'file',
-    'scope' => 'footer',
-    'weight' => -10,
-    'preprocess' => FALSE,
-    'version' => $xlsx_version,
-  ));
+  if ($with_xlsx) {
+    drupal_add_js($xlsx_path, array(
+      'type' => 'file',
+      'scope' => 'footer',
+      'weight' => -10,
+      'preprocess' => FALSE,
+      'version' => $xlsx_version,
+    ));
+  }
   drupal_add_js($js_path, array(
     'type' => 'file',
+    'group' => JS_THEME,
     'scope' => 'footer',
+    'weight' => 1,
     'preprocess' => FALSE,
     'version' => $js_version,
   ));
 
   drupal_add_js(array('khach_hang' => array(
+    'modal_html' => $with_modal_html ? khach_hang_modal_html() : '',
     'permissions' => array(
       'khach_hang_view' => user_access('khach_hang_view'),
       'khach_hang_create' => user_access('khach_hang_create'),
       'khach_hang_delete' => user_access('khach_hang_delete'),
     ),
   )), 'setting');
-
-  return theme('khach_hang_list_page');
 }
