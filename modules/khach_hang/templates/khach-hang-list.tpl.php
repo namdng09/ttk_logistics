@@ -158,9 +158,9 @@
   </div>
 </div>
 
-<!-- Create/Edit/View Modal — Fullscreen -->
+<!-- Create/Edit/View Modal -->
 <div class="modal fade" id="khach-hang-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-fullscreen">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="khach-hang-modal-title">Thêm khách hàng</h5>
@@ -212,11 +212,11 @@
           </div>
 
           <!-- Bank Info Section -->
-          <div class="section mt-4">
+          <div class="section mt-4 khach-hang-bank-section">
             <div class="section-head d-flex justify-content-between align-items-center mb-2">
-              <label class="form-label mb-0 fw-bold"><i class="ti tabler-building-bank me-2"></i>Thông tin ngân hàng</label>
-              <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-ngan-hang">
-                <i class="ti tabler-plus me-1"></i>Thêm
+              <label class="form-label mb-0 fw-bold khach-hang-section-title"><i class="ti tabler-building-bank me-2"></i>Thông tin ngân hàng</label>
+              <button type="button" class="btn btn-sm btn-icon btn-primary text-white" id="btn-them-ngan-hang" title="Thêm ngân hàng">
+                <i class="ti tabler-plus"></i>
               </button>
             </div>
             <div id="ngan-hang-repeater"></div>

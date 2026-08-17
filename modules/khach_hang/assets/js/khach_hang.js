@@ -493,33 +493,31 @@
     var container = document.getElementById('ngan-hang-repeater');
     if (!container) return;
     container.innerHTML = '';
-    var headerHtml = '<div class="row g-2 mb-1">' +
-      '<div class="col-md-3"><label class="form-label mb-0">Tên tài khoản</label></div>' +
-      '<div class="col-md-4"><label class="form-label mb-0">Số tài khoản</label></div>' +
-      '<div class="col-md-4"><label class="form-label mb-0">Ngân hàng</label></div>' +
-      '<div class="col-md-1"></div>' +
-    '</div>';
-    container.innerHTML = headerHtml;
     addNganHangRow();
   }
 
   function addNganHangRow(data) {
     var container = document.getElementById('ngan-hang-repeater');
     if (!container) return;
-    var html = '<div class="ngan-hang-row row g-2 mb-2">' +
-      '<div class="col-md-3">' +
-        '<input type="text" class="form-control nganh-hang-ten-tai-khoan" placeholder="Tên TK">' +
+    var html = '<div class="ngan-hang-row">' +
+      '<div class="row g-2 align-items-end">' +
+      '<div class="col-12 col-lg-4">' +
+        '<label class="form-label">Chủ tài khoản</label>' +
+        '<input type="text" class="form-control nganh-hang-ten-tai-khoan" placeholder="VD: NGUYEN VAN A">' +
       '</div>' +
-      '<div class="col-md-4">' +
-        '<input type="text" class="form-control ngan-hang-so-tai-khoan" placeholder="Số TK">' +
+      '<div class="col-12 col-md-6 col-lg-3">' +
+        '<label class="form-label">Số tài khoản</label>' +
+        '<input type="text" class="form-control ngan-hang-so-tai-khoan" placeholder="VD: 0123456789" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">' +
       '</div>' +
-      '<div class="col-md-4">' +
+      '<div class="col-12 col-md-6 col-lg-4">' +
+        '<label class="form-label">Ngân hàng</label>' +
         '<select class="form-select ngan-hang-ten-ngan-hang" style="width:100%">' +
           '<option value="">Chọn ngân hàng</option>' +
         '</select>' +
       '</div>' +
-      '<div class="col-md-1">' +
-        '<button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-ngan-hang"><i class="ti tabler-x"></i></button>' +
+      '<div class="col-12 col-lg-1 text-lg-end">' +
+        '<button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-ngan-hang" title="Xoá ngân hàng"><i class="ti tabler-trash"></i></button>' +
+      '</div>' +
       '</div>' +
     '</div>';
     var div = document.createElement('div');
@@ -539,7 +537,7 @@
     var result = [];
     for (var i = 0; i < rows.length; i++) {
       var ten = rows[i].querySelector('.nganh-hang-ten-tai-khoan').value.trim();
-      var so = rows[i].querySelector('.ngan-hang-so-tai-khoan').value.trim();
+      var so = rows[i].querySelector('.ngan-hang-so-tai-khoan').value.replace(/[^\d]/g, '').trim();
       var sel = rows[i].querySelector('.ngan-hang-ten-ngan-hang');
       var nh = sel ? sel.value.trim() : '';
       if (ten || so || nh) {
@@ -1396,13 +1394,6 @@
     // Repeater ngan hang
     var nhContainer = document.getElementById('ngan-hang-repeater');
     if (nhContainer) nhContainer.innerHTML = '';
-    var headerHtml = '<div class="row g-2 mb-1">' +
-      '<div class="col-md-3"><label class="form-label mb-0">Tên tài khoản</label></div>' +
-      '<div class="col-md-4"><label class="form-label mb-0">Số tài khoản</label></div>' +
-      '<div class="col-md-4"><label class="form-label mb-0">Ngân hàng</label></div>' +
-      '<div class="col-md-1"></div>' +
-    '</div>';
-    if (nhContainer) nhContainer.innerHTML = headerHtml;
     if (d.thong_tin_ngan_hang && d.thong_tin_ngan_hang.length) {
       for (var i = 0; i < d.thong_tin_ngan_hang.length; i++) {
         addNganHangRow(d.thong_tin_ngan_hang[i]);
