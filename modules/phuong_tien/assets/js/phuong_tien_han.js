@@ -42,6 +42,13 @@
       thLabel: '',
       hanLabel: 'Hạn phù hiệu',
     },
+    'giay-phep-lien-van': {
+      title: 'Giấy phép liên vận',
+      soField: 'so_giay_phep_lien_van',
+      hanField: 'han_giay_phep_lien_van',
+      thLabel: 'Số giấy phép liên vận',
+      hanLabel: 'Hạn giấy phép liên vận',
+    },
   };
 
   Drupal.behaviors.phuongTienHan = {

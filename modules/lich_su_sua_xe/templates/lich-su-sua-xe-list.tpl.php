@@ -1,18 +1,10 @@
 <div class="card lssx-card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h4 class="card-title mb-0">Lịch sử sửa xe</h4>
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-primary btn-lssx-create" data-bs-toggle="modal" data-bs-target="#lssx-modal">
-        <i class="ti tabler-plus me-1"></i>Thêm lịch sử
-      </button>
-      <button type="button" class="btn btn-icon btn-label-secondary btn-lssx-refresh" title="Làm mới">
-        <i class="ti tabler-refresh"></i>
-      </button>
-    </div>
   </div>
   <div class="card-body">
     <div class="row g-2 align-items-end mb-3">
-      <div class="col-12 col-lg-3">
+      <div class="col-12 col-lg-2">
         <label class="form-label">Từ khóa</label>
         <input type="text" class="form-control" id="lssx-filter-keyword" placeholder="BKS, gara, lái xe...">
       </div>
@@ -28,9 +20,12 @@
         <label class="form-label">Đến ngày</label>
         <input type="text" class="form-control flatpickr-date date-mask" id="lssx-filter-den-ngay" placeholder="dd/MM/yyyy">
       </div>
-      <div class="col-12 col-lg-2 d-flex gap-2">
+      <div class="col-12 col-lg-3 d-flex gap-2">
         <button type="button" class="btn btn-primary flex-fill" id="btn-lssx-search">
           <i class="ti tabler-search me-1"></i>Tìm
+        </button>
+        <button type="button" class="btn btn-primary flex-fill btn-lssx-create" data-bs-toggle="modal" data-bs-target="#lssx-modal">
+          <i class="ti tabler-plus me-1"></i>Thêm
         </button>
         <button type="button" class="btn btn-icon btn-label-secondary" id="btn-lssx-reset" title="Làm mới">
           <i class="ti tabler-refresh"></i>

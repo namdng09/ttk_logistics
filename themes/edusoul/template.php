@@ -214,6 +214,11 @@ function getMainMenuSoft()
                                     <div data-i18n="Phù hiệu">Phù hiệu</div>
                                 </a>
                             </li>
+                            <li class="menu-item' . ((current_path() === 'phuong-tien/giay-phep-lien-van') ? ' active' : '') . '">
+                                <a href="/phuong-tien/giay-phep-lien-van" class="menu-link">
+                                    <div data-i18n="Giấy phép liên vận">Giấy phép liên vận</div>
+                                </a>
+                            </li>
                             <li class="menu-item' . ((strpos(current_path(), 'lich-su-sua-xe') === 0) ? ' active' : '') . '">
                                 <a href="/lich-su-sua-xe" class="menu-link">
                                     <div data-i18n="Lịch sử sửa xe">Lịch sử sửa xe</div>

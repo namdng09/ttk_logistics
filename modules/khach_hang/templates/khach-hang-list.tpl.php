@@ -223,7 +223,7 @@
           </div>
 
           <!-- Warehouse + Pricing Section -->
-          <div class="section mt-4 mb-3">
+          <div class="section mt-4 mb-3 khach-hang-warehouse-pricing-section d-none">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <label class="form-label mb-0 fw-bold"><i class="ti tabler-truck me-2"></i>Địa chỉ kho & Bảng giá cước vận chuyển</label>
               <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-kho">

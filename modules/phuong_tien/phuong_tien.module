@@ -77,12 +77,13 @@ function phuong_tien_menu() {
   );
 
   // --- UI Hạn (expiry notification screens) ---
-  $expiry_types = array('dang-kiem', 'bao-hiem-than-vo', 'tnds', 'phu-hieu');
+  $expiry_types = array('dang-kiem', 'bao-hiem-than-vo', 'tnds', 'phu-hieu', 'giay-phep-lien-van');
   $expiry_titles = array(
     'dang-kiem' => 'Đăng kiểm',
     'bao-hiem-than-vo' => 'Bảo hiểm thân vỏ',
     'tnds' => 'Bảo hiểm TNDS',
     'phu-hieu' => 'Phù hiệu',
+    'giay-phep-lien-van' => 'Giấy phép liên vận',
   );
   foreach ($expiry_types as $type) {
     $items['phuong-tien/' . $type] = array(
@@ -962,7 +963,7 @@ function phuong_tien_page_list() {
 }
 
 function phuong_tien_page_han($type) {
-  $valid_types = array('dang-kiem', 'bao-hiem-than-vo', 'tnds', 'phu-hieu');
+  $valid_types = array('dang-kiem', 'bao-hiem-than-vo', 'tnds', 'phu-hieu', 'giay-phep-lien-van');
   if (!in_array($type, $valid_types)) {
     drupal_not_found();
     return;
