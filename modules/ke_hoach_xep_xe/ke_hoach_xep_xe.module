@@ -333,16 +333,20 @@ function _ke_hoach_xep_xe_merge_json_text($existing, $incoming) {
 
 function _ke_hoach_xep_xe_file_groups() {
   return array(
-    'lay_cont_rong' => 'Nhận/lấy cont rỗng bãi/depot/cảng',
-    'giao_cont_rong_cho_kho' => 'Giao cont rỗng cho kho',
-    'nhan_cont_hang_tu_kho' => 'Nhận cont hàng từ kho',
-    'ha_cont' => 'Hạ cont',
+    'lay_cont_rong' => 'Nhận cont rỗng',
+    'giao_cont_rong_cho_kho' => 'Giao cont rỗng',
+    'nhan_cont_hang_tu_kho' => 'Nhận cont hàng',
+    'ha_cont' => 'Hạ cont hàng',
   );
 }
 
 function _ke_hoach_xep_xe_file_group_label($group) {
   $groups = _ke_hoach_xep_xe_file_groups();
   return isset($groups[$group]) ? $groups[$group] : 'Khác';
+}
+
+function _ke_hoach_xep_xe_max_plan_files() {
+  return 25;
 }
 
 function _ke_hoach_xep_xe_normalize_files(array $json) {
@@ -391,6 +395,45 @@ function _ke_hoach_xep_xe_upload_entries($field) {
   return !empty($raw['name']) ? array($raw) : array();
 }
 
+function _ke_hoach_xep_xe_optimize_uploaded_image($uri, $mime) {
+  if (strpos((string) $mime, 'image/') !== 0) {
+    return FALSE;
+  }
+
+  if (!function_exists('image_get_info')) {
+    require_once DRUPAL_ROOT . '/includes/image.inc';
+  }
+
+  $info = image_get_info($uri);
+  if (empty($info['width']) || empty($info['height'])) {
+    return FALSE;
+  }
+
+  $max_dimension = 2560;
+  $width = (int) $info['width'];
+  $height = (int) $info['height'];
+  if ($width <= $max_dimension && $height <= $max_dimension) {
+    return FALSE;
+  }
+
+  $image = image_load($uri);
+  if (!$image) {
+    return FALSE;
+  }
+
+  $target_width = $width >= $height ? $max_dimension : NULL;
+  $target_height = $height > $width ? $max_dimension : NULL;
+  if (!image_scale($image, $target_width, $target_height, FALSE)) {
+    return FALSE;
+  }
+
+  $saved = image_save($image, $uri);
+  if ($saved) {
+    clearstatcache(TRUE, drupal_realpath($uri));
+  }
+  return (bool) $saved;
+}
+
 function _ke_hoach_xep_xe_save_upload_entry(array $upload, $dir) {
   if (empty($upload['name']) || !empty($upload['error'])) return NULL;
   $max_size = 10 * 1024 * 1024;
@@ -412,6 +455,10 @@ function _ke_hoach_xep_xe_save_upload_entry(array $upload, $dir) {
   if ($mime && !in_array($mime, $allowed_mime)) {
     file_unmanaged_delete($destination);
     return FALSE;
+  }
+  if ($mime && strpos($mime, 'image/') === 0) {
+    _ke_hoach_xep_xe_optimize_uploaded_image($destination, $mime);
+    $mime = file_get_mimetype($destination);
   }
 
   global $user;
@@ -997,6 +1044,15 @@ function _ke_hoach_xep_xe_file_upload($id) {
   $uploads = _ke_hoach_xep_xe_upload_entries('plan_files');
   if (empty($uploads)) {
     return _ke_hoach_xep_xe_fail('Vui lòng chọn file cần upload');
+  }
+
+  $current_file_count = !empty($context->thong_tin_json['hinh_anh_chung_tu']) && is_array($context->thong_tin_json['hinh_anh_chung_tu']) ? count($context->thong_tin_json['hinh_anh_chung_tu']) : 0;
+  $max_file_count = _ke_hoach_xep_xe_max_plan_files();
+  if ($current_file_count >= $max_file_count) {
+    return _ke_hoach_xep_xe_fail('Kế hoạch này đã đạt giới hạn tối đa ' . $max_file_count . ' file chứng từ');
+  }
+  if ($current_file_count + count($uploads) > $max_file_count) {
+    return _ke_hoach_xep_xe_fail('Kế hoạch này chỉ được lưu tối đa ' . $max_file_count . ' file chứng từ. Hiện có ' . $current_file_count . ' file, bạn chỉ có thể upload thêm ' . ($max_file_count - $current_file_count) . ' file');
   }
 
   $dir = 'public://ke_hoach_xep_xe_files/' . (int) $id;

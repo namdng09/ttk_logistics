@@ -30,7 +30,7 @@
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 bg-white">
         <div class="d-flex align-items-center gap-2 min-w-0">
           <span class="khxh-plan-files-title">Chứng từ hình ảnh kế hoạch</span>
-          <span class="badge rounded-pill bg-label-secondary border" id="khxh-plan-files-count">0 file</span>
+          <span class="badge rounded-pill bg-label-secondary border" id="khxh-plan-files-count">0/25 file</span>
         </div>
       </div>
       <div class="card-body">
@@ -38,10 +38,10 @@
           <div class="col-12 col-lg-4">
             <label class="form-label">Mốc nghiệp vụ</label>
             <select class="form-select form-select-sm" id="khxh-plan-file-group">
-              <option value="lay_cont_rong">1. Nhận/lấy cont rỗng bãi/depot/cảng</option>
-              <option value="giao_cont_rong_cho_kho">2. Giao cont rỗng cho kho</option>
-              <option value="nhan_cont_hang_tu_kho">3. Nhận cont hàng từ kho</option>
-              <option value="ha_cont">4. Hạ cont</option>
+              <option value="lay_cont_rong">1. Nhận cont rỗng</option>
+              <option value="giao_cont_rong_cho_kho">2. Giao cont rỗng</option>
+              <option value="nhan_cont_hang_tu_kho">3. Nhận cont hàng</option>
+              <option value="ha_cont">4. Hạ cont hàng</option>
             </select>
           </div>
           <div class="col-12 col-lg-5">

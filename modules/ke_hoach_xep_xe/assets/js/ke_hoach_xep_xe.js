@@ -85,10 +85,10 @@
     roi_cont: 'bg-label-secondary'
   };
   var PLAN_FILE_GROUPS = {
-    lay_cont_rong: '1. Nhận/lấy cont rỗng bãi/depot/cảng',
-    giao_cont_rong_cho_kho: '2. Giao cont rỗng cho kho',
-    nhan_cont_hang_tu_kho: '3. Nhận cont hàng từ kho',
-    ha_cont: '4. Hạ cont'
+    lay_cont_rong: '1. Nhận cont rỗng',
+    giao_cont_rong_cho_kho: '2. Giao cont rỗng',
+    nhan_cont_hang_tu_kho: '3. Nhận cont hàng',
+    ha_cont: '4. Hạ cont hàng'
   };
   var PLAN_FILE_GROUP_ORDER = ['lay_cont_rong', 'giao_cont_rong_cho_kho', 'nhan_cont_hang_tu_kho', 'ha_cont'];
   var planFilePreviewMap = {};
@@ -190,6 +190,12 @@
     return !!(file && ((file.is_image === true) || String(file.mime || '').indexOf('image/') === 0));
   }
 
+  function planFileIsPdf(file) {
+    var mime = file && file.mime ? String(file.mime).toLowerCase() : '';
+    var url = file && file.url ? String(file.url).toLowerCase() : '';
+    return mime.indexOf('pdf') !== -1 || /\.pdf(\?|$)/.test(url);
+  }
+
   function planFileSize(size) {
     size = parseInt(size, 10) || 0;
     if (!size) return '';
@@ -206,7 +212,10 @@
           '<div class="modal-content">' +
             '<div class="modal-header">' +
               '<h5 class="modal-title mb-0" id="khxh-plan-file-preview-title">Xem chứng từ</h5>' +
-              '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+              '<div class="d-flex align-items-center gap-2 ms-auto">' +
+                '<a class="btn btn-sm btn-label-primary" id="khxh-plan-file-preview-open" href="#" target="_blank" rel="noopener"><i class="ti tabler-external-link me-1"></i>Mở tab mới</a>' +
+                '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+              '</div>' +
             '</div>' +
             '<div class="modal-body text-center" id="khxh-plan-file-preview-body"></div>' +
           '</div>' +
@@ -219,8 +228,15 @@
     if (!file || !file.url) return;
     ensurePlanFilePreviewModal();
     $('#khxh-plan-file-preview-title').text(file.ten_hien_thi || file.filename || 'Xem chứng từ');
+    $('#khxh-plan-file-preview-open').attr('href', file.url);
     if (planFileIsImage(file)) {
       $('#khxh-plan-file-preview-body').html('<img src="' + escHtml(file.url) + '" alt="' + escHtml(file.filename || '') + '" class="khxh-plan-file-preview-img">');
+    } else if (planFileIsPdf(file)) {
+      $('#khxh-plan-file-preview-body').html(
+        '<div class="khxh-plan-file-preview-pdf">' +
+          '<iframe src="' + escHtml(file.url) + '" title="' + escHtml(file.ten_hien_thi || file.filename || 'Xem chứng từ') + '"></iframe>' +
+        '</div>'
+      );
     } else {
       $('#khxh-plan-file-preview-body').html(
         '<div class="khxh-plan-file-preview-file">' +
@@ -261,14 +277,23 @@
           var f = groupFiles[k];
           if (f.id) planFilePreviewMap[String(f.id)] = f;
           var isImage = planFileIsImage(f);
-          html += '<div class="khxh-plan-file-item" data-file-id="' + escHtml(f.id || '') + '">' +
-            '<button type="button" class="khxh-plan-file-thumb btn-plan-file-preview" data-file-id="' + escHtml(f.id || '') + '">' +
+          var fileName = f.ten_hien_thi || f.filename || '';
+          var fileSize = f.size ? planFileSize(f.size) : '';
+          var fileMeta = (f.uploaded_text || '') + (fileSize ? ' · ' + fileSize : '');
+          var fileTooltip = [
+            fileName ? 'Tên file: ' + fileName : '',
+            PLAN_FILE_GROUPS[key] ? 'Mốc nghiệp vụ: ' + PLAN_FILE_GROUPS[key] : '',
+            f.uploaded_text ? 'Thời gian upload: ' + f.uploaded_text : '',
+            fileSize ? 'Dung lượng: ' + fileSize : ''
+          ].filter(Boolean).join('\n');
+          html += '<div class="khxh-plan-file-item" data-file-id="' + escHtml(f.id || '') + '" title="' + escHtml(fileTooltip) + '">' +
+            '<button type="button" class="khxh-plan-file-thumb btn-plan-file-preview" data-file-id="' + escHtml(f.id || '') + '" title="' + escHtml(fileTooltip) + '">' +
               (isImage
                 ? '<img src="' + escHtml(f.url || '') + '" alt="' + escHtml(f.filename || '') + '">'
                 : '<span class="khxh-plan-file-pdf"><i class="ti tabler-file-type-pdf"></i></span>') +
             '</button>' +
-            '<div class="khxh-plan-file-name text-truncate" title="' + escHtml(f.filename || '') + '">' + escHtml(f.ten_hien_thi || f.filename || '') + '</div>' +
-            '<div class="khxh-plan-file-meta">' + escHtml(f.uploaded_text || '') + (f.size ? ' · ' + escHtml(planFileSize(f.size)) : '') + '</div>' +
+            '<div class="khxh-plan-file-name text-truncate" title="' + escHtml(fileName) + '">' + escHtml(fileName) + '</div>' +
+            '<div class="khxh-plan-file-meta" title="' + escHtml(fileMeta) + '">' + escHtml(fileMeta) + '</div>' +
             (editable ? '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-plan-file-delete" data-file-id="' + escHtml(f.id || '') + '" title="Xoá"><i class="ti tabler-trash"></i></button>' : '') +
           '</div>';
         }
@@ -892,7 +917,15 @@
       transportCardHtml('Kéo về', d.cont_keo_ve_by || null, 'Chưa có kế hoạch kéo về') +
     '</div>';
     var files = planFilesFromRow(d);
-    var filesHtml = '<div class="detail-card"><div class="detail-section-title">Chứng từ hình ảnh kế hoạch</div>' + renderPlanFilesHtml(files, false) + '</div>';
+    var filesHtml = '<div class="detail-card khxh-plan-files-card khxh-plan-files-detail-card">' +
+      '<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">' +
+        '<div class="d-flex align-items-center gap-2 min-w-0">' +
+          '<span class="khxh-plan-files-title">Chứng từ hình ảnh kế hoạch</span>' +
+          '<span class="badge rounded-pill bg-label-secondary border">' + files.length + ' file</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="khxh-plan-files-body">' + renderPlanFilesHtml(files, false) + '</div>' +
+    '</div>';
     $('#ke-hoach-detail-subtitle').text((d.so_bkg || 'Kế hoạch') + (d.so_cont ? ' - ' + d.so_cont : ''));
     $('#ke-hoach-detail-edit-btn').attr('href', '/ke-hoach-xep-xe/' + d.nid + '/sua');
     $('#ke-hoach-detail-content').html(
@@ -1520,11 +1553,12 @@
     };
 	    var lineSeq = 0;
 	    var vehicleModal = null;
-	    var contRefModal = null;
-	    var activeContPickerLineKey = null;
-	    var activePickerType = 'vehicle';
-	    var formModal = null;
+    var contRefModal = null;
+    var activeContPickerLineKey = null;
+    var activePickerType = 'vehicle';
+    var formModal = null;
     var selectedPlanFiles = [];
+    var MAX_PLAN_FILES = 25;
     var dropdownsLoaded = false;
     var dropdownsLoading = false;
     function $form(selector) {
@@ -3009,7 +3043,13 @@
 
     function renderEditPlanFiles(files) {
       files = files || [];
-      $form('#khxh-plan-files-count').text(files.length + ' file');
+      var isFull = files.length >= MAX_PLAN_FILES;
+      $form('#khxh-plan-files-count')
+        .text(files.length + '/' + MAX_PLAN_FILES + ' file')
+        .toggleClass('bg-label-danger', isFull)
+        .toggleClass('bg-label-secondary', !isFull);
+      $form('#khxh-plan-file-input').prop('disabled', isFull);
+      $form('#khxh-plan-file-upload').prop('disabled', isFull);
       $form('#khxh-plan-files-body').html(renderPlanFilesHtml(files, true));
       if (editData) {
         editData.hinh_anh_chung_tu = files;
@@ -3028,6 +3068,16 @@
       var files = input && input.files && input.files.length ? Array.prototype.slice.call(input.files) : selectedPlanFiles;
       if (!files || !files.length) {
         if (notyf) notyf.error('Vui lòng chọn file cần upload');
+        return;
+      }
+      var currentFiles = planFilesFromRow(editData);
+      var currentCount = currentFiles.length;
+      if (currentCount >= MAX_PLAN_FILES) {
+        if (notyf) notyf.error('Kế hoạch này đã đạt giới hạn tối đa ' + MAX_PLAN_FILES + ' file chứng từ');
+        return;
+      }
+      if (currentCount + files.length > MAX_PLAN_FILES) {
+        if (notyf) notyf.error('Kế hoạch này chỉ được lưu tối đa ' + MAX_PLAN_FILES + ' file chứng từ. Hiện có ' + currentCount + ' file, bạn chỉ có thể upload thêm ' + (MAX_PLAN_FILES - currentCount) + ' file');
         return;
       }
       var formData = new FormData();
