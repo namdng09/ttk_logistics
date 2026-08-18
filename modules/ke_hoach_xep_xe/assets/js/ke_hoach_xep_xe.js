@@ -73,7 +73,7 @@
     cat_keo_cheo: 'Cắt kéo chéo',
     tha_mooc: 'Thả mooc',
     rut_mooc: 'Rút mooc',
-    dong_hang_trong_ngay: 'Đóng hàng trong ngày',
+    dong_hang: 'Đóng hàng',
     roi_cont: 'Rời Cont'
   };
   var HINH_THUC_COLOR = {
@@ -81,7 +81,7 @@
     cat_keo_cheo: 'bg-label-primary',
     tha_mooc: 'bg-label-warning',
     rut_mooc: 'bg-label-info',
-    dong_hang_trong_ngay: 'bg-label-danger',
+    dong_hang: 'bg-label-danger',
     roi_cont: 'bg-label-secondary'
   };
   var PLAN_FILE_GROUPS = {
@@ -92,6 +92,20 @@
   };
   var PLAN_FILE_GROUP_ORDER = ['lay_cont_rong', 'giao_cont_rong_cho_kho', 'nhan_cont_hang_tu_kho', 'ha_cont'];
   var planFilePreviewMap = {};
+
+  function normalizeHinhThuc(value) {
+    value = String(value || '').trim();
+    return value === 'dong_hang_trong_ngay' ? 'dong_hang' : value;
+  }
+
+  function hinhThucLabel(value) {
+    value = normalizeHinhThuc(value);
+    return HINH_THUC_MAP[value] || value;
+  }
+
+  function hinhThucColor(value) {
+    return HINH_THUC_COLOR[normalizeHinhThuc(value)] || 'bg-label-secondary';
+  }
 
   function apiMsg(jqXHR) {
     try {
@@ -835,8 +849,8 @@
 
   function renderDetailModal(d) {
     var khName = (d.khach_hang && d.khach_hang.ten) || '';
-    var hinhThuc = d.hinh_thuc_van_tai ? (HINH_THUC_MAP[d.hinh_thuc_van_tai] || d.hinh_thuc_van_tai) : '';
-    var hinhThucColor = d.hinh_thuc_van_tai ? (HINH_THUC_COLOR[d.hinh_thuc_van_tai] || 'bg-label-secondary') : 'bg-label-secondary';
+    var hinhThuc = d.hinh_thuc_van_tai ? hinhThucLabel(d.hinh_thuc_van_tai) : '';
+    var hinhThucBadgeColor = d.hinh_thuc_van_tai ? hinhThucColor(d.hinh_thuc_van_tai) : 'bg-label-secondary';
     var diemDen = d.bai_ha_thuc_te || d.bai_ha_cont || '';
     var contText = [d.loai_cont || '', d.so_cont || ''].filter(Boolean).join(' - ');
     var statusColor = d.trang_thai_van_chuyen === 'Hoàn thành' ? 'bg-label-success' : 'bg-label-primary';
@@ -849,7 +863,7 @@
       '</div>' +
       '<div class="detail-info-grid">' +
         detailItem('Ngày lập KH', d.created ? d.created.substring(0, 16) : '') +
-        '<div class="detail-info-item"><div class="detail-info-label">Hình thức vận tải</div><div class="detail-info-value">' + detailBadge(hinhThuc, hinhThucColor, 'Chưa chọn') + '</div></div>' +
+        '<div class="detail-info-item"><div class="detail-info-label">Hình thức vận tải</div><div class="detail-info-value">' + detailBadge(hinhThuc, hinhThucBadgeColor, 'Chưa chọn') + '</div></div>' +
         detailItem('Cut-off', apiToDatetime(d.cut_off || '')) +
         detailItem('Ngày bắt đầu', apiToDate(d.ngay_bat_dau || '')) +
         detailItem('Ngày kết thúc', apiToDate(d.ngay_ket_thuc || '')) +
@@ -1373,9 +1387,9 @@
           var stt = (resp.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(row);
           var khName = (row.khach_hang && row.khach_hang.ten) || '';
-          var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + (HINH_THUC_COLOR[row.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[row.hinh_thuc_van_tai] || '') + '</span>' : '';
+          var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + hinhThucColor(row.hinh_thuc_van_tai) + '">' + escHtml(hinhThucLabel(row.hinh_thuc_van_tai)) + '</span>' : '';
           var hinhThucStatus = '';
-          if (row.is_cont_keo_ve || row.hinh_thuc_van_tai === 'dong_hang_trong_ngay') {
+          if (row.is_cont_keo_ve || normalizeHinhThuc(row.hinh_thuc_van_tai) === 'dong_hang') {
             hinhThucStatus = 'Kéo về';
           } else if (row.hinh_thuc_van_tai === 'cat_keo' || row.hinh_thuc_van_tai === 'cat_keo_cheo' || row.hinh_thuc_van_tai === 'tha_mooc') {
             hinhThucStatus = 'Kéo lên';
@@ -1751,10 +1765,20 @@
       return html;
     }
 
+    function hinhThucOptionsForForm() {
+      var options = $.extend({}, HINH_THUC_MAP);
+      if (currentPlanType() === 'tuyen_xa') {
+        delete options.cat_keo_cheo;
+        delete options.roi_cont;
+      }
+      return options;
+    }
+
     function buildHinhThucRadios(line) {
       var html = '';
-      $.each(HINH_THUC_MAP, function (key, label) {
-        var checked = key === (line.hinh_thuc_van_tai || '') ? ' checked' : '';
+      var selected = normalizeHinhThuc(line.hinh_thuc_van_tai || '');
+      $.each(hinhThucOptionsForForm(), function (key, label) {
+        var checked = key === selected ? ' checked' : '';
         html += '<label class="form-check form-check-inline line-hinh-thuc-option">' +
           '<input class="form-check-input line-hinh-thuc-radio" type="radio" name="line-hinh-thuc-' + escHtml(line.key) + '" value="' + key + '" data-current="' + (checked ? '1' : '0') + '"' + checked + '>' +
           '<span class="form-check-label">' + escHtml(label) + '</span>' +
@@ -2037,6 +2061,10 @@
       var dateInputsHtml = '';
       for (var i = 0; i < state.lines.length; i++) {
         var line = state.lines[i];
+        var routeMetaHtml = currentPlanType() === 'tuyen_xa'
+          ? ''
+          : '<div class="khxh-span-4"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
+            '<div class="khxh-span-4"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>';
         dateInputsHtml = mode === 'edit'
           ? '<div class="khxh-span-4"><label class="form-label">Ngày bắt đầu</label><input type="text" class="form-control line-date-input line-ngay-bat-dau-input" value="' + escHtml(apiToDate(line.ngay_bat_dau || '')) + '" placeholder="dd/mm/yyyy"></div>' +
             '<div class="khxh-span-4"><label class="form-label">Ngày kết thúc</label><input type="text" class="form-control line-date-input line-ngay-ket-thuc-input" value="' + escHtml(apiToDate(line.ngay_ket_thuc || '')) + '" placeholder="dd/mm/yyyy"></div>'
@@ -2052,8 +2080,7 @@
                 '<div class="invalid-feedback">Vui lòng chọn khách hàng</div>' +
               '</div>' +
               '<div class="khxh-span-4"><label class="form-label">Số booking/ bill <span class="text-danger">*</span></label><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số booking/ bill" required><div class="invalid-feedback">Vui lòng nhập số booking/ bill</div></div>' +
-              '<div class="khxh-span-4"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
-              '<div class="khxh-span-4"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
+              routeMetaHtml +
               '<div class="khxh-span-4"><label class="form-label">Bãi lấy</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
               '<div class="khxh-span-4"><label class="form-label">Bãi hạ</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
               '<div class="khxh-span-4"><label class="form-label">Địa chỉ đóng/ trả hàng (Kho) <span class="text-danger">*</span></label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
@@ -2117,13 +2144,23 @@
       var actionCopy = mode === 'edit' ? '<span class="text-muted">-</span>' : '<button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-copy-row-ke-hoach" title="Sao chép dòng"><i class="ti tabler-copy"></i></button>';
       var actionRemove = mode === 'edit' ? '<span class="text-muted">-</span>' : '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-row-ke-hoach" title="Xoá dòng"><i class="ti tabler-trash"></i></button>';
       var hinhThucOptions = '<option value="">H.Thức VT</option>';
-      $.each(HINH_THUC_MAP, function (key, label) {
-        hinhThucOptions += '<option value="' + key + '"' + (line.hinh_thuc_van_tai === key ? ' selected' : '') + '>' + escHtml(label) + '</option>';
+      var selectedHinhThuc = normalizeHinhThuc(line.hinh_thuc_van_tai || '');
+      $.each(hinhThucOptionsForForm(), function (key, label) {
+        hinhThucOptions += '<option value="' + key + '"' + (selectedHinhThuc === key ? ' selected' : '') + '>' + escHtml(label) + '</option>';
       });
       var dateInputsHtml = mode === 'edit'
         ? '<input type="text" class="form-control line-date-input line-ngay-bat-dau-input mb-2" value="' + escHtml(apiToDate(line.ngay_bat_dau || '')) + '" placeholder="Ngày bắt đầu">' +
           '<input type="text" class="form-control line-date-input line-ngay-ket-thuc-input" value="' + escHtml(apiToDate(line.ngay_ket_thuc || '')) + '" placeholder="Ngày kết thúc">'
         : '';
+      var cangSelectHtml = currentPlanType() === 'tuyen_xa'
+        ? ''
+        : '<select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select>';
+      var cutOffHtml = currentPlanType() === 'tuyen_xa'
+        ? dateInputsHtml
+        : '<input type="text" class="form-control line-cut-off-input' + (dateInputsHtml ? ' mb-2' : '') + '" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM">' + dateInputsHtml;
+      var cutOffCellHtml = currentPlanType() === 'tuyen_xa'
+        ? ''
+        : '<td class="line-combo-cell line-cutoff-cell' + (dateInputsHtml ? ' has-date-range' : '') + '">' + cutOffHtml + '</td>';
 	      return '' +
 	        '<tr class="ke-hoach-table-row" data-line-key="' + line.key + '">' +
 	          '<td class="line-combo-cell"><select class="form-select line-customer-select mb-2">' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select><input type="text" class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG"><div class="line-customer-feedback text-danger small mt-1" style="display:none;">Vui lòng chọn khách hàng</div></td>' +
@@ -2149,16 +2186,13 @@
           '</td>' +
           '<td class="line-combo-cell">' +
             '<select class="form-select line-kho-select mb-2">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select>' +
-            '<select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select>' +
+            cangSelectHtml +
           '</td>' +
           '<td class="line-combo-cell">' +
             '<select class="form-select line-bai-lay-select mb-2">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select>' +
             '<select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select>' +
           '</td>' +
-	          '<td class="line-combo-cell line-cutoff-cell' + (dateInputsHtml ? ' has-date-range' : '') + '">' +
-	            '<input type="text" class="form-control line-cut-off-input' + (dateInputsHtml ? ' mb-2' : '') + '" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM">' +
-	            dateInputsHtml +
-	          '</td>' +
+          cutOffCellHtml +
           '<td class="text-center">' + actionCopy + '</td>' +
           '<td class="text-center">' + actionRemove + '</td>' +
         '</tr>';
@@ -2204,15 +2238,15 @@
         line.bai_lay_cont = ($row.find('.line-bai-lay-select').val() || '').trim();
         line.bai_lay_thuc_te = ($row.find('.line-bai-lay-thuc-te-select').val() || '').trim();
         line.bai_ha_cont = ($row.find('.line-bai-ha-select').val() || '').trim();
-        line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
+        line.cang_xuat = currentPlanType() === 'tuyen_xa' ? '' : (($row.find('.line-cang-select').val() || '').trim());
         line.bai_ha_thuc_te = ($row.find('.line-bai-ha-thuc-te-select').val() || '').trim();
-        line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
+        line.cut_off = currentPlanType() === 'tuyen_xa' ? '' : datetimeToApi(($row.find('.line-cut-off-input').val() || '').trim());
         if ($row.find('.line-ngay-bat-dau-input').length) line.ngay_bat_dau = dateToApi($row.find('.line-ngay-bat-dau-input').val().trim());
         if ($row.find('.line-ngay-ket-thuc-input').length) line.ngay_ket_thuc = dateToApi($row.find('.line-ngay-ket-thuc-input').val().trim());
         line.ghi_chu = ($row.find('.line-ghi-chu-input').val() || '').trim();
-        line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-radio:checked').val() || '').trim();
+        line.hinh_thuc_van_tai = normalizeHinhThuc($row.find('.line-hinh-thuc-radio:checked').val() || '');
         line.da_cat_mooc = (line.hinh_thuc_van_tai === 'cat_keo' || line.hinh_thuc_van_tai === 'cat_keo_cheo' || line.hinh_thuc_van_tai === 'tha_mooc') ? 1 : 0;
-        if (line.hinh_thuc_van_tai === 'dong_hang_trong_ngay') {
+        if (line.hinh_thuc_van_tai === 'dong_hang') {
           line.da_du_hang = 1;
         }
         return line;
@@ -2235,9 +2269,9 @@
       line.bai_lay_cont = ($row.find('.line-bai-lay-select').val() || '').trim();
       line.bai_ha_cont = ($row.find('.line-bai-ha-select').val() || '').trim();
       line.bai_ha_thuc_te = normalizeBaiHaThucTe(($row.find('.line-bai-ha-thuc-te-select').val() || '').trim(), line.bai_ha_cont);
-      line.hinh_thuc_van_tai = ($row.find('.line-hinh-thuc-select').val() || '').trim();
-      line.cang_xuat = ($row.find('.line-cang-select').val() || '').trim();
-      line.cut_off = datetimeToApi($row.find('.line-cut-off-input').val().trim());
+      line.hinh_thuc_van_tai = normalizeHinhThuc($row.find('.line-hinh-thuc-select').val() || '');
+      line.cang_xuat = currentPlanType() === 'tuyen_xa' ? '' : (($row.find('.line-cang-select').val() || '').trim());
+      line.cut_off = currentPlanType() === 'tuyen_xa' ? '' : datetimeToApi(($row.find('.line-cut-off-input').val() || '').trim());
       if ($row.find('.line-ngay-bat-dau-input').length) line.ngay_bat_dau = dateToApi($row.find('.line-ngay-bat-dau-input').val().trim());
       if ($row.find('.line-ngay-ket-thuc-input').length) line.ngay_ket_thuc = dateToApi($row.find('.line-ngay-ket-thuc-input').val().trim());
       line.ghi_chu = ($row.find('.line-ghi-chu-input').val() || '').trim();
@@ -3589,7 +3623,7 @@
           var item = items[i];
           var daDuHang = parseInt(item.da_du_hang, 10) === 1;
           if (contMode === 'cat_mooc') {
-            var hinhThucBadge = item.hinh_thuc_van_tai ? '<span class="badge ' + (HINH_THUC_COLOR[item.hinh_thuc_van_tai] || 'bg-label-secondary') + '">' + escHtml(HINH_THUC_MAP[item.hinh_thuc_van_tai] || '') + '</span>' : '';
+            var hinhThucBadge = item.hinh_thuc_van_tai ? '<span class="badge ' + hinhThucColor(item.hinh_thuc_van_tai) + '">' + escHtml(hinhThucLabel(item.hinh_thuc_van_tai)) + '</span>' : '';
             var khName = item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : '';
             var contHtml = item.loai_cont ? escHtml(item.loai_cont) : '';
             if (item.so_cont) {
@@ -3737,7 +3771,7 @@
           { label: 'Cut-off', value: apiToDatetime(d.cut_off) },
           { label: 'Ngày bắt đầu', value: apiToDate(d.ngay_bat_dau) },
           { label: 'Ngày kết thúc', value: apiToDate(d.ngay_ket_thuc) },
-          { label: 'Hình thức vận tải', value: HINH_THUC_MAP[d.hinh_thuc_van_tai] },
+          { label: 'Hình thức vận tải', value: hinhThucLabel(d.hinh_thuc_van_tai) },
         ];
         var html = '';
         $.each(rows, function (i, r) {

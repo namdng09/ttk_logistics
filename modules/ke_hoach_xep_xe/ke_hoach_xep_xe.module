@@ -273,7 +273,12 @@ function _ke_hoach_xep_xe_method_not_allowed($allowed) {
 }
 
 function _ke_hoach_xep_xe_hinh_thuc_options() {
-  return array('cat_keo', 'cat_keo_cheo', 'tha_mooc', 'rut_mooc', 'dong_hang_trong_ngay', 'roi_cont');
+  return array('cat_keo', 'cat_keo_cheo', 'tha_mooc', 'rut_mooc', 'dong_hang', 'roi_cont');
+}
+
+function _ke_hoach_xep_xe_normalize_hinh_thuc($value) {
+  $value = trim((string) $value);
+  return $value === 'dong_hang_trong_ngay' ? 'dong_hang' : $value;
 }
 
 function _ke_hoach_xep_xe_default_record() {
@@ -693,7 +698,7 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['cut_off'] = !empty($line['cut_off']) ? trim($line['cut_off']) : '';
   $record['ngay_bat_dau'] = !empty($line['ngay_bat_dau']) ? substr(_ke_hoach_xep_xe_filter_date($line['ngay_bat_dau']), 0, 10) : '';
   $record['ngay_ket_thuc'] = !empty($line['ngay_ket_thuc']) ? substr(_ke_hoach_xep_xe_filter_date($line['ngay_ket_thuc']), 0, 10) : '';
-  $record['hinh_thuc_van_tai'] = !empty($line['hinh_thuc_van_tai']) ? trim($line['hinh_thuc_van_tai']) : '';
+  $record['hinh_thuc_van_tai'] = !empty($line['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($line['hinh_thuc_van_tai']) : '';
   $record['ke_hoach_cont_ref_nid'] = !empty($line['ke_hoach_cont_ref_nid']) ? (int) $line['ke_hoach_cont_ref_nid'] : 0;
   $record['da_cat_mooc'] = !empty($line['da_cat_mooc']) ? 1 : 0;
   $record['da_du_hang'] = !empty($line['da_du_hang']) ? 1 : 0;
@@ -736,7 +741,8 @@ function _ke_hoach_xep_xe_validate_lines($items, $require_vehicle_driver = TRUE,
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': lái xe bắt buộc');
     }
 
-    if (!empty($item['hinh_thuc_van_tai']) && !in_array($item['hinh_thuc_van_tai'], $allowed)) {
+    $hinh_thuc_van_tai = !empty($item['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($item['hinh_thuc_van_tai']) : '';
+    if ($hinh_thuc_van_tai && !in_array($hinh_thuc_van_tai, $allowed, TRUE)) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': hình thức vận tải không hợp lệ');
     }
   }
@@ -803,6 +809,7 @@ function _ke_hoach_xep_xe_related_summary($row) {
 function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options = array()) {
   $related_mode = !empty($options['related_mode']) ? $options['related_mode'] : 'full';
   $result = (array) $row;
+  $result['hinh_thuc_van_tai'] = !empty($result['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($result['hinh_thuc_van_tai']) : '';
   $nid_khach_hang = !empty($result['nid_khach_hang']) ? (int) $result['nid_khach_hang'] : 0;
   $nid_lai_xe = !empty($result['nid_lai_xe']) ? (int) $result['nid_lai_xe'] : 0;
   $nid_phuong_tien = !empty($result['nid_phuong_tien']) ? (int) $result['nid_phuong_tien'] : 0;
@@ -872,17 +879,19 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
 }
 
 function _ke_hoach_xep_xe_apply_cont_logic(&$record) {
+  $record['hinh_thuc_van_tai'] = _ke_hoach_xep_xe_normalize_hinh_thuc($record['hinh_thuc_van_tai']);
   $record['da_cat_mooc'] = in_array($record['hinh_thuc_van_tai'], array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), TRUE) ? 1 : 0;
-  if ($record['hinh_thuc_van_tai'] === 'dong_hang_trong_ngay') {
+  if ($record['hinh_thuc_van_tai'] === 'dong_hang') {
     $record['da_du_hang'] = 1;
   }
 }
 
 function _ke_hoach_xep_xe_hinh_thuc_status_text($row) {
-  if (!empty($row['is_cont_keo_ve']) || (!empty($row['hinh_thuc_van_tai']) && $row['hinh_thuc_van_tai'] === 'dong_hang_trong_ngay')) {
+  $hinh_thuc_van_tai = !empty($row['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($row['hinh_thuc_van_tai']) : '';
+  if (!empty($row['is_cont_keo_ve']) || $hinh_thuc_van_tai === 'dong_hang') {
     return 'Kéo về';
   }
-  if (!empty($row['hinh_thuc_van_tai']) && in_array($row['hinh_thuc_van_tai'], array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), TRUE)) {
+  if ($hinh_thuc_van_tai && in_array($hinh_thuc_van_tai, array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), TRUE)) {
     return 'Kéo lên';
   }
   return '';
@@ -1147,7 +1156,7 @@ function _ke_hoach_xep_xe_rest_list() {
     elseif ($trang_thai_filter === 'Kéo về') {
       $query->condition(db_or()
         ->condition('kh.ke_hoach_cont_ref_nid', 0, '>')
-        ->condition('kh.hinh_thuc_van_tai', 'dong_hang_trong_ngay')
+        ->condition('kh.hinh_thuc_van_tai', array('dong_hang', 'dong_hang_trong_ngay'), 'IN')
       );
     }
     elseif ($trang_thai_filter === 'Đã cắt mooc') {

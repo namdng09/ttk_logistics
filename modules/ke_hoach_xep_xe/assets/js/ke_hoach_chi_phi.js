@@ -224,10 +224,10 @@
       cat_keo_cheo: 'Cắt kéo chéo',
       tha_mooc: 'Thả mooc',
       rut_mooc: 'Rút mooc',
-      dong_hang_trong_ngay: 'Đóng hàng trong ngày',
+      dong_hang: 'Đóng hàng',
       roi_cont: 'Rời cont'
     };
-    value = String(value || '').trim();
+    value = normalizeHinhThuc(value);
     return map[value] || value;
   }
 
@@ -237,10 +237,15 @@
       cat_keo_cheo: 'bg-label-primary',
       tha_mooc: 'bg-label-warning',
       rut_mooc: 'bg-label-info',
-      dong_hang_trong_ngay: 'bg-label-danger',
+      dong_hang: 'bg-label-danger',
       roi_cont: 'bg-label-secondary'
     };
-    return map[String(value || '').trim()] || 'bg-label-secondary';
+    return map[normalizeHinhThuc(value)] || 'bg-label-secondary';
+  }
+
+  function normalizeHinhThuc(value) {
+    value = String(value || '').trim();
+    return value === 'dong_hang_trong_ngay' ? 'dong_hang' : value;
   }
 
   function updateTransportBadge(value) {
