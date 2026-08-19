@@ -2240,6 +2240,10 @@
                 '<div class="khxh-tuyen-xa-card-title">' + (isTuyenXa ? '<span class="khxh-step-badge">1</span>Kế hoạch chính' : 'Thông tin xếp xe') + '</div>' +
                 '<div class="khxh-tuyen-xa-card-subtitle">Thông tin hàng, tuyến vận chuyển và điều xe</div>' +
               '</div>' +
+              (isTuyenXa ? '<div class="khxh-tuyen-xa-switches khxh-main-plan-switches">' +
+                '<label class="form-check form-switch mb-0"><input class="form-check-input line-bai-thuc-te-toggle" type="checkbox"' + (baiThucTeChecked ? ' checked' : '') + '><span class="form-check-label">Bãi thực tế</span></label>' +
+                '<label class="form-check form-switch mb-0"><input class="form-check-input line-tang-bo-toggle" type="checkbox"' + (optionEnabled(tangBo.enabled) ? ' checked' : '') + '><span class="form-check-label">Tăng bo</span></label>' +
+              '</div>' : '') +
             '</div>' +
             '<div class="khxh-tuyen-xa-section">' +
               '<div class="khxh-tuyen-xa-section-head">' +
@@ -2258,9 +2262,6 @@
             '<div class="khxh-tuyen-xa-section">' +
               '<div class="khxh-tuyen-xa-section-head">' +
                 '<div class="khxh-tuyen-xa-section-title">Tuyến vận chuyển</div>' +
-                (isTuyenXa ? '<div class="khxh-section-tools">' +
-                  '<label class="form-check form-switch mb-0"><input class="form-check-input line-bai-thuc-te-toggle" type="checkbox"' + (baiThucTeChecked ? ' checked' : '') + '><span class="form-check-label">Bãi thực tế</span></label>' +
-                '</div>' : '') +
               '</div>' +
               '<div class="ke-hoach-edit-grid khxh-route-meta-grid">' +
                 routeMetaHtml +
@@ -2293,12 +2294,9 @@
                 '<div class="khxh-span-12"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Ghi chú"></div>' +
               '</div>' +
             '</div>' +
-            (isTuyenXa ? '<div class="khxh-tuyen-xa-section khxh-tang-bo-wrap">' +
+            (isTuyenXa ? '<div class="khxh-tuyen-xa-section khxh-tang-bo-wrap' + (optionEnabled(tangBo.enabled) ? '' : ' d-none') + '">' +
               '<div class="khxh-tuyen-xa-section-head">' +
                 '<div class="khxh-tuyen-xa-section-title">Tăng bo</div>' +
-                '<div class="khxh-section-tools">' +
-                  '<label class="form-check form-switch mb-0"><input class="form-check-input line-tang-bo-toggle" type="checkbox"' + (optionEnabled(tangBo.enabled) ? ' checked' : '') + '><span class="form-check-label">Tăng bo</span></label>' +
-                '</div>' +
               '</div>' +
               '<div class="ke-hoach-edit-grid khxh-tang-bo-section' + (optionEnabled(tangBo.enabled) ? '' : ' d-none') + '">' +
                 '<div class="khxh-span-4"><label class="form-label">Khách hàng tăng bo</label><select class="form-select line-tang-bo-customer-select">' + buildCustomerOptions(tangBo.nid_khach_hang || 0) + '</select></div>' +
@@ -3518,7 +3516,9 @@
       updateTuyenXaSidebar();
     });
     $(document).on('change', '.line-tang-bo-toggle', function () {
-      $(this).closest('.ke-hoach-line-card').find('.khxh-tang-bo-section').toggleClass('d-none', !this.checked);
+      var $wrap = $(this).closest('.ke-hoach-line-card').find('.khxh-tang-bo-wrap');
+      $wrap.toggleClass('d-none', !this.checked);
+      $wrap.find('.khxh-tang-bo-section').toggleClass('d-none', !this.checked);
       updateTuyenXaSidebar();
     });
     $(document).on('change', '.line-ket-hop-toggle', function () {
