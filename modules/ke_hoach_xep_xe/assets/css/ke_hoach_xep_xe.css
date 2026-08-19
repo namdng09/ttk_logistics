@@ -268,6 +268,15 @@ body .flatpickr-calendar {
   .khxh-span-12 {
     grid-column: 1 / -1;
   }
+
+  .khxh-tuyen-xa-card-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .khxh-tuyen-xa-switches {
+    justify-content: flex-start;
+  }
 }
 
 #ke-hoach-cont-pickers {
@@ -319,6 +328,97 @@ body .flatpickr-calendar {
   padding-top: 0;
   margin-top: 0;
   border-top: 0;
+}
+
+.khxh-tuyen-xa-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 1rem;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, 0.04);
+}
+
+#ke-hoach-lines .ke-hoach-line-card.khxh-tuyen-xa-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 1rem;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, 0.04);
+}
+
+.khxh-main-plan-card {
+  background: #fbfcfe;
+}
+
+.khxh-cont-ref-card {
+  background: #f8fbff;
+}
+
+.khxh-ket-hop-card {
+  margin-top: 1rem;
+  background: #f8fdfb;
+}
+
+.khxh-tuyen-xa-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.85rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.khxh-tuyen-xa-card-title {
+  color: #263445;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.khxh-tuyen-xa-switches {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.khxh-tuyen-xa-switches .form-check-label {
+  font-size: 0.86rem;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.khxh-tuyen-xa-section {
+  margin-top: 1rem;
+}
+
+.khxh-tuyen-xa-section:first-of-type {
+  margin-top: 0;
+}
+
+.khxh-tuyen-xa-section-title {
+  margin-bottom: 0.75rem;
+  color: #667085;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.khxh-tang-bo-section {
+  padding: 0.85rem;
+  border: 1px solid #dfe7f3;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.khxh-ket-hop-placeholder {
+  padding: 0.85rem;
+  border: 1px dashed #b9c9d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #667085;
+  font-size: 0.86rem;
 }
 
 .vehicle-summary-wrap {

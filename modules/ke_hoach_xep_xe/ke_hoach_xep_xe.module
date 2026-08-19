@@ -289,6 +289,7 @@ function _ke_hoach_xep_xe_default_record() {
     'so_bkg' => '',
     'dia_chi_kho' => '',
     'loai_cont' => '',
+    'loai_hang' => '',
     'so_cont' => '',
     'nid_phuong_tien' => 0,
     'nid_mooc' => 0,
@@ -311,6 +312,14 @@ function _ke_hoach_xep_xe_default_record() {
   );
 }
 
+function _ke_hoach_xep_xe_has_loai_hang_field() {
+  $exists = &drupal_static(__FUNCTION__);
+  if (!isset($exists)) {
+    $exists = db_field_exists('ke_hoach_xep_xe', 'loai_hang');
+  }
+  return $exists;
+}
+
 function _ke_hoach_xep_xe_json_decode($value) {
   if (is_array($value)) {
     return $value;
@@ -329,6 +338,28 @@ function _ke_hoach_xep_xe_merge_json_text($existing, $incoming) {
   $incoming_json = _ke_hoach_xep_xe_json_decode($incoming);
   $merged = array_merge($existing_json, $incoming_json);
   return !empty($merged) ? _ke_hoach_xep_xe_json_encode($merged) : '';
+}
+
+function _ke_hoach_xep_xe_normalize_money_value($value) {
+  return _ke_hoach_xep_xe_parse_money($value);
+}
+
+function _ke_hoach_xep_xe_normalize_tang_bo($value) {
+  $value = is_array($value) ? $value : array();
+  $enabled = !empty($value['enabled']) || !empty($value['bat']);
+  return array(
+    'enabled' => $enabled ? 1 : 0,
+    'nid_khach_hang' => !empty($value['nid_khach_hang']) ? (int) $value['nid_khach_hang'] : 0,
+    'dia_chi' => !empty($value['dia_chi']) ? trim((string) $value['dia_chi']) : '',
+    'ghi_chu' => !empty($value['ghi_chu']) ? trim((string) $value['ghi_chu']) : '',
+    'doanh_thu_khach_hang' => isset($value['doanh_thu_khach_hang']) ? _ke_hoach_xep_xe_normalize_money_value($value['doanh_thu_khach_hang']) : 0,
+    'luong_lai_xe' => isset($value['luong_lai_xe']) ? _ke_hoach_xep_xe_normalize_money_value($value['luong_lai_xe']) : 0,
+  );
+}
+
+function _ke_hoach_xep_xe_normalize_ket_hop($value) {
+  $value = is_array($value) ? $value : array();
+  return array('enabled' => !empty($value['enabled']) ? 1 : 0);
 }
 
 function _ke_hoach_xep_xe_file_groups() {
@@ -733,6 +764,7 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['nid_mooc'] = !empty($line['nid_mooc']) ? (int) $line['nid_mooc'] : 0;
   $record['dia_chi_kho'] = !empty($line['dia_chi_kho']) ? trim($line['dia_chi_kho']) : '';
   $record['loai_cont'] = !empty($line['loai_cont']) ? trim($line['loai_cont']) : '';
+  $record['loai_hang'] = !empty($line['loai_hang']) ? trim((string) $line['loai_hang']) : '';
   $record['so_cont'] = !empty($line['so_cont']) ? trim($line['so_cont']) : '';
   $record['so_seal_chinh'] = !empty($line['so_seal_chinh']) ? trim($line['so_seal_chinh']) : '';
   $record['so_seal_tam'] = !empty($line['so_seal_tam']) ? trim($line['so_seal_tam']) : '';
@@ -754,6 +786,12 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $json = !empty($line['thong_tin_json']) && is_array($line['thong_tin_json']) ? $line['thong_tin_json'] : array();
   if (isset($line['ghi_chu'])) {
     $json['ghi_chu'] = trim((string) $line['ghi_chu']);
+  }
+  if (isset($line['tang_bo'])) {
+    $json['tang_bo'] = _ke_hoach_xep_xe_normalize_tang_bo($line['tang_bo']);
+  }
+  if (isset($line['ket_hop'])) {
+    $json['ket_hop'] = _ke_hoach_xep_xe_normalize_ket_hop($line['ket_hop']);
   }
   $record['thong_tin_json'] = !empty($json) ? _ke_hoach_xep_xe_json_encode($json) : '';
   return $record;
@@ -1301,39 +1339,43 @@ function _ke_hoach_xep_xe_rest_create() {
       $record = _ke_hoach_xep_xe_build_record($input, $line);
       $loai_ke_hoach = !empty($input['loai_ke_hoach']) && $input['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
       _ke_hoach_xep_xe_apply_cont_logic($record);
+      $fields = array(
+        'nid_khach_hang' => $record['nid_khach_hang'],
+        'nid_lai_xe' => $record['nid_lai_xe'],
+        'so_bkg' => $record['so_bkg'],
+        'dia_chi_kho' => $record['dia_chi_kho'],
+        'loai_cont' => $record['loai_cont'],
+        'so_cont' => $record['so_cont'],
+        'nid_phuong_tien' => $record['nid_phuong_tien'],
+        'nid_mooc' => $record['nid_mooc'],
+        'so_seal_chinh' => $record['so_seal_chinh'],
+        'so_seal_tam' => $record['so_seal_tam'],
+        'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
+        'bai_lay_cont' => $record['bai_lay_cont'],
+        'bai_lay_thuc_te' => $record['bai_lay_thuc_te'],
+        'bai_ha_cont' => $record['bai_ha_cont'],
+        'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
+        'cang_xuat' => $record['cang_xuat'],
+        'cut_off' => $record['cut_off'],
+        'ngay_bat_dau' => $record['ngay_bat_dau'],
+        'ngay_ket_thuc' => $record['ngay_ket_thuc'],
+        'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
+        'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
+        'da_cat_mooc' => $record['da_cat_mooc'],
+        'da_du_hang' => $record['da_du_hang'],
+        'ha_bai_ngoai' => $record['ha_bai_ngoai'],
+        'ha_cang' => $record['ha_cang'],
+        'thong_tin_json' => $record['thong_tin_json'],
+        'loai_ke_hoach' => $loai_ke_hoach,
+        'created' => _ke_hoach_xep_xe_now(),
+        'changed' => _ke_hoach_xep_xe_now(),
+        'hoat_dong' => 1,
+      );
+      if (_ke_hoach_xep_xe_has_loai_hang_field()) {
+        $fields['loai_hang'] = $record['loai_hang'];
+      }
       $nid = db_insert('ke_hoach_xep_xe')
-        ->fields(array(
-          'nid_khach_hang' => $record['nid_khach_hang'],
-          'nid_lai_xe' => $record['nid_lai_xe'],
-          'so_bkg' => $record['so_bkg'],
-          'dia_chi_kho' => $record['dia_chi_kho'],
-          'loai_cont' => $record['loai_cont'],
-          'so_cont' => $record['so_cont'],
-          'nid_phuong_tien' => $record['nid_phuong_tien'],
-          'nid_mooc' => $record['nid_mooc'],
-          'so_seal_chinh' => $record['so_seal_chinh'],
-          'so_seal_tam' => $record['so_seal_tam'],
-          'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
-          'bai_lay_cont' => $record['bai_lay_cont'],
-          'bai_lay_thuc_te' => $record['bai_lay_thuc_te'],
-          'bai_ha_cont' => $record['bai_ha_cont'],
-          'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
-          'cang_xuat' => $record['cang_xuat'],
-          'cut_off' => $record['cut_off'],
-          'ngay_bat_dau' => $record['ngay_bat_dau'],
-          'ngay_ket_thuc' => $record['ngay_ket_thuc'],
-          'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
-          'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
-          'da_cat_mooc' => $record['da_cat_mooc'],
-          'da_du_hang' => $record['da_du_hang'],
-          'ha_bai_ngoai' => $record['ha_bai_ngoai'],
-          'ha_cang' => $record['ha_cang'],
-          'thong_tin_json' => $record['thong_tin_json'],
-          'loai_ke_hoach' => $loai_ke_hoach,
-          'created' => _ke_hoach_xep_xe_now(),
-          'changed' => _ke_hoach_xep_xe_now(),
-          'hoat_dong' => 1,
-        ))
+        ->fields($fields)
         ->execute();
       $created_ids[] = (int) $nid;
     }
@@ -1419,36 +1461,40 @@ function _ke_hoach_xep_xe_rest_update($id) {
 
   $transaction = db_transaction();
   try {
+    $fields = array(
+      'nid_khach_hang' => $record['nid_khach_hang'],
+      'nid_lai_xe' => $record['nid_lai_xe'],
+      'so_bkg' => $record['so_bkg'],
+      'dia_chi_kho' => $record['dia_chi_kho'],
+      'loai_cont' => $record['loai_cont'],
+      'so_cont' => $record['so_cont'],
+      'nid_phuong_tien' => $record['nid_phuong_tien'],
+      'nid_mooc' => $record['nid_mooc'],
+      'so_seal_chinh' => $record['so_seal_chinh'],
+      'so_seal_tam' => $record['so_seal_tam'],
+      'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
+      'bai_lay_cont' => $record['bai_lay_cont'],
+      'bai_lay_thuc_te' => $record['bai_lay_thuc_te'],
+      'bai_ha_cont' => $record['bai_ha_cont'],
+      'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
+      'cang_xuat' => $record['cang_xuat'],
+      'cut_off' => $record['cut_off'],
+      'ngay_bat_dau' => $record['ngay_bat_dau'],
+      'ngay_ket_thuc' => $record['ngay_ket_thuc'],
+      'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
+      'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
+      'da_cat_mooc' => $record['da_cat_mooc'],
+      'da_du_hang' => $record['da_du_hang'],
+      'ha_bai_ngoai' => $record['ha_bai_ngoai'],
+      'ha_cang' => $record['ha_cang'],
+      'thong_tin_json' => $record['thong_tin_json'],
+      'changed' => _ke_hoach_xep_xe_now(),
+    );
+    if (_ke_hoach_xep_xe_has_loai_hang_field()) {
+      $fields['loai_hang'] = $record['loai_hang'];
+    }
     db_update('ke_hoach_xep_xe')
-      ->fields(array(
-        'nid_khach_hang' => $record['nid_khach_hang'],
-        'nid_lai_xe' => $record['nid_lai_xe'],
-        'so_bkg' => $record['so_bkg'],
-        'dia_chi_kho' => $record['dia_chi_kho'],
-        'loai_cont' => $record['loai_cont'],
-        'so_cont' => $record['so_cont'],
-        'nid_phuong_tien' => $record['nid_phuong_tien'],
-        'nid_mooc' => $record['nid_mooc'],
-        'so_seal_chinh' => $record['so_seal_chinh'],
-        'so_seal_tam' => $record['so_seal_tam'],
-        'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
-        'bai_lay_cont' => $record['bai_lay_cont'],
-        'bai_lay_thuc_te' => $record['bai_lay_thuc_te'],
-        'bai_ha_cont' => $record['bai_ha_cont'],
-        'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
-        'cang_xuat' => $record['cang_xuat'],
-        'cut_off' => $record['cut_off'],
-        'ngay_bat_dau' => $record['ngay_bat_dau'],
-        'ngay_ket_thuc' => $record['ngay_ket_thuc'],
-        'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
-        'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
-        'da_cat_mooc' => $record['da_cat_mooc'],
-        'da_du_hang' => $record['da_du_hang'],
-        'ha_bai_ngoai' => $record['ha_bai_ngoai'],
-        'ha_cang' => $record['ha_cang'],
-        'thong_tin_json' => $record['thong_tin_json'],
-        'changed' => _ke_hoach_xep_xe_now(),
-      ))
+      ->fields($fields)
       ->condition('nid', $id)
       ->execute();
 
@@ -1886,6 +1932,7 @@ function _ke_hoach_tuyen_xa_build_parent_record($input) {
   $record['so_bkg'] = trim((string) $input['so_bkg']);
   $record['so_cont'] = !empty($input['so_cont']) ? trim((string) $input['so_cont']) : '';
   $record['loai_cont'] = !empty($input['loai_cont']) ? trim((string) $input['loai_cont']) : '';
+  $record['loai_hang'] = !empty($input['loai_hang']) ? trim((string) $input['loai_hang']) : '';
   $record['dia_chi_kho'] = !empty($input['dia_chi_kho']) ? trim((string) $input['dia_chi_kho']) : '';
   $record['trang_thai_van_chuyen'] = !empty($input['trang_thai_van_chuyen']) ? trim((string) $input['trang_thai_van_chuyen']) : 'Mới tạo';
   $record['nid_phuong_tien'] = !empty($first_chang['nid_phuong_tien']) ? (int) $first_chang['nid_phuong_tien'] : 0;
@@ -2302,41 +2349,45 @@ function _ke_hoach_tuyen_xa_rest_create() {
   $record = $built['parent'];
   $transaction = db_transaction();
   try {
+    $fields = array(
+      'nid_khach_hang' => $record['nid_khach_hang'],
+      'nid_lai_xe' => $record['nid_lai_xe'],
+      'so_bkg' => $record['so_bkg'],
+      'dia_chi_kho' => $record['dia_chi_kho'],
+      'loai_cont' => $record['loai_cont'],
+      'so_cont' => $record['so_cont'],
+      'nid_phuong_tien' => $record['nid_phuong_tien'],
+      'nid_mooc' => $record['nid_mooc'],
+      'so_seal_chinh' => $record['so_seal_chinh'],
+      'so_seal_tam' => $record['so_seal_tam'],
+      'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
+      'bai_lay_cont' => $record['bai_lay_cont'],
+      'bai_lay_thuc_te' => $record['bai_lay_thuc_te'],
+      'bai_ha_cont' => $record['bai_ha_cont'],
+      'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
+      'cang_xuat' => $record['cang_xuat'],
+      'hinh_thuc_van_tai' => '',
+      'ke_hoach_cont_ref_nid' => 0,
+      'da_cat_mooc' => 0,
+      'da_du_hang' => 0,
+      'ha_bai_ngoai' => 0,
+      'ha_cang' => 0,
+      'thong_tin_json' => $record['thong_tin_json'],
+      'loai_ke_hoach' => 'tuyen_xa',
+      'diem_di' => $built['diem_di'],
+      'cua_khau' => $built['cua_khau'],
+      'diem_den' => $built['diem_den'],
+      'ngay_bat_dau' => $built['ngay_bat_dau'],
+      'ngay_ket_thuc' => $built['ngay_ket_thuc'],
+      'created' => _ke_hoach_xep_xe_now(),
+      'changed' => _ke_hoach_xep_xe_now(),
+      'hoat_dong' => 1,
+    );
+    if (_ke_hoach_xep_xe_has_loai_hang_field()) {
+      $fields['loai_hang'] = $record['loai_hang'];
+    }
     $nid = db_insert('ke_hoach_xep_xe')
-      ->fields(array(
-        'nid_khach_hang' => $record['nid_khach_hang'],
-        'nid_lai_xe' => $record['nid_lai_xe'],
-        'so_bkg' => $record['so_bkg'],
-        'dia_chi_kho' => $record['dia_chi_kho'],
-        'loai_cont' => $record['loai_cont'],
-        'so_cont' => $record['so_cont'],
-        'nid_phuong_tien' => $record['nid_phuong_tien'],
-        'nid_mooc' => $record['nid_mooc'],
-        'so_seal_chinh' => $record['so_seal_chinh'],
-        'so_seal_tam' => $record['so_seal_tam'],
-        'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
-        'bai_lay_cont' => $record['bai_lay_cont'],
-        'bai_lay_thuc_te' => $record['bai_lay_thuc_te'],
-        'bai_ha_cont' => $record['bai_ha_cont'],
-        'bai_ha_thuc_te' => $record['bai_ha_thuc_te'],
-        'cang_xuat' => $record['cang_xuat'],
-        'hinh_thuc_van_tai' => '',
-        'ke_hoach_cont_ref_nid' => 0,
-        'da_cat_mooc' => 0,
-        'da_du_hang' => 0,
-        'ha_bai_ngoai' => 0,
-        'ha_cang' => 0,
-        'thong_tin_json' => $record['thong_tin_json'],
-        'loai_ke_hoach' => 'tuyen_xa',
-        'diem_di' => $built['diem_di'],
-        'cua_khau' => $built['cua_khau'],
-        'diem_den' => $built['diem_den'],
-        'ngay_bat_dau' => $built['ngay_bat_dau'],
-        'ngay_ket_thuc' => $built['ngay_ket_thuc'],
-        'created' => _ke_hoach_xep_xe_now(),
-        'changed' => _ke_hoach_xep_xe_now(),
-        'hoat_dong' => 1,
-      ))
+      ->fields($fields)
       ->execute();
 
     $chang_key_map = _ke_hoach_tuyen_xa_save_changs($nid, $input['changs']);
@@ -2383,25 +2434,29 @@ function _ke_hoach_tuyen_xa_rest_update($id) {
   $record['thong_tin_json'] = _ke_hoach_xep_xe_merge_json_text(isset($existing->thong_tin_json) ? $existing->thong_tin_json : '', $record['thong_tin_json']);
   $transaction = db_transaction();
   try {
+    $fields = array(
+      'nid_khach_hang' => $record['nid_khach_hang'],
+      'nid_lai_xe' => $record['nid_lai_xe'],
+      'so_bkg' => $record['so_bkg'],
+      'dia_chi_kho' => $record['dia_chi_kho'],
+      'loai_cont' => $record['loai_cont'],
+      'so_cont' => $record['so_cont'],
+      'nid_phuong_tien' => $record['nid_phuong_tien'],
+      'nid_mooc' => $record['nid_mooc'],
+      'thong_tin_json' => $record['thong_tin_json'],
+      'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
+      'diem_di' => $built['diem_di'],
+      'cua_khau' => $built['cua_khau'],
+      'diem_den' => $built['diem_den'],
+      'ngay_bat_dau' => $built['ngay_bat_dau'],
+      'ngay_ket_thuc' => $built['ngay_ket_thuc'],
+      'changed' => _ke_hoach_xep_xe_now(),
+    );
+    if (_ke_hoach_xep_xe_has_loai_hang_field()) {
+      $fields['loai_hang'] = $record['loai_hang'];
+    }
     db_update('ke_hoach_xep_xe')
-      ->fields(array(
-        'nid_khach_hang' => $record['nid_khach_hang'],
-        'nid_lai_xe' => $record['nid_lai_xe'],
-        'so_bkg' => $record['so_bkg'],
-        'dia_chi_kho' => $record['dia_chi_kho'],
-        'loai_cont' => $record['loai_cont'],
-        'so_cont' => $record['so_cont'],
-        'nid_phuong_tien' => $record['nid_phuong_tien'],
-        'nid_mooc' => $record['nid_mooc'],
-        'thong_tin_json' => $record['thong_tin_json'],
-        'trang_thai_van_chuyen' => $record['trang_thai_van_chuyen'],
-        'diem_di' => $built['diem_di'],
-        'cua_khau' => $built['cua_khau'],
-        'diem_den' => $built['diem_den'],
-        'ngay_bat_dau' => $built['ngay_bat_dau'],
-        'ngay_ket_thuc' => $built['ngay_ket_thuc'],
-        'changed' => _ke_hoach_xep_xe_now(),
-      ))
+      ->fields($fields)
       ->condition('nid', $id)
       ->execute();
 

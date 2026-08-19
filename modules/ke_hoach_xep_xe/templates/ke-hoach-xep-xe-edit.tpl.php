@@ -29,7 +29,7 @@
     <div class="card khxh-plan-files-card mt-3" id="khxh-plan-files-card">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 bg-white">
         <div class="d-flex align-items-center gap-2 min-w-0">
-          <span class="khxh-plan-files-title">Chứng từ hình ảnh kế hoạch</span>
+          <span class="khxh-plan-files-title">4. Chứng từ hình ảnh kế hoạch</span>
           <span class="badge rounded-pill bg-label-secondary border" id="khxh-plan-files-count">0/25 file</span>
         </div>
       </div>

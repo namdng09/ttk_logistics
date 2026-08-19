@@ -36,6 +36,11 @@ function ke_hoach_xep_xe_schema() {
         'length' => 50,
         'not null' => FALSE,
       ),
+      'loai_hang' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
       'so_cont' => array(
         'type' => 'varchar',
         'length' => 50,
@@ -572,4 +577,16 @@ function ke_hoach_xep_xe_update_7016() {
   db_drop_table('ke_hoach_tuyen_xa_chi_phi');
 
   return 'Đã tạo bảng ke_hoach_chi_phi, migrate ' . $migrated . ' chi phí tuyến xa cũ và xoá bảng ke_hoach_tuyen_xa_chi_phi.';
+}
+
+function ke_hoach_xep_xe_update_7017() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'loai_hang')) {
+    db_add_field('ke_hoach_xep_xe', 'loai_hang', array(
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => FALSE,
+    ));
+  }
+
+  return 'Đã thêm field loai_hang cho kế hoạch xếp xe.';
 }
