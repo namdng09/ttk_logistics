@@ -541,12 +541,14 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
 	              <div class="col-md-4"><select class="form-select line-cont-filter-kho"><option></option></select></div>
 	              <div class="col-md-2"><select class="form-select line-cont-filter-du-hang"><option value="">Trạng thái</option><option value="1">Đã đủ</option><option value="0">Chưa đủ</option></select></div>
 	            </div>
-	            <div class="table-responsive">
-	              <table class="table table-bordered table-sm mb-0">
-	                <thead><tr><th></th><th>Xe kéo lên</th><th>Booking / Cont</th><th>Địa chỉ đóng/ trả hàng (Kho)</th><th>Bãi hạ</th><th>Đủ hàng</th><th>Ghi chú</th></tr></thead>
-	                <tbody class="line-cont-picker-body"><tr><td colspan="7" class="text-center text-muted">Chưa có dữ liệu</td></tr></tbody>
-	              </table>
+	            <div class="line-cont-quickbar">
+	              <button type="button" class="line-cont-quick is-active" data-quick="all">Tất cả</button>
+	              <button type="button" class="line-cont-quick" data-quick="ready">Đủ hàng</button>
+	              <button type="button" class="line-cont-quick" data-quick="40HC">40HC</button>
+	              <button type="button" class="line-cont-quick" data-quick="sameDepot">Cùng bãi hạ</button>
+	              <span class="line-cont-sort">Ưu tiên: kế hoạch mới nhất</span>
 	            </div>
+            <div class="line-cont-picker-body line-cont-picker-list"><div class="text-center text-muted py-4">Chưa có dữ liệu</div></div>
 	          </div>
 	        </div>
 	        <div class="modal-footer">

@@ -60,6 +60,41 @@
   </div>
 </div>
 
+<div class="modal fade" id="cont-ref-picker-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0">Chọn cont kéo về</h5>
+          <div class="text-muted small" id="cont-ref-picker-target">Đang chọn cho dòng #1</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="line-cont-picker-wrap" id="cont-ref-picker-wrap" data-line-key="">
+          <div class="row line-cont-filter-row mb-2">
+            <div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div>
+            <div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>
+            <div class="col-md-4"><select class="form-select line-cont-filter-kho"><option></option></select></div>
+            <div class="col-md-2"><select class="form-select line-cont-filter-du-hang"><option value="">Trạng thái</option><option value="1">Đã đủ</option><option value="0">Chưa đủ</option></select></div>
+          </div>
+          <div class="line-cont-quickbar">
+            <button type="button" class="line-cont-quick is-active" data-quick="all">Tất cả</button>
+            <button type="button" class="line-cont-quick" data-quick="ready">Đủ hàng</button>
+            <button type="button" class="line-cont-quick" data-quick="40HC">40HC</button>
+            <button type="button" class="line-cont-quick" data-quick="sameDepot">Cùng bãi hạ</button>
+            <span class="line-cont-sort">Ưu tiên: kế hoạch mới nhất</span>
+          </div>
+          <div class="line-cont-picker-body line-cont-picker-list"><div class="text-center text-muted py-4">Chưa có dữ liệu</div></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng lại</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="vehicle-picker-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content">
