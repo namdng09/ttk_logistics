@@ -1605,6 +1605,7 @@
       .off('change', '.line-bai-ha-theo-ke-hoach-checkbox')
       .off('change', '.line-cont-picker-wrap .line-bai-ha-thuc-te-select')
       .off('change blur', '.cont-inline-note')
+      .off('click', '#cont-ref-picker-confirm-btn')
       .off('click', '#vehicle-picker-clear-btn')
       .off('input', '#vehicle-picker-search')
       .off('change', '#nid_khach_hang-input');
@@ -2320,7 +2321,7 @@
           '</div>';
         pickerHtml += '' +
             '<div class="khxh-tuyen-xa-card khxh-cont-ref-card" id="khxh-return-cont-' + escHtml(line.key) + '" data-line-key="' + line.key + '">' +
-              '<div class="khxh-tuyen-xa-card-head"><div><div class="khxh-tuyen-xa-card-title"><span class="khxh-step-badge">2</span>Cont kéo về</div></div></div>' +
+              '<div class="khxh-tuyen-xa-card-head"><div><div class="khxh-tuyen-xa-card-title"><span class="khxh-step-badge">2</span>Cont kéo về</div></div><span class="khxh-cont-ref-section-status">Chưa chọn</span></div>' +
               '<div class="khxh-cont-ref-content"></div>' +
             '</div>' +
             (isTuyenXa ? '<div class="khxh-tuyen-xa-card khxh-ket-hop-card" id="khxh-combined-plan-' + escHtml(line.key) + '" data-line-key="' + line.key + '">' +
@@ -2710,14 +2711,16 @@
         return '<div class="khxh-cont-ref-empty"><div><strong>Chưa chọn cont kéo về</strong><div class="text-muted small">Chọn một cont khi cần kéo về.</div></div><button type="button" class="btn btn-primary btn-open-cont-ref-modal" data-line-key="' + escHtml(line.key) + '"><i class="ti tabler-plus me-1"></i>Chọn cont</button></div>';
       }
       var customer = (item.khach_hang && item.khach_hang.ten) || item.ten_khach_hang || item.khach_hang_ten || '';
-      var vehicle = vehicleListInfoHtml(item);
+      var dauKeo = (item.phuong_tien && (item.phuong_tien.bks || item.phuong_tien.bien_so)) || item.bks_dau_keo || '';
+      var mooc = (item.mooc && (item.mooc.bks || item.mooc.bien_so)) || item.bks_mooc || '';
+      var laiXe = (item.lai_xe && item.lai_xe.ten) || item.ten_lai_xe || '';
       var routeFrom = item.bai_lay_thuc_te || item.bai_lay_cont || item.dia_chi_kho || '';
       var routeTo = item.bai_ha_thuc_te || item.bai_ha_cont || '';
       var duHang = parseInt(item.da_du_hang, 10) === 1;
       return '<div class="khxh-cont-ref-selected">' +
         '<div class="khxh-cont-ref-selected-top">' +
           '<div class="khxh-cont-ref-identity"><strong class="khxh-cont-ref-number">' + escHtml(item.so_cont || ('#' + item.nid)) + '</strong><span class="badge bg-label-secondary">' + escHtml(item.loai_cont || '—') + '</span><span class="badge ' + (duHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (duHang ? 'Đủ hàng' : 'Chưa đủ') + '</span></div>' +
-          '<div class="khxh-cont-ref-meta"><span><small>Booking</small><strong>' + escHtml(item.so_bkg || '—') + '</strong></span><span><small>Khách hàng</small><strong>' + escHtml(customer || '—') + '</strong></span><span><small>Xe kéo lên</small><strong>' + vehicle + '</strong></span></div>' +
+          '<div class="khxh-cont-ref-meta"><span><small>Booking</small><strong>' + escHtml(item.so_bkg || '—') + '</strong></span><span><small>Khách hàng</small><strong>' + escHtml(customer || '—') + '</strong></span><span><small>Xe kéo lên</small><strong>' + escHtml(dauKeo || '—') + '</strong></span><span><small>Mooc</small><strong>' + escHtml(mooc || '—') + '</strong></span><span><small>Lái xe</small><strong>' + escHtml(laiXe || '—') + '</strong></span></div>' +
           '<div class="khxh-cont-ref-actions"><button type="button" class="btn btn-sm btn-outline-secondary btn-open-cont-ref-modal" data-line-key="' + escHtml(line.key) + '">Đổi cont</button><button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-cont-ref" data-line-key="' + escHtml(line.key) + '" title="Bỏ cont"><i class="ti tabler-x"></i></button></div>' +
         '</div>' +
         '<div class="khxh-cont-ref-selected-bottom"><span><small>Tuyến kéo về</small><strong>' + escHtml(routeFrom || '—') + ' <i class="ti tabler-arrow-right"></i> ' + escHtml(routeTo || '—') + '</strong></span><span><small>Seal</small><strong>' + escHtml(item.so_seal_chinh || '—') + (item.so_seal_tam ? ' · ' + escHtml(item.so_seal_tam) : '') + '</strong></span><span><small>Ghi chú</small><strong>' + escHtml(item.ghi_chu || '—') + '</strong></span></div>' +
@@ -2728,6 +2731,9 @@
       var $section = $form('#khxh-return-cont-' + line.key);
       if (!$section.length) return;
       $section.find('.khxh-cont-ref-content').html(selectedContSummaryHtml(line.cont_ref || null, line));
+      $section.find('.khxh-cont-ref-section-status')
+        .text(line.cont_ref && line.ke_hoach_cont_ref_nid ? 'Đã chọn 1' : 'Chưa chọn')
+        .toggleClass('is-selected', !!(line.cont_ref && line.ke_hoach_cont_ref_nid));
       $section.toggleClass('is-disabled', !shouldShowContPicker(line.hinh_thuc_van_tai));
       $section.find('.btn-open-cont-ref-modal').prop('disabled', !shouldShowContPicker(line.hinh_thuc_van_tai));
     }
@@ -2882,13 +2888,13 @@
 	        if (notyf) notyf.error('Không tìm thấy modal chọn cont kéo về');
 	        return;
 	      }
-	      $wrap.attr('data-line-key', key);
+      $wrap.attr('data-line-key', key);
+      $wrap.data('pending-cont-id', parseInt(line.ke_hoach_cont_ref_nid, 10) || 0);
 	      $wrap.find('.line-cont-filter-bkg, .line-cont-filter-cont').val('');
 	      var $filterKho = $wrap.find('.line-cont-filter-kho');
 	      if ($filterKho.data('select2')) $filterKho.select2('destroy');
 	      $filterKho.html(buildTagOptions(state.diaDiem.kho, ''));
       $wrap.find('.line-cont-filter-du-hang').val('');
-      $wrap.find('.line-cont-quick').removeClass('is-active').filter('[data-quick="all"]').addClass('is-active');
 	      var modalEl = $formOrPage('#cont-ref-picker-modal')[0];
 	      if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
 	        if (notyf) notyf.error('Không khởi tạo được modal chọn cont kéo về');
@@ -2919,7 +2925,6 @@
       var fCont = ($picker.find('.line-cont-filter-cont').val() || '').toLowerCase();
       var fKho = ($picker.find('.line-cont-filter-kho').val() || '').toLowerCase();
       var fDuHang = $picker.find('.line-cont-filter-du-hang').val();
-      var fQuick = $picker.find('.line-cont-quick.is-active').data('quick') || 'all';
       var rows = [];
       var candidates = [];
       var currentNid = parseInt($form('#nid-input').val(), 10) || 0;
@@ -2933,10 +2938,8 @@
         if (fCont && String(item.so_cont || '').toLowerCase().indexOf(fCont) === -1) continue;
 	        if (fKho && String(item.dia_chi_kho || '').toLowerCase().indexOf(fKho) === -1) continue;
         if (fDuHang !== '' && parseInt(item.da_du_hang, 10) !== parseInt(fDuHang, 10)) continue;
-        if (fQuick === 'ready' && parseInt(item.da_du_hang, 10) !== 1) continue;
-        if (fQuick === '40HC' && String(item.loai_cont || '').toUpperCase() !== '40HC') continue;
-        if (fQuick === 'sameDepot' && String(item.bai_ha_cont || '') !== String(line.bai_ha_cont || '')) continue;
-	        var selected = parseInt(line.ke_hoach_cont_ref_nid, 10) === parseInt(item.nid, 10);
+        var pendingContId = parseInt($picker.data('pending-cont-id'), 10) || 0;
+        var selected = pendingContId === parseInt(item.nid, 10);
 	        var selectedByOtherLine = false;
 	        for (var lineIndex = 0; lineIndex < state.lines.length; lineIndex++) {
 	          var otherLine = state.lines[lineIndex];
@@ -2969,11 +2972,11 @@
         var dauKeo = (item.phuong_tien && (item.phuong_tien.bks || item.phuong_tien.bien_so)) || item.bks_dau_keo || '';
         var mooc = (item.mooc && (item.mooc.bks || item.mooc.bien_so)) || item.bks_mooc || '';
         var laiXe = (item.lai_xe && item.lai_xe.ten) || item.ten_lai_xe || '';
-        rows.push('<div class="cont-picker-row' + (selected ? ' is-selected' : '') + '">' +
+        var generalTooltip = 'Khách hàng: ' + (khachHangName || '—') + ' | Đầu kéo: ' + (dauKeo || '—') + ' | Mooc: ' + (mooc || '—') + ' | Lái xe: ' + (laiXe || '—');
+        rows.push('<div class="cont-picker-row' + (selected ? ' is-selected' : '') + '" title="' + escHtml(generalTooltip) + '">' +
           '<div class="cont-picker-radio"><input class="form-check-input line-cont-ref-checkbox" type="radio" name="cont-ref-' + escHtml(line.key) + '" value="' + item.nid + '" data-id="' + item.nid + '" data-so-bkg="' + escHtml(item.so_bkg || '') + '" data-so-cont="' + escHtml(item.so_cont || '') + '"' + (selected ? ' checked' : '') + '></div>' +
           '<div class="cont-picker-cell"><div class="cont-picker-primary"><span class="cont-picker-cont mono">' + escHtml(item.so_cont || ('#' + item.nid)) + '</span><span class="badge bg-label-secondary">' + escHtml(item.loai_cont || '—') + '</span></div><div class="text-muted small mono">' + escHtml(item.so_bkg || '—') + '</div></div>' +
-          '<div class="cont-picker-cell cont-picker-route-cell"><div class="fw-semibold">' + escHtml(khachHangName || '—') + '</div><div class="text-muted small">Đầu kéo: ' + escHtml(dauKeo || '—') + '</div><div class="text-muted small">Mooc: ' + escHtml(mooc || '—') + ' · Lái xe: ' + escHtml(laiXe || '—') + '</div></div>' +
-          '<div class="cont-picker-cell"><div class="fw-semibold">' + escHtml(item.dia_chi_kho || '—') + '</div></div>' +
+          '<div class="cont-picker-cell"><div class="fw-semibold">' + escHtml(item.dia_chi_kho || '—') + '</div><div class="text-muted small">' + escHtml(khachHangName || '—') + '</div></div>' +
           '<div class="cont-picker-cell cont-picker-destination-cell">' +
             '<label class="form-check form-check-inline mb-1">' +
               '<input class="form-check-input line-bai-ha-theo-ke-hoach-checkbox" type="checkbox" data-id="' + item.nid + '"' + (theoKeHoach ? ' checked' : '') + '>' +
@@ -2991,11 +2994,11 @@
 	      $body.find('.line-bai-ha-thuc-te-select').each(function () {
 	        initSelect2(this, '— Chọn bãi hạ —', { tags: true, allowClear: false, dropdownParent: pickerDropdownParent });
 	      });
-	      $picker.find('.line-cont-filter-kho').each(function () {
-	        if (!$(this).data('select2')) {
-	          initSelect2(this, '— Tìm theo địa chỉ kho —', { allowClear: true, width: '100%', dropdownParent: pickerDropdownParent });
-	        }
-	      });
+      $picker.find('.line-cont-filter-kho').each(function () {
+        if (!$(this).data('select2')) {
+          initSelect2(this, '— Tìm theo địa chỉ kho —', { allowClear: true, width: '100%', dropdownParent: pickerDropdownParent });
+        }
+      });
       $picker.scrollTop(scrollTop);
       $formApp.closest('.modal-body').scrollTop(bodyScrollTop);
     }
@@ -3820,33 +3823,40 @@
 	      var line = syncLine($card);
       renderContCandidateRows(line, $card);
     });
-    $(document).on('click', '.line-cont-quick', function () {
-      var $button = $(this);
-      var $picker = $button.closest('.line-cont-picker-wrap');
-      $picker.find('.line-cont-quick').removeClass('is-active');
-      $button.addClass('is-active');
+    $(document).on('change', '.line-cont-ref-checkbox', function () {
+      var $checkbox = $(this);
+      var key = $checkbox.closest('.line-cont-picker-wrap').data('line-key');
+      var $card = getLineElementByKey(key);
+      var line = syncLine($card);
+      var selectedId = $checkbox.is(':checked') ? (parseInt($checkbox.attr('data-id'), 10) || 0) : 0;
+      var $picker = $checkbox.closest('.line-cont-picker-wrap');
+      $picker.data('pending-cont-id', selectedId);
+      renderContCandidateRows(line, $card);
+    });
+    $(document).on('click', '#cont-ref-picker-confirm-btn', function () {
+      var $picker = $formOrPage('#cont-ref-picker-wrap');
       var key = $picker.data('line-key');
       var $card = getLineElementByKey(key);
       var line = syncLine($card);
-      renderContCandidateRows(line, $card);
-    });
-	    $(document).on('change', '.line-cont-ref-checkbox', function () {
-	      var $checkbox = $(this);
-	      var key = $checkbox.closest('.line-cont-picker-wrap').data('line-key');
-	      var $card = getLineElementByKey(key);
-	      var line = syncLine($card);
-	      var selectedId = $checkbox.is(':checked') ? (parseInt($checkbox.attr('data-id'), 10) || 0) : 0;
-      if (selectedId) {
-        $checkbox.closest('tbody').find('.line-cont-ref-checkbox').not($checkbox).prop('checked', false);
+      if (!line) return;
+      var selectedId = parseInt($picker.data('pending-cont-id'), 10) || 0;
+      if (!selectedId) {
+        if (notyf) notyf.error('Vui lòng chọn một cont kéo về');
+        return;
+      }
+      var selectedItem = findContCandidate($card, selectedId);
+      if (!selectedItem) {
+        if (notyf) notyf.error('Không tìm thấy dữ liệu cont đã chọn');
+        return;
       }
       line.ke_hoach_cont_ref_nid = selectedId;
-      line.cont_ref_label = selectedId ? (($checkbox.attr('data-so-bkg') || '') + (($checkbox.attr('data-so-cont') || '') ? ' / ' + $checkbox.attr('data-so-cont') : '')) : '';
-      line.cont_ref = selectedId ? findContCandidate($card, selectedId) : null;
+      line.cont_ref_label = (selectedItem.so_bkg || '') + (selectedItem.so_cont ? ' / ' + selectedItem.so_cont : '');
+      line.cont_ref = selectedItem;
       updateContRefButton($card, line);
       renderSelectedContRef($card, line);
-      renderContCandidateRows(line, $card);
       updateTuyenXaSidebar();
-      if (line.ke_hoach_cont_ref_nid && notyf) notyf.success('Đã chọn cont kéo về: ' + ($checkbox.attr('data-so-cont') || ''));
+      if (contRefModal) contRefModal.hide();
+      if (notyf) notyf.success('Đã chọn cont kéo về: ' + (selectedItem.so_cont || ('#' + selectedId)));
     });
     $(document).on('click', '.btn-remove-cont-ref', function (e) {
       e.preventDefault();
@@ -3902,12 +3912,33 @@
       var $input = $(this);
       var id = parseInt($input.data('id'), 10) || 0;
       if (!id) return;
+      var $picker = $input.closest('.line-cont-picker-wrap');
+      var $card = getLineElementByKey($picker.data('line-key'));
+      var note = $input.val().trim();
+      if ($input.data('last-saved-note') === note || $input.data('pending-note') === note) return;
+      $input.data('pending-note', note);
+      $input.removeClass('is-saved').addClass('is-saving');
       $.ajax({
         url: '/api/quan-ly-cont/' + id,
         type: 'PUT',
         contentType: 'application/json',
-        data: JSON.stringify({ ghi_chu: $input.val().trim() }),
+        data: JSON.stringify({ ghi_chu: note }),
         dataType: 'json'
+      }).done(function (res) {
+        if (res && res.status === 'success') {
+          updateContCandidateItem($card, id, { ghi_chu: note });
+          $input.removeData('pending-note').data('last-saved-note', note);
+          $input.removeClass('is-saving').addClass('is-saved');
+          window.setTimeout(function () { $input.removeClass('is-saved'); }, 1200);
+          return;
+        }
+        $input.removeData('pending-note');
+        $input.removeClass('is-saving');
+        if (notyf) notyf.error((res && res.message) || 'Không lưu được ghi chú cont');
+      }).fail(function (jqXHR) {
+        $input.removeData('pending-note');
+        $input.removeClass('is-saving');
+        if (notyf) notyf.error(apiMsg(jqXHR));
       });
     });
     $(document).on('click', '#vehicle-picker-clear-btn', function () {
@@ -3928,8 +3959,9 @@
 	      });
 	    $(document)
 	      .off('hidden.bs.modal', '#cont-ref-picker-modal')
-	      .on('hidden.bs.modal', '#cont-ref-picker-modal', function () {
+      .on('hidden.bs.modal', '#cont-ref-picker-modal', function () {
         activeContPickerLineKey = null;
+        $(this).find('#cont-ref-picker-wrap').removeData('pending-cont-id');
         var placeholder = this.__contRefPickerPlaceholder;
         if (placeholder && placeholder.parentNode) {
           placeholder.parentNode.insertBefore(this, placeholder.nextSibling);
