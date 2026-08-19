@@ -582,6 +582,7 @@ body .flatpickr-calendar {
   background: #fff;
   color: #475569;
   cursor: pointer;
+  box-shadow: 0 2px 7px rgba(20, 27, 38, 0.14);
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -595,12 +596,14 @@ body .flatpickr-calendar {
 .khxh-section-nav-item:hover {
   border-color: #aeb9c7;
   color: #263445;
+  box-shadow: 0 3px 10px rgba(20, 27, 38, 0.2);
 }
 
 .khxh-section-nav-item.is-active {
   border-color: #384a5e;
   background: #384a5e;
   color: #fff;
+  box-shadow: 0 3px 10px rgba(20, 27, 38, 0.26);
 }
 
 .khxh-section-nav-item .khxh-navnum {
