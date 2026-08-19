@@ -1606,6 +1606,7 @@
       .off('change', '.line-cont-picker-wrap .line-bai-ha-thuc-te-select')
       .off('change blur', '.cont-inline-note')
       .off('click', '#vehicle-picker-clear-btn')
+      .off('input', '#vehicle-picker-search')
       .off('change', '#nid_khach_hang-input');
 
     function applyDropdownData(cache) {
@@ -1973,8 +1974,8 @@
       var vehicleName = vehicleOnlyText(line);
       var moocName = moocSummaryText(line);
       var contText = [line.loai_cont || '', line.so_cont || ''].filter(Boolean).join(' - ');
-      var routeText = [line.bai_lay_thuc_te || line.bai_lay_cont || '', line.dia_chi_kho || '', line.bai_ha_thuc_te || line.bai_ha_cont || ''].filter(Boolean).join(' -> ');
-      var dateText = [apiToDate(line.ngay_bat_dau || ''), apiToDate(line.ngay_ket_thuc || '')].filter(Boolean).join(' -> ');
+      var routeText = [line.bai_lay_thuc_te || line.bai_lay_cont || '', line.dia_chi_kho || '', line.bai_ha_thuc_te || line.bai_ha_cont || ''].filter(Boolean).join(' - ');
+      var dateText = [apiToDate(line.ngay_bat_dau || ''), apiToDate(line.ngay_ket_thuc || '')].filter(Boolean).join(' - ');
       var filesCount = planFilesFromRow(editData).length;
       var tangBo = lineTangBo(line);
       var ketHop = lineKetHop(line);
@@ -2168,7 +2169,7 @@
     function initCardUi($card, line) {
       initSelect2($card.find('#nid_khach_hang-input')[0], '— Chọn khách hàng —');
       attachCustomerCreateOption($card.find('#nid_khach_hang-input'), line);
-      initSelect2($card.find('.line-tang-bo-customer-select')[0], '— Chọn khách hàng tăng bo —');
+      initSelect2($card.find('.line-tang-bo-customer-select')[0], '— Chọn khách hàng —');
       attachCustomerCreateOption($card.find('.line-tang-bo-customer-select'), null);
       initSelect2($card.find('.line-driver-select')[0], '— Chọn lái xe —');
       initSelect2($card.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true });
@@ -2570,7 +2571,7 @@
         $('#vehicle-picker-col-type').text('Loại xe');
         $('#vehicle-picker-col-extra').text('Lái xe hiện tại');
       }
-      $form('#vehicle-picker-search').val('');
+      $formOrPage('#vehicle-picker-search').val('');
       renderVehicleTable('');
       if (!vehicleModal) vehicleModal = new bootstrap.Modal(document.getElementById('vehicle-picker-modal'));
       vehicleModal.show();
@@ -3572,7 +3573,7 @@
         resetAllLines();
       }
     });
-    $form('#vehicle-picker-search').on('input', function () {
+    $(document).on('input', '#vehicle-picker-search', function () {
       renderVehicleTable($(this).val());
     });
     $form('#khxh-plan-file-input').on('change', function () {
