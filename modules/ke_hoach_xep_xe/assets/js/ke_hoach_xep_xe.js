@@ -2290,8 +2290,8 @@
                 '<div class="khxh-span-4"><label class="form-label">Mooc</label><input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal' + (line.nid_mooc ? ' is-selected' : '') + '">' + moocSummaryHtml(line) + '</button></div>' +
                 '<div class="khxh-span-4"><label class="form-label">Lái xe</label><select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select></div>' +
                 dateInputsHtml +
-                '<div class="khxh-span-12"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
-                '<div class="khxh-span-12"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Ghi chú"></div>' +
+                '<div class="khxh-span-half"><label class="form-label d-block">Hình thức vận tải</label><div class="line-hinh-thuc-group">' + buildHinhThucRadios(line) + '</div></div>' +
+                '<div class="khxh-span-half"><label class="form-label">Ghi chú</label><input type="text" class="form-control line-ghi-chu-input" value="' + escHtml(line.ghi_chu || '') + '" placeholder="Ghi chú"></div>' +
               '</div>' +
             '</div>' +
             (isTuyenXa ? '<div class="khxh-tuyen-xa-section khxh-tang-bo-wrap' + (optionEnabled(tangBo.enabled) ? '' : ' d-none') + '">' +

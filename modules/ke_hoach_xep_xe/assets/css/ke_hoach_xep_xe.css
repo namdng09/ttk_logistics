@@ -268,6 +268,10 @@ body .flatpickr-calendar {
   grid-column: span 8;
 }
 
+.khxh-span-half {
+  grid-column: span 12;
+}
+
 .khxh-span-12 {
   grid-column: 1 / -1;
 }
@@ -281,6 +285,10 @@ body .flatpickr-calendar {
   .khxh-span-4,
   .khxh-span-8 {
     grid-column: span 8;
+  }
+
+  .khxh-span-half {
+    grid-column: span 12;
   }
 
   .khxh-span-12 {
@@ -805,14 +813,16 @@ body .flatpickr-calendar {
 
 .line-hinh-thuc-group {
   display: inline-flex;
+  width: 100%;
   flex-wrap: wrap;
   gap: 0.25rem;
   min-height: calc(1.5em + 0.75rem + 2px);
   align-items: center;
-  padding: 0.25rem;
+  padding: 0;
   border: 1px solid #d9dee3;
   border-radius: 8px;
   background: #f8f9fa;
+  box-sizing: border-box;
   overflow-x: visible;
   white-space: normal;
 }
