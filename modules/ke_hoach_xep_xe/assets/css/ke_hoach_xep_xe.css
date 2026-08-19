@@ -914,6 +914,10 @@ body .flatpickr-calendar {
     align-items: stretch;
   }
 
+  .khxh-route-flow-actual .khxh-route-node-empty {
+    display: none;
+  }
+
   .khxh-route-arrow {
     height: auto;
     min-height: 1rem;

@@ -2276,7 +2276,7 @@
               (isTuyenXa ? '<div class="khxh-route-flow khxh-route-flow-actual line-bai-thuc-te-fields' + (baiThucTeChecked ? '' : ' d-none') + '">' +
                 '<div class="khxh-route-node"><label class="form-label">Bãi lấy thực tế</label><select class="form-select line-bai-lay-thuc-te-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_thuc_te) + '</select></div>' +
                 '<div class="khxh-route-arrow"><i class="ti tabler-arrow-right"></i></div>' +
-                '<div class="khxh-route-node khxh-route-node-main"><label class="form-label">Kho theo kế hoạch</label><input type="text" class="form-control khxh-route-kho-actual" value="' + escHtml(line.dia_chi_kho || '') + '" placeholder="Theo địa chỉ kho" readonly></div>' +
+                '<div class="khxh-route-node khxh-route-node-empty" aria-hidden="true"></div>' +
                 '<div class="khxh-route-arrow"><i class="ti tabler-arrow-right"></i></div>' +
                 '<div class="khxh-route-node"><label class="form-label">Bãi hạ thực tế</label><select class="form-select line-bai-ha-thuc-te-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_thuc_te) + '</select></div>' +
               '</div>' : '') +
@@ -3526,8 +3526,6 @@
       updateTuyenXaSidebar();
     });
     $(document).on('change', '.line-kho-select', function () {
-      var $card = $(this).closest('.ke-hoach-line-card');
-      $card.find('.khxh-route-kho-actual').val($(this).val() || '');
       updateTuyenXaSidebar();
     });
     $(document).on('input', '.line-money-input', function () {
