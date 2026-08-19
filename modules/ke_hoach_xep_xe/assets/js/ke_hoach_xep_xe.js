@@ -1875,12 +1875,60 @@
     }
 
     function renderTuyenXaNav(line) {
-      return '<div class="khxh-section-nav">' +
-        '<button type="button" class="btn btn-sm btn-label-secondary khxh-section-nav-item" data-target="#khxh-main-plan-' + escHtml(line.key) + '"><span>1</span>Kế hoạch chính</button>' +
-        '<button type="button" class="btn btn-sm btn-label-secondary khxh-section-nav-item" data-target="#khxh-return-cont-' + escHtml(line.key) + '"><span>2</span>Cont kéo về</button>' +
-        '<button type="button" class="btn btn-sm btn-label-secondary khxh-section-nav-item" data-target="#khxh-combined-plan-' + escHtml(line.key) + '"><span>3</span>Kết hợp</button>' +
-        '<button type="button" class="btn btn-sm btn-label-secondary khxh-section-nav-item" data-target="#khxh-plan-files-card"><span>4</span>Chứng từ</button>' +
+      return '<div class="khxh-section-nav" data-line-key="' + escHtml(line.key) + '">' +
+        '<button type="button" class="khxh-section-nav-item is-active" data-target="#khxh-main-plan-' + escHtml(line.key) + '"><span class="khxh-navnum">1</span><span class="khxh-navlabel">Kế hoạch chính</span></button>' +
+        '<button type="button" class="khxh-section-nav-item" data-target="#khxh-return-cont-' + escHtml(line.key) + '"><span class="khxh-navnum">2</span><span class="khxh-navlabel">Cont kéo về</span><span class="khxh-navbadge khxh-nav-return-count">0</span></button>' +
+        '<button type="button" class="khxh-section-nav-item" data-target="#khxh-combined-plan-' + escHtml(line.key) + '"><span class="khxh-navnum">3</span><span class="khxh-navlabel">Kết hợp</span><span class="khxh-navbadge khxh-nav-combine-count">0</span></button>' +
+        '<button type="button" class="khxh-section-nav-item" data-target="#khxh-plan-files-card"><span class="khxh-navnum">4</span><span class="khxh-navlabel">Chứng từ</span><span class="khxh-navbadge khxh-nav-files-count">0/25</span></button>' +
       '</div>';
+    }
+
+    function bindTuyenXaNavPin() {
+      var nav = $form('.khxh-section-nav')[0];
+      if (!nav) return;
+      var modalBody = nav.closest('.modal-body');
+      var $scrollTarget = modalBody ? $(modalBody) : $(window);
+      var $holder = $(nav.parentElement);
+      var pinTop = parseFloat(window.getComputedStyle(nav).top) || 0;
+      var isPinned = false;
+
+      function updatePin() {
+        if (window.innerWidth <= 767 || !modalBody) {
+          if (isPinned) {
+            nav.classList.remove('is-scroll-pinned');
+            nav.style.left = '';
+            nav.style.width = '';
+            nav.style.top = '';
+            $holder.css('height', '');
+            isPinned = false;
+          }
+          return;
+        }
+        var bodyRect = modalBody.getBoundingClientRect();
+        var flowRect = $holder[0].getBoundingClientRect();
+        var shouldPin = flowRect.top <= bodyRect.top + pinTop;
+        if (shouldPin && !isPinned) {
+          $holder.css('height', nav.offsetHeight + 'px');
+          nav.classList.add('is-scroll-pinned');
+          isPinned = true;
+        } else if (!shouldPin && isPinned) {
+          nav.classList.remove('is-scroll-pinned');
+          nav.style.left = '';
+          nav.style.width = '';
+          nav.style.top = '';
+          $holder.css('height', '');
+          isPinned = false;
+        }
+        if (isPinned) {
+          nav.style.left = flowRect.left + 'px';
+          nav.style.width = flowRect.width + 'px';
+          nav.style.top = (bodyRect.top + pinTop) + 'px';
+        }
+      }
+
+      $scrollTarget.off('scroll.khxhNavPin').on('scroll.khxhNavPin', updatePin);
+      $(window).off('resize.khxhNavPin').on('resize.khxhNavPin', updatePin);
+      updatePin();
     }
 
     function lookupName(items, id, field) {
@@ -1930,6 +1978,11 @@
       var filesCount = planFilesFromRow(editData).length;
       var tangBo = lineTangBo(line);
       var ketHop = lineKetHop(line);
+      var hasReturnCont = !!(parseInt(line.ke_hoach_cont_ref_nid, 10) || 0);
+      var $lineNav = $form('.khxh-section-nav[data-line-key="' + line.key + '"]');
+      $lineNav.find('.khxh-nav-return-count').text(hasReturnCont ? '1' : '0');
+      $lineNav.find('.khxh-nav-combine-count').text(optionEnabled(ketHop.enabled) ? '1' : '0');
+      $lineNav.find('.khxh-nav-files-count').text(filesCount + '/25');
       $form('#khxh-tuyen-xa-context [data-context="customer"]').text(customerName || 'Chưa có');
       $form('#khxh-tuyen-xa-context [data-context="booking"]').text(line.so_bkg || 'Chưa có');
       $form('#khxh-tuyen-xa-context [data-context="container"]').text(contText || 'Chưa có');
@@ -2163,6 +2216,7 @@
     function renderCards() {
       var html = '';
       var pickerHtml = '';
+      var navHtml = '';
       var dateInputsHtml = '';
       var isTuyenXa = currentPlanType() === 'tuyen_xa';
       for (var i = 0; i < state.lines.length; i++) {
@@ -2170,6 +2224,7 @@
         var tangBo = lineTangBo(line);
         var ketHop = lineKetHop(line);
         var baiThucTeChecked = hasBaiThucTe(line);
+        if (isTuyenXa) navHtml += renderTuyenXaNav(line);
         var routeMetaHtml = isTuyenXa
           ? ''
           : '<div class="khxh-span-4"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
@@ -2179,7 +2234,6 @@
             '<div class="khxh-span-4"><label class="form-label">Ngày kết thúc</label><input type="text" class="form-control line-date-input line-ngay-ket-thuc-input" value="' + escHtml(apiToDate(line.ngay_ket_thuc || '')) + '" placeholder="dd/mm/yyyy"></div>'
           : '';
         html += '' +
-          (isTuyenXa ? renderTuyenXaNav(line) : '') +
           '<div class="ke-hoach-line-card khxh-tuyen-xa-card khxh-main-plan-card" id="khxh-main-plan-' + escHtml(line.key) + '" data-line-key="' + line.key + '">' +
             '<div class="khxh-tuyen-xa-card-head">' +
               '<div>' +
@@ -2286,6 +2340,8 @@
               '<div class="khxh-ket-hop-placeholder' + (optionEnabled(ketHop.enabled) ? '' : ' d-none') + '">Khu vực kế hoạch kết hợp đang được chuẩn bị, sẽ bổ sung chi tiết khi triển khai chức năng tiện chuyến.</div>' +
             '</div>' : '');
       }
+      $form('#khxh-tuyen-xa-nav').html(navHtml);
+      bindTuyenXaNavPin();
       $form('#ke-hoach-lines').html(html);
       if (!$form('#ke-hoach-cont-pickers').length) {
         $form('#ke-hoach-lines').after('<div id="ke-hoach-cont-pickers"></div>');
@@ -3488,6 +3544,7 @@
       var target = $(this).attr('data-target') || '';
       var el = target ? $form(target)[0] : null;
       if (!el && target === '#khxh-plan-files-card') el = $form('#khxh-plan-files-card')[0];
+      $(this).addClass('is-active').siblings('.khxh-section-nav-item').removeClass('is-active');
       if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $form('#add-line-btn, #reset-lines-btn, #save-btn, #complete-plan-btn, #vehicle-picker-search, #ke-hoach-form, #khxh-plan-file-upload, #khxh-plan-file-input').off();

@@ -27,6 +27,7 @@
 
     <div class="khxh-tuyen-xa-layout">
       <main class="khxh-tuyen-xa-main">
+        <div id="khxh-tuyen-xa-nav"></div>
         <form id="ke-hoach-form" novalidate>
           <input type="hidden" id="nid-input" value="">
 
