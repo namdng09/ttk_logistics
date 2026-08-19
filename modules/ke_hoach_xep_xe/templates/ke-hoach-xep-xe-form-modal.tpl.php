@@ -67,7 +67,6 @@ $create_title = $is_tuyen_xa ? 'Tạo kế hoạch tuyến xa' : 'Tạo kế ho�
         <div class="modal-header">
           <div>
             <h5 class="modal-title mb-0">Chọn cont kéo về</h5>
-            <div class="text-muted small" id="cont-ref-picker-target">Đang chọn cho dòng #1</div>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -86,6 +85,7 @@ $create_title = $is_tuyen_xa ? 'Tạo kế hoạch tuyến xa' : 'Tạo kế ho�
             <button type="button" class="line-cont-quick" data-quick="sameDepot">Cùng bãi hạ</button>
             <span class="line-cont-sort">Ưu tiên: kế hoạch mới nhất</span>
           </div>
+          <div class="cont-picker-list-head"><span></span><span>Cont / Booking</span><span>Thông tin chung</span><span>Kho</span><span>Bãi hạ</span><span>Seal</span><span>T.Thái</span><span>Ghi chú</span></div>
           <div class="line-cont-picker-body line-cont-picker-list"><div class="text-center text-muted py-4">Chưa có dữ liệu</div></div>
           </div>
         </div>

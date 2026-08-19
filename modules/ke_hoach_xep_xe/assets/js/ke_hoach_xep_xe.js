@@ -2889,7 +2889,6 @@
 	      $filterKho.html(buildTagOptions(state.diaDiem.kho, ''));
       $wrap.find('.line-cont-filter-du-hang').val('');
       $wrap.find('.line-cont-quick').removeClass('is-active').filter('[data-quick="all"]').addClass('is-active');
-	      $formOrPage('#cont-ref-picker-target').text('Đang chọn cho dòng #' + ($row.index() + 1));
 	      var modalEl = $formOrPage('#cont-ref-picker-modal')[0];
 	      if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
 	        if (notyf) notyf.error('Không khởi tạo được modal chọn cont kéo về');
@@ -2967,11 +2966,14 @@
         var theoKeHoach = !actualBaiHa;
         var duHang = parseInt(item.da_du_hang, 10) === 1;
         var khachHangName = (item.khach_hang && item.khach_hang.ten) || item.ten_khach_hang || item.khach_hang_ten || '';
+        var dauKeo = (item.phuong_tien && (item.phuong_tien.bks || item.phuong_tien.bien_so)) || item.bks_dau_keo || '';
+        var mooc = (item.mooc && (item.mooc.bks || item.mooc.bien_so)) || item.bks_mooc || '';
+        var laiXe = (item.lai_xe && item.lai_xe.ten) || item.ten_lai_xe || '';
         rows.push('<div class="cont-picker-row' + (selected ? ' is-selected' : '') + '">' +
           '<div class="cont-picker-radio"><input class="form-check-input line-cont-ref-checkbox" type="radio" name="cont-ref-' + escHtml(line.key) + '" value="' + item.nid + '" data-id="' + item.nid + '" data-so-bkg="' + escHtml(item.so_bkg || '') + '" data-so-cont="' + escHtml(item.so_cont || '') + '"' + (selected ? ' checked' : '') + '></div>' +
           '<div class="cont-picker-cell"><div class="cont-picker-primary"><span class="cont-picker-cont mono">' + escHtml(item.so_cont || ('#' + item.nid)) + '</span><span class="badge bg-label-secondary">' + escHtml(item.loai_cont || '—') + '</span></div><div class="text-muted small mono">' + escHtml(item.so_bkg || '—') + '</div></div>' +
-          '<div class="cont-picker-cell"><div class="fw-semibold">' + escHtml(khachHangName || '—') + '</div><div class="text-muted small">' + vehicleListInfoHtml(item) + '</div></div>' +
-          '<div class="cont-picker-cell cont-picker-route-cell"><div class="cont-picker-route"><strong>' + escHtml(item.dia_chi_kho || '—') + '</strong><span class="text-muted">→</span><strong>' + escHtml(destinationValue || '—') + '</strong></div><div class="text-muted small">' + escHtml(item.ghi_chu || '—') + '</div></div>' +
+          '<div class="cont-picker-cell cont-picker-route-cell"><div class="fw-semibold">' + escHtml(khachHangName || '—') + '</div><div class="text-muted small">Đầu kéo: ' + escHtml(dauKeo || '—') + '</div><div class="text-muted small">Mooc: ' + escHtml(mooc || '—') + ' · Lái xe: ' + escHtml(laiXe || '—') + '</div></div>' +
+          '<div class="cont-picker-cell"><div class="fw-semibold">' + escHtml(item.dia_chi_kho || '—') + '</div></div>' +
           '<div class="cont-picker-cell cont-picker-destination-cell">' +
             '<label class="form-check form-check-inline mb-1">' +
               '<input class="form-check-input line-bai-ha-theo-ke-hoach-checkbox" type="checkbox" data-id="' + item.nid + '"' + (theoKeHoach ? ' checked' : '') + '>' +
@@ -2979,8 +2981,8 @@
             '</label>' +
             '<select class="form-select form-select-sm line-bai-ha-thuc-te-select" data-id="' + item.nid + '" data-planned="' + escHtml(plannedBaiHa) + '">' + buildTagOptions(state.diaDiem.bai, destinationValue) + '</select>' +
           '</div>' +
-          '<div class="cont-picker-cell"><div class="fw-semibold">' + escHtml(item.so_seal_chinh || '—') + '</div><div class="text-muted small">Seal phụ: ' + escHtml(item.so_seal_tam || '—') + '</div></div>' +
-          '<div class="cont-picker-cell cont-picker-state">' + (duHang ? '<span class="badge bg-label-success">Đủ hàng</span>' : '<span class="badge bg-label-warning">Chưa đủ</span>') + '<div class="text-muted small mt-1">' + escHtml(item.ngay_bat_dau || '') + '</div></div>' +
+          '<div class="cont-picker-cell"><div class="fw-semibold">' + escHtml(item.so_seal_chinh || '—') + '</div><div class="text-muted small">' + escHtml(item.so_seal_tam || '—') + '</div></div>' +
+          '<div class="cont-picker-cell cont-picker-state"><span class="cont-picker-status ' + (duHang ? 'is-ready' : 'is-waiting') + '" title="' + (duHang ? 'Đủ hàng' : 'Chưa đủ') + '"><i class="ti ' + (duHang ? 'tabler-circle-check' : 'tabler-clock') + '"></i></span></div>' +
           '<div class="cont-picker-cell"><input type="text" class="form-control form-control-sm cont-inline-note" data-id="' + item.nid + '" value="' + escHtml(item.ghi_chu || '') + '" placeholder="Ghi chú"></div>' +
         '</div>');
       }
@@ -2991,7 +2993,7 @@
 	      });
 	      $picker.find('.line-cont-filter-kho').each(function () {
 	        if (!$(this).data('select2')) {
-	          initSelect2(this, '— Tìm theo địa chỉ kho —', { allowClear: true, dropdownParent: pickerDropdownParent });
+	          initSelect2(this, '— Tìm theo địa chỉ kho —', { allowClear: true, width: '100%', dropdownParent: pickerDropdownParent });
 	        }
 	      });
       $picker.scrollTop(scrollTop);

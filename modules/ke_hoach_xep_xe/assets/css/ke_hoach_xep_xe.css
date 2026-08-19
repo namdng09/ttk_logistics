@@ -1847,13 +1847,48 @@ body .flatpickr-calendar {
 
 .line-cont-picker-list {
   max-height: min(58vh, 560px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0.75rem;
+}
+
+.cont-picker-list-head {
+  display: grid;
+  grid-template-columns: 38px minmax(130px, 1.1fr) minmax(100px, 0.8fr) minmax(120px, 0.9fr) minmax(180px, 1.4fr) minmax(85px, 0.7fr) minmax(90px, 0.7fr) minmax(110px, 0.9fr);
+  align-items: center;
+  min-height: 36px;
+  padding: 0 0.75rem;
+  background: #fbfcfd;
+  border-bottom: 1px solid #d7dee7;
+  color: #667085;
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.cont-picker-list-head span {
+  padding: 0 0.65rem;
+}
+
+.cont-picker-list-head span:first-child {
+  padding: 0;
+}
+
+#cont-ref-picker-modal .line-cont-filter-kho + .select2 {
+  display: block;
+  width: 100% !important;
+}
+
+#cont-ref-picker-modal .line-cont-filter-kho + .select2 .select2-selection--single {
+  height: 36px;
+  min-height: 36px;
+  border-color: #cfd7e2;
+  border-radius: 6px;
 }
 
 .cont-picker-row {
   display: grid;
-  grid-template-columns: 38px 170px minmax(160px, 1fr) minmax(220px, 1.45fr) 210px 135px 135px 150px;
+  grid-template-columns: 38px minmax(130px, 1.1fr) minmax(100px, 0.8fr) minmax(120px, 0.9fr) minmax(180px, 1.4fr) minmax(85px, 0.7fr) minmax(90px, 0.7fr) minmax(110px, 0.9fr);
   align-items: center;
   min-height: 72px;
   margin-bottom: 0.5rem;
@@ -1912,19 +1947,33 @@ body .flatpickr-calendar {
   text-align: center;
 }
 
+.cont-picker-status {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 1.05rem;
+}
+
+.cont-picker-status.is-ready {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.cont-picker-status.is-waiting {
+  background: #fff7ed;
+  color: #b54708;
+}
+
 .cont-picker-row .cont-inline-note {
   min-width: 120px;
 }
 
 @media (max-width: 1200px) {
+  .cont-picker-list-head,
   .cont-picker-row {
-    grid-template-columns: 38px 160px minmax(150px, 1fr) minmax(190px, 1.25fr) 190px 120px 120px;
-  }
-
-  .cont-picker-row .cont-picker-cell:last-child {
-    grid-column: 2 / -1;
-    border-top: 1px solid #edf0f3;
-    border-left: 0;
+    grid-template-columns: 38px minmax(115px, 1.05fr) minmax(90px, 0.8fr) minmax(110px, 0.9fr) minmax(150px, 1.3fr) minmax(75px, 0.7fr) minmax(80px, 0.7fr) minmax(95px, 0.9fr);
   }
 }
 
