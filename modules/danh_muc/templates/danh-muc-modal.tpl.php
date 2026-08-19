@@ -32,6 +32,7 @@
                 <option value="Cửa khẩu">Cửa khẩu</option>
                 <option value="Bãi">Bãi</option>
                 <option value="Cảng">Cảng</option>
+                <option value="Loại hàng">Loại hàng</option>
               </select>
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>
             </div>

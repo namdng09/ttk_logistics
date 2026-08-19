@@ -11,7 +11,7 @@
   var currentKeyword = '';
   var currentStatus = '';
   var currentFilters = {};
-  var FORM_DROPDOWN_CACHE_KEY = 'ke_hoach_xep_xe_form_dropdowns_v2';
+  var FORM_DROPDOWN_CACHE_KEY = 'ke_hoach_xep_xe_form_dropdowns_v3';
   var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v2';
   var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
   var formDropdownCacheMemory = null;
@@ -1543,8 +1543,8 @@
       vehicleMap: {},
       moocs: [],
       moocMap: {},
-      diaDiem: { bai: [], cang: [], kho: [] },
-      cauHinh: { diaChiKho: [], loaiCont: ['20RF', '20DC', '40HC', '40RF', '40DC'] },
+      diaDiem: { bai: [], cang: [], kho: [], loaiHang: [] },
+      cauHinh: { diaChiKho: [], loaiHang: [], loaiCont: ['20RF', '20DC', '40HC', '40RF', '40DC'] },
       contCandidateCache: {},
       contCandidatePending: {},
       pendingContDestinationUpdates: {},
@@ -1626,8 +1626,13 @@
           state.moocMap[String(state.vehicles[m].nid)] = state.vehicles[m];
         }
       }
-      state.diaDiem = $.extend({ bai: [], cang: [], kho: [] }, cache.diaDiem || {});
+      state.diaDiem = $.extend({ bai: [], cang: [], kho: [], loaiHang: [] }, cache.diaDiem || {});
+      state.diaDiem.bai = Array.isArray(state.diaDiem.bai) ? state.diaDiem.bai : [];
+      state.diaDiem.cang = Array.isArray(state.diaDiem.cang) ? state.diaDiem.cang : [];
+      state.diaDiem.kho = Array.isArray(state.diaDiem.kho) ? state.diaDiem.kho : [];
+      state.diaDiem.loaiHang = Array.isArray(state.diaDiem.loaiHang) ? state.diaDiem.loaiHang : [];
       state.cauHinh.diaChiKho = state.diaDiem.kho.slice();
+      state.cauHinh.loaiHang = state.diaDiem.loaiHang.slice();
 
       var html = '<option value="0">— Chọn —</option>';
       for (var j = 0; j < state.customers.length; j++) {
@@ -1720,6 +1725,7 @@
     function buildTagOptions(list, value) {
       var html = '<option value="">— Chọn —</option>';
       var seen = {};
+      list = Array.isArray(list) ? list : [];
       value = value || '';
       for (var i = 0; i < list.length; i++) {
         if (seen[list[i]]) continue;
@@ -2005,6 +2011,7 @@
       $form('#khxh-tuyen-xa-checklist').html(
         checklistItem(!!line.nid_khach_hang, 'Khách hàng', customerName || '') +
         checklistItem(!!line.so_bkg, 'Booking / bill', line.so_bkg || '') +
+        checklistItem(!!line.so_cont, 'Số cont', line.so_cont || '') +
         checklistItem(!!line.dia_chi_kho, 'Kho đóng/trả', line.dia_chi_kho || '') +
         checklistItem(!!line.nid_phuong_tien, 'Phương tiện', vehicleName || '') +
         checklistItem(!!line.nid_lai_xe, 'Lái xe', driverName || '') +
@@ -2131,6 +2138,7 @@
       initSelect2($row.find('.line-customer-select')[0], 'Chọn khách hàng', { dropdownParent: dropdownParent });
       attachCustomerCreateOption($row.find('.line-customer-select'), line);
       initSelect2($row.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true, dropdownParent: dropdownParent });
+      initSelect2($row.find('.line-loai-hang-select')[0], '— Chọn loại hàng —', { tags: true, dropdownParent: dropdownParent });
       initSelect2($row.find('.line-hinh-thuc-select')[0], '— Chọn hình thức —', { dropdownParent: dropdownParent });
       initSelect2($row.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true, dropdownParent: dropdownParent });
       attachCreateOption($row.find('.line-kho-select'), 'Kho', line, 'dia_chi_kho');
@@ -2175,6 +2183,7 @@
       initSelect2($card.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true });
       attachCreateOption($card.find('.line-kho-select'), 'Kho', line, 'dia_chi_kho');
       initSelect2($card.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true });
+      initSelect2($card.find('.line-loai-hang-select')[0], '— Chọn loại hàng —', { tags: true });
       initSelect2($card.find('.line-bai-lay-select')[0], '— Chọn bãi lấy —');
       attachCreateOption($card.find('.line-bai-lay-select'), 'Bãi', line, 'bai_lay_cont');
       initSelect2($card.find('.line-bai-ha-select')[0], '— Chọn bãi hạ —');
@@ -2253,7 +2262,7 @@
               '<div class="ke-hoach-edit-grid">' +
                 '<div class="khxh-span-4"><label class="form-label">Khách hàng <span class="text-danger">*</span></label><select id="nid_khach_hang-input" class="form-select select2-searchable" style="width:100%" required>' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select><div class="invalid-feedback">Vui lòng chọn khách hàng</div></div>' +
                 '<div class="khxh-span-4"><label class="form-label">Số booking/ bill <span class="text-danger">*</span></label><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số booking/ bill" required><div class="invalid-feedback">Vui lòng nhập số booking/ bill</div></div>' +
-                '<div class="khxh-span-4"><label class="form-label">Loại hàng</label><input type="text" class="form-control line-loai-hang-input" value="' + escHtml(line.loai_hang || '') + '" placeholder="Loại hàng"></div>' +
+                '<div class="khxh-span-4"><label class="form-label">Loại hàng</label><select class="form-select line-loai-hang-select">' + buildTagOptions(state.cauHinh.loaiHang, line.loai_hang) + '</select></div>' +
                 '<div class="khxh-span-3"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
                 '<div class="khxh-span-3"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
                 '<div class="khxh-span-3"><label class="form-label">Seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Seal chính"></div>' +
@@ -2386,6 +2395,7 @@
 	          '</td>' +
 	          '<td class="line-combo-cell">' +
 	            '<select class="form-select line-loai-cont-select mb-2">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select>' +
+	            '<select class="form-select line-loai-hang-select mt-2">' + buildTagOptions(state.cauHinh.loaiHang, line.loai_hang) + '</select>' +
 	            '<input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont">' +
 	          '</td>' +
 	          '<td class="line-combo-cell">' +
@@ -2447,7 +2457,7 @@
         line.so_bkg = $form('#so_bkg-input').val().trim();
         line.so_cont = $row.find('.line-so-cont-input').val().trim();
         line.loai_cont = ($row.find('.line-loai-cont-select').val() || '').trim();
-        line.loai_hang = ($row.find('.line-loai-hang-input').val() || '').trim();
+        line.loai_hang = ($row.find('.line-loai-hang-select').val() || '').trim();
         line.so_seal_chinh = $row.find('.line-seal-chinh-input').val().trim();
         line.so_seal_tam = $row.find('.line-seal-tam-input').val().trim();
         line.dia_chi_kho = ($row.find('.line-kho-select').val() || '').trim();
@@ -2503,7 +2513,7 @@
       line.so_bkg = $row.find('.line-so-bkg-input').val().trim();
       line.so_cont = $row.find('.line-so-cont-input').val().trim();
       line.loai_cont = ($row.find('.line-loai-cont-select').val() || '').trim();
-      line.loai_hang = ($row.find('.line-loai-hang-input').val() || '').trim();
+      line.loai_hang = ($row.find('.line-loai-hang-select').val() || '').trim();
       line.so_seal_chinh = $row.find('.line-seal-chinh-input').val().trim();
       line.so_seal_tam = $row.find('.line-seal-tam-input').val().trim();
       line.dia_chi_kho = ($row.find('.line-kho-select').val() || '').trim();
@@ -2753,6 +2763,11 @@
       getContPicker($card).removeClass('is-loading');
     }
 
+    function invalidateContCandidateCache() {
+      state.contCandidateCache = {};
+      window.keHoachXepXeContCandidateVersion = (parseInt(window.keHoachXepXeContCandidateVersion, 10) || 0) + 1;
+    }
+
 	    function loadContCandidates(line, $card) {
 	      var hinhThuc = line.hinh_thuc_van_tai || '';
       var $wrap = getContPicker($card);
@@ -2765,7 +2780,8 @@
       }
       $wrap.show();
       var currentNid = parseInt($form('#nid-input').val(), 10) || 0;
-      var cacheKey = [currentPlanType(), hinhThuc, line.dia_chi_kho || '', currentNid].join('||');
+      var cacheVersion = parseInt(window.keHoachXepXeContCandidateVersion, 10) || 0;
+      var cacheKey = [cacheVersion, currentPlanType(), hinhThuc, line.dia_chi_kho || '', currentNid].join('||');
       if (state.contCandidateCache[cacheKey]) {
         clearContPickerLoading($card);
         $card.data('contCandidates', state.contCandidateCache[cacheKey]);
@@ -2882,9 +2898,9 @@
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
         if (parseInt(item.da_cat_mooc, 10) !== 1) continue;
-        if (!item.so_cont || (parseInt(item.nid, 10) || 0) === currentNid) continue;
+        if ((parseInt(item.nid, 10) || 0) === currentNid) continue;
         if (hinhThuc === 'cat_keo' && item.dia_chi_kho !== line.dia_chi_kho) continue;
-        if ((hinhThuc === 'cat_keo_cheo' || hinhThuc === 'rut_mooc') && item.dia_chi_kho === line.dia_chi_kho) continue;
+        if (hinhThuc === 'cat_keo_cheo' && item.dia_chi_kho === line.dia_chi_kho) continue;
         if (fBkg && String(item.so_bkg || '').toLowerCase().indexOf(fBkg) === -1) continue;
         if (fCont && String(item.so_cont || '').toLowerCase().indexOf(fCont) === -1) continue;
 	        if (fKho && String(item.dia_chi_kho || '').toLowerCase().indexOf(fKho) === -1) continue;
@@ -3027,6 +3043,7 @@
     function loadCauHinh(khId, callback) {
       state.cauHinh = {
         diaChiKho: (state.diaDiem && state.diaDiem.kho) ? state.diaDiem.kho.slice() : [],
+        loaiHang: (state.diaDiem && Array.isArray(state.diaDiem.loaiHang)) ? state.diaDiem.loaiHang.slice() : [],
         loaiCont: ['20RF', '20DC', '40HC', '40RF', '40DC']
       };
       refreshLineSources();
@@ -3485,18 +3502,21 @@
         url: '/api/danh-muc',
         type: 'GET',
         dataType: 'json',
-        data: { phan_loai: 'Kho,Bãi,Cảng', limit: 500 },
+        data: { phan_loai: 'Kho,Bãi,Cảng,Loại hàng', limit: 500 },
         success: function (res) {
           if (res.status === 'success' && res.data && res.data.items) {
             state.diaDiem.kho = [];
+            state.diaDiem.loaiHang = [];
             for (var i = 0; i < res.data.items.length; i++) {
               var phanLoai = String(res.data.items[i].phan_loai || '').toLowerCase();
               var ten = res.data.items[i].ten || res.data.items[i].name || res.data.items[i].label || '';
               if (phanLoai === 'kho' && ten) state.diaDiem.kho.push(ten);
               if (phanLoai === 'bãi' && ten) state.diaDiem.bai.push(ten);
               if (phanLoai === 'cảng' && ten) state.diaDiem.cang.push(ten);
+              if (phanLoai === 'loại hàng' && ten) state.diaDiem.loaiHang.push(ten);
             }
             state.cauHinh.diaChiKho = state.diaDiem.kho.slice();
+            state.cauHinh.loaiHang = state.diaDiem.loaiHang.slice();
             refreshLineSources();
           }
         },
@@ -3629,6 +3649,7 @@
             return;
           }
 
+          invalidateContCandidateCache();
           flushPendingContDestinationUpdates().done(function () {
             showLoading(false);
             if (notyf) notyf.success(nid ? 'Đã cập nhật kế hoạch' : 'Đã tạo kế hoạch');

@@ -10,7 +10,7 @@
   var modalBound = false;
   var settings = Drupal.settings.danh_muc || {};
   var PHAN_LOAI_CO_PHU_PHI = settings.phan_loai_co_phu_phi || ['Bãi', 'Cảng', 'Kho'];
-  var PHAN_LOAI_OPTIONS = ['Phòng ban', 'Chức vụ', 'Chi phí', 'Kho', 'Cửa khẩu', 'Bãi', 'Cảng'];
+  var PHAN_LOAI_OPTIONS = ['Phòng ban', 'Chức vụ', 'Chi phí', 'Kho', 'Cửa khẩu', 'Bãi', 'Cảng', 'Loại hàng'];
 
   function hasPhuPhi(phanLoai) {
     return PHAN_LOAI_CO_PHU_PHI.indexOf(phanLoai) !== -1;
