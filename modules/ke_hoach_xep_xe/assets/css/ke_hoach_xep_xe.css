@@ -661,12 +661,22 @@ body .flatpickr-calendar {
   flex-shrink: 0;
 }
 
+/* Khớp chính xác chiều cao btn-sm chữ "Đổi cont". */
+.khxh-cont-ref-actions .btn-remove-cont-ref {
+  block-size: 2.3rem !important;
+  inline-size: 2.3rem !important;
+}
+
 .khxh-cont-ref-selected-bottom {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
   align-items: stretch;
   gap: 0;
   padding: 0.7rem 0.75rem;
+}
+
+.khxh-cont-ref-selected-bottom.is-tuyen-xa {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
 }
 
 .khxh-cont-ref-selected-bottom > span {
@@ -808,7 +818,6 @@ body .flatpickr-calendar {
   justify-content: space-between;
   gap: 1rem;
   padding-bottom: 0.85rem;
-  margin-bottom: 1rem;
   border-bottom: 1px solid #edf0f4;
 }
 
@@ -1874,6 +1883,11 @@ body .flatpickr-calendar {
   padding: 0;
 }
 
+.cont-picker-list-head.is-tuyen-xa,
+.cont-picker-row.is-tuyen-xa {
+  grid-template-columns: 38px minmax(140px, 1fr) minmax(150px, 1.1fr) minmax(140px, 1fr) minmax(55px, 0.4fr) minmax(200px, 1.5fr);
+}
+
 #cont-ref-picker-modal .line-cont-filter-kho + .select2 {
   display: block;
   width: 100% !important;
@@ -1917,6 +1931,10 @@ body .flatpickr-calendar {
 .cont-picker-row.is-selected {
   border-color: #64748b;
   box-shadow: 0 0 0 1px #64748b inset;
+}
+
+.cont-picker-row.is-tuyen-xa {
+  cursor: pointer;
 }
 
 .cont-picker-radio {
@@ -1997,6 +2015,11 @@ body .flatpickr-calendar {
   .cont-picker-list-head,
   .cont-picker-row {
     grid-template-columns: 38px minmax(130px, 1fr) minmax(135px, 1.05fr) minmax(125px, 0.95fr) minmax(75px, 0.65fr) minmax(50px, 0.4fr) minmax(170px, 1.45fr);
+  }
+
+  .cont-picker-list-head.is-tuyen-xa,
+  .cont-picker-row.is-tuyen-xa {
+    grid-template-columns: 38px minmax(130px, 1fr) minmax(135px, 1.05fr) minmax(125px, 0.95fr) minmax(50px, 0.4fr) minmax(170px, 1.45fr);
   }
 }
 
