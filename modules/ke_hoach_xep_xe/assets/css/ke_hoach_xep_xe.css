@@ -622,6 +622,26 @@ body .flatpickr-calendar {
   white-space: nowrap;
 }
 
+button.khxh-cont-ref-number {
+  padding: 0;
+  color: #344054;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: inherit;
+  font-weight: 700;
+  line-height: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 0.2rem;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+button.khxh-cont-ref-number:hover,
+button.khxh-cont-ref-number:focus {
+  color: #7367f0;
+}
+
 .khxh-cont-ref-meta {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1825,6 +1845,10 @@ body .flatpickr-calendar {
 }
 
 #cont-ref-picker-modal {
+  z-index: 200000 !important;
+}
+
+#vehicle-picker-modal {
   z-index: 200000 !important;
 }
 

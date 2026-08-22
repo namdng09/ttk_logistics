@@ -968,7 +968,7 @@
     options = options || {};
     id = parseInt(id, 10) || 0;
     if (!id) return;
-    var isTuyenXa = currentPlanType() === 'tuyen_xa';
+    var isTuyenXa = (options.planType || currentPlanType()) === 'tuyen_xa';
     var modalId = isTuyenXa ? 'ke-hoach-tuyen-xa-edit-fullscreen-modal' : 'ke-hoach-edit-fullscreen-modal';
     var templateId = isTuyenXa ? 'ke-hoach-tuyen-xa-edit-modal-template' : 'ke-hoach-edit-modal-template';
     var contentId = isTuyenXa ? 'ke-hoach-tuyen-xa-edit-modal-content' : 'ke-hoach-edit-modal-content';
@@ -985,10 +985,20 @@
     if (!detachedCreateFormApp) {
       detachedCreateFormApp = $('#ke-hoach-form-app').detach();
     }
+    $('#' + contentId).find('input').each(function () {
+      if (this._flatpickr) this._flatpickr.destroy();
+    });
+    $('#' + contentId).find('select').each(function () {
+      if (typeof $.fn.select2 === 'function' && $(this).data('select2')) $(this).select2('destroy');
+    });
     contentEl.innerHTML = templateEl.innerHTML;
+    if (options.keepOpen) {
+      var modalScrollBody = modalEl.querySelector('.modal-body');
+      if (modalScrollBody) modalScrollBody.scrollTop = 0;
+    }
     $('#' + contentId + ' #form-loading').show();
     var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
-    modal.show();
+    if (!options.keepOpen) modal.show();
     $.ajax({
       url: '/api/ke-hoach-xep-xe/' + id,
       type: 'GET',
@@ -997,6 +1007,7 @@
         if (res.status !== 'success' || !res.data) {
           $('#' + contentId + ' #form-loading').hide();
           if (nestedContEditContext && nestedContEditContext.childId === id) nestedContEditContext = null;
+          if (nestedContRestorePending && nestedContRestorePending.parentId === id) nestedContRestorePending = null;
           if (notyf) notyf.error(res.message || 'Không tải được kế hoạch');
           return;
         }
@@ -1015,6 +1026,7 @@
       error: function (jqXHR) {
         $('#' + contentId + ' #form-loading').hide();
         if (nestedContEditContext && nestedContEditContext.childId === id) nestedContEditContext = null;
+        if (nestedContRestorePending && nestedContRestorePending.parentId === id) nestedContRestorePending = null;
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -1030,7 +1042,8 @@
     }
     nestedContEditContext = {
       parentId: parentId,
-      childId: id
+      childId: id,
+      parentPlanType: currentPlanType()
     };
     openEditFullscreenModal(id, { preserveListSettings: true });
   }
@@ -1324,7 +1337,7 @@
       var nestedToRestore = $.extend({}, nestedContEditContext);
       nestedContRestorePending = nestedToRestore;
       nestedContEditContext = null;
-      openEditFullscreenModal(nestedToRestore.parentId, { preserveListSettings: true });
+      openEditFullscreenModal(nestedToRestore.parentId, { preserveListSettings: true, keepOpen: true, planType: nestedToRestore.parentPlanType });
     });
     $('#ke-hoach-edit-fullscreen-modal, #ke-hoach-tuyen-xa-edit-fullscreen-modal').on('hidden.bs.modal', function (e) {
       if (e.target !== this) return;
@@ -1597,6 +1610,7 @@
       .off('change', '.line-cont-filter-kho, .line-cont-filter-du-hang')
       .off('change', '.line-cont-ref-checkbox')
       .off('click', '.cont-picker-row')
+      .off('change', '.line-chuyen-xa-toggle')
       .off('change', '.line-bai-thuc-te-toggle')
       .off('change', '.line-tang-bo-toggle')
       .off('change', '.line-ket-hop-toggle')
@@ -1698,6 +1712,7 @@
         ngay_ket_thuc: '',
         ghi_chu: '',
 	        hinh_thuc_van_tai: '',
+	        hinh_thuc_tinh_luong_lai_xe: 'khoan',
 	        ke_hoach_cont_ref_nid: 0,
 	        cont_ref_label: '',
 	        cont_ref: null,
@@ -1981,6 +1996,7 @@
       var vehicleName = vehicleOnlyText(line);
       var moocName = moocSummaryText(line);
       var contText = [line.loai_cont || '', line.so_cont || ''].filter(Boolean).join(' - ');
+      var returnContText = line.cont_ref ? [line.cont_ref.loai_cont || '', line.cont_ref.so_cont || ''].filter(Boolean).join(' - ') : '';
       var routeText = [line.bai_lay_thuc_te || line.bai_lay_cont || '', line.dia_chi_kho || '', line.bai_ha_thuc_te || line.bai_ha_cont || ''].filter(Boolean).join(' - ');
       var dateText = [apiToDate(line.ngay_bat_dau || ''), apiToDate(line.ngay_ket_thuc || '')].filter(Boolean).join(' - ');
       var filesCount = planFilesFromRow(editData).length;
@@ -2004,7 +2020,7 @@
         summaryRow('Mooc', moocName, '') +
         summaryRow('Lái xe', driverName, '') +
         summaryRow('Hình thức', line.hinh_thuc_van_tai ? hinhThucLabel(line.hinh_thuc_van_tai) : '', dateText) +
-        summaryRow('Cont kéo về', line.ke_hoach_cont_ref_nid ? contRefButtonText(line) : '', '') +
+        summaryRow('Cont kéo về', line.ke_hoach_cont_ref_nid ? returnContText : '', '') +
         summaryRow('Tăng bo', optionEnabled(tangBo.enabled) ? 'Có' : 'Không', optionEnabled(tangBo.enabled) ? lookupName(state.customers, tangBo.nid_khach_hang, 'ten') : '') +
         summaryRow('Kết hợp', optionEnabled(ketHop.enabled) ? 'Có' : 'Không', '') +
         summaryRow('Chứng từ', filesCount + '/25 file', '')
@@ -2155,8 +2171,7 @@
           dateFormat: 'd/m/Y H:i',
           time_24hr: true,
           allowInput: true,
-          static: false,
-          appendTo: document.body
+          static: true
         });
       }
       $row.find('.line-date-input').each(function () {
@@ -2165,8 +2180,7 @@
             enableTime: false,
             dateFormat: 'd/m/Y',
             allowInput: true,
-            static: false,
-            appendTo: document.body
+            static: true
           });
         }
 	      });
@@ -2201,8 +2215,7 @@
           dateFormat: 'd/m/Y H:i',
           time_24hr: true,
           allowInput: true,
-          static: false,
-          appendTo: document.body
+          static: true
         });
       }
       $card.find('.line-date-input').each(function () {
@@ -2211,8 +2224,7 @@
             enableTime: false,
             dateFormat: 'd/m/Y',
             allowInput: true,
-            static: false,
-            appendTo: document.body
+            static: true
           });
         }
       });
@@ -2235,6 +2247,7 @@
         var tangBo = lineTangBo(line);
         var ketHop = lineKetHop(line);
         var baiThucTeChecked = hasBaiThucTe(line);
+        var chuyenXaChecked = line.hinh_thuc_tinh_luong_lai_xe === 'theo_chuyen';
         if (isTuyenXa) navHtml += renderTuyenXaNav(line);
         var routeMetaHtml = isTuyenXa
           ? ''
@@ -2252,6 +2265,7 @@
                 '<div class="khxh-tuyen-xa-card-subtitle">Thông tin hàng, tuyến vận chuyển và điều xe</div>' +
               '</div>' +
               (isTuyenXa ? '<div class="khxh-tuyen-xa-switches khxh-main-plan-switches">' +
+                '<label class="form-check form-switch mb-0"><input class="form-check-input line-chuyen-xa-toggle" type="checkbox"' + (chuyenXaChecked ? ' checked' : '') + '><span class="form-check-label">Chuyến xa</span></label>' +
                 '<label class="form-check form-switch mb-0"><input class="form-check-input line-bai-thuc-te-toggle" type="checkbox"' + (baiThucTeChecked ? ' checked' : '') + '><span class="form-check-label">Bãi thực tế</span></label>' +
                 '<label class="form-check form-switch mb-0"><input class="form-check-input line-tang-bo-toggle" type="checkbox"' + (optionEnabled(tangBo.enabled) ? ' checked' : '') + '><span class="form-check-label">Tăng bo</span></label>' +
               '</div>' : '') +
@@ -2447,6 +2461,7 @@
         line.so_cont = $row.find('.line-so-cont-input').val().trim();
         line.loai_cont = ($row.find('.line-loai-cont-select').val() || '').trim();
         line.loai_hang = ($row.find('.line-loai-hang-select').val() || '').trim();
+        line.hinh_thuc_tinh_luong_lai_xe = $row.find('.line-chuyen-xa-toggle').is(':checked') ? 'theo_chuyen' : 'khoan';
         if (currentPlanType() !== 'tuyen_xa') {
           line.so_seal_chinh = $row.find('.line-seal-chinh-input').val().trim();
           line.so_seal_tam = $row.find('.line-seal-tam-input').val().trim();
@@ -2576,7 +2591,18 @@
       }
       $formOrPage('#vehicle-picker-search').val('');
       renderVehicleTable('');
-      if (!vehicleModal) vehicleModal = new bootstrap.Modal(document.getElementById('vehicle-picker-modal'));
+      var vehicleModalEl = $formOrPage('#vehicle-picker-modal')[0];
+      if (!vehicleModalEl) return;
+      if (vehicleModalEl.parentNode !== document.body) {
+        var vehiclePlaceholder = document.createComment('vehicle-picker-placeholder');
+        vehicleModalEl.parentNode.insertBefore(vehiclePlaceholder, vehicleModalEl);
+        vehicleModalEl.__vehiclePickerPlaceholder = vehiclePlaceholder;
+        document.body.appendChild(vehicleModalEl);
+      }
+      if (!vehicleModal || vehicleModal._element !== vehicleModalEl) {
+        var vehicleModalOptions = { backdrop: true, keyboard: true, focus: true };
+        vehicleModal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(vehicleModalEl, vehicleModalOptions) : new bootstrap.Modal(vehicleModalEl, vehicleModalOptions);
+      }
       vehicleModal.show();
     }
 
@@ -2718,12 +2744,12 @@
       var dauKeo = (item.phuong_tien && (item.phuong_tien.bks || item.phuong_tien.bien_so)) || item.bks_dau_keo || '';
       var mooc = (item.mooc && (item.mooc.bks || item.mooc.bien_so)) || item.bks_mooc || '';
       var laiXe = (item.lai_xe && item.lai_xe.ten) || item.ten_lai_xe || '';
-      var routeFrom = item.bai_lay_thuc_te || item.bai_lay_cont || item.dia_chi_kho || '';
+      var routeFrom = item.dia_chi_kho || '';
       var routeTo = item.bai_ha_thuc_te || item.bai_ha_cont || '';
       var duHang = parseInt(item.da_du_hang, 10) === 1;
       return '<div class="khxh-cont-ref-selected">' +
         '<div class="khxh-cont-ref-selected-top">' +
-          '<div class="khxh-cont-ref-identity"><strong class="khxh-cont-ref-number">' + escHtml(item.so_cont || ('#' + item.nid)) + '</strong><span class="badge bg-label-secondary">' + escHtml(item.loai_cont || '—') + '</span><span class="badge ' + (duHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (duHang ? 'Đủ hàng' : 'Chưa đủ') + '</span></div>' +
+          '<div class="khxh-cont-ref-identity"><button type="button" class="khxh-cont-ref-number btn-edit-cont-candidate" data-id="' + escHtml(item.nid) + '" title="Mở xếp xe cont này">' + escHtml(item.so_cont || ('#' + item.nid)) + '</button><span class="badge bg-label-secondary">' + escHtml(item.loai_cont || '—') + '</span><span class="badge ' + (duHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (duHang ? 'Đủ hàng' : 'Chưa đủ') + '</span></div>' +
           '<div class="khxh-cont-ref-meta"><span><small>Booking</small><strong>' + escHtml(item.so_bkg || '—') + '</strong></span><span><small>Khách hàng</small><strong>' + escHtml(customer || '—') + '</strong></span><span><small>Xe kéo lên</small><strong>' + escHtml(dauKeo || '—') + '</strong></span><span><small>Mooc</small><strong>' + escHtml(mooc || '—') + '</strong></span><span><small>Lái xe</small><strong>' + escHtml(laiXe || '—') + '</strong></span></div>' +
           '<div class="khxh-cont-ref-actions"><button type="button" class="btn btn-sm btn-outline-secondary btn-open-cont-ref-modal" data-line-key="' + escHtml(line.key) + '">Đổi cont</button><button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-cont-ref" data-line-key="' + escHtml(line.key) + '" title="Bỏ cont"><i class="ti tabler-x"></i></button></div>' +
         '</div>' +
@@ -3211,6 +3237,7 @@
             ngay_bat_dau: line.ngay_bat_dau || '',
             ngay_ket_thuc: line.ngay_ket_thuc || '',
             ghi_chu: line.ghi_chu || '',
+            thong_tin_json: currentPlanType() === 'tuyen_xa' ? { hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan' } : {},
             hinh_thuc_van_tai: line.hinh_thuc_van_tai || '',
             ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
             da_cat_mooc: line.da_cat_mooc || 0,
@@ -3249,6 +3276,7 @@
           ngay_bat_dau: line.ngay_bat_dau || '',
           ngay_ket_thuc: line.ngay_ket_thuc || '',
           ghi_chu: line.ghi_chu || '',
+          thong_tin_json: currentPlanType() === 'tuyen_xa' ? { hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan' } : {},
           hinh_thuc_van_tai: useTableLayout ? '' : (line.hinh_thuc_van_tai || ''),
           ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
           da_cat_mooc: line.da_cat_mooc || 0,
@@ -3319,8 +3347,9 @@
         cut_off: row.cut_off || '',
         ngay_bat_dau: row.ngay_bat_dau || '',
         ngay_ket_thuc: row.ngay_ket_thuc || '',
-        ghi_chu: row.ghi_chu || '',
+	        ghi_chu: row.ghi_chu || '',
 	        hinh_thuc_van_tai: row.hinh_thuc_van_tai || '',
+	        hinh_thuc_tinh_luong_lai_xe: row.hinh_thuc_tinh_luong_lai_xe || rowJson.hinh_thuc_tinh_luong_lai_xe || 'khoan',
 	        ke_hoach_cont_ref_nid: row.ke_hoach_cont_ref_nid || 0,
 	        cont_ref_label: row.cont_ref ? ((row.cont_ref.so_bkg || '') + (row.cont_ref.so_cont ? ' / ' + row.cont_ref.so_cont : '')) : '',
 	        cont_ref: row.cont_ref || null,
@@ -3588,6 +3617,11 @@
 
     $(document).on('change', '#nid_khach_hang-input', function () {
       loadCauHinh(parseInt($(this).val(), 10) || 0);
+      updateTuyenXaSidebar();
+    });
+    $(document).on('change', '.line-chuyen-xa-toggle', function () {
+      var line = syncLine($(this).closest('.ke-hoach-line-card'));
+      if (line) line.hinh_thuc_tinh_luong_lai_xe = this.checked ? 'theo_chuyen' : 'khoan';
       updateTuyenXaSidebar();
     });
     $(document).on('change', '.line-bai-thuc-te-toggle', function () {
@@ -3957,7 +3991,23 @@
     $(document).on('click', '#vehicle-picker-clear-btn', function () {
       clearVehicleForActiveLine();
     });
+	    $(document)
+        .off('show.bs.modal', '#vehicle-picker-modal')
+        .on('show.bs.modal', '#vehicle-picker-modal', function () {
+          $(this).css('z-index', '200000');
+          setTimeout(function () {
+            $('.modal-backdrop').last().css('z-index', '199999');
+          }, 0);
+        });
 	    $(document).off('hidden.bs.modal', '#vehicle-picker-modal').on('hidden.bs.modal', '#vehicle-picker-modal', function () {
+	      var placeholder = this.__vehiclePickerPlaceholder;
+	      if (placeholder && placeholder.parentNode) {
+	        placeholder.parentNode.insertBefore(this, placeholder.nextSibling);
+	        placeholder.parentNode.removeChild(placeholder);
+	        this.__vehiclePickerPlaceholder = null;
+	      }
+	      $(this).css('z-index', '');
+	      $('.modal-backdrop').last().css('z-index', '');
 	      if ($('#ke-hoach-edit-fullscreen-modal').hasClass('show') || $('#ke-hoach-tuyen-xa-edit-fullscreen-modal').hasClass('show')) {
 	        $('body').addClass('modal-open');
 	      }
