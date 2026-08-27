@@ -19,7 +19,6 @@
 
     <div class="khxh-tuyen-xa-context" id="khxh-tuyen-xa-context">
       <div class="khxh-context-item"><span>Khách hàng</span><strong data-context="customer">Chưa có</strong></div>
-      <div class="khxh-context-item"><span>Booking / Bill</span><strong data-context="booking">Chưa có</strong></div>
       <div class="khxh-context-item"><span>Container</span><strong data-context="container">Chưa có</strong></div>
       <div class="khxh-context-item khxh-context-route"><span>Tuyến</span><strong data-context="route">Chưa có</strong></div>
       <div class="khxh-context-item"><span>Thời gian</span><strong data-context="time">Chưa có</strong></div>
@@ -101,12 +100,11 @@
       <div class="modal-body">
         <div class="line-cont-picker-wrap" id="cont-ref-picker-wrap" data-line-key="">
           <div class="row line-cont-filter-row mb-2">
-            <div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div>
-            <div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>
+            <div class="col-md-4"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>
             <div class="col-md-4"><select class="form-select line-cont-filter-kho"><option></option></select></div>
             <div class="col-md-2"><select class="form-select line-cont-filter-du-hang"><option value="">Trạng thái</option><option value="1">Đã đủ</option><option value="0">Chưa đủ</option></select></div>
           </div>
-          <div class="cont-picker-list-head is-tuyen-xa"><span></span><span>Cont / Booking</span><span>Kho</span><span>Bãi hạ</span><span>T.Thái</span><span>Ghi chú</span></div>
+          <div class="cont-picker-list-head is-tuyen-xa"><span></span><span>Container</span><span>Kho</span><span>Bãi hạ</span><span>T.Thái</span><span>Ghi chú</span></div>
           <div class="line-cont-picker-body line-cont-picker-list"><div class="text-center text-muted py-4">Chưa có dữ liệu</div></div>
         </div>
       </div>

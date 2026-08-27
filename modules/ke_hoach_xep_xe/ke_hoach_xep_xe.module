@@ -804,7 +804,7 @@ function _ke_hoach_xep_xe_validate_common($input) {
   return NULL;
 }
 
-function _ke_hoach_xep_xe_validate_lines($items, $require_vehicle_driver = TRUE, $require_container = TRUE) {
+function _ke_hoach_xep_xe_validate_lines($items, $require_vehicle_driver = TRUE, $require_container = TRUE, $require_booking = TRUE) {
   if (empty($items) || !is_array($items)) {
     return _ke_hoach_xep_xe_fail('Danh sách phương tiện bắt buộc');
   }
@@ -813,7 +813,7 @@ function _ke_hoach_xep_xe_validate_lines($items, $require_vehicle_driver = TRUE,
 
   foreach ($items as $index => $item) {
     $line_no = $index + 1;
-    if (empty($item['so_bkg'])) {
+    if ($require_booking && empty($item['so_bkg'])) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': số BKG bắt buộc');
     }
     if ($require_vehicle_driver && empty($item['nid_phuong_tien'])) {
@@ -1322,7 +1322,8 @@ function _ke_hoach_xep_xe_rest_create() {
   if ($validation) {
     return $validation;
   }
-  $line_validation = _ke_hoach_xep_xe_validate_lines(isset($input['items']) ? $input['items'] : array(), FALSE, FALSE);
+  $is_tuyen_xa = !empty($input['loai_ke_hoach']) && $input['loai_ke_hoach'] === 'tuyen_xa';
+  $line_validation = _ke_hoach_xep_xe_validate_lines(isset($input['items']) ? $input['items'] : array(), FALSE, FALSE, !$is_tuyen_xa);
   if ($line_validation) {
     return $line_validation;
   }
@@ -1431,7 +1432,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch');
   }
 
-  $existing = db_query("SELECT nid, trang_thai_van_chuyen, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  $existing = db_query("SELECT nid, loai_ke_hoach, trang_thai_van_chuyen, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -1443,7 +1444,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
   }
 
   $line = isset($input['item']) && is_array($input['item']) ? $input['item'] : $input;
-  $line_validation = _ke_hoach_xep_xe_validate_lines(array($line), FALSE, FALSE);
+  $line_validation = _ke_hoach_xep_xe_validate_lines(array($line), FALSE, FALSE, empty($existing->loai_ke_hoach) || $existing->loai_ke_hoach !== 'tuyen_xa');
   if ($line_validation) {
     return $line_validation;
   }
@@ -1888,9 +1889,6 @@ function _ke_hoach_tuyen_xa_normalize_date($value) {
 function _ke_hoach_tuyen_xa_validate_input($input, $is_update = FALSE) {
   if (empty($input['nid_khach_hang'])) {
     return _ke_hoach_xep_xe_fail('Khách hàng bắt buộc');
-  }
-  if (empty($input['so_bkg'])) {
-    return _ke_hoach_xep_xe_fail('Số BKG bắt buộc');
   }
   if (empty($input['so_cont'])) {
     return _ke_hoach_xep_xe_fail('Số cont bắt buộc');

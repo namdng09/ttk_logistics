@@ -554,7 +554,19 @@
     var jq = _jq();
     if (!jq || !el) return;
     var $el = jq(el);
-    if ($el.data('select2')) $el.select2('destroy');
+    var existing = $el.data('select2');
+    if (existing && existing.dataAdapter) {
+      // Không huỷ Select2 khi nó đang xử lý sự kiện clear/open. Việc huỷ rồi
+      // khởi tạo lại đồng bộ khiến Select2 gọi vào dataAdapter đã bị null.
+      $el.off('select2:open.khxhFocus').on('select2:open.khxhFocus', function () {
+        window.setTimeout(function () {
+          var search = document.querySelector('.select2-container--open .select2-search__field');
+          if (search) search.focus();
+        }, 0);
+      });
+      return;
+    }
+    if (existing) $el.removeData('select2');
     var opts = $.extend({
       placeholder: placeholder || '— Chọn —',
       allowClear: true,
@@ -855,7 +867,7 @@
     var routeMid = row.dia_chi_kho || row.cua_khau || '';
     var routeTo = row.bai_ha_thuc_te || row.bai_ha_cont || row.diem_den || '';
     var html = '<div class="detail-transport-card">' +
-      '<div class="detail-transport-title"><span>' + escHtml(title) + '</span>' + (row.so_bkg ? '<small>' + escHtml(row.so_bkg) + '</small>' : '') + '</div>' +
+      '<div class="detail-transport-title"><span>' + escHtml(title) + '</span>' + (currentPlanType() === 'tuyen_xa' || !row.so_bkg ? '' : '<small>' + escHtml(row.so_bkg) + '</small>') + '</div>' +
       '<div class="detail-route-inline">' +
         '<span>' + valueOrMuted(routeFrom, 'Điểm đi') + '</span>' +
         (routeMid ? '<i class="ti tabler-arrow-right"></i><span>' + escHtml(routeMid) + '</span>' : '') +
@@ -872,6 +884,7 @@
   }
 
   function renderDetailModal(d) {
+    var isTuyenXa = currentPlanType() === 'tuyen_xa';
     var khName = (d.khach_hang && d.khach_hang.ten) || '';
     var hinhThuc = d.hinh_thuc_van_tai ? hinhThucLabel(d.hinh_thuc_van_tai) : '';
     var hinhThucBadgeColor = d.hinh_thuc_van_tai ? hinhThucColor(d.hinh_thuc_van_tai) : 'bg-label-secondary';
@@ -881,7 +894,7 @@
     var commonHtml = '' +
       '<div class="detail-summary-strip">' +
         '<div><span>Khách hàng</span><strong>' + valueOrMuted(khName) + '</strong></div>' +
-        '<div><span>Booking</span><strong>' + valueOrMuted(d.so_bkg || '') + '</strong></div>' +
+        (isTuyenXa ? '' : '<div><span>Booking</span><strong>' + valueOrMuted(d.so_bkg || '') + '</strong></div>') +
         '<div><span>Container</span><strong>' + valueOrMuted(contText) + '</strong></div>' +
         '<div><span>Trạng thái</span><strong>' + detailBadge(d.trang_thai_van_chuyen || '', statusColor) + '</strong></div>' +
       '</div>' +
@@ -897,10 +910,10 @@
     var containerHtml = '' +
       '<div class="detail-container-layout">' +
         '<div class="detail-container-main">' +
-          '<div class="detail-container-code">' + valueOrMuted(contText || d.so_bkg || '', 'Chưa có container') + '</div>' +
+          '<div class="detail-container-code">' + valueOrMuted(contText || (isTuyenXa ? '' : d.so_bkg || ''), 'Chưa có container') + '</div>' +
           '<div class="detail-container-sub">' +
-            '<span>BKG: ' + (d.so_bkg ? escHtml(d.so_bkg) : 'Chưa có') + '</span>' +
-            (currentPlanType() === 'tuyen_xa' ? '' :
+            (isTuyenXa ? '' : '<span>BKG: ' + (d.so_bkg ? escHtml(d.so_bkg) : 'Chưa có') + '</span>') +
+            (isTuyenXa ? '' :
               '<span>Seal chính: ' + (d.so_seal_chinh ? escHtml(d.so_seal_chinh) : 'Chưa có') + '</span>' +
               '<span>Seal phụ: ' + (d.so_seal_tam ? escHtml(d.so_seal_tam) : 'Chưa có') + '</span>') +
           '</div>' +
@@ -927,11 +940,11 @@
       '</div>' +
       '<div class="khxh-plan-files-body">' + renderPlanFilesHtml(files, false) + '</div>' +
     '</div>';
-    $('#ke-hoach-detail-subtitle').text((d.so_bkg || 'Kế hoạch') + (d.so_cont ? ' - ' + d.so_cont : ''));
+    $('#ke-hoach-detail-subtitle').text((isTuyenXa ? 'Kế hoạch' : (d.so_bkg || 'Kế hoạch')) + (d.so_cont ? ' - ' + d.so_cont : ''));
     $('#ke-hoach-detail-edit-btn').attr('href', '/ke-hoach-xep-xe/' + d.nid + '/sua');
     $('#ke-hoach-detail-content').html(
       '<div class="detail-card">' + detailSectionTitle('tabler-info-circle', 'Thông tin chung', 'Tổng quan kế hoạch và tiến độ') + commonHtml + '</div>' +
-      '<div class="detail-card">' + detailSectionTitle('tabler-container', 'Thông tin container', currentPlanType() === 'tuyen_xa' ? 'Booking và tuyến điểm' : 'Booking, seal và tuyến điểm') + containerHtml + '</div>' +
+      '<div class="detail-card">' + detailSectionTitle('tabler-container', 'Thông tin container', isTuyenXa ? 'Container và tuyến điểm' : 'Booking, seal và tuyến điểm') + containerHtml + '</div>' +
       '<div class="detail-card">' + detailSectionTitle('tabler-route', 'Thông tin vận chuyển', 'Phương tiện và lái xe theo chiều kéo') + transportHtml + '</div>' +
       filesHtml
     );
@@ -1403,7 +1416,8 @@
 
   function loadList() {
     var tbody = document.getElementById('list-body');
-    tbody.innerHTML = '<tr id="loading-row"><td colspan="12" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
+    var listColumnCount = currentPlanType() === 'tuyen_xa' ? 9 : 12;
+    tbody.innerHTML = '<tr id="loading-row"><td colspan="' + listColumnCount + '" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
     var params = { page: currentPage, loai_ke_hoach: currentPlanType() };
     if (currentKeyword) params.keyword = currentKeyword;
     if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
@@ -1416,14 +1430,14 @@
       success: function (res) {
         $('#loading-row').remove();
         if (res.status !== 'success' || !res.data) {
-          tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="' + listColumnCount + '" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
           return;
         }
         var resp = res.data;
         var items = resp.items || [];
         var pageSize = resp.limit || 20;
         if (!items.length) {
-          tbody.innerHTML = '<tr><td colspan="12" class="text-center py-4">Không có dữ liệu</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="' + listColumnCount + '" class="text-center py-4">Không có dữ liệu</td></tr>';
           renderPagination(resp);
           return;
         }
@@ -1458,7 +1472,7 @@
                 (hinhThucBadge ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + '</div>' : '') +
               '</div>' +
             '</td>' +
-            '<td class="khxh-bkg-cell">' + escHtml(row.so_bkg || '') + '</td>' +
+            (currentPlanType() === 'tuyen_xa' ? '' : '<td class="khxh-bkg-cell">' + escHtml(row.so_bkg || '') + '</td>') +
             '<td class="khxh-container-cell">' +
               '<div>' + (contHtml || '<span class="text-muted fst-italic small">container</span>') + '</div>' +
               (currentPlanType() === 'tuyen_xa' ? '' :
@@ -1474,8 +1488,7 @@
                 '<div class="khxh-hanh-trinh-box">' + (baiHaDisplay ? escHtml(baiHaDisplay) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
               '</div>' +
             '</td>' +
-            '<td class="khxh-cang-cell">' + escHtml(row.cang_xuat || '') + '</td>' +
-            '<td class="khxh-date-cell">' + cutOffBadge(row.cut_off) + '</td>' +
+            (currentPlanType() === 'tuyen_xa' ? '' : '<td class="khxh-cang-cell">' + escHtml(row.cang_xuat || '') + '</td><td class="khxh-date-cell">' + cutOffBadge(row.cut_off) + '</td>') +
             '<td class="khxh-status-cell"><span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</span></td>' +
             '</tr>';
         }
@@ -1493,7 +1506,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="' + listColumnCount + '" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -2008,12 +2021,11 @@
       $lineNav.find('.khxh-nav-combine-count').text(optionEnabled(ketHop.enabled) ? '1' : '0');
       $lineNav.find('.khxh-nav-files-count').text(filesCount + '/25');
       $form('#khxh-tuyen-xa-context [data-context="customer"]').text(customerName || 'Chưa có');
-      $form('#khxh-tuyen-xa-context [data-context="booking"]').text(line.so_bkg || 'Chưa có');
       $form('#khxh-tuyen-xa-context [data-context="container"]').text(contText || 'Chưa có');
       $form('#khxh-tuyen-xa-context [data-context="route"]').text(routeText || 'Chưa có');
       $form('#khxh-tuyen-xa-context [data-context="time"]').text(dateText || 'Chưa có');
       $form('#khxh-tuyen-xa-summary').html(
-        summaryRow('Khách hàng', customerName, line.so_bkg || '') +
+        summaryRow('Khách hàng', customerName, '') +
         summaryRow('Container', contText, line.loai_hang || '') +
         summaryRow('Tuyến', routeText, '') +
         summaryRow('Phương tiện', vehicleName, '') +
@@ -2027,7 +2039,6 @@
       );
       $form('#khxh-tuyen-xa-checklist').html(
         checklistItem(!!line.nid_khach_hang, 'Khách hàng', customerName || '') +
-        checklistItem(!!line.so_bkg, 'Booking / bill', line.so_bkg || '') +
         checklistItem(!!line.so_cont, 'Số cont', line.so_cont || '') +
         checklistItem(!!line.dia_chi_kho, 'Kho đóng/trả', line.dia_chi_kho || '') +
         checklistItem(!!line.nid_phuong_tien, 'Phương tiện', vehicleName || '') +
@@ -2276,10 +2287,10 @@
               '</div>' +
               '<div class="ke-hoach-edit-grid">' +
                 '<div class="khxh-span-4"><label class="form-label">Khách hàng <span class="text-danger">*</span></label><select id="nid_khach_hang-input" class="form-select select2-searchable" style="width:100%" required>' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select><div class="invalid-feedback">Vui lòng chọn khách hàng</div></div>' +
-                '<div class="khxh-span-4"><label class="form-label">Số booking/ bill <span class="text-danger">*</span></label><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số booking/ bill" required><div class="invalid-feedback">Vui lòng nhập số booking/ bill</div></div>' +
+                (isTuyenXa ? '' : '<div class="khxh-span-4"><label class="form-label">Số booking/ bill <span class="text-danger">*</span></label><input type="text" id="so_bkg-input" class="form-control" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số booking/ bill" required><div class="invalid-feedback">Vui lòng nhập số booking/ bill</div></div>') +
                 '<div class="khxh-span-4"><label class="form-label">Loại hàng</label><select class="form-select line-loai-hang-select">' + buildTagOptions(state.cauHinh.loaiHang, line.loai_hang) + '</select></div>' +
-                '<div class="khxh-span-3"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
-                '<div class="khxh-span-3"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
+                '<div class="khxh-span-' + (isTuyenXa ? '4' : '3') + '"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
+                '<div class="khxh-span-' + (isTuyenXa ? '4' : '3') + '"><label class="form-label">Số cont</label><input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
                 (isTuyenXa ? '' :
                   '<div class="khxh-span-3"><label class="form-label">Seal chính</label><input type="text" class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Seal chính"></div>' +
                   '<div class="khxh-span-3"><label class="form-label">Seal phụ</label><input type="text" class="form-control line-seal-tam-input" value="' + escHtml(line.so_seal_tam || '') + '" placeholder="Seal phụ"></div>') +
@@ -2382,13 +2393,11 @@
         ? ''
         : '<select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select>';
       var isTX = currentPlanType() === 'tuyen_xa';
-      var cutOffHtml = isTX
-        ? '<select class="form-select line-loai-hang-select">' + buildTagOptions(state.cauHinh.loaiHang, line.loai_hang) + '</select>'
-        : '<input type="text" class="form-control line-cut-off-input' + (dateInputsHtml ? ' mb-2' : '') + '" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM">' + dateInputsHtml;
-      var cutOffCellHtml = '<td class="line-combo-cell line-cutoff-cell' + (!isTX && dateInputsHtml ? ' has-date-range' : '') + '">' + cutOffHtml + '</td>';
+      var cutOffHtml = '<input type="text" class="form-control line-cut-off-input' + (dateInputsHtml ? ' mb-2' : '') + '" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM">' + dateInputsHtml;
+      var cutOffCellHtml = isTX ? '' : '<td class="line-combo-cell line-cutoff-cell' + (dateInputsHtml ? ' has-date-range' : '') + '">' + cutOffHtml + '</td>';
 	      return '' +
 	        '<tr class="ke-hoach-table-row" data-line-key="' + line.key + '">' +
-	          '<td class="line-combo-cell"><select class="form-select line-customer-select mb-2">' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select><input type="text" class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG"><div class="line-customer-feedback text-danger small mt-1" style="display:none;">Vui lòng chọn khách hàng</div></td>' +
+          '<td class="line-combo-cell"><select class="form-select line-customer-select mb-2">' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select>' + (isTX ? '<select class="form-select line-loai-hang-select">' + buildTagOptions(state.cauHinh.loaiHang, line.loai_hang) + '</select>' : '<input type="text" class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG">') + '<div class="line-customer-feedback text-danger small mt-1" style="display:none;">Vui lòng chọn khách hàng</div></td>' +
 	          '<td>' +
 	            '<input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '">' +
 	            '<button type="button" class="btn btn-outline-secondary w-100 text-start line-vehicle-display btn-open-vehicle-modal' + (line.nid_phuong_tien ? ' is-selected' : '') + '">' + vehicleSummaryTableHtml(line) + '</button>' +
@@ -2457,7 +2466,7 @@
           line.mooc = null;
         }
         line.nid_lai_xe = parseInt($row.find('.line-driver-select').val(), 10) || 0;
-        line.so_bkg = $form('#so_bkg-input').val().trim();
+        if (currentPlanType() !== 'tuyen_xa' && $form('#so_bkg-input').length) line.so_bkg = $form('#so_bkg-input').val().trim();
         line.so_cont = $row.find('.line-so-cont-input').val().trim();
         line.loai_cont = ($row.find('.line-loai-cont-select').val() || '').trim();
         line.loai_hang = ($row.find('.line-loai-hang-select').val() || '').trim();
@@ -2516,7 +2525,7 @@
       if (!line.nid_mooc) {
         line.mooc = null;
       }
-      line.so_bkg = $row.find('.line-so-bkg-input').val().trim();
+      if (currentPlanType() !== 'tuyen_xa') line.so_bkg = $row.find('.line-so-bkg-input').val().trim();
       line.so_cont = $row.find('.line-so-cont-input').val().trim();
       line.loai_cont = ($row.find('.line-loai-cont-select').val() || '').trim();
       line.loai_hang = ($row.find('.line-loai-hang-select').val() || '').trim();
@@ -2750,7 +2759,7 @@
       return '<div class="khxh-cont-ref-selected">' +
         '<div class="khxh-cont-ref-selected-top">' +
           '<div class="khxh-cont-ref-identity"><button type="button" class="khxh-cont-ref-number btn-edit-cont-candidate" data-id="' + escHtml(item.nid) + '" title="Mở xếp xe cont này">' + escHtml(item.so_cont || ('#' + item.nid)) + '</button><span class="badge bg-label-secondary">' + escHtml(item.loai_cont || '—') + '</span><span class="badge ' + (duHang ? 'bg-label-success' : 'bg-label-warning') + '">' + (duHang ? 'Đủ hàng' : 'Chưa đủ') + '</span></div>' +
-          '<div class="khxh-cont-ref-meta"><span><small>Booking</small><strong>' + escHtml(item.so_bkg || '—') + '</strong></span><span><small>Khách hàng</small><strong>' + escHtml(customer || '—') + '</strong></span><span><small>Xe kéo lên</small><strong>' + escHtml(dauKeo || '—') + '</strong></span><span><small>Mooc</small><strong>' + escHtml(mooc || '—') + '</strong></span><span><small>Lái xe</small><strong>' + escHtml(laiXe || '—') + '</strong></span></div>' +
+          '<div class="khxh-cont-ref-meta">' + (currentPlanType() === 'tuyen_xa' ? '' : '<span><small>Booking</small><strong>' + escHtml(item.so_bkg || '—') + '</strong></span>') + '<span><small>Khách hàng</small><strong>' + escHtml(customer || '—') + '</strong></span><span><small>Xe kéo lên</small><strong>' + escHtml(dauKeo || '—') + '</strong></span><span><small>Mooc</small><strong>' + escHtml(mooc || '—') + '</strong></span><span><small>Lái xe</small><strong>' + escHtml(laiXe || '—') + '</strong></span></div>' +
           '<div class="khxh-cont-ref-actions"><button type="button" class="btn btn-sm btn-outline-secondary btn-open-cont-ref-modal" data-line-key="' + escHtml(line.key) + '">Đổi cont</button><button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-cont-ref" data-line-key="' + escHtml(line.key) + '" title="Bỏ cont"><i class="ti tabler-x"></i></button></div>' +
         '</div>' +
         '<div class="khxh-cont-ref-selected-bottom' + (currentPlanType() === 'tuyen_xa' ? ' is-tuyen-xa' : '') + '"><span><small>Tuyến kéo về</small><strong>' + escHtml(routeFrom || '—') + ' <i class="ti tabler-arrow-right"></i> ' + escHtml(routeTo || '—') + '</strong></span>' +
@@ -3008,12 +3017,12 @@
         var generalTooltip = 'Khách hàng: ' + (khachHangName || '—') + ' | Đầu kéo: ' + (dauKeo || '—') + ' | Mooc: ' + (mooc || '—') + ' | Lái xe: ' + (laiXe || '—');
         rows.push('<div class="cont-picker-row' + (currentPlanType() === 'tuyen_xa' ? ' is-tuyen-xa' : '') + (selected ? ' is-selected' : '') + '" title="' + escHtml(generalTooltip) + '">' +
           '<div class="cont-picker-radio"><input class="form-check-input line-cont-ref-checkbox" type="radio" name="cont-ref-' + escHtml(line.key) + '" value="' + item.nid + '" data-id="' + item.nid + '" data-so-bkg="' + escHtml(item.so_bkg || '') + '" data-so-cont="' + escHtml(item.so_cont || '') + '"' + (selected ? ' checked' : '') + '></div>' +
-          '<div class="cont-picker-cell"><div class="cont-picker-primary"><span class="cont-picker-cont mono">' + escHtml(item.so_cont || ('#' + item.nid)) + '</span><span class="badge bg-label-secondary">' + escHtml(item.loai_cont || '—') + '</span></div><div class="text-muted small mono">' + escHtml(item.so_bkg || '—') + '</div></div>' +
+          '<div class="cont-picker-cell"><div class="cont-picker-primary"><span class="cont-picker-cont mono">' + escHtml(item.so_cont || ('#' + item.nid)) + '</span><span class="badge bg-label-secondary">' + escHtml(item.loai_cont || '—') + '</span></div>' + (currentPlanType() === 'tuyen_xa' ? '' : '<div class="text-muted small mono">' + escHtml(item.so_bkg || '—') + '</div>') + '</div>' +
           '<div class="cont-picker-cell"><div class="fw-semibold">' + escHtml(item.dia_chi_kho || '—') + '</div><div class="text-muted small">' + escHtml(khachHangName || '—') + '</div></div>' +
           '<div class="cont-picker-cell cont-picker-destination-cell">' +
             '<label class="form-check form-check-inline mb-1">' +
               '<input class="form-check-input line-bai-ha-theo-ke-hoach-checkbox" type="checkbox" data-id="' + item.nid + '"' + (theoKeHoach ? ' checked' : '') + '>' +
-              '<span class="form-check-label small">Hạ theo booking</span>' +
+              '<span class="form-check-label small">' + (currentPlanType() === 'tuyen_xa' ? 'Hạ theo kế hoạch' : 'Hạ theo booking') + '</span>' +
             '</label>' +
             '<select class="form-select form-select-sm line-bai-ha-thuc-te-select" data-id="' + item.nid + '" data-planned="' + escHtml(plannedBaiHa) + '">' + buildTagOptions(state.diaDiem.bai, destinationValue) + '</select>' +
           '</div>' +
@@ -3173,7 +3182,7 @@
           setSelect2Invalid($row.find('.line-cang-select'), false);
           $row.find('.line-vehicle-feedback').hide();
         }
-        if ((useTableLayout && !line.so_bkg) || (!useTableLayout && !$form('#so_bkg-input').val().trim())) {
+        if (currentPlanType() !== 'tuyen_xa' && ((useTableLayout && !line.so_bkg) || (!useTableLayout && !$form('#so_bkg-input').val().trim()))) {
           ok = false;
           if (useTableLayout) {
             $row.find('.line-so-bkg-input').addClass('is-invalid');
@@ -3257,7 +3266,7 @@
       return {
         nid_khach_hang: parseInt($form('#nid_khach_hang-input').val(), 10) || 0,
         item: {
-          so_bkg: useTableLayout ? (line.so_bkg || '') : $form('#so_bkg-input').val().trim(),
+          so_bkg: useTableLayout || currentPlanType() === 'tuyen_xa' ? (line.so_bkg || '') : $form('#so_bkg-input').val().trim(),
           nid_phuong_tien: line.nid_phuong_tien || 0,
           nid_mooc: line.nid_mooc || 0,
           nid_lai_xe: line.nid_lai_xe || 0,
@@ -3292,7 +3301,7 @@
     function updateEditTitle(row) {
       var parts = [currentPlanType() === 'tuyen_xa' ? 'Xếp xe tuyến xa' : 'Xếp xe'];
       var khName = row && row.khach_hang && row.khach_hang.ten ? row.khach_hang.ten : '';
-      var soBkg = row && row.so_bkg ? row.so_bkg : '';
+      var soBkg = currentPlanType() === 'tuyen_xa' ? '' : (row && row.so_bkg ? row.so_bkg : '');
       if (khName) parts.push(khName);
       if (soBkg) parts.push(soBkg);
       $form('#form-title').text(parts.join(' - '));
@@ -3351,7 +3360,7 @@
 	        hinh_thuc_van_tai: row.hinh_thuc_van_tai || '',
 	        hinh_thuc_tinh_luong_lai_xe: row.hinh_thuc_tinh_luong_lai_xe || rowJson.hinh_thuc_tinh_luong_lai_xe || 'khoan',
 	        ke_hoach_cont_ref_nid: row.ke_hoach_cont_ref_nid || 0,
-	        cont_ref_label: row.cont_ref ? ((row.cont_ref.so_bkg || '') + (row.cont_ref.so_cont ? ' / ' + row.cont_ref.so_cont : '')) : '',
+        cont_ref_label: row.cont_ref ? (row.cont_ref.so_cont || '') : '',
 	        cont_ref: row.cont_ref || null,
 	        da_cat_mooc: row.da_cat_mooc || 0,
         da_du_hang: row.da_du_hang || 0,
@@ -3897,7 +3906,7 @@
         return;
       }
       line.ke_hoach_cont_ref_nid = selectedId;
-      line.cont_ref_label = (selectedItem.so_bkg || '') + (selectedItem.so_cont ? ' / ' + selectedItem.so_cont : '');
+      line.cont_ref_label = selectedItem.so_cont || '';
       line.cont_ref = selectedItem;
       updateContRefButton($card, line);
       renderSelectedContRef($card, line);

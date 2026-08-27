@@ -33,13 +33,12 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
           <col class="khxh-col-stt">
           <col class="khxh-col-date">
           <col class="khxh-col-common">
-          <col class="khxh-col-bkg">
+          <?php if (!$is_tuyen_xa): ?><col class="khxh-col-bkg"><?php endif; ?>
           <col class="khxh-col-container">
           <col class="khxh-col-vehicle">
           <col class="khxh-col-kho">
           <col class="khxh-col-route">
-          <col class="khxh-col-cang">
-          <col class="khxh-col-date">
+          <?php if (!$is_tuyen_xa): ?><col class="khxh-col-cang"><col class="khxh-col-date"><?php endif; ?>
           <col class="khxh-col-status">
         </colgroup>
         <thead class="table-light">
@@ -48,19 +47,18 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
             <th>#</th>
             <th>Ngày</th>
             <th>T.T Chung</th>
-            <th>bkg</th>
+            <?php if (!$is_tuyen_xa): ?><th>bkg</th><?php endif; ?>
             <th>Container</th>
             <th>PT / Lái xe</th>
             <th>Địa chỉ kho</th>
             <th>Bãi lấy/hạ</th>
-            <th>Cảng xuất</th>
-            <th>Cut off</th>
+            <?php if (!$is_tuyen_xa): ?><th>Cảng xuất</th><th>Cut off</th><?php endif; ?>
             <th>T.Thái</th>
           </tr>
         </thead>
         <tbody id="list-body">
           <tr id="loading-row">
-            <td colspan="12" class="text-center py-4">
+            <td colspan="<?php print $is_tuyen_xa ? 9 : 12; ?>" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -161,7 +159,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
         </div>
         <div class="row g-3 ke-hoach-list-filter">
           <div class="col-12 col-md-4"><label class="form-label">Khách hàng</label><select class="form-select" id="filter-khach-hang"><option></option></select></div>
-          <div class="col-12 col-md-4"><label class="form-label">Số BKG</label><input type="text" class="form-control" id="filter-so-bkg" placeholder="Số BKG"></div>
+          <?php if (!$is_tuyen_xa): ?><div class="col-12 col-md-4"><label class="form-label">Số BKG</label><input type="text" class="form-control" id="filter-so-bkg" placeholder="Số BKG"></div><?php endif; ?>
           <div class="col-12 col-md-4"><label class="form-label">Trạng thái vận chuyển</label><select class="form-select" id="status-filter"><option></option><option value="Kéo lên">Kéo lên</option><option value="Kéo về">Kéo về</option><option value="Đã cắt mooc">Đã cắt mooc</option></select></div>
           <div class="col-6 col-md-3"><label class="form-label">Từ ngày</label><input type="text" class="form-control flatpickr-date" id="filter-date-from" placeholder="dd/mm/yyyy"></div>
           <div class="col-6 col-md-3"><label class="form-label">Đến ngày</label><input type="text" class="form-control flatpickr-date" id="filter-date-to" placeholder="dd/mm/yyyy"></div>
@@ -491,16 +489,16 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
               <table class="table table-bordered align-middle ke-hoach-entry-table" id="ke-hoach-entry-table">
 	                <thead>
 	                  <tr>
-	                    <th style="width: 12%">Khách hàng / BKG <span class="text-danger">*</span></th>
+	                    <th style="width: 12%"><?php print $is_tuyen_xa ? 'Khách hàng' : 'Khách hàng / BKG'; ?> <span class="text-danger">*</span></th>
 	                    <th style="width: 8%">Phương tiện</th>
 	                    <th style="width: 8%"><span class="th-split-label">Container</span></th>
 	                    <th style="width: 10%"><span class="th-split-label">H.Thức vận tải</span></th>
 	                    <?php if (!$is_tuyen_xa): ?>
 	                      <th style="width: 8%"><span class="th-split-label">Seal tạm/chính</span></th>
 	                    <?php endif; ?>
-	                    <th style="width: 8%"><span class="th-split-label">Kho <span class="text-danger">*</span>/Cảng xuất</span></th>
+	                    <th style="width: 8%"><span class="th-split-label"><?php print $is_tuyen_xa ? 'Kho' : 'Kho <span class="text-danger">*</span>/Cảng xuất'; ?></span></th>
 	                    <th style="width: 8%"><span class="th-split-label">Bãi lấy/hạ</span></th>
-                    <th style="width: 8%"><span class="th-split-label">Cut-off</span></th>
+                    <?php if (!$is_tuyen_xa): ?><th style="width: 8%"><span class="th-split-label">Cut-off</span></th><?php endif; ?>
                     <th width="1%" class="text-center">
                       <button type="button" class="btn btn-sm btn-icon btn-label-success" id="add-line-btn" title="Thêm dòng">
                         <i class="ti tabler-circle-plus"></i>
@@ -539,12 +537,12 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
 	        <div class="modal-body">
 	          <div class="line-cont-picker-wrap" id="cont-ref-picker-wrap" data-line-key="">
 	            <div class="row line-cont-filter-row mb-2">
-	              <div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div>
-	              <div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>
+	            <?php if (!$is_tuyen_xa): ?><div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div><?php endif; ?>
+	            <div class="col-md-<?php print $is_tuyen_xa ? '4' : '3'; ?>"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>
 	              <div class="col-md-4"><select class="form-select line-cont-filter-kho"><option></option></select></div>
 	              <div class="col-md-2"><select class="form-select line-cont-filter-du-hang"><option value="">Trạng thái</option><option value="1">Đã đủ</option><option value="0">Chưa đủ</option></select></div>
 	            </div>
-	            <div class="cont-picker-list-head<?php print $is_tuyen_xa ? ' is-tuyen-xa' : ''; ?>"><span></span><span>Cont / Booking</span><span>Kho</span><span>Bãi hạ</span><?php if (!$is_tuyen_xa): ?><span>Seal</span><?php endif; ?><span>T.Thái</span><span>Ghi chú</span></div>
+	            <div class="cont-picker-list-head<?php print $is_tuyen_xa ? ' is-tuyen-xa' : ''; ?>"><span></span><span><?php print $is_tuyen_xa ? 'Container' : 'Cont / Booking'; ?></span><span>Kho</span><span>Bãi hạ</span><?php if (!$is_tuyen_xa): ?><span>Seal</span><?php endif; ?><span>T.Thái</span><span>Ghi chú</span></div>
 	            <div class="line-cont-picker-body line-cont-picker-list"><div class="text-center text-muted py-4">Chưa có dữ liệu</div></div>
 	          </div>
 	        </div>

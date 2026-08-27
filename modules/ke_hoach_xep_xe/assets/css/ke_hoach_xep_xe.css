@@ -262,6 +262,10 @@ body .flatpickr-calendar {
   grid-column: span 4;
 }
 
+.khxh-span-6 {
+  grid-column: span 6;
+}
+
 .khxh-span-8 {
   grid-column: span 8;
 }
@@ -281,6 +285,7 @@ body .flatpickr-calendar {
 @media (max-width: 1199.98px) {
   .khxh-span-3,
   .khxh-span-4,
+  .khxh-span-6,
   .khxh-span-8 {
     grid-column: span 8;
   }
@@ -297,6 +302,7 @@ body .flatpickr-calendar {
 @media (max-width: 767.98px) {
   .khxh-span-3,
   .khxh-span-4,
+  .khxh-span-6,
   .khxh-span-8,
   .khxh-span-12 {
     grid-column: 1 / -1;
