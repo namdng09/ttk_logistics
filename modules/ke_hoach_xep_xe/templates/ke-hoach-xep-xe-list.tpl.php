@@ -530,7 +530,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
 	      <div class="modal-content">
 	        <div class="modal-header">
 	          <div>
-	            <h5 class="modal-title mb-0">Chọn cont kéo về</h5>
+	            <h5 class="modal-title mb-0"><?php print $is_tuyen_xa ? 'Chọn kế hoạch / cont' : 'Chọn cont kéo về'; ?></h5>
 	          </div>
 	          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 	        </div>

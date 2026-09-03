@@ -130,6 +130,22 @@ body .flatpickr-calendar {
   justify-content: center;
 }
 
+/* Loading khi lưu form phải bám theo viewport, không bám theo vùng modal đang cuộn. */
+#ke-hoach-form-app #form-loading {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 1090;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-body.khxh-form-loading-active {
+  overflow: hidden !important;
+}
+
 #ke-hoach-edit-fullscreen-modal #ke-hoach-form-app,
 #ke-hoach-tuyen-xa-edit-fullscreen-modal #ke-hoach-form-app {
   border: 0;
@@ -315,7 +331,7 @@ body .flatpickr-calendar {
 
 .khxh-tuyen-xa-context {
   display: grid;
-  grid-template-columns: minmax(140px, 0.9fr) minmax(140px, 0.9fr) minmax(140px, 0.9fr) minmax(220px, 1.6fr) minmax(140px, 0.8fr);
+  grid-template-columns: minmax(140px, 0.7fr) minmax(140px, 0.7fr) minmax(220px, 1.6fr) minmax(140px, 0.7fr);
   gap: 0;
   margin-bottom: 1rem;
   border: 1px solid #e6e8ef;
@@ -702,7 +718,7 @@ button.khxh-cont-ref-number:focus {
 }
 
 .khxh-cont-ref-selected-bottom.is-tuyen-xa {
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 0.8fr);
 }
 
 .khxh-cont-ref-selected-bottom > span {
@@ -891,6 +907,23 @@ button.khxh-cont-ref-number:focus {
   font-weight: 600;
 }
 
+.khxh-plan-role-toggle {
+  padding: 0.2rem;
+  border: 1px solid #d9dee3;
+  border-radius: 0.5rem;
+  background: #f5f6f8;
+}
+
+.khxh-plan-role-toggle .btn {
+  border: 0;
+  border-radius: 0.35rem !important;
+  white-space: nowrap;
+}
+
+.line-hinh-thuc-group.is-locked {
+  opacity: 0.68;
+}
+
 .khxh-tuyen-xa-section {
   margin-top: 1rem;
 }
@@ -945,6 +978,98 @@ button.khxh-cont-ref-number:focus {
 
 .khxh-route-node-main {
   min-width: 0;
+}
+
+.khxh-tuyen-xa-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual) {
+  display: flex;
+  align-items: flex-end;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.khxh-tuyen-xa-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual) .khxh-route-node {
+  flex: 1 0 190px;
+}
+
+.khxh-tuyen-xa-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual) .khxh-route-arrow {
+  flex: 0 0 1.5rem;
+  text-align: center;
+}
+
+.khxh-current-location-grid {
+  padding: 0.75rem;
+  border: 1px dashed #cfd4dc;
+  border-radius: 0.5rem;
+  background: #f8f9fa;
+}
+
+.khxh-location-state {
+  min-height: 2.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.khxh-location-state .btn-line-toggle-du-hang {
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.khxh-location-state .btn-line-toggle-du-hang:focus-visible {
+  outline: 2px solid rgba(105, 108, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.khxh-status-cell .btn-tuyen-xa-toggle-du-hang {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.khxh-status-cell .btn-tuyen-xa-toggle-du-hang:hover {
+  box-shadow: 0 0 0 0.18rem rgba(105, 108, 255, 0.16);
+}
+
+.khxh-status-cell .btn-tuyen-xa-toggle-du-hang:focus-visible {
+  outline: 2px solid rgba(105, 108, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.khxh-status-cell .btn-tuyen-xa-toggle-du-hang.is-saving {
+  cursor: wait;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.khxh-route-segment-list {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #dfe7f3;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.khxh-route-segment-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.khxh-route-segment-name {
+  min-width: 0;
+  color: #344054;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+#cont-ref-picker-modal .cont-picker-row.is-disabled {
+  opacity: 0.55;
+  background: #f5f5f7;
+  cursor: not-allowed;
 }
 
 .khxh-route-arrow {
@@ -1915,7 +2040,7 @@ button.khxh-cont-ref-number:focus {
 
 .cont-picker-list-head.is-tuyen-xa,
 .cont-picker-row.is-tuyen-xa {
-  grid-template-columns: 38px minmax(140px, 1fr) minmax(150px, 1.1fr) minmax(140px, 1fr) minmax(55px, 0.4fr) minmax(200px, 1.5fr);
+  grid-template-columns: 38px minmax(140px, 0.7fr) minmax(140px, 0.6fr) minmax(200px, 1.4fr) minmax(55px, 0.3fr) minmax(140px, 0.7fr);
 }
 
 #cont-ref-picker-modal .line-cont-filter-kho + .select2 {
@@ -1965,6 +2090,18 @@ button.khxh-cont-ref-number:focus {
 
 .cont-picker-row.is-tuyen-xa {
   cursor: pointer;
+}
+
+.cont-picker-range-selects {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cont-picker-range-selects .form-select {
+  min-width: 0;
+  font-size: 0.76rem;
 }
 
 .cont-picker-radio {

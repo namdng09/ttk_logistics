@@ -359,7 +359,16 @@ function _ke_hoach_xep_xe_normalize_tang_bo($value) {
 
 function _ke_hoach_xep_xe_normalize_ket_hop($value) {
   $value = is_array($value) ? $value : array();
-  return array('enabled' => !empty($value['enabled']) ? 1 : 0);
+  $enabled = !empty($value['enabled']) && !empty($value['ke_hoach_cont_ref_nid']);
+  return array(
+    'enabled' => $enabled ? 1 : 0,
+    'ke_hoach_cont_ref_nid' => !empty($value['ke_hoach_cont_ref_nid']) ? (int) $value['ke_hoach_cont_ref_nid'] : 0,
+    'cont_thuc_hien_tu_index' => isset($value['cont_thuc_hien_tu_index']) ? (int) $value['cont_thuc_hien_tu_index'] : -1,
+    'cont_thuc_hien_den_index' => isset($value['cont_thuc_hien_den_index']) ? (int) $value['cont_thuc_hien_den_index'] : -1,
+    'cont_keo_ve_tu' => !empty($value['cont_keo_ve_tu']) ? trim((string) $value['cont_keo_ve_tu']) : '',
+    'cont_keo_ve_den' => !empty($value['cont_keo_ve_den']) ? trim((string) $value['cont_keo_ve_den']) : '',
+    'hoan_thanh' => !empty($value['hoan_thanh']) ? 1 : 0,
+  );
 }
 
 function _ke_hoach_xep_xe_file_groups() {
@@ -787,11 +796,16 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   if (isset($line['ghi_chu'])) {
     $json['ghi_chu'] = trim((string) $line['ghi_chu']);
   }
+  // Keep the cargo type in thong_tin_json as the canonical fallback for
+  // installations where the optional loai_hang column has not been added yet.
+  $json['loai_hang'] = $record['loai_hang'];
   if (isset($line['tang_bo'])) {
     $json['tang_bo'] = _ke_hoach_xep_xe_normalize_tang_bo($line['tang_bo']);
   }
   if (isset($line['ket_hop'])) {
-    $json['ket_hop'] = _ke_hoach_xep_xe_normalize_ket_hop($line['ket_hop']);
+    $json['ket_hop'] = !empty($json['vai_tro_ke_hoach'])
+      ? _ke_hoach_xep_xe_normalize_ket_hop($line['ket_hop'])
+      : array('enabled' => !empty($line['ket_hop']['enabled']) ? 1 : 0);
   }
   $record['thong_tin_json'] = !empty($json) ? _ke_hoach_xep_xe_json_encode($json) : '';
   return $record;
@@ -835,7 +849,219 @@ function _ke_hoach_xep_xe_validate_lines($items, $require_vehicle_driver = TRUE,
   return NULL;
 }
 
-function _ke_hoach_xep_xe_validate_cont_refs($items, $exclude_id = 0) {
+/**
+ * Lộ trình tuyến xa là danh sách điểm có thứ tự. Không dùng tên địa điểm làm
+ * khóa vì một địa điểm (ví dụ cửa khẩu) có thể xuất hiện nhiều lần.
+ */
+function _ke_hoach_xep_xe_tuyen_xa_route_points($row) {
+  $row = (array) $row;
+  $json = _ke_hoach_xep_xe_json_decode(isset($row['thong_tin_json']) ? $row['thong_tin_json'] : '');
+  $raw = array(
+    array('key' => 'bai_lay', 'label' => 'Bãi lấy', 'value' => !empty($row['bai_lay_thuc_te']) ? $row['bai_lay_thuc_te'] : (!empty($row['bai_lay_cont']) ? $row['bai_lay_cont'] : '')),
+    array('key' => 'bai_ha_tam_1', 'label' => 'Bãi hạ tạm 1', 'value' => !empty($json['bai_ha_tam_1_enabled']) ? (!empty($json['bai_ha_tam_1']) ? $json['bai_ha_tam_1'] : '') : ''),
+    array('key' => 'kho', 'label' => 'Kho', 'value' => !empty($row['dia_chi_kho']) ? $row['dia_chi_kho'] : ''),
+    array('key' => 'bai_ha_tam_2', 'label' => 'Bãi hạ tạm 2', 'value' => !empty($json['bai_ha_tam_2_enabled']) ? (!empty($json['bai_ha_tam_2']) ? $json['bai_ha_tam_2'] : '') : ''),
+    array('key' => 'bai_ha', 'label' => 'Bãi hạ', 'value' => !empty($row['bai_ha_thuc_te']) ? $row['bai_ha_thuc_te'] : (!empty($row['bai_ha_cont']) ? $row['bai_ha_cont'] : '')),
+  );
+  $points = array();
+  foreach ($raw as $point) {
+    if ($point['value'] !== '') {
+      $point['index'] = count($points);
+      $points[] = $point;
+    }
+  }
+  return $points;
+}
+
+function _ke_hoach_xep_xe_tuyen_xa_route_segments($row) {
+  $points = _ke_hoach_xep_xe_tuyen_xa_route_points($row);
+  $segments = array();
+  for ($i = 0; $i + 1 < count($points); $i++) {
+    $key = $points[$i]['key'] . '>' . $points[$i + 1]['key'];
+    $segments[] = array(
+      'key' => $key,
+      'from_index' => $i,
+      'to_index' => $i + 1,
+      'from' => $points[$i]['value'],
+      'to' => $points[$i + 1]['value'],
+    );
+  }
+  return $segments;
+}
+
+function _ke_hoach_xep_xe_tuyen_xa_current_point_index($row) {
+  $row = (array) $row;
+  $json = _ke_hoach_xep_xe_json_decode(isset($row['thong_tin_json']) ? $row['thong_tin_json'] : '');
+  $points = _ke_hoach_xep_xe_tuyen_xa_route_points($row);
+  if (!$points) return -1;
+  if (isset($json['vi_tri_cont_index_hien_tai']) && is_numeric($json['vi_tri_cont_index_hien_tai'])) {
+    $index = (int) $json['vi_tri_cont_index_hien_tai'];
+    if (isset($points[$index])) return $index;
+  }
+  $location = !empty($json['vi_tri_cont_hien_tai']) ? $json['vi_tri_cont_hien_tai'] : (!empty($row['bai_ha_thuc_te']) ? $row['bai_ha_thuc_te'] : '');
+  if ($location !== '') {
+    $matches = array();
+    foreach ($points as $point) if ($point['value'] === $location) $matches[] = $point['index'];
+    if ($matches) return !empty($row['da_du_hang']) ? end($matches) : reset($matches);
+  }
+  return 0;
+}
+
+function _ke_hoach_xep_xe_cont_current_location($row) {
+  $points = _ke_hoach_xep_xe_tuyen_xa_route_points($row);
+  $index = _ke_hoach_xep_xe_tuyen_xa_current_point_index($row);
+  return isset($points[$index]['value']) ? $points[$index]['value'] : '';
+}
+
+function _ke_hoach_xep_xe_cont_next_location($row) {
+  $points = _ke_hoach_xep_xe_tuyen_xa_route_points($row);
+  $index = _ke_hoach_xep_xe_tuyen_xa_current_point_index($row);
+  return isset($points[$index + 1]['value']) ? $points[$index + 1]['value'] : '';
+}
+
+function _ke_hoach_xep_xe_tuyen_xa_root_initial_end_index($row) {
+  $row = (array) $row;
+  $points = _ke_hoach_xep_xe_tuyen_xa_route_points($row);
+  if (count($points) < 2) return 0;
+  $kho_index = -1;
+  foreach ($points as $point) {
+    if ($point['key'] === 'kho') $kho_index = (int) $point['index'];
+  }
+  if ($kho_index < 0) return 1;
+  $hinh_thuc = !empty($row['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($row['hinh_thuc_van_tai']) : '';
+  if ($hinh_thuc === 'dong_hang') return min(count($points) - 1, $kho_index + 1);
+  $json = _ke_hoach_xep_xe_json_decode(isset($row['thong_tin_json']) ? $row['thong_tin_json'] : '');
+  return !empty($json['bai_ha_tam_1_enabled']) && !empty($json['bai_ha_tam_1']) ? 1 : $kho_index;
+}
+
+function _ke_hoach_xep_xe_normalize_tuyen_xa_route_json(&$record) {
+  $json = _ke_hoach_xep_xe_json_decode(isset($record['thong_tin_json']) ? $record['thong_tin_json'] : '');
+  $record['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($json);
+  $points = _ke_hoach_xep_xe_tuyen_xa_route_points($record);
+  $index = isset($json['vi_tri_cont_index_hien_tai']) && is_numeric($json['vi_tri_cont_index_hien_tai']) ? (int) $json['vi_tri_cont_index_hien_tai'] : _ke_hoach_xep_xe_tuyen_xa_current_point_index($record);
+  if (!isset($points[$index])) $index = 0;
+  $json['vi_tri_cont_index_hien_tai'] = $index;
+  $json['vi_tri_cont_hien_tai'] = isset($points[$index]['value']) ? $points[$index]['value'] : '';
+  if (!empty($record['ke_hoach_cont_ref_nid'])) {
+    $source = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':nid' => (int) $record['ke_hoach_cont_ref_nid'], ':loai' => 'tuyen_xa'))->fetch();
+    $start = isset($json['cont_thuc_hien_tu_index']) ? (int) $json['cont_thuc_hien_tu_index'] : -1;
+    $end = isset($json['cont_thuc_hien_den_index']) ? (int) $json['cont_thuc_hien_den_index'] : -1;
+    if ($source && $start >= 0 && $end > $start) {
+      $source_points = _ke_hoach_xep_xe_tuyen_xa_route_points($source);
+      $source_segments = _ke_hoach_xep_xe_tuyen_xa_route_segments($source);
+      $json['cont_thuc_hien_chang'] = array_slice($source_segments, $start, $end - $start);
+      $json['cont_keo_ve_tu'] = isset($source_points[$start]['value']) ? $source_points[$start]['value'] : '';
+      $json['cont_keo_ve_den'] = isset($source_points[$end]['value']) ? $source_points[$end]['value'] : '';
+    }
+  }
+  $record['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($json);
+}
+
+function _ke_hoach_xep_xe_tuyen_xa_service_range($plan, $source) {
+  $plan = (array) $plan;
+  $json = _ke_hoach_xep_xe_json_decode(isset($plan['thong_tin_json']) ? $plan['thong_tin_json'] : '');
+  if (isset($json['cont_thuc_hien_tu_index']) && isset($json['cont_thuc_hien_den_index'])) {
+    $start = (int) $json['cont_thuc_hien_tu_index'];
+    $end = (int) $json['cont_thuc_hien_den_index'];
+    if ($start >= 0 && $end > $start) return array('start' => $start, 'end' => $end);
+  }
+  $from = !empty($json['cont_keo_ve_tu']) ? trim((string) $json['cont_keo_ve_tu']) : '';
+  $to = !empty($json['cont_keo_ve_den']) ? trim((string) $json['cont_keo_ve_den']) : '';
+  if ($from === '' || $to === '') return NULL;
+  $points = _ke_hoach_xep_xe_tuyen_xa_route_points($source);
+  for ($i = 0; $i + 1 < count($points); $i++) {
+    if ($points[$i]['value'] === $from && $points[$i + 1]['value'] === $to) {
+      return array('start' => $i, 'end' => $i + 1);
+    }
+  }
+  return NULL;
+}
+
+function _ke_hoach_xep_xe_tuyen_xa_ket_hop($row) {
+  $row = (array) $row;
+  $json = _ke_hoach_xep_xe_json_decode(isset($row['thong_tin_json']) ? $row['thong_tin_json'] : '');
+  return _ke_hoach_xep_xe_normalize_ket_hop(!empty($json['ket_hop']) ? $json['ket_hop'] : array());
+}
+
+function _ke_hoach_xep_xe_tuyen_xa_ket_hop_range($row) {
+  $ket_hop = _ke_hoach_xep_xe_tuyen_xa_ket_hop($row);
+  $start = (int) $ket_hop['cont_thuc_hien_tu_index'];
+  $end = (int) $ket_hop['cont_thuc_hien_den_index'];
+  return !empty($ket_hop['enabled']) && !empty($ket_hop['ke_hoach_cont_ref_nid']) && $start >= 0 && $end > $start
+    ? array('start' => $start, 'end' => $end)
+    : NULL;
+}
+
+/**
+ * Các dải chặng đang được giữ bởi kế hoạch khác. Công việc chính và cont kéo
+ * về là hai nhiệm vụ độc lập nên chỉ giữ chặng cho tới khi chính nhiệm vụ đó
+ * được hoàn thành.
+ */
+function _ke_hoach_xep_xe_tuyen_xa_active_assignments($source_id, $exclude_id = 0) {
+  $source = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':nid' => (int) $source_id, ':loai' => 'tuyen_xa'))->fetch();
+  if (!$source) return array();
+  $query = db_select('ke_hoach_xep_xe', 'kh')
+    ->fields('kh', array('nid', 'so_bkg', 'so_cont', 'ke_hoach_cont_ref_nid', 'trang_thai_van_chuyen', 'thong_tin_json'))
+    ->condition('kh.hoat_dong', 1)
+    ->condition('kh.loai_ke_hoach', 'tuyen_xa');
+  if ($exclude_id) $query->condition('kh.nid', (int) $exclude_id, '<>');
+  $assignments = array();
+  foreach ($query->execute()->fetchAll() as $plan) {
+    $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
+    if ((int) $plan->ke_hoach_cont_ref_nid === (int) $source_id) {
+      $is_done = array_key_exists('cong_viec_chinh_hoan_thanh', $json)
+        ? !empty($json['cong_viec_chinh_hoan_thanh'])
+        : $plan->trang_thai_van_chuyen === 'Hoàn thành';
+      if (!$is_done) {
+        $range = _ke_hoach_xep_xe_tuyen_xa_service_range($plan, $source);
+        if ($range) $assignments[] = array('nid' => (int) $plan->nid, 'type' => 'cong_viec_chinh', 'start' => $range['start'], 'end' => $range['end'], 'so_bkg' => $plan->so_bkg, 'so_cont' => $plan->so_cont);
+      }
+    }
+    $ket_hop = _ke_hoach_xep_xe_normalize_ket_hop(!empty($json['ket_hop']) ? $json['ket_hop'] : array());
+    if (!empty($ket_hop['enabled']) && empty($ket_hop['hoan_thanh']) && (int) $ket_hop['ke_hoach_cont_ref_nid'] === (int) $source_id) {
+      $range = _ke_hoach_xep_xe_tuyen_xa_ket_hop_range($plan);
+      if ($range) $assignments[] = array('nid' => (int) $plan->nid, 'type' => 'cont_keo_ve', 'start' => $range['start'], 'end' => $range['end'], 'so_bkg' => $plan->so_bkg, 'so_cont' => $plan->so_cont);
+    }
+  }
+  return $assignments;
+}
+
+function _ke_hoach_xep_xe_tuyen_xa_ranges_overlap($start, $end, $other_start, $other_end) {
+  return $start < $other_end && $end > $other_start;
+}
+
+function _ke_hoach_xep_xe_validate_tuyen_xa_json($items) {
+  foreach ((array) $items as $index => $item) {
+    $json = !empty($item['thong_tin_json']) && is_array($item['thong_tin_json']) ? $item['thong_tin_json'] : array();
+    $line_no = $index + 1;
+    if (empty($item['bai_lay_cont']) || empty($item['dia_chi_kho']) || empty($item['bai_ha_cont'])) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': tuyến xa bắt buộc có bãi lấy, kho và bãi hạ');
+    }
+    if (!empty($json['bai_ha_tam_1_enabled']) && empty($json['bai_ha_tam_1'])) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': vui lòng chọn bãi hạ tạm 1');
+    }
+    if (!empty($json['bai_ha_tam_2_enabled']) && empty($json['bai_ha_tam_2'])) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': vui lòng chọn bãi hạ tạm 2');
+    }
+    $role = (!empty($json['vai_tro_ke_hoach']) && $json['vai_tro_ke_hoach'] === 'thuc_hien_chang') || (empty($json['vai_tro_ke_hoach']) && !empty($item['ke_hoach_cont_ref_nid'])) ? 'thuc_hien_chang' : 'ke_hoach_goc';
+    if ($role === 'thuc_hien_chang' && empty($item['ke_hoach_cont_ref_nid'])) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': vui lòng chọn kế hoạch gốc và dải chặng thực hiện');
+    }
+    if ($role === 'ke_hoach_goc' && !empty($item['ke_hoach_cont_ref_nid'])) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': kế hoạch gốc không được tham chiếu cont nguồn khác');
+    }
+    $hinh_thuc = !empty($item['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($item['hinh_thuc_van_tai']) : '';
+    if ($role === 'ke_hoach_goc' && $hinh_thuc === '') {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': kế hoạch gốc bắt buộc chọn hình thức vận tải');
+    }
+    if ($role === 'ke_hoach_goc' && $hinh_thuc === 'dong_hang' && !empty($json['bai_ha_tam_1_enabled'])) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': kế hoạch gốc đóng hàng không sử dụng bãi hạ tạm 1');
+    }
+  }
+  return NULL;
+}
+
+function _ke_hoach_xep_xe_validate_cont_refs($items, $exclude_id = 0, $is_tuyen_xa = FALSE) {
   if (empty($items) || !is_array($items)) {
     return NULL;
   }
@@ -843,17 +1069,135 @@ function _ke_hoach_xep_xe_validate_cont_refs($items, $exclude_id = 0) {
   foreach ($items as $index => $item) {
     $line_no = $index + 1;
     $ref_id = !empty($item['ke_hoach_cont_ref_nid']) ? (int) $item['ke_hoach_cont_ref_nid'] : 0;
-    if (!$ref_id) {
+    if (!$ref_id && !$is_tuyen_xa) {
       continue;
     }
     $hinh_thuc = !empty($item['hinh_thuc_van_tai']) ? trim((string) $item['hinh_thuc_van_tai']) : '';
-    if (!in_array($hinh_thuc, array('cat_keo', 'cat_keo_cheo', 'rut_mooc'), TRUE)) {
-      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': hình thức vận tải không được chọn cont kéo về');
+    $allowed_ref_types = $is_tuyen_xa
+      ? array('cat_keo', 'cat_keo_cheo', 'rut_mooc', 'tha_mooc', 'dong_hang')
+      : array('cat_keo', 'cat_keo_cheo', 'rut_mooc');
+    if ($ref_id && !in_array($hinh_thuc, $allowed_ref_types, TRUE)) {
+      return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': hình thức vận tải không được chọn ' . ($is_tuyen_xa ? 'kế hoạch nguồn' : 'cont kéo về'));
     }
-    if (!empty($seen[$ref_id])) {
+    if (!$is_tuyen_xa && !empty($seen[$ref_id])) {
       return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': cont kéo về đã được chọn ở dòng #' . $seen[$ref_id]);
     }
-    $seen[$ref_id] = $line_no;
+    if (!$is_tuyen_xa) $seen[$ref_id] = $line_no;
+
+    if ($is_tuyen_xa && $ref_id) {
+      if ($exclude_id && $ref_id === (int) $exclude_id) {
+        return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': kế hoạch không thể tự chọn chính nó làm kế hoạch nguồn');
+      }
+      $source = db_query("SELECT nid, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te, trang_thai_van_chuyen, da_du_hang, thong_tin_json, ke_hoach_cont_ref_nid FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':nid' => $ref_id, ':loai' => 'tuyen_xa'))->fetch();
+      if (!$source) {
+        return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': kế hoạch nguồn của cont không tồn tại hoặc không phải kế hoạch tuyến xa');
+      }
+      $source_json = _ke_hoach_xep_xe_json_decode($source->thong_tin_json);
+      $source_role = (!empty($source_json['vai_tro_ke_hoach']) && $source_json['vai_tro_ke_hoach'] === 'thuc_hien_chang') || (empty($source_json['vai_tro_ke_hoach']) && !empty($source->ke_hoach_cont_ref_nid)) ? 'thuc_hien_chang' : 'ke_hoach_goc';
+      if ($source_role !== 'ke_hoach_goc') {
+        return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': chỉ được nhận chặng từ kế hoạch gốc');
+      }
+      $line_json = !empty($item['thong_tin_json']) && is_array($item['thong_tin_json']) ? $item['thong_tin_json'] : array();
+      $segments = _ke_hoach_xep_xe_tuyen_xa_route_segments($source);
+      $start = isset($line_json['cont_thuc_hien_tu_index']) ? (int) $line_json['cont_thuc_hien_tu_index'] : -1;
+      $end = isset($line_json['cont_thuc_hien_den_index']) ? (int) $line_json['cont_thuc_hien_den_index'] : -1;
+      if ($start < 0 || $end <= $start || $end > count($segments)) {
+        return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': chưa chọn đúng dải chặng cont cần thực hiện');
+      }
+      $source_points = _ke_hoach_xep_xe_tuyen_xa_route_points($source);
+      if ($end - $start > 2 || ($end - $start === 2 && (!isset($source_points[$start + 1]) || $source_points[$start + 1]['key'] !== 'kho'))) {
+        return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': công việc chính chỉ gồm 2 điểm, hoặc 3 điểm đóng hàng với Kho ở giữa');
+      }
+      if (($end - $start === 2 && $hinh_thuc !== 'dong_hang') || ($end - $start === 1 && $hinh_thuc === 'dong_hang')) {
+        return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': hình thức vận tải không khớp số điểm của công việc chính');
+      }
+      if (!empty($seen[$ref_id])) {
+        foreach ($seen[$ref_id] as $seen_range) {
+          if ($start < $seen_range['end'] && $end > $seen_range['start']) {
+            return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': dải chặng cont trùng với dòng #' . $seen_range['line']);
+          }
+        }
+      }
+      $seen[$ref_id][] = array('start' => $start, 'end' => $end, 'line' => $line_no);
+      $current_index = _ke_hoach_xep_xe_tuyen_xa_current_point_index($source);
+      $minimum_start = $current_index;
+      if ($source_role === 'ke_hoach_goc' && empty($source_json['cong_viec_chinh_hoan_thanh'])) {
+        $minimum_start = max($minimum_start, _ke_hoach_xep_xe_tuyen_xa_root_initial_end_index($source));
+      }
+      if (empty($line_json['cong_viec_chinh_hoan_thanh']) && $start < $minimum_start) {
+        return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': chặng cont đã nằm trước vị trí hiện tại');
+      }
+
+      foreach (_ke_hoach_xep_xe_tuyen_xa_active_assignments($ref_id, $exclude_id) as $used) {
+        if (_ke_hoach_xep_xe_tuyen_xa_ranges_overlap($start, $end, $used['start'], $used['end'])) {
+          $label = !empty($used['so_bkg']) ? $used['so_bkg'] : ('#' . $used['nid']);
+          return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': dải chặng cont đã được kế hoạch ' . $label . ' nhận thực hiện');
+        }
+      }
+    }
+
+    if ($is_tuyen_xa) {
+      $line_json = !empty($item['thong_tin_json']) && is_array($item['thong_tin_json']) ? $item['thong_tin_json'] : array();
+      $ket_hop = _ke_hoach_xep_xe_normalize_ket_hop(!empty($item['ket_hop']) ? $item['ket_hop'] : (!empty($line_json['ket_hop']) ? $line_json['ket_hop'] : array()));
+      if (!empty($ket_hop['enabled'])) {
+        if (!in_array($hinh_thuc, array('cat_keo', 'cat_keo_cheo', 'rut_mooc'), TRUE)) {
+          return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': hình thức vận tải này không được chọn cont kéo về');
+        }
+        $return_ref_id = (int) $ket_hop['ke_hoach_cont_ref_nid'];
+        if (!$return_ref_id || ($exclude_id && $return_ref_id === (int) $exclude_id)) {
+          return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': cont kéo về không hợp lệ');
+        }
+        if ($ref_id && $return_ref_id === $ref_id) {
+          return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': cont kéo về phải khác cont của công việc chính');
+        }
+        $return_source = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':nid' => $return_ref_id, ':loai' => 'tuyen_xa'))->fetch();
+        if (!$return_source) return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': không tìm thấy kế hoạch gốc của cont kéo về');
+        $return_source_json = _ke_hoach_xep_xe_json_decode($return_source->thong_tin_json);
+        if ((!empty($return_source_json['vai_tro_ke_hoach']) && $return_source_json['vai_tro_ke_hoach'] === 'thuc_hien_chang') || (empty($return_source_json['vai_tro_ke_hoach']) && !empty($return_source->ke_hoach_cont_ref_nid))) {
+          return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': cont kéo về phải thuộc kế hoạch gốc');
+        }
+        $return_points = _ke_hoach_xep_xe_tuyen_xa_route_points($return_source);
+        $return_start = (int) $ket_hop['cont_thuc_hien_tu_index'];
+        $return_end = (int) $ket_hop['cont_thuc_hien_den_index'];
+        if ($return_start < 0 || $return_end <= $return_start || !isset($return_points[$return_end])) {
+          return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': dải chặng cont kéo về không hợp lệ');
+        }
+        $main_end = '';
+        if ($ref_id && isset($source)) {
+          $main_points = _ke_hoach_xep_xe_tuyen_xa_route_points($source);
+          $main_end = isset($main_points[$end]['value']) ? $main_points[$end]['value'] : '';
+        }
+        else {
+          $own_record = _ke_hoach_xep_xe_build_record(array(), $item);
+          $own_points = _ke_hoach_xep_xe_tuyen_xa_route_points($own_record);
+          $own_end = _ke_hoach_xep_xe_tuyen_xa_root_initial_end_index($own_record);
+          $main_end = isset($own_points[$own_end]['value']) ? $own_points[$own_end]['value'] : '';
+        }
+        if ($main_end === '' || $return_points[$return_start]['value'] !== $main_end) {
+          return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': điểm lấy cont kéo về phải trùng điểm kết thúc công việc chính');
+        }
+        $return_current = _ke_hoach_xep_xe_tuyen_xa_current_point_index($return_source);
+        $return_minimum = $return_current;
+        if (empty($return_source_json['cong_viec_chinh_hoan_thanh'])) {
+          $return_minimum = max($return_minimum, _ke_hoach_xep_xe_tuyen_xa_root_initial_end_index($return_source));
+        }
+        if (empty($ket_hop['hoan_thanh']) && $return_start < $return_minimum) return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': chặng cont kéo về đã nằm trước vị trí hiện tại');
+        if (!empty($seen[$return_ref_id])) {
+          foreach ($seen[$return_ref_id] as $seen_range) {
+            if (_ke_hoach_xep_xe_tuyen_xa_ranges_overlap($return_start, $return_end, $seen_range['start'], $seen_range['end'])) {
+              return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': dải chặng cont kéo về bị trùng trong lần xếp xe này');
+            }
+          }
+        }
+        foreach (_ke_hoach_xep_xe_tuyen_xa_active_assignments($return_ref_id, $exclude_id) as $used) {
+          if (_ke_hoach_xep_xe_tuyen_xa_ranges_overlap($return_start, $return_end, $used['start'], $used['end'])) {
+            return _ke_hoach_xep_xe_fail('Dòng #' . $line_no . ': dải chặng cont kéo về đã được kế hoạch #' . $used['nid'] . ' nhận');
+          }
+        }
+        $seen[$return_ref_id][] = array('start' => $return_start, 'end' => $return_end, 'line' => $line_no);
+      }
+      continue;
+    }
 
     $query = db_select('ke_hoach_xep_xe', 'kh')
       ->fields('kh', array('nid', 'so_bkg', 'so_cont'))
@@ -861,6 +1205,9 @@ function _ke_hoach_xep_xe_validate_cont_refs($items, $exclude_id = 0) {
       ->condition('kh.hoat_dong', 1);
     if ($exclude_id) {
       $query->condition('kh.nid', (int) $exclude_id, '<>');
+    }
+    if ($is_tuyen_xa) {
+      $query->condition('kh.trang_thai_van_chuyen', 'Hoàn thành', '<>');
     }
     $used = $query->execute()->fetch();
     if ($used) {
@@ -953,7 +1300,18 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
   }
   $json = _ke_hoach_xep_xe_json_decode(isset($result['thong_tin_json']) ? $result['thong_tin_json'] : '');
   $json = _ke_hoach_xep_xe_normalize_files($json);
+  if ($with_related && $related_mode !== 'summary' && !empty($json['ket_hop']) && is_array($json['ket_hop'])) {
+    $ket_hop = _ke_hoach_xep_xe_normalize_ket_hop($json['ket_hop']);
+    if (!empty($ket_hop['enabled']) && !empty($ket_hop['ke_hoach_cont_ref_nid'])) {
+      $ket_hop_row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => (int) $ket_hop['ke_hoach_cont_ref_nid']))->fetch();
+      $ket_hop['cont_ref'] = $ket_hop_row ? _ke_hoach_xep_xe_enrich_row($ket_hop_row, FALSE) : NULL;
+    }
+    $json['ket_hop'] = $ket_hop;
+  }
   $result['thong_tin_json'] = $json;
+  if (empty($result['loai_hang']) && isset($json['loai_hang'])) {
+    $result['loai_hang'] = (string) $json['loai_hang'];
+  }
   $result['hinh_anh_chung_tu'] = $json['hinh_anh_chung_tu'];
   $result['ghi_chu'] = !empty($json['ghi_chu']) ? $json['ghi_chu'] : '';
   $result['hinh_thuc_tinh_luong_lai_xe'] = !empty($json['hinh_thuc_tinh_luong_lai_xe']) ? $json['hinh_thuc_tinh_luong_lai_xe'] : 'khoan';
@@ -963,10 +1321,10 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
   return $result;
 }
 
-function _ke_hoach_xep_xe_apply_cont_logic(&$record) {
+function _ke_hoach_xep_xe_apply_cont_logic(&$record, $auto_full_on_dong_hang = TRUE) {
   $record['hinh_thuc_van_tai'] = _ke_hoach_xep_xe_normalize_hinh_thuc($record['hinh_thuc_van_tai']);
   $record['da_cat_mooc'] = in_array($record['hinh_thuc_van_tai'], array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), TRUE) ? 1 : 0;
-  if ($record['hinh_thuc_van_tai'] === 'dong_hang') {
+  if ($auto_full_on_dong_hang && $record['hinh_thuc_van_tai'] === 'dong_hang') {
     $record['da_du_hang'] = 1;
   }
 }
@@ -1327,7 +1685,10 @@ function _ke_hoach_xep_xe_rest_create() {
   if ($line_validation) {
     return $line_validation;
   }
-  $cont_ref_validation = _ke_hoach_xep_xe_validate_cont_refs(isset($input['items']) ? $input['items'] : array());
+  if ($is_tuyen_xa && ($json_validation = _ke_hoach_xep_xe_validate_tuyen_xa_json(isset($input['items']) ? $input['items'] : array()))) {
+    return $json_validation;
+  }
+  $cont_ref_validation = _ke_hoach_xep_xe_validate_cont_refs(isset($input['items']) ? $input['items'] : array(), 0, $is_tuyen_xa);
   if ($cont_ref_validation) {
     return $cont_ref_validation;
   }
@@ -1339,7 +1700,10 @@ function _ke_hoach_xep_xe_rest_create() {
     foreach ($input['items'] as $index => $line) {
       $record = _ke_hoach_xep_xe_build_record($input, $line);
       $loai_ke_hoach = !empty($input['loai_ke_hoach']) && $input['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
-      _ke_hoach_xep_xe_apply_cont_logic($record);
+      if ($loai_ke_hoach === 'tuyen_xa') {
+        _ke_hoach_xep_xe_normalize_tuyen_xa_route_json($record);
+      }
+      _ke_hoach_xep_xe_apply_cont_logic($record, !$is_tuyen_xa);
       $fields = array(
         'nid_khach_hang' => $record['nid_khach_hang'],
         'nid_lai_xe' => $record['nid_lai_xe'],
@@ -1432,7 +1796,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch');
   }
 
-  $existing = db_query("SELECT nid, loai_ke_hoach, trang_thai_van_chuyen, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  $existing = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -1444,11 +1808,42 @@ function _ke_hoach_xep_xe_rest_update($id) {
   }
 
   $line = isset($input['item']) && is_array($input['item']) ? $input['item'] : $input;
+  if (!empty($existing->loai_ke_hoach) && $existing->loai_ke_hoach === 'tuyen_xa') {
+    $old_json = _ke_hoach_xep_xe_json_decode($existing->thong_tin_json);
+    $new_json_input = !empty($line['thong_tin_json']) && is_array($line['thong_tin_json']) ? $line['thong_tin_json'] : array();
+    if (!empty($old_json['cong_viec_chinh_hoan_thanh'])) {
+      $old_start = isset($old_json['cont_thuc_hien_tu_index']) ? (int) $old_json['cont_thuc_hien_tu_index'] : -1;
+      $old_end = isset($old_json['cont_thuc_hien_den_index']) ? (int) $old_json['cont_thuc_hien_den_index'] : -1;
+      $new_start = isset($new_json_input['cont_thuc_hien_tu_index']) ? (int) $new_json_input['cont_thuc_hien_tu_index'] : -1;
+      $new_end = isset($new_json_input['cont_thuc_hien_den_index']) ? (int) $new_json_input['cont_thuc_hien_den_index'] : -1;
+      if ((int) $existing->ke_hoach_cont_ref_nid !== (!empty($line['ke_hoach_cont_ref_nid']) ? (int) $line['ke_hoach_cont_ref_nid'] : 0) || $old_start !== $new_start || $old_end !== $new_end) {
+        return _ke_hoach_xep_xe_fail('Công việc chính đã hoàn thành; hãy mở lại trước khi đổi kế hoạch nguồn hoặc dải chặng');
+      }
+      $old_role = (!empty($old_json['vai_tro_ke_hoach']) && $old_json['vai_tro_ke_hoach'] === 'thuc_hien_chang') || (empty($old_json['vai_tro_ke_hoach']) && !empty($existing->ke_hoach_cont_ref_nid)) ? 'thuc_hien_chang' : 'ke_hoach_goc';
+      $new_role = !empty($new_json_input['vai_tro_ke_hoach']) && $new_json_input['vai_tro_ke_hoach'] === 'thuc_hien_chang' ? 'thuc_hien_chang' : 'ke_hoach_goc';
+      $old_route = array($existing->bai_lay_cont, $existing->bai_lay_thuc_te, $existing->dia_chi_kho, $existing->bai_ha_cont, $existing->bai_ha_thuc_te, !empty($old_json['bai_ha_tam_1_enabled']) ? 1 : 0, !empty($old_json['bai_ha_tam_1']) ? $old_json['bai_ha_tam_1'] : '', !empty($old_json['bai_ha_tam_2_enabled']) ? 1 : 0, !empty($old_json['bai_ha_tam_2']) ? $old_json['bai_ha_tam_2'] : '');
+      $new_route = array(!empty($line['bai_lay_cont']) ? trim($line['bai_lay_cont']) : '', !empty($line['bai_lay_thuc_te']) ? trim($line['bai_lay_thuc_te']) : '', !empty($line['dia_chi_kho']) ? trim($line['dia_chi_kho']) : '', !empty($line['bai_ha_cont']) ? trim($line['bai_ha_cont']) : '', !empty($line['bai_ha_thuc_te']) ? trim($line['bai_ha_thuc_te']) : '', !empty($new_json_input['bai_ha_tam_1_enabled']) ? 1 : 0, !empty($new_json_input['bai_ha_tam_1']) ? trim($new_json_input['bai_ha_tam_1']) : '', !empty($new_json_input['bai_ha_tam_2_enabled']) ? 1 : 0, !empty($new_json_input['bai_ha_tam_2']) ? trim($new_json_input['bai_ha_tam_2']) : '');
+      $new_hinh_thuc = !empty($line['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($line['hinh_thuc_van_tai']) : '';
+      if ($old_role !== $new_role || $old_route !== $new_route || _ke_hoach_xep_xe_normalize_hinh_thuc($existing->hinh_thuc_van_tai) !== $new_hinh_thuc) {
+        return _ke_hoach_xep_xe_fail('Công việc chính đã hoàn thành; hãy mở lại trước khi đổi vai trò, lộ trình hoặc hình thức vận tải');
+      }
+    }
+    $old_ket_hop = _ke_hoach_xep_xe_normalize_ket_hop(!empty($old_json['ket_hop']) ? $old_json['ket_hop'] : array());
+    if (!empty($old_ket_hop['hoan_thanh'])) {
+      $new_ket_hop = _ke_hoach_xep_xe_normalize_ket_hop(!empty($line['ket_hop']) ? $line['ket_hop'] : (!empty($new_json_input['ket_hop']) ? $new_json_input['ket_hop'] : array()));
+      if (empty($new_ket_hop['enabled']) || (int) $old_ket_hop['ke_hoach_cont_ref_nid'] !== (int) $new_ket_hop['ke_hoach_cont_ref_nid'] || (int) $old_ket_hop['cont_thuc_hien_tu_index'] !== (int) $new_ket_hop['cont_thuc_hien_tu_index'] || (int) $old_ket_hop['cont_thuc_hien_den_index'] !== (int) $new_ket_hop['cont_thuc_hien_den_index']) {
+        return _ke_hoach_xep_xe_fail('Cont kéo về đã hoàn thành; hãy mở lại trước khi thay đổi');
+      }
+    }
+  }
   $line_validation = _ke_hoach_xep_xe_validate_lines(array($line), FALSE, FALSE, empty($existing->loai_ke_hoach) || $existing->loai_ke_hoach !== 'tuyen_xa');
   if ($line_validation) {
     return $line_validation;
   }
-  $cont_ref_validation = _ke_hoach_xep_xe_validate_cont_refs(array($line), $id);
+  if (!empty($existing->loai_ke_hoach) && $existing->loai_ke_hoach === 'tuyen_xa' && ($json_validation = _ke_hoach_xep_xe_validate_tuyen_xa_json(array($line)))) {
+    return $json_validation;
+  }
+  $cont_ref_validation = _ke_hoach_xep_xe_validate_cont_refs(array($line), $id, !empty($existing->loai_ke_hoach) && $existing->loai_ke_hoach === 'tuyen_xa');
   if ($cont_ref_validation) {
     return $cont_ref_validation;
   }
@@ -1458,7 +1853,30 @@ function _ke_hoach_xep_xe_rest_update($id) {
     $record['trang_thai_van_chuyen'] = $existing->trang_thai_van_chuyen;
   }
   $record['thong_tin_json'] = _ke_hoach_xep_xe_merge_json_text(isset($existing->thong_tin_json) ? $existing->thong_tin_json : '', $record['thong_tin_json']);
-  _ke_hoach_xep_xe_apply_cont_logic($record);
+  if (!empty($existing->loai_ke_hoach) && $existing->loai_ke_hoach === 'tuyen_xa') {
+    _ke_hoach_xep_xe_normalize_tuyen_xa_route_json($record);
+  }
+  _ke_hoach_xep_xe_apply_cont_logic($record, empty($existing->loai_ke_hoach) || $existing->loai_ke_hoach !== 'tuyen_xa');
+  if (!empty($existing->loai_ke_hoach) && $existing->loai_ke_hoach === 'tuyen_xa') {
+    $old_json = _ke_hoach_xep_xe_json_decode($existing->thong_tin_json);
+    $new_json = _ke_hoach_xep_xe_json_decode($record['thong_tin_json']);
+    $old_location = _ke_hoach_xep_xe_cont_current_location($existing);
+    $new_location = _ke_hoach_xep_xe_cont_current_location($record);
+    $old_location_index = _ke_hoach_xep_xe_tuyen_xa_current_point_index($existing);
+    $new_location_index = _ke_hoach_xep_xe_tuyen_xa_current_point_index($record);
+    $old_route_points = _ke_hoach_xep_xe_tuyen_xa_route_points($existing);
+    $new_route_points = _ke_hoach_xep_xe_tuyen_xa_route_points($record);
+    $old_route_signature = array();
+    $new_route_signature = array();
+    foreach ($old_route_points as $point) $old_route_signature[] = $point['key'] . '|' . $point['value'];
+    foreach ($new_route_points as $point) $new_route_signature[] = $point['key'] . '|' . $point['value'];
+    if ($old_location !== $new_location || $old_location_index !== $new_location_index || $old_route_signature !== $new_route_signature) {
+      $active_assignments = _ke_hoach_xep_xe_tuyen_xa_active_assignments((int) $id);
+      if ($active_assignments) {
+        return _ke_hoach_xep_xe_fail('Cont đã có kế hoạch #' . $active_assignments[0]['nid'] . ' nhận chặng, chưa thể đổi vị trí hoặc cấu trúc lộ trình');
+      }
+    }
+  }
 
   $transaction = db_transaction();
   try {
@@ -1605,17 +2023,52 @@ function _ke_hoach_cont_rest_list() {
   if (!empty($_GET['exclude_nid'])) {
     $query->condition('kh.nid', (int) $_GET['exclude_nid'], '<>');
   }
-  if (!empty($_GET['available_keo_ve_for'])) {
+  if (!empty($_GET['available_keo_ve_for']) && $loai_ke_hoach !== 'tuyen_xa') {
     $current_ref_nid = (int) $_GET['available_keo_ve_for'];
-    $query->leftJoin('ke_hoach_xep_xe', 'kh_ref', 'kh_ref.ke_hoach_cont_ref_nid = kh.nid AND kh_ref.hoat_dong = 1 AND kh_ref.nid <> :current_ref_nid', array(':current_ref_nid' => $current_ref_nid));
+    $join_condition = 'kh_ref.ke_hoach_cont_ref_nid = kh.nid AND kh_ref.hoat_dong = 1 AND kh_ref.nid <> :current_ref_nid';
+    $query->leftJoin('ke_hoach_xep_xe', 'kh_ref', $join_condition, array(':current_ref_nid' => $current_ref_nid));
     $query->isNull('kh_ref.nid');
   }
   if (isset($_GET['da_du_hang']) && $_GET['da_du_hang'] !== '') {
     $query->condition('kh.da_du_hang', (int) $_GET['da_du_hang']);
   }
+  $tx_assignments_by_source = array();
+  if ($loai_ke_hoach === 'tuyen_xa') {
+    $tx_rows = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE hoat_dong = 1 AND loai_ke_hoach = :loai", array(':loai' => 'tuyen_xa'))->fetchAll();
+    $tx_rows_by_id = array();
+    foreach ($tx_rows as $tx_row) $tx_rows_by_id[(int) $tx_row->nid] = $tx_row;
+    foreach ($tx_rows as $tx_plan) {
+      $tx_json = _ke_hoach_xep_xe_json_decode($tx_plan->thong_tin_json);
+      $source_id = (int) $tx_plan->ke_hoach_cont_ref_nid;
+      $main_done = array_key_exists('cong_viec_chinh_hoan_thanh', $tx_json) ? !empty($tx_json['cong_viec_chinh_hoan_thanh']) : $tx_plan->trang_thai_van_chuyen === 'Hoàn thành';
+      if ($source_id && !$main_done && !empty($tx_rows_by_id[$source_id])) {
+        $range = _ke_hoach_xep_xe_tuyen_xa_service_range($tx_plan, $tx_rows_by_id[$source_id]);
+        if ($range) $tx_assignments_by_source[$source_id][] = array('nid' => (int) $tx_plan->nid, 'type' => 'cong_viec_chinh', 'start' => $range['start'], 'end' => $range['end'], 'so_bkg' => $tx_plan->so_bkg, 'so_cont' => $tx_plan->so_cont);
+      }
+      $ket_hop = _ke_hoach_xep_xe_normalize_ket_hop(!empty($tx_json['ket_hop']) ? $tx_json['ket_hop'] : array());
+      $return_source_id = (int) $ket_hop['ke_hoach_cont_ref_nid'];
+      if (!empty($ket_hop['enabled']) && empty($ket_hop['hoan_thanh']) && $return_source_id) {
+        $range = _ke_hoach_xep_xe_tuyen_xa_ket_hop_range($tx_plan);
+        if ($range) $tx_assignments_by_source[$return_source_id][] = array('nid' => (int) $tx_plan->nid, 'type' => 'cont_keo_ve', 'start' => $range['start'], 'end' => $range['end'], 'so_bkg' => $tx_plan->so_bkg, 'so_cont' => $tx_plan->so_cont);
+      }
+    }
+  }
   $items = array();
   foreach ($query->execute()->fetchAll() as $row) {
     $enriched = _ke_hoach_xep_xe_enrich_row($row);
+    if ($loai_ke_hoach === 'tuyen_xa') {
+      $enriched['cont_chang_da_nhan'] = array();
+      foreach (!empty($tx_assignments_by_source[(int) $row->nid]) ? $tx_assignments_by_source[(int) $row->nid] : array() as $assigned) {
+        $enriched['cont_chang_da_nhan'][] = array(
+          'nid' => (int) $assigned['nid'],
+          'loai_nhiem_vu' => $assigned['type'],
+          'so_bkg' => !empty($assigned['so_bkg']) ? $assigned['so_bkg'] : '',
+          'so_cont' => !empty($assigned['so_cont']) ? $assigned['so_cont'] : '',
+          'tu_index' => $assigned['start'],
+          'den_index' => $assigned['end'],
+        );
+      }
+    }
     $enriched['trang_thai_cont'] = !empty($enriched['ha_cang']) ? 'Hạ cảng' : (!empty($enriched['ha_bai_ngoai']) ? 'Hạ bãi ngoài' : (!empty($enriched['da_du_hang']) ? 'Đủ hàng' : (!empty($enriched['ke_hoach_cont_ref_nid']) ? 'Kéo về' : (!empty($enriched['da_cat_mooc']) ? 'Đã cắt mooc' : 'Chưa cắt mooc'))));
     $items[] = $enriched;
   }
@@ -1626,16 +2079,118 @@ function _ke_hoach_cont_rest_update($id) {
   if (!user_access('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật quản lý cont');
   }
-  $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
-  if (!$existing) {
+  $existing_plan = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  if (!$existing_plan) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch cont không tồn tại');
   }
   $input = _ke_hoach_xep_xe_input();
   $fields = array('da_du_hang', 'ha_bai_ngoai', 'ha_cang');
   $update = array('changed' => _ke_hoach_xep_xe_now());
+  $main_work_source_update = NULL;
   foreach ($fields as $field) {
     if (array_key_exists($field, $input)) {
       $update[$field] = !empty($input[$field]) ? 1 : 0;
+    }
+  }
+  if (array_key_exists('hoan_thanh_cong_viec_chinh', $input) && $existing_plan->loai_ke_hoach === 'tuyen_xa') {
+    $complete_main = !empty($input['hoan_thanh_cong_viec_chinh']);
+    $plan_json = _ke_hoach_xep_xe_json_decode($existing_plan->thong_tin_json);
+    $existing_ket_hop = _ke_hoach_xep_xe_normalize_ket_hop(!empty($plan_json['ket_hop']) ? $plan_json['ket_hop'] : array());
+    if (!$complete_main && !empty($existing_ket_hop['hoan_thanh'])) {
+      return _ke_hoach_xep_xe_fail('Hãy mở lại cont kéo về trước khi mở lại công việc chính');
+    }
+    $role = (!empty($plan_json['vai_tro_ke_hoach']) && $plan_json['vai_tro_ke_hoach'] === 'thuc_hien_chang') || (empty($plan_json['vai_tro_ke_hoach']) && !empty($existing_plan->ke_hoach_cont_ref_nid)) ? 'thuc_hien_chang' : 'ke_hoach_goc';
+    if ($role === 'ke_hoach_goc') {
+      $plan_row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid", array(':nid' => $id))->fetch();
+      $points = _ke_hoach_xep_xe_tuyen_xa_route_points($plan_row);
+      $target = $complete_main ? _ke_hoach_xep_xe_tuyen_xa_root_initial_end_index($plan_row) : 0;
+      if (!isset($points[$target])) return _ke_hoach_xep_xe_fail('Không xác định được điểm kết thúc công việc ban đầu');
+      $current = _ke_hoach_xep_xe_tuyen_xa_current_point_index($plan_row);
+      $expected = $complete_main ? 0 : _ke_hoach_xep_xe_tuyen_xa_root_initial_end_index($plan_row);
+      if ($current !== $expected) {
+        return _ke_hoach_xep_xe_fail($complete_main ? 'Cont không còn ở điểm bắt đầu của công việc ban đầu' : 'Cont đã được thực hiện chặng tiếp theo, không thể mở lại công việc ban đầu');
+      }
+      $plan_json['cong_viec_chinh_hoan_thanh'] = $complete_main ? 1 : 0;
+      $plan_json['vi_tri_cont_index_hien_tai'] = $target;
+      $plan_json['vi_tri_cont_hien_tai'] = $points[$target]['value'];
+      $update['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($plan_json);
+      $root_all_done = $complete_main && $target === count($points) - 1 && (empty($existing_ket_hop['enabled']) || !empty($existing_ket_hop['hoan_thanh']));
+      $update['trang_thai_van_chuyen'] = $root_all_done ? 'Hoàn thành' : ($complete_main ? 'Đang vận chuyển' : 'Chưa xếp xe');
+      $update['ngay_ket_thuc'] = $root_all_done ? date('Y-m-d', REQUEST_TIME) : '';
+    }
+    else {
+      if (empty($existing_plan->ke_hoach_cont_ref_nid)) return _ke_hoach_xep_xe_fail('Kế hoạch thực hiện chưa chọn kế hoạch nguồn');
+      $source = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':nid' => (int) $existing_plan->ke_hoach_cont_ref_nid, ':loai' => 'tuyen_xa'))->fetch();
+      if (!$source) return _ke_hoach_xep_xe_fail('Không tìm thấy kế hoạch nguồn');
+      $range = _ke_hoach_xep_xe_tuyen_xa_service_range($existing_plan, $source);
+      if (!$range) return _ke_hoach_xep_xe_fail('Không xác định được dải chặng công việc chính');
+      $source_points = _ke_hoach_xep_xe_tuyen_xa_route_points($source);
+      $expected = $complete_main ? $range['start'] : $range['end'];
+      $target = $complete_main ? $range['end'] : $range['start'];
+      if (_ke_hoach_xep_xe_tuyen_xa_current_point_index($source) !== $expected) {
+        return _ke_hoach_xep_xe_fail($complete_main ? 'Cont nguồn chưa ở đúng điểm bắt đầu công việc' : 'Cont nguồn đã được thực hiện chặng tiếp theo, không thể mở lại công việc');
+      }
+      if (!isset($source_points[$target])) return _ke_hoach_xep_xe_fail('Điểm kết thúc công việc không còn hợp lệ');
+      $source_json = _ke_hoach_xep_xe_json_decode($source->thong_tin_json);
+      $source_json['vi_tri_cont_index_hien_tai'] = $target;
+      $source_json['vi_tri_cont_hien_tai'] = $source_points[$target]['value'];
+      $main_work_source_update = array('nid' => (int) $source->nid, 'json' => $source_json, 'at_final' => $target === count($source_points) - 1);
+      $plan_json['cong_viec_chinh_hoan_thanh'] = $complete_main ? 1 : 0;
+      $update['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($plan_json);
+    }
+    $ket_hop = _ke_hoach_xep_xe_normalize_ket_hop(!empty($plan_json['ket_hop']) ? $plan_json['ket_hop'] : array());
+    if ($complete_main && ($role === 'thuc_hien_chang' || ($role === 'ke_hoach_goc' && isset($points[$target]) && $target === count($points) - 1)) && (empty($ket_hop['enabled']) || !empty($ket_hop['hoan_thanh']))) {
+      $update['trang_thai_van_chuyen'] = 'Hoàn thành';
+      $update['ngay_ket_thuc'] = date('Y-m-d', REQUEST_TIME);
+    }
+    elseif ($complete_main) {
+      $update['trang_thai_van_chuyen'] = 'Đang vận chuyển';
+      $update['ngay_ket_thuc'] = '';
+    }
+    elseif (!$complete_main && $existing_plan->trang_thai_van_chuyen === 'Hoàn thành') {
+      $update['trang_thai_van_chuyen'] = 'Đang vận chuyển';
+      $update['ngay_ket_thuc'] = '';
+    }
+  }
+  if (array_key_exists('hoan_thanh_cont_keo_ve', $input) && $existing_plan->loai_ke_hoach === 'tuyen_xa') {
+    $complete_return = !empty($input['hoan_thanh_cont_keo_ve']);
+    $plan_json = _ke_hoach_xep_xe_json_decode($existing_plan->thong_tin_json);
+    $ket_hop = _ke_hoach_xep_xe_normalize_ket_hop(!empty($plan_json['ket_hop']) ? $plan_json['ket_hop'] : array());
+    if (empty($ket_hop['enabled']) || empty($ket_hop['ke_hoach_cont_ref_nid'])) return _ke_hoach_xep_xe_fail('Kế hoạch chưa chọn cont kéo về');
+    if (empty($plan_json['cong_viec_chinh_hoan_thanh'])) return _ke_hoach_xep_xe_fail('Cần hoàn thành công việc chính trước khi hoàn thành cont kéo về');
+    $return_source = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':nid' => (int) $ket_hop['ke_hoach_cont_ref_nid'], ':loai' => 'tuyen_xa'))->fetch();
+    if (!$return_source) return _ke_hoach_xep_xe_fail('Không tìm thấy kế hoạch gốc của cont kéo về');
+    $return_points = _ke_hoach_xep_xe_tuyen_xa_route_points($return_source);
+    $return_start = (int) $ket_hop['cont_thuc_hien_tu_index'];
+    $return_end = (int) $ket_hop['cont_thuc_hien_den_index'];
+    $expected = $complete_return ? $return_start : $return_end;
+    $target = $complete_return ? $return_end : $return_start;
+    if (!isset($return_points[$target])) return _ke_hoach_xep_xe_fail('Dải chặng cont kéo về không còn hợp lệ');
+    if (_ke_hoach_xep_xe_tuyen_xa_current_point_index($return_source) !== $expected) {
+      return _ke_hoach_xep_xe_fail($complete_return ? 'Cont kéo về chưa ở đúng điểm bắt đầu' : 'Cont kéo về đã được chạy tiếp, không thể mở lại');
+    }
+    $return_json = _ke_hoach_xep_xe_json_decode($return_source->thong_tin_json);
+    $return_json['vi_tri_cont_index_hien_tai'] = $target;
+    $return_json['vi_tri_cont_hien_tai'] = $return_points[$target]['value'];
+    $main_work_source_update = array('nid' => (int) $return_source->nid, 'json' => $return_json, 'at_final' => $target === count($return_points) - 1);
+    $ket_hop['hoan_thanh'] = $complete_return ? 1 : 0;
+    $plan_json['ket_hop'] = $ket_hop;
+    $update['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($plan_json);
+    $return_plan_role = (!empty($plan_json['vai_tro_ke_hoach']) && $plan_json['vai_tro_ke_hoach'] === 'thuc_hien_chang') || (empty($plan_json['vai_tro_ke_hoach']) && !empty($existing_plan->ke_hoach_cont_ref_nid)) ? 'thuc_hien_chang' : 'ke_hoach_goc';
+    $root_at_final = FALSE;
+    if ($return_plan_role === 'ke_hoach_goc') {
+      $plan_after = (array) $existing_plan;
+      $plan_after['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($plan_json);
+      $plan_points = _ke_hoach_xep_xe_tuyen_xa_route_points($plan_after);
+      $root_at_final = $plan_points && _ke_hoach_xep_xe_tuyen_xa_current_point_index($plan_after) === count($plan_points) - 1;
+    }
+    if ($complete_return && ($return_plan_role === 'thuc_hien_chang' || $root_at_final)) {
+      $update['trang_thai_van_chuyen'] = 'Hoàn thành';
+      $update['ngay_ket_thuc'] = date('Y-m-d', REQUEST_TIME);
+    }
+    else {
+      $update['trang_thai_van_chuyen'] = 'Đang vận chuyển';
+      $update['ngay_ket_thuc'] = '';
     }
   }
   if (array_key_exists('trang_thai_van_chuyen', $input)) {
@@ -1712,7 +2267,62 @@ function _ke_hoach_cont_rest_update($id) {
   if (count($update) === 1) {
     return _ke_hoach_xep_xe_fail('Không có dữ liệu cập nhật');
   }
-  db_update('ke_hoach_xep_xe')->fields($update)->condition('nid', $id)->execute();
+  $transaction = db_transaction();
+  try {
+    db_update('ke_hoach_xep_xe')->fields($update)->condition('nid', $id)->execute();
+    if ($main_work_source_update) {
+      $source_fields = array('thong_tin_json' => _ke_hoach_xep_xe_json_encode($main_work_source_update['json']), 'changed' => _ke_hoach_xep_xe_now());
+      $source_ket_hop = _ke_hoach_xep_xe_normalize_ket_hop(!empty($main_work_source_update['json']['ket_hop']) ? $main_work_source_update['json']['ket_hop'] : array());
+      $source_can_complete = !empty($main_work_source_update['at_final']) && (empty($source_ket_hop['enabled']) || !empty($source_ket_hop['hoan_thanh']));
+      if ($source_can_complete) {
+        $source_fields['trang_thai_van_chuyen'] = 'Hoàn thành';
+        $source_fields['ngay_ket_thuc'] = date('Y-m-d', REQUEST_TIME);
+      }
+      else {
+        $source_fields['trang_thai_van_chuyen'] = 'Đang vận chuyển';
+        $source_fields['ngay_ket_thuc'] = '';
+      }
+      db_update('ke_hoach_xep_xe')
+        ->fields($source_fields)
+        ->condition('nid', $main_work_source_update['nid'])
+        ->execute();
+    }
+    if (!empty($update['trang_thai_van_chuyen']) && !array_key_exists('hoan_thanh_cong_viec_chinh', $input) && !array_key_exists('hoan_thanh_cont_keo_ve', $input) && $existing_plan->loai_ke_hoach === 'tuyen_xa' && !empty($existing_plan->ke_hoach_cont_ref_nid)) {
+      $is_complete = $update['trang_thai_van_chuyen'] === 'Hoàn thành' && $existing_plan->trang_thai_van_chuyen !== 'Hoàn thành';
+      $is_reopen = $existing_plan->trang_thai_van_chuyen === 'Hoàn thành' && $update['trang_thai_van_chuyen'] !== 'Hoàn thành';
+      $source = db_query("SELECT nid, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te, trang_thai_van_chuyen, da_du_hang, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':nid' => (int) $existing_plan->ke_hoach_cont_ref_nid, ':loai' => 'tuyen_xa'))->fetch();
+      if (!$source) {
+        throw new Exception('Không tìm thấy kế hoạch cont nguồn');
+      }
+      $service_range = _ke_hoach_xep_xe_tuyen_xa_service_range($existing_plan, $source);
+      $from_index = $service_range ? $service_range['start'] : -1;
+      $destination_index = $service_range ? $service_range['end'] : -1;
+      $expected_index = $is_complete ? $from_index : ($is_reopen ? $destination_index : -1);
+      $target_index = $is_complete ? $destination_index : ($is_reopen ? $from_index : -1);
+      if ($target_index >= 0) {
+        $source_index = _ke_hoach_xep_xe_tuyen_xa_current_point_index($source);
+        if ($expected_index >= 0 && $source_index !== $expected_index) {
+          throw new Exception($is_complete ? 'Vị trí cont nguồn đã thay đổi, không thể hoàn thành chặng cũ' : 'Cont nguồn đã được dùng cho chặng tiếp theo, không thể mở lại kế hoạch này');
+        }
+        $source_json = _ke_hoach_xep_xe_json_decode($source->thong_tin_json);
+        $source_points = _ke_hoach_xep_xe_tuyen_xa_route_points($source);
+        if (!isset($source_points[$target_index])) {
+          throw new Exception('Dải chặng cont không còn hợp lệ');
+        }
+        $source_json['vi_tri_cont_index_hien_tai'] = $target_index;
+        $source_json['vi_tri_cont_hien_tai'] = $source_points[$target_index]['value'];
+        db_update('ke_hoach_xep_xe')
+          ->fields(array('thong_tin_json' => _ke_hoach_xep_xe_json_encode($source_json), 'changed' => _ke_hoach_xep_xe_now()))
+          ->condition('nid', (int) $existing_plan->ke_hoach_cont_ref_nid)
+          ->execute();
+      }
+    }
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('ke_hoach_xep_xe', 'Lỗi cập nhật trạng thái/chặng cont kế hoạch #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ke_hoach_xep_xe_fail($e->getMessage());
+  }
   $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetch();
   return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_enrich_row($row));
 }
@@ -1936,6 +2546,7 @@ function _ke_hoach_tuyen_xa_build_parent_record($input) {
   $record['nid_phuong_tien'] = !empty($first_chang['nid_phuong_tien']) ? (int) $first_chang['nid_phuong_tien'] : 0;
   $record['nid_mooc'] = !empty($first_chang['nid_mooc']) ? (int) $first_chang['nid_mooc'] : 0;
   $record['nid_lai_xe'] = !empty($first_chang['nid_lai_xe']) ? (int) $first_chang['nid_lai_xe'] : 0;
+  $json['loai_hang'] = $record['loai_hang'];
   $record['thong_tin_json'] = !empty($json) ? _ke_hoach_xep_xe_json_encode($json) : '';
 
   return array(
