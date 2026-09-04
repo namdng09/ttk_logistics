@@ -1902,6 +1902,7 @@ button.khxh-cont-ref-number:focus {
 .vehicle-summary,
 .line-vehicle-display,
 .line-mooc-display,
+.line-cont-picker-display,
 .line-combo-cell .btn-open-cont-ref-modal {
   min-height: 38px;
   max-width: 100%;
@@ -1920,6 +1921,7 @@ button.khxh-cont-ref-number:focus {
 .vehicle-summary.is-selected,
 .line-vehicle-display.is-selected,
 .line-mooc-display.is-selected,
+.line-cont-picker-display.is-selected,
 .line-combo-cell .btn-open-cont-ref-modal.is-selected {
   border-color: color-mix(in sRGB, var(--bs-base-color) 22%, var(--bs-paper-bg)) !important;
   background: #fff;
@@ -1943,6 +1945,7 @@ button.khxh-cont-ref-number:focus {
 .vehicle-summary .vehicle-inline-placeholder,
 .line-vehicle-display .vehicle-inline-placeholder,
 .line-mooc-display .vehicle-inline-placeholder,
+.line-cont-picker-display .vehicle-inline-placeholder,
 .line-combo-cell .btn-open-cont-ref-modal .vehicle-inline-placeholder {
   color: #98a2b3;
   font-style: italic;
@@ -1952,6 +1955,7 @@ button.khxh-cont-ref-number:focus {
 .vehicle-summary .vehicle-inline-text,
 .line-vehicle-display .vehicle-inline-text,
 .line-mooc-display .vehicle-inline-text,
+.line-cont-picker-display .vehicle-inline-text,
 .line-combo-cell .btn-open-cont-ref-modal .vehicle-inline-text {
   white-space: nowrap;
   overflow: hidden;

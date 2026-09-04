@@ -2617,10 +2617,10 @@
 	            (isTX ? '' : '<select class="form-select line-loai-hang-select mt-2">' + buildTagOptions(state.cauHinh.loaiHang, line.loai_hang) + '</select>') +
             '<input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"' + (sourceLocked ? ' disabled' : '') + '>' +
           '</td>' +
-	          (isTX ? '<td class="line-combo-cell line-source-plan-cell"><label class="form-check form-switch mb-2"><input class="form-check-input line-plan-root-toggle" type="checkbox"' + (planRole(line) === 'ke_hoach_goc' ? ' checked' : '') + '><span class="form-check-label">Kế hoạch gốc</span></label><button type="button" class="btn btn-outline-secondary w-100 text-start btn-open-cont-ref-modal" data-line-key="' + escHtml(line.key) + '"' + (sourcePickerEditable(line) ? '' : ' disabled') + '><span class="vehicle-inline-text">' + escHtml(sourcePickerApplicable(line) ? contRefButtonText(line) : 'Chọn kế hoạch nguồn') + '</span></button></td>' : '') +
+	          (isTX ? '<td class="line-combo-cell line-source-plan-cell"><label class="form-check form-switch mb-2"><input class="form-check-input line-plan-root-toggle" type="checkbox"' + (planRole(line) === 'ke_hoach_goc' ? ' checked' : '') + '><span class="form-check-label">Kế hoạch gốc</span></label><button type="button" class="btn btn-outline-secondary w-100 text-start line-cont-picker-display btn-open-cont-ref-modal" data-line-key="' + escHtml(line.key) + '"' + (sourcePickerEditable(line) ? '' : ' disabled') + '><span class="' + (line.ke_hoach_cont_ref_nid ? 'vehicle-inline-text' : 'vehicle-inline-placeholder') + '">' + escHtml(sourcePickerApplicable(line) ? contRefButtonText(line) : 'Chọn kế hoạch nguồn') + '</span></button></td>' : '') +
           '<td class="line-combo-cell">' +
             '<select class="form-select line-hinh-thuc-select mb-2">' + hinhThucOptions + '</select>' +
-	            (isTX ? '<button type="button" class="btn btn-outline-secondary w-100 text-start btn-open-return-cont-modal" data-line-key="' + escHtml(line.key) + '"' + (returnContApplicable(line) ? '' : ' disabled') + '><span class="vehicle-inline-text">' + escHtml(returnContLabel) + '</span></button>' : '') +
+	            (isTX ? '<button type="button" class="btn btn-outline-secondary w-100 text-start line-cont-picker-display btn-open-return-cont-modal" data-line-key="' + escHtml(line.key) + '"' + (returnContApplicable(line) ? '' : ' disabled') + '><span class="' + (returnContItem ? 'vehicle-inline-text' : 'vehicle-inline-placeholder') + '">' + escHtml(returnContLabel) + '</span></button>' : '') +
 	          '</td>' +
           (isTX ? '' :
             '<td class="line-combo-cell">' +
@@ -4390,9 +4390,11 @@
 
     function planStatusOptions(selected) {
       var html = '';
+      var seen = {};
       for (var i = 0; i < statuses.length; i++) {
         var value = String(statuses[i] || '');
-        if (!value) continue;
+        if (!value || seen[value]) continue;
+        seen[value] = true;
         html += '<option value="' + escHtml(value) + '"' + (value === String(selected || '') ? ' selected' : '') + '>' + escHtml(value) + '</option>';
       }
       if (!html) html = '<option value="Chưa xếp xe">Chưa xếp xe</option>';

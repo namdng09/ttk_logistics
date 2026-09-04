@@ -1359,7 +1359,8 @@ function _ke_hoach_xep_xe_statuses() {
     'Đang đến kho',
     'Thả mooc',
     'Đóng hàng',
-    'Kéo về trong ngày',
+    'Qua cửa khẩu TQ',
+    'Về Việt Nam',
     'Hạ cảng',
     'Hoàn thành',
   );
