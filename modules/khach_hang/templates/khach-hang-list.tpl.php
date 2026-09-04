@@ -201,6 +201,10 @@
               <input type="tel" class="form-control" name="sdt" placeholder="0901234567" inputmode="numeric">
             </div>
             <div class="col-lg-3">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" name="email" placeholder="email@congty.vn">
+            </div>
+            <div class="col-lg-3">
               <label class="form-label">Ngày sinh</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="dob" placeholder="dd/MM/yyyy">
             </div>
@@ -220,6 +224,14 @@
               </button>
             </div>
             <div id="ngan-hang-repeater"></div>
+          </div>
+
+          <div class="section mt-4 khach-hang-contact-section">
+            <div class="section-head d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label mb-0 fw-bold khach-hang-section-title"><i class="ti tabler-user me-2"></i>Người đại diện / Liên hệ</label>
+              <button type="button" class="btn btn-sm btn-icon btn-primary text-white" id="btn-them-lien-he" title="Thêm người liên hệ"><i class="ti tabler-plus"></i></button>
+            </div>
+            <div id="lien-he-repeater"></div>
           </div>
 
           <!-- Warehouse + Pricing Section -->

@@ -56,6 +56,23 @@
   height: 1.9rem;
 }
 
+.khach-hang-contact-section {
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  padding: 0.85rem;
+  background: #f8fafc;
+}
+
+.khach-hang-contact-section .section-head,
+.khach-hang-contact-section #btn-them-lien-he {
+  min-height: 32px;
+}
+
+.khach-hang-contact-section #btn-them-lien-he {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
 #khach-hang-modal #form-khach-hang .form-label {
   margin-bottom: 0.25rem;
   color: #566a7f;
@@ -78,6 +95,19 @@
 .ngan-hang-row:hover {
   background: #f8fbff;
 }
+
+.lien-he-row {
+  background: #fff;
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.lien-he-row:last-child { margin-bottom: 0 !important; }
+.lien-he-row:hover { background: #f8fbff; }
+.lien-he-row .form-control { min-height: calc(1.5em + 0.75rem + 2px); font-size: 0.85rem; }
+.lien-he-row .col-lg-1 { display: flex; align-items: center; justify-content: center; }
+.lien-he-row .btn-xoa-lien-he { width: calc(1.5em + 0.75rem + 2px); height: calc(1.5em + 0.75rem + 2px); }
 
 .ngan-hang-row .form-control,
 .ngan-hang-row .form-select {

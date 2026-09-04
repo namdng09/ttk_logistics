@@ -44,12 +44,23 @@
 
   function modalShow(id) {
     var el = document.getElementById(id);
-    if (el) new bootstrap.Modal(el).show();
+    if (!el) return false;
+    if (window.bootstrap && window.bootstrap.Modal) {
+      var Modal = window.bootstrap.Modal;
+      var instance = Modal.getOrCreateInstance ? Modal.getOrCreateInstance(el) : new Modal(el);
+      instance.show();
+      return true;
+    }
+    if ($ && $.fn && $.fn.modal) {
+      $(el).modal('show');
+      return true;
+    }
+    return false;
   }
   function modalHide(id) {
     var el = document.getElementById(id);
-    if (el) {
-      var m = bootstrap.Modal.getInstance(el);
+    if (el && window.bootstrap && window.bootstrap.Modal) {
+      var m = window.bootstrap.Modal.getInstance(el);
       if (m) m.hide();
     }
   }
@@ -80,9 +91,35 @@
       notyf = new Notyf();
     }
     bindNativeEvents();
+    bindViewAction();
     if (!KHACH_HANG_INITIALIZED && $('#table-khach-hang', context).length) {
       KHACH_HANG_INITIALIZED = true;
       loadList();
+    }
+  }
+
+  /* Nút nằm trong dropdown được render lại sau mỗi lần tải danh sách.
+   * Bind theo delegation để click luôn tới được luồng xem, kể cả khi menu
+   * dropdown do helper toàn cục đóng/mở lại. */
+  function bindViewAction() {
+    $(document)
+      .off('click.khachHangView', '.btn-view-khach-hang')
+      .on('click.khachHangView', '.btn-view-khach-hang', function (e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        openViewModal(this.getAttribute('data-id'));
+      });
+  }
+
+  function bindRenderedViewButtons() {
+    var buttons = document.querySelectorAll('#table-khach-hang-tbody .btn-view-khach-hang');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openViewModal(this.getAttribute('data-id'));
+        return false;
+      };
     }
   }
 
@@ -233,6 +270,8 @@
         addNganHangRow();
       });
     }
+    var btnThemLienHe = doc.getElementById('btn-them-lien-he');
+    if (btnThemLienHe) btnThemLienHe.addEventListener('click', function () { addLienHeRow(); });
 
     // Add warehouse
     var btnThemKho = doc.getElementById('btn-them-kho');
@@ -247,11 +286,6 @@
       var t = e.target;
       while (t && t !== doc) {
         if (t.classList) {
-          if (t.classList.contains('btn-view-khach-hang')) {
-            e.preventDefault();
-            openViewModal(t.getAttribute('data-id'));
-            return;
-          }
           if (t.classList.contains('btn-edit-khach-hang')) {
             e.preventDefault();
             openEditModal(t.getAttribute('data-id'));
@@ -277,6 +311,12 @@
               }
               row.remove();
             }
+            return;
+          }
+          if (t.classList.contains('btn-xoa-lien-he')) {
+            e.preventDefault();
+            var lienHeRow = t.closest('.lien-he-row');
+            if (lienHeRow) lienHeRow.remove();
             return;
           }
           if (t.classList.contains('btn-xoa-kho')) {
@@ -570,6 +610,40 @@
     if (!container) return;
     container.innerHTML = '';
     addNganHangRow();
+    initLienHeRepeater();
+  }
+
+  function initLienHeRepeater() {
+    var container = document.getElementById('lien-he-repeater');
+    if (!container) return;
+    container.innerHTML = '';
+    addLienHeRow();
+  }
+
+  function addLienHeRow(data) {
+    var container = document.getElementById('lien-he-repeater');
+    if (!container) return;
+    var div = document.createElement('div');
+    div.className = 'lien-he-row mb-2';
+    div.innerHTML = '<div class="row g-2 align-items-end"><div class="col-12 col-lg-4"><label class="form-label">Tên người</label><input type="text" class="form-control lien-he-ten" placeholder="Nguyễn Văn A"></div><div class="col-12 col-md-5 col-lg-3"><label class="form-label">SĐT</label><input type="tel" class="form-control lien-he-sdt" placeholder="0901234567" inputmode="numeric"></div><div class="col-12 col-md-5 col-lg-4"><label class="form-label">Chức vụ</label><input type="text" class="form-control lien-he-chuc-vu" placeholder="Giám đốc"></div><div class="col-12 col-md-2 col-lg-1 text-md-end"><button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-lien-he" title="Xoá người liên hệ"><i class="ti tabler-trash"></i></button></div></div>';
+    container.appendChild(div);
+    if (data) {
+      div.querySelector('.lien-he-ten').value = data.ten || data.ho_ten || '';
+      div.querySelector('.lien-he-sdt').value = data.sdt || '';
+      div.querySelector('.lien-he-chuc-vu').value = data.chuc_vu || '';
+    }
+  }
+
+  function collectLienHe() {
+    var result = [];
+    var rows = document.querySelectorAll('#lien-he-repeater .lien-he-row');
+    for (var i = 0; i < rows.length; i++) {
+      var ten = rows[i].querySelector('.lien-he-ten').value.trim();
+      var sdt = rows[i].querySelector('.lien-he-sdt').value.trim();
+      var chucVu = rows[i].querySelector('.lien-he-chuc-vu').value.trim();
+      if (ten || sdt || chucVu) result.push({ ten: ten, sdt: sdt, chuc_vu: chucVu });
+    }
+    return result;
   }
 
   function addNganHangRow(data) {
@@ -1076,6 +1150,8 @@
       phan_loai: phanLoaiVal,
       cccd_mst: document.querySelector('#form-khach-hang input[name="cccd_mst"]').value,
       sdt: document.querySelector('#form-khach-hang input[name="sdt"]').value,
+      email: document.querySelector('#form-khach-hang input[name="email"]').value,
+      thong_tin_lien_he: collectLienHe(),
       dia_chi: document.querySelector('#form-khach-hang input[name="dia_chi"]').value,
       thong_tin_ngan_hang: collectNganHang(),
       bang_gia_cuoc: {
@@ -1192,6 +1268,7 @@
             '</tr>';
         }
         tbody.append(html);
+        bindRenderedViewButtons();
         renderPagination(data);
       },
       error: function (jqXHR) {
@@ -1280,11 +1357,40 @@
   }
 
   function openViewModal(id) {
-    setFormMode('view');
-    document.getElementById('khach-hang-modal-title').textContent = 'Chi tiết khách hàng';
-    document.querySelector('.btn-luu-khach-hang').style.display = 'none';
+    id = parseInt(id, 10) || 0;
+    var modal = ensureModal();
+    if (!id || !modal) {
+      if (notyf) notyf.error('Không mở được form xem chi tiết khách hàng');
+      return;
+    }
+    var title = modal.querySelector('#khach-hang-modal-title');
+    var saveButton = modal.querySelector('.btn-luu-khach-hang');
+    if (!title || !saveButton || !modal.querySelector('#form-khach-hang')) {
+      if (notyf) notyf.error('Form xem chi tiết khách hàng chưa sẵn sàng');
+      return;
+    }
     showLoading(true);
-    modalShow('khach-hang-modal');
+    if (!modalShow('khach-hang-modal')) {
+      showLoading(false);
+      if (notyf) notyf.error('Không thể hiển thị modal khách hàng');
+      return;
+    }
+
+    /* Modal phải hiện ngay khi người dùng bấm Xem. Các thao tác chuẩn bị form
+     * được thực hiện sau đó để một lỗi ở plugin phụ (Tagify/Select2) không làm
+     * mất hoàn toàn phản hồi giao diện. */
+    try {
+      resetForm();
+      setFormMode('view');
+      title.textContent = 'Chi tiết khách hàng';
+      saveButton.style.display = 'none';
+      showLoading(true);
+    } catch (err) {
+      showLoading(false);
+      if (window.console && console.error) console.error('[Khách hàng] Không khởi tạo được form xem:', err);
+      if (notyf) notyf.error('Không thể chuẩn bị form xem chi tiết khách hàng');
+      return;
+    }
 
     $.ajax({
       url: '/api/khach-hang/' + id,
@@ -1399,6 +1505,10 @@
     for (var j = 0; j < btnXoaNh.length; j++) {
       btnXoaNh[j].style.display = mode === 'view' ? 'none' : '';
     }
+    var btnThemLienHe = document.getElementById('btn-them-lien-he');
+    if (btnThemLienHe) btnThemLienHe.style.display = mode === 'view' ? 'none' : '';
+    var btnXoaLienHe = document.querySelectorAll('.btn-xoa-lien-he');
+    for (var j2 = 0; j2 < btnXoaLienHe.length; j2++) btnXoaLienHe[j2].style.display = mode === 'view' ? 'none' : '';
     var btnThemKho = document.getElementById('btn-them-kho');
     if (btnThemKho) {
       btnThemKho.style.display = mode === 'view' ? 'none' : '';
@@ -1415,23 +1525,18 @@
     for (var m = 0; m < btnXoaDG.length; m++) {
       btnXoaDG[m].style.display = mode === 'view' ? 'none' : '';
     }
-    // Handle Select2 bank selects
+    // Select2 v4 không còn hỗ trợ lệnh .select2('enable'/'disable'). Khóa
+    // trực tiếp phần tử select để tránh lỗi JavaScript làm ngắt luồng mở modal.
     var bankSelects = document.querySelectorAll('#form-khach-hang .ngan-hang-ten-ngan-hang');
     for (var n = 0; n < bankSelects.length; n++) {
-      var $sel;
-      try { $sel = $(bankSelects[n]); } catch (e) {}
-      if ($sel && typeof $sel.select2 === 'function' && $sel.data && $sel.data('select2')) {
-        $sel.select2(mode === 'view' ? 'disable' : 'enable');
-      }
+      bankSelects[n].disabled = mode === 'view';
+      try { $(bankSelects[n]).trigger('change.select2'); } catch (e) {}
     }
-    // Handle Select2 warehouse address selects
+    // Handle Select2 warehouse address selects.
     var khoSelects = document.querySelectorAll('#form-khach-hang .kho-dia-chi');
     for (var p = 0; p < khoSelects.length; p++) {
-      var $selKho;
-      try { $selKho = $(khoSelects[p]); } catch (e) {}
-      if ($selKho && typeof $selKho.select2 === 'function' && $selKho.data && $selKho.data('select2')) {
-        $selKho.select2(mode === 'view' ? 'disable' : 'enable');
-      }
+      khoSelects[p].disabled = mode === 'view';
+      try { $(khoSelects[p]).trigger('change.select2'); } catch (e) {}
     }
     // Disable pricing table inputs in view mode
     var pricingInputs = document.querySelectorAll('#form-khach-hang .kho-pricing-table input, #form-khach-hang .kho-pricing-table select');
@@ -1466,6 +1571,11 @@
     document.querySelector('#form-khach-hang input[name="ma_kh"]').value = d.ma_kh || '';
     document.querySelector('#form-khach-hang input[name="cccd_mst"]').value = d.cccd_mst || '';
     document.querySelector('#form-khach-hang input[name="sdt"]').value = d.sdt || '';
+    document.querySelector('#form-khach-hang input[name="email"]').value = d.email || '';
+    var lienHeContainer = document.getElementById('lien-he-repeater');
+    if (lienHeContainer) lienHeContainer.innerHTML = '';
+    var lienHeList = Array.isArray(d.thong_tin_lien_he) ? d.thong_tin_lien_he : (d.thong_tin_lien_he && Object.keys(d.thong_tin_lien_he).length ? [d.thong_tin_lien_he] : []);
+    if (lienHeList.length) { for (var lh = 0; lh < lienHeList.length; lh++) addLienHeRow(lienHeList[lh]); } else addLienHeRow();
     document.querySelector('#form-khach-hang input[name="dia_chi"]').value = d.dia_chi || '';
     document.querySelector('#form-khach-hang input[name="dob"]').value = d.dob || '';
     document.querySelector('#form-khach-hang input[name="ghi_chu"]').value = d.ghi_chu || '';

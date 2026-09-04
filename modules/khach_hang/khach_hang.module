@@ -437,6 +437,11 @@ function _khach_hang_load_row($nid, $include_bang_gia = FALSE) {
   if ($include_bang_gia && !empty($kh->bang_gia_cuoc)) {
     $bang_gia_cuoc = _khach_hang_bang_gia_decode($kh->bang_gia_cuoc);
   }
+  $lien_he = array();
+  if (!empty($kh->thong_tin_lien_he)) {
+    $decoded_lien_he = json_decode($kh->thong_tin_lien_he, TRUE);
+    if (is_array($decoded_lien_he)) $lien_he = $decoded_lien_he;
+  }
 
   return array(
     'nid' => (int) $kh->nid,
@@ -445,6 +450,8 @@ function _khach_hang_load_row($nid, $include_bang_gia = FALSE) {
     'phan_loai' => $kh->phan_loai,
     'cccd_mst' => $kh->cccd_mst ? $kh->cccd_mst : '',
     'sdt' => $kh->sdt ? $kh->sdt : '',
+    'email' => !empty($kh->email) ? $kh->email : '',
+    'thong_tin_lien_he' => $lien_he,
     'dia_chi' => $kh->dia_chi ? $kh->dia_chi : '',
     'thong_tin_ngan_hang' => $ngan_hang,
     'bang_gia_cuoc' => $bang_gia_cuoc,
@@ -555,6 +562,7 @@ function _khach_hang_rest_create() {
     $dinh_muc = !empty($input['bang_gia_cuoc']['dinh_muc']) && is_array($input['bang_gia_cuoc']['dinh_muc']) ? $input['bang_gia_cuoc']['dinh_muc'] : array();
     $bang_gia_cuoc_json = json_encode(_khach_hang_bang_gia_encode($bang_gia_items, $dinh_muc));
   }
+  $lien_he_json = !empty($input['thong_tin_lien_he']) && is_array($input['thong_tin_lien_he']) ? json_encode($input['thong_tin_lien_he']) : '';
 
   $transaction = db_transaction();
   try {
@@ -565,6 +573,8 @@ function _khach_hang_rest_create() {
         'phan_loai' => $phan_loai,
         'cccd_mst' => !empty($input['cccd_mst']) ? $input['cccd_mst'] : NULL,
         'sdt' => !empty($input['sdt']) ? $input['sdt'] : NULL,
+        'email' => !empty($input['email']) ? $input['email'] : NULL,
+        'thong_tin_lien_he' => $lien_he_json ? $lien_he_json : NULL,
         'dia_chi' => !empty($input['dia_chi']) ? $input['dia_chi'] : NULL,
         'thong_tin_ngan_hang' => $ngan_hang_json ? $ngan_hang_json : NULL,
         'bang_gia_cuoc' => $bang_gia_cuoc_json ? $bang_gia_cuoc_json : NULL,
@@ -667,6 +677,8 @@ function _khach_hang_rest_update($id) {
     $dinh_muc = !empty($input['bang_gia_cuoc']['dinh_muc']) && is_array($input['bang_gia_cuoc']['dinh_muc']) ? $input['bang_gia_cuoc']['dinh_muc'] : $current_config['dinh_muc'];
     $bang_gia_cuoc_json = json_encode(_khach_hang_bang_gia_encode($bang_gia_items, $dinh_muc));
   }
+  $lien_he_json = '';
+  if (isset($input['thong_tin_lien_he']) && is_array($input['thong_tin_lien_he'])) $lien_he_json = json_encode($input['thong_tin_lien_he']);
 
   $update = array(
     'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
@@ -674,7 +686,7 @@ function _khach_hang_rest_update($id) {
     'phan_loai' => $phan_loai,
   );
 
-  $fields = array('ma_kh', 'cccd_mst', 'sdt', 'dia_chi', 'dob', 'ghi_chu');
+  $fields = array('ma_kh', 'cccd_mst', 'sdt', 'email', 'dia_chi', 'dob', 'ghi_chu');
   foreach ($fields as $f) {
     if (array_key_exists($f, $input)) {
       $update[$f] = !empty($input[$f]) ? $input[$f] : NULL;
@@ -686,6 +698,7 @@ function _khach_hang_rest_update($id) {
   if (isset($input['bang_gia_cuoc'])) {
     $update['bang_gia_cuoc'] = $bang_gia_cuoc_json ? $bang_gia_cuoc_json : NULL;
   }
+  if (isset($input['thong_tin_lien_he'])) $update['thong_tin_lien_he'] = $lien_he_json ? $lien_he_json : NULL;
 
   $transaction = db_transaction();
   try {
