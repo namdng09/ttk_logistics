@@ -551,7 +551,6 @@ body .flatpickr-calendar {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #fbfcfe;
-  padding: 1rem;
   box-shadow: 0 4px 14px rgba(16, 24, 40, 0.04);
 }
 
@@ -701,12 +700,6 @@ button.khxh-cont-ref-number:focus {
   display: flex;
   gap: 0.4rem;
   flex-shrink: 0;
-}
-
-/* Khớp chính xác chiều cao btn-sm chữ "Đổi cont". */
-.khxh-cont-ref-actions .btn-remove-cont-ref {
-  block-size: 2.3rem !important;
-  inline-size: 2.3rem !important;
 }
 
 .khxh-cont-ref-selected-bottom {
@@ -859,7 +852,7 @@ button.khxh-cont-ref-number:focus {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding-bottom: 0.85rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid #edf0f4;
 }
 
@@ -1908,7 +1901,7 @@ button.khxh-cont-ref-number:focus {
 .vehicle-summary,
 .line-vehicle-display,
 .line-mooc-display,
-.btn-open-cont-ref-modal {
+.line-combo-cell .btn-open-cont-ref-modal {
   min-height: 38px;
   max-width: 100%;
   display: flex;
@@ -1926,21 +1919,21 @@ button.khxh-cont-ref-number:focus {
 .vehicle-summary.is-selected,
 .line-vehicle-display.is-selected,
 .line-mooc-display.is-selected,
-.btn-open-cont-ref-modal.is-selected {
+.line-combo-cell .btn-open-cont-ref-modal.is-selected {
   border-color: color-mix(in sRGB, var(--bs-base-color) 22%, var(--bs-paper-bg)) !important;
   background: #fff;
 }
 
-.btn-open-cont-ref-modal.is-selected {
+.line-combo-cell .btn-open-cont-ref-modal.is-selected {
   color: var(--bs-primary);
 }
 
-.btn-open-cont-ref-modal.is-invalid {
+.line-combo-cell .btn-open-cont-ref-modal.is-invalid {
   border-color: var(--bs-danger) !important;
 }
 
-.btn-open-cont-ref-modal:disabled,
-.btn-open-cont-ref-modal.disabled {
+.line-combo-cell .btn-open-cont-ref-modal:disabled,
+.line-combo-cell .btn-open-cont-ref-modal.disabled {
   background: #f8f9fa;
   cursor: not-allowed;
   opacity: 0.75;
@@ -1949,7 +1942,7 @@ button.khxh-cont-ref-number:focus {
 .vehicle-summary .vehicle-inline-placeholder,
 .line-vehicle-display .vehicle-inline-placeholder,
 .line-mooc-display .vehicle-inline-placeholder,
-.btn-open-cont-ref-modal .vehicle-inline-placeholder {
+.line-combo-cell .btn-open-cont-ref-modal .vehicle-inline-placeholder {
   color: #98a2b3;
   font-style: italic;
   font-size: 0.85rem;
@@ -1958,7 +1951,7 @@ button.khxh-cont-ref-number:focus {
 .vehicle-summary .vehicle-inline-text,
 .line-vehicle-display .vehicle-inline-text,
 .line-mooc-display .vehicle-inline-text,
-.btn-open-cont-ref-modal .vehicle-inline-text {
+.line-combo-cell .btn-open-cont-ref-modal .vehicle-inline-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
