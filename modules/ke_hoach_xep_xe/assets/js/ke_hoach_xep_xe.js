@@ -375,6 +375,14 @@
     return escHtml(d[2] + '/' + d[1] + '/' + year) + (time ? '<br>' + escHtml(time) : '');
   }
 
+  function dateOnlyStack(val) {
+    if (!val) return '';
+    var parts = String(val).split(' ');
+    var d = parts[0] ? parts[0].split('-') : [];
+    if (d.length !== 3) return escHtml(parts[0] || val);
+    return escHtml(d[2] + '/' + d[1] + '/' + d[0].slice(-2));
+  }
+
   function cutOffBadge(val) {
     if (!val) return '';
     var normalized = apiToDatetime(val);
@@ -1500,10 +1508,11 @@
     var tbody = document.getElementById('list-body');
     var listColumnCount = currentPlanType() === 'tuyen_xa' ? 9 : 12;
     tbody.innerHTML = '<tr id="loading-row"><td colspan="' + listColumnCount + '" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
-    var params = { page: currentPage, loai_ke_hoach: currentPlanType() };
+    var params = { page: currentPage, loai_ke_hoach: currentPlanType(), limit: currentPlanType() === 'tuyen_xa' ? 50 : 20 };
     if (currentKeyword) params.keyword = currentKeyword;
     if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
     $.extend(params, currentFilters || {});
+    params.limit = currentPlanType() === 'tuyen_xa' ? 50 : 20;
     $.ajax({
       url: '/api/ke-hoach-xep-xe',
       type: 'GET',
@@ -1533,42 +1542,56 @@
           var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + hinhThucColor(row.hinh_thuc_van_tai) + '">' + escHtml(hinhThucLabel(row.hinh_thuc_van_tai)) + '</span>' : '';
           var hinhThucStatus = '';
           var listRowJson = row.thong_tin_json || {};
-          var listCurrentJson = row.ke_hoach_cont_ref_nid && row.cont_ref ? (row.cont_ref.thong_tin_json || {}) : listRowJson;
+          var returnContText = '';
           if (currentPlanType() === 'tuyen_xa') {
             hinhThucStatus = listRowJson.vai_tro_ke_hoach === 'thuc_hien_chang' || (!listRowJson.vai_tro_ke_hoach && row.ke_hoach_cont_ref_nid) ? 'Thực hiện chặng' : 'Kế hoạch gốc';
+            var returnInfo = listRowJson.ket_hop || {};
+            var returnCont = returnInfo.cont_ref || null;
+            if ((parseInt(returnInfo.enabled, 10) === 1 || returnInfo.enabled === true) && returnCont) {
+              var returnDestination = returnInfo.cont_keo_ve_den || '';
+              if (!returnDestination) {
+                var returnJson = returnCont.thong_tin_json || {};
+                var returnPoints = [
+                  returnCont.bai_lay_thuc_te || returnCont.bai_lay_cont || '',
+                  parseInt(returnJson.bai_ha_tam_1_enabled, 10) === 1 ? (returnJson.bai_ha_tam_1 || '') : '',
+                  returnCont.dia_chi_kho || '',
+                  parseInt(returnJson.bai_ha_tam_2_enabled, 10) === 1 ? (returnJson.bai_ha_tam_2 || '') : '',
+                  returnCont.bai_ha_thuc_te || returnCont.bai_ha_cont || ''
+                ].filter(Boolean);
+                returnDestination = returnPoints[parseInt(returnInfo.cont_thuc_hien_den_index, 10)] || '';
+              }
+              var returnNumber = returnCont.so_cont || '';
+              returnContText = [returnNumber, returnDestination].filter(Boolean).join(' - ');
+            }
           } else if (row.is_cont_keo_ve || normalizeHinhThuc(row.hinh_thuc_van_tai) === 'dong_hang') {
             hinhThucStatus = 'Kéo về';
           } else if (row.hinh_thuc_van_tai === 'cat_keo' || row.hinh_thuc_van_tai === 'cat_keo_cheo' || row.hinh_thuc_van_tai === 'tha_mooc') {
             hinhThucStatus = 'Kéo lên';
           }
           var contHtml = row.loai_cont ? escHtml(row.loai_cont) : '';
-          if (row.so_cont) {
-            contHtml += (contHtml ? ' - ' : '') + escHtml(row.so_cont);
-          }
+          if (row.so_cont) contHtml += (contHtml ? ' - ' : '') + escHtml(row.so_cont);
           var baiLayDisplay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
           var baiHaDisplay = row.bai_ha_thuc_te || row.bai_ha_cont || '';
-          var txRouteDisplay = currentPlanType() === 'tuyen_xa' ? [
-            baiLayDisplay,
-            parseInt(listRowJson.bai_ha_tam_1_enabled, 10) === 1 ? (listRowJson.bai_ha_tam_1 || '') : '',
-            row.dia_chi_kho || '',
-            parseInt(listRowJson.bai_ha_tam_2_enabled, 10) === 1 ? (listRowJson.bai_ha_tam_2 || '') : '',
-            baiHaDisplay
-          ].filter(Boolean).join(' → ') : '';
           html += '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
-            '<td class="khxh-date-cell">' + formatDateBadge(row.created) + '</td>' +
+            '<td class="khxh-date-cell">' + (currentPlanType() === 'tuyen_xa'
+              ? '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>'
+              : formatDateBadge(row.created)) + '</td>' +
             '<td class="khxh-common-cell">' +
               '<div class="khxh-customer-cell">' + (khName ? escHtml(khName) : '<span class="text-muted fst-italic small">khách hàng</span>') + '</div>' +
               '<div class="khxh-htvt-cell">' +
-                (hinhThucStatus ? '<div class="khxh-htvt-status">' + escHtml(hinhThucStatus) + '</div>' : '') +
-                (hinhThucBadge ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + '</div>' : '') +
+                (currentPlanType() !== 'tuyen_xa' && hinhThucStatus ? '<div class="khxh-htvt-status">' + escHtml(hinhThucStatus) + '</div>' : '') +
+                (hinhThucBadge ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list">' + escHtml(returnContText) + '</span>' : '') + '</div>' : '') +
               '</div>' +
             '</td>' +
             (currentPlanType() === 'tuyen_xa' ? '' : '<td class="khxh-bkg-cell">' + escHtml(row.so_bkg || '') + '</td>') +
             '<td class="khxh-container-cell">' +
-              '<div>' + (contHtml || '<span class="text-muted fst-italic small">container</span>') + '</div>' +
-              (currentPlanType() === 'tuyen_xa' ? '' :
+              (currentPlanType() === 'tuyen_xa'
+                ? '<div>' + (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '</div>' +
+                  '<div>' + (row.so_cont ? escHtml(row.so_cont) : '<span class="text-muted fst-italic small">số cont</span>') + '</div>' +
+                  '<div>' + (row.loai_hang ? escHtml(row.loai_hang) : '<span class="text-muted fst-italic small">loại hàng</span>') + '</div>'
+                : '<div>' + (contHtml || '<span class="text-muted fst-italic small">container</span>') + '</div>' +
                 '<div>' + (row.so_seal_tam ? escHtml(row.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') + '</div>' +
                 '<div>' + (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '</div>') +
             '</td>' +
@@ -1576,7 +1599,7 @@
             '<td class="khxh-kho-cell">' + escHtml(row.dia_chi_kho || '') + '</td>' +
             '<td class="text-nowrap">' +
               '<div class="khxh-hanh-trinh-cell">' +
-                (currentPlanType() === 'tuyen_xa' ? '<div class="khxh-hanh-trinh-box">' + (txRouteDisplay ? escHtml(txRouteDisplay) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div><small class="text-muted">Cont hiện tại: ' + escHtml(listCurrentJson.vi_tri_cont_hien_tai || baiLayDisplay || '—') + '</small>' : '<div class="khxh-hanh-trinh-box">' + (baiLayDisplay ? escHtml(baiLayDisplay) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + (baiHaDisplay ? escHtml(baiHaDisplay) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>') +
+                '<div class="khxh-hanh-trinh-box">' + (baiLayDisplay ? escHtml(baiLayDisplay) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + (baiHaDisplay ? escHtml(baiHaDisplay) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
               '</div>' +
             '</td>' +
             (currentPlanType() === 'tuyen_xa' ? '' : '<td class="khxh-cang-cell">' + escHtml(row.cang_xuat || '') + '</td><td class="khxh-date-cell">' + cutOffBadge(row.cut_off) + '</td>') +

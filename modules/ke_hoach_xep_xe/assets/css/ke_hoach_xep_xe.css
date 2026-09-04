@@ -12,17 +12,17 @@
   table-layout: fixed;
 }
 
-.khxh-list-table .khxh-col-actions { width: 35px; }
-.khxh-list-table .khxh-col-stt { width: 33px; }
-.khxh-list-table .khxh-col-date { width: 73px; }
+.khxh-list-table .khxh-col-actions { width: 30px; }
+.khxh-list-table .khxh-col-stt { width: 30px; }
+.khxh-list-table .khxh-col-date { width: 70px; }
 .khxh-list-table .khxh-col-common { width: 155px; }
 .khxh-list-table .khxh-col-bkg { width: 130px; }
-.khxh-list-table .khxh-col-kho { width: 120px; }
-.khxh-list-table .khxh-col-container { width: 160px; }
-.khxh-list-table .khxh-col-vehicle { width: 95px; }
-.khxh-list-table .khxh-col-route { width: 110px; }
-.khxh-list-table .khxh-col-cang { width: 110px; }
-.khxh-list-table .khxh-col-status { width: 110px; }
+.khxh-list-table .khxh-col-kho { width: 90px; }
+.khxh-list-table .khxh-col-container { width: 90px; }
+.khxh-list-table .khxh-col-vehicle { width: 90px; }
+.khxh-list-table .khxh-col-route { width: 90px; }
+.khxh-list-table .khxh-col-cang { width: 90px; }
+.khxh-list-table .khxh-col-status { width: 78px; }
 
 .khxh-list-table th {
   white-space: nowrap;
@@ -1539,6 +1539,14 @@ button.khxh-cont-ref-number:focus {
 
 .khxh-htvt-badge-wrap {
   display: block;
+}
+
+.khxh-return-cont-list {
+  display: inline-block;
+  margin-left: 0.35rem;
+  color: #475467;
+  font-size: 0.8rem;
+  vertical-align: middle;
 }
 
 .khxh-so-cont-value {
