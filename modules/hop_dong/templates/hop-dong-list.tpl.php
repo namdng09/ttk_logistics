@@ -1,13 +1,13 @@
 <div class="card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <h4 class="card-title">Danh sách hợp đồng</h4>
+    <h4 class="card-title"><?php print !empty($is_employee_contract) ? 'Danh sách hợp đồng nhân viên' : 'Danh sách hợp đồng'; ?></h4>
   </div>
 
   <div class="card-body">
     <div class="row mb-3 align-items-center">
       <div class="col-12 col-md-4 mb-2 mb-md-0">
         <div class="input-group">
-          <input type="text" class="form-control" id="search-hop-dong" placeholder="Tìm kiếm (Số hợp đồng, khách hàng)...">
+          <input type="text" class="form-control" id="search-hop-dong" placeholder="<?php print !empty($is_employee_contract) ? 'Tìm kiếm (Số hợp đồng, nhân viên)...' : 'Tìm kiếm (Số hợp đồng, khách hàng)...'; ?>">
           <button class="btn btn-primary" type="button" id="btn-search-hop-dong">
             <i class="ti tabler-search"></i> Tìm
           </button>
@@ -15,7 +15,7 @@
       </div>
       <div class="col-12 col-md-4 mb-2 mb-md-0">
         <select class="form-select" id="filter-khach-hang" style="width:100%">
-          <option value="">Tất cả khách hàng</option>
+          <option value=""><?php print !empty($is_employee_contract) ? 'Tất cả nhân viên' : 'Tất cả khách hàng'; ?></option>
         </select>
       </div>
       <div class="col-12 col-md-4">
@@ -31,7 +31,7 @@
     </div>
 
     <div class="table-responsive">
-      <table id="table-hop-dong" class="table table-bordered table-hover">
+      <table id="table-hop-dong" data-contract-type="<?php print !empty($is_employee_contract) ? 'nhan_vien' : 'khach_hang'; ?>" class="table table-bordered table-hover">
         <thead class="table-light">
           <tr>
             <th style="width:60px;text-align:center !important">CN</th>
@@ -39,14 +39,14 @@
             <th>Số hợp đồng</th>
             <th>Ngày hợp đồng</th>
             <th>Hạn hợp đồng</th>
-            <th>Khách hàng</th>
-            <th>NV Kinh doanh</th>
+            <th><?php print !empty($is_employee_contract) ? 'Nhân viên' : 'Khách hàng'; ?></th>
+            <?php if (empty($is_employee_contract)): ?><th>NV Kinh doanh</th><?php endif; ?>
             <th>Ghi chú</th>
           </tr>
         </thead>
         <tbody id="table-hop-dong-tbody">
           <tr id="loading-row">
-            <td colspan="8" class="text-center py-4">
+            <td colspan="<?php print !empty($is_employee_contract) ? 7 : 8; ?>" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -103,15 +103,15 @@
               <input type="text" class="form-control flatpickr-date date-mask" name="han_hop_dong" placeholder="dd/MM/yyyy">
             </div>
             <div class="col-md-12">
-              <label class="form-label">Khách hàng <span class="text-danger">*</span></label>
+              <label class="form-label"><?php print !empty($is_employee_contract) ? 'Nhân viên' : 'Khách hàng'; ?> <span class="text-danger">*</span></label>
               <select class="form-select select2-khach-hang" name="khach_hang" id="select-khach-hang" required>
-                <option value="">Chọn khách hàng</option>
+                <option value=""><?php print !empty($is_employee_contract) ? 'Chọn nhân viên' : 'Chọn khách hàng'; ?></option>
               </select>
             </div>
-            <div class="col-md-12" id="nv-kinh-doanh-section" style="display:none;">
+            <?php if (empty($is_employee_contract)): ?><div class="col-md-12" id="nv-kinh-doanh-section" style="display:none;">
               <label class="form-label">NV Kinh doanh</label>
               <div id="nv-kinh-doanh-display" class="form-control-plaintext"></div>
-            </div>
+            </div><?php endif; ?>
             <div class="col-md-12">
               <label class="form-label">Ghi chú</label>
               <input type="text" class="form-control" name="ghi_chu" placeholder="Ghi chú">

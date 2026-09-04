@@ -241,10 +241,16 @@ function getMainMenuSoft()
                     <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
                     </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'hop-dong') === 0) ? ' active' : '') . '">
+                    <li class="menu-item' . ((current_path() === 'hop-dong') ? ' active' : '') . '">
                         <a href="/hop-dong" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-file-text"></i>
-                            <div data-i18n="Hợp đồng">Hợp đồng</div>
+                            <div data-i18n="Hợp đồng khách hàng">Hợp đồng khách hàng</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((current_path() === 'hop-dong-nhan-vien') ? ' active' : '') . '">
+                        <a href="/hop-dong-nhan-vien" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-file-description"></i>
+                            <div data-i18n="Hợp đồng nhân viên">Hợp đồng nhân viên</div>
                         </a>
                     </li>
                     <!-- Hệ thống -->

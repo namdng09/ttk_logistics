@@ -22,7 +22,7 @@ function hop_dong_permission() {
  */
 function hop_dong_init() {
   $path = current_path();
-  if (strpos($path, 'api/hop-dong') === 0) {
+  if (strpos($path, 'api/hop-dong') === 0 || strpos($path, 'api/hop-dong-nhan-vien') === 0) {
     drupal_add_http_header('Access-Control-Allow-Origin', '*');
     drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
@@ -52,10 +52,28 @@ function hop_dong_menu() {
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
+  $items['api/hop-dong-nhan-vien'] = array(
+    'page callback' => 'hop_dong_nhan_vien_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/hop-dong-nhan-vien/%'] = array(
+    'page callback' => 'hop_dong_nhan_vien_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
 
   $items['hop-dong'] = array(
     'title' => 'Danh sách hợp đồng',
     'page callback' => 'hop_dong_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['hop-dong-nhan-vien'] = array(
+    'title' => 'Hợp đồng nhân viên',
+    'page callback' => 'hop_dong_nhan_vien_page_list',
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
   );
@@ -72,6 +90,7 @@ function hop_dong_theme() {
     'hop_dong_list_page' => array(
       'template' => 'hop-dong-list',
       'path' => $path,
+      'variables' => array('is_employee_contract' => FALSE),
     ),
   );
 }
@@ -127,6 +146,7 @@ function _hop_dong_check_unique_so($value, $exclude_nid = NULL) {
   $query = db_select('hop_dong', 'hd');
   $query->fields('hd', array('nid', 'hoat_dong'));
   $query->condition('hd.so_hop_dong', $value);
+  $query->condition('hd.loai_doi_tuong', 'khach_hang');
   if ($exclude_nid !== NULL) {
     $query->condition('hd.nid', $exclude_nid, '<>');
   }
@@ -134,6 +154,29 @@ function _hop_dong_check_unique_so($value, $exclude_nid = NULL) {
   $exists = $query->execute()->fetchObject();
   if ($exists && $exists->hoat_dong) {
     return _hop_dong_fail('Số hợp đồng "' . $value . '" đã tồn tại');
+  }
+  return NULL;
+}
+
+/** Load the employee reference used by an employee contract. */
+function _hop_dong_load_nhan_vien($uid) {
+  $uid = (int) $uid;
+  if (!$uid) return NULL;
+  // Employee records are stored in Drupal's users table; this installation
+  // does not have an `sdt` column on that table.
+  $row = db_query("SELECT uid, name, ten, ma_nhan_vien, mail FROM {users} WHERE uid = :uid AND status = 1", array(':uid' => $uid))->fetch();
+  if (!$row) return NULL;
+  return array(
+    'uid' => (int) $row->uid,
+    'ten' => !empty($row->ten) ? $row->ten : $row->name,
+    'ma_nhan_vien' => !empty($row->ma_nhan_vien) ? $row->ma_nhan_vien : '',
+    'mail' => !empty($row->mail) ? $row->mail : '',
+  );
+}
+
+function _hop_dong_validate_nhan_vien($uid) {
+  if (!(int) $uid || !_hop_dong_load_nhan_vien($uid)) {
+    return _hop_dong_fail('Nhân viên không hợp lệ hoặc đã ngừng hoạt động');
   }
   return NULL;
 }
@@ -200,7 +243,7 @@ function _hop_dong_decode_files($hd) {
  * $with_files = TRUE only for GET detail (not list).
  */
 function _hop_dong_load_row($nid, $with_files = FALSE) {
-  $hd = db_query("SELECT * FROM {hop_dong} WHERE nid = :nid", array(':nid' => $nid))->fetch();
+  $hd = db_query("SELECT * FROM {hop_dong} WHERE nid = :nid AND loai_doi_tuong = :type", array(':nid' => $nid, ':type' => 'khach_hang'))->fetch();
   if (!$hd) return NULL;
 
   $kh_data = NULL;
@@ -405,6 +448,7 @@ function _hop_dong_rest_list() {
   $query = db_select('hop_dong', 'hd');
   $query->fields('hd');
   $query->condition('hd.hoat_dong', 1);
+  $query->condition('hd.loai_doi_tuong', 'khach_hang');
 
   if (!empty($_GET['khach_hang'])) {
     $query->condition('hd.khach_hang', (int) $_GET['khach_hang']);
@@ -669,10 +713,122 @@ function _hop_dong_rest_file_delete($id, $file_id) {
 }
 
 /*******************************************************************************
+ * EMPLOYEE CONTRACT API — /api/hop-dong-nhan-vien
+ * Uses the same contract table but is isolated by loai_doi_tuong = nhan_vien.
+ ******************************************************************************/
+
+function _hop_dong_nhan_vien_load_row($id, $with_files = FALSE) {
+  $hd = db_query("SELECT * FROM {hop_dong} WHERE nid = :nid AND loai_doi_tuong = :type", array(':nid' => (int) $id, ':type' => 'nhan_vien'))->fetch();
+  if (!$hd) return NULL;
+  $row = array(
+    'nid' => (int) $hd->nid,
+    'so_hop_dong' => $hd->so_hop_dong,
+    'ngay_hop_dong' => !empty($hd->ngay_hop_dong) ? $hd->ngay_hop_dong : '',
+    'han_hop_dong' => !empty($hd->han_hop_dong) ? $hd->han_hop_dong : '',
+    'nhan_vien' => _hop_dong_load_nhan_vien($hd->nhan_vien),
+    'ghi_chu' => !empty($hd->ghi_chu) ? $hd->ghi_chu : '',
+    'hoat_dong' => (int) $hd->hoat_dong,
+  );
+  if ($with_files) $row['files'] = _hop_dong_decode_files($hd);
+  return $row;
+}
+
+function _hop_dong_nhan_vien_check_unique_so($value, $exclude_nid = NULL) {
+  $query = db_select('hop_dong', 'hd')->fields('hd', array('nid'))
+    ->condition('so_hop_dong', trim($value))->condition('loai_doi_tuong', 'nhan_vien')->condition('hoat_dong', 1);
+  if ($exclude_nid !== NULL) $query->condition('nid', (int) $exclude_nid, '<>');
+  if ($query->range(0, 1)->execute()->fetchField()) return _hop_dong_fail('Số hợp đồng "' . trim($value) . '" đã tồn tại');
+  return NULL;
+}
+
+function hop_dong_nhan_vien_rest_collection() {
+  if ($_SERVER['REQUEST_METHOD'] === 'GET') return _hop_dong_nhan_vien_rest_list();
+  if ($_SERVER['REQUEST_METHOD'] === 'POST') return _hop_dong_nhan_vien_rest_create();
+  return _hop_dong_method_not_allowed('GET, POST');
+}
+
+function _hop_dong_nhan_vien_rest_list() {
+  if (!user_access('hop_dong_view')) return _hop_dong_unauthorized('Bạn không có quyền xem hợp đồng');
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $query = db_select('hop_dong', 'hd')->fields('hd')->condition('hd.hoat_dong', 1)->condition('hd.loai_doi_tuong', 'nhan_vien');
+  if (!empty($_GET['nhan_vien'])) $query->condition('hd.nhan_vien', (int) $_GET['nhan_vien']);
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like($_GET['keyword']) . '%';
+    $or = db_or()->condition('hd.so_hop_dong', $like, 'LIKE');
+    $uids = db_select('users', 'u')->fields('u', array('uid'))->condition('u.status', 1)
+      ->condition(db_or()->condition('u.ten', $like, 'LIKE')->condition('u.name', $like, 'LIKE')->condition('u.ma_nhan_vien', $like, 'LIKE'))
+      ->execute()->fetchCol();
+    if ($uids) $or->condition('hd.nhan_vien', $uids, 'IN');
+    $query->condition($or);
+  }
+  $total = (clone $query)->countQuery()->execute()->fetchField();
+  $query->orderBy('hd.nid', 'DESC')->range(($page - 1) * $limit, $limit);
+  $items = array();
+  foreach ($query->execute() as $row) $items[] = _hop_dong_nhan_vien_load_row($row->nid);
+  $pages = (int) ceil($total / $limit);
+  return _hop_dong_success(array('items' => $items, 'total' => (int) $total, 'current_page' => $pages ? $page : 0, 'total_pages' => $pages, 'limit' => $limit));
+}
+
+function _hop_dong_nhan_vien_rest_create() {
+  if (!user_access('hop_dong_create')) return _hop_dong_unauthorized('Bạn không có quyền tạo hợp đồng');
+  $input = _hop_dong_input();
+  if (empty($input['so_hop_dong'])) return _hop_dong_fail('Số hợp đồng bắt buộc');
+  if (empty($input['nhan_vien'])) return _hop_dong_fail('Vui lòng chọn nhân viên');
+  if ($error = _hop_dong_validate_nhan_vien($input['nhan_vien'])) return $error;
+  if ($error = _hop_dong_nhan_vien_check_unique_so($input['so_hop_dong'])) return $error;
+  try {
+    $id = db_insert('hop_dong')->fields(array(
+      'so_hop_dong' => trim($input['so_hop_dong']), 'nhan_vien' => (int) $input['nhan_vien'], 'loai_doi_tuong' => 'nhan_vien',
+      'ngay_hop_dong' => !empty($input['ngay_hop_dong']) ? $input['ngay_hop_dong'] : NULL,
+      'han_hop_dong' => !empty($input['han_hop_dong']) ? $input['han_hop_dong'] : NULL,
+      'ghi_chu' => !empty($input['ghi_chu']) ? $input['ghi_chu'] : NULL, 'hoat_dong' => 1,
+      'created' => date('Y-m-d H:i:s', REQUEST_TIME), 'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
+    ))->execute();
+    return _hop_dong_success(_hop_dong_nhan_vien_load_row($id));
+  } catch (Exception $e) { watchdog('hop_dong', 'Lỗi tạo hợp đồng nhân viên: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR); return _hop_dong_error('Lỗi hệ thống khi tạo hợp đồng'); }
+}
+
+function hop_dong_nhan_vien_rest_item($id) {
+  $id = (int) $id;
+  if (!$id) { drupal_json_output(_hop_dong_fail('ID không hợp lệ')); return; }
+  if (arg(3) === 'file') {
+    $result = $_SERVER['REQUEST_METHOD'] === 'POST' && !arg(4) ? _hop_dong_nhan_vien_file_upload($id) : ($_SERVER['REQUEST_METHOD'] === 'DELETE' && arg(4) ? _hop_dong_nhan_vien_file_delete($id, arg(4)) : _hop_dong_method_not_allowed('POST, DELETE'));
+    drupal_json_output($result); return;
+  }
+  $result = $_SERVER['REQUEST_METHOD'] === 'GET' ? _hop_dong_nhan_vien_rest_get($id) : ($_SERVER['REQUEST_METHOD'] === 'PUT' ? _hop_dong_nhan_vien_rest_update($id) : ($_SERVER['REQUEST_METHOD'] === 'DELETE' ? _hop_dong_nhan_vien_rest_delete($id) : _hop_dong_method_not_allowed('GET, PUT, DELETE')));
+  drupal_json_output($result);
+}
+
+function _hop_dong_nhan_vien_exists($id) { return (bool) db_query("SELECT nid FROM {hop_dong} WHERE nid = :id AND hoat_dong = 1 AND loai_doi_tuong = 'nhan_vien'", array(':id' => (int) $id))->fetchField(); }
+function _hop_dong_nhan_vien_rest_get($id) { if (!user_access('hop_dong_view')) return _hop_dong_unauthorized('Bạn không có quyền xem hợp đồng'); $row = _hop_dong_nhan_vien_load_row($id, TRUE); return $row ? _hop_dong_success($row) : _hop_dong_not_found('Hợp đồng không tồn tại'); }
+function _hop_dong_nhan_vien_rest_update($id) {
+  if (!user_access('hop_dong_create')) return _hop_dong_unauthorized('Bạn không có quyền sửa hợp đồng');
+  if (!_hop_dong_nhan_vien_exists($id)) return _hop_dong_not_found('Hợp đồng không tồn tại');
+  $input = _hop_dong_input(); if (empty($input['so_hop_dong'])) return _hop_dong_fail('Số hợp đồng bắt buộc');
+  if ($error = _hop_dong_nhan_vien_check_unique_so($input['so_hop_dong'], $id)) return $error;
+  $fields = array('so_hop_dong' => trim($input['so_hop_dong']), 'changed' => date('Y-m-d H:i:s', REQUEST_TIME));
+  foreach (array('ngay_hop_dong', 'han_hop_dong', 'ghi_chu') as $field) if (array_key_exists($field, $input)) $fields[$field] = !empty($input[$field]) ? $input[$field] : NULL;
+  if (array_key_exists('nhan_vien', $input)) { if ($error = _hop_dong_validate_nhan_vien($input['nhan_vien'])) return $error; $fields['nhan_vien'] = (int) $input['nhan_vien']; }
+  db_update('hop_dong')->fields($fields)->condition('nid', $id)->execute(); return _hop_dong_success(_hop_dong_nhan_vien_load_row($id, TRUE));
+}
+function _hop_dong_nhan_vien_rest_delete($id) { if (!user_access('hop_dong_delete')) return _hop_dong_unauthorized('Bạn không có quyền xoá hợp đồng'); if (!_hop_dong_nhan_vien_exists($id)) return _hop_dong_not_found('Hợp đồng không tồn tại'); db_update('hop_dong')->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))->condition('nid', $id)->execute(); return _hop_dong_success(array('nid' => (int) $id, 'deleted' => TRUE)); }
+function _hop_dong_nhan_vien_file_upload($id) { if (!user_access('hop_dong_create')) return _hop_dong_unauthorized('Bạn không có quyền tải file lên'); if (!_hop_dong_nhan_vien_exists($id)) return _hop_dong_not_found('Hợp đồng không tồn tại'); $result = _hop_dong_save_file($id); return isset($result['status']) && $result['status'] !== 'success' ? $result : _hop_dong_success($result); }
+function _hop_dong_nhan_vien_file_delete($id, $file_id) { if (!user_access('hop_dong_create')) return _hop_dong_unauthorized('Bạn không có quyền xoá file'); if (!_hop_dong_nhan_vien_exists($id)) return _hop_dong_not_found('Hợp đồng không tồn tại'); $result = _hop_dong_delete_file($id, $file_id); return $result === TRUE ? _hop_dong_success(array('deleted' => TRUE)) : $result; }
+
+/*******************************************************************************
  * UI PAGE CALLBACKS
  ******************************************************************************/
 
 function hop_dong_page_list() {
+  return _hop_dong_page_list(FALSE);
+}
+
+function hop_dong_nhan_vien_page_list() {
+  return _hop_dong_page_list(TRUE);
+}
+
+function _hop_dong_page_list($is_employee) {
   drupal_add_css(drupal_get_path('module', 'hop_dong') . '/assets/css/hop_dong.css');
   drupal_add_js(drupal_get_path('module', 'hop_dong') . '/assets/js/hop_dong.js');
 
@@ -682,7 +838,9 @@ function hop_dong_page_list() {
       'hop_dong_create' => user_access('hop_dong_create'),
       'hop_dong_delete' => user_access('hop_dong_delete'),
     ),
+    'is_employee_contract' => (bool) $is_employee,
+    'api_base' => $is_employee ? '/api/hop-dong-nhan-vien' : '/api/hop-dong',
   )), 'setting');
 
-  return theme('hop_dong_list_page');
+  return theme('hop_dong_list_page', array('is_employee_contract' => (bool) $is_employee));
 }
