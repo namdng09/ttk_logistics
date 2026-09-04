@@ -358,11 +358,14 @@
     }
 
     if (data.loai_phuong_tien === 'dau_keo') {
+      data.so_khung = data.so_khung_dau_keo || '';
       data.loai_mooc = '';
       data.so_truc = '';
       data.chieu_dai_mooc = '';
     } else if (data.loai_phuong_tien === 'mooc') {
+      data.so_khung = data.so_khung_mooc || '';
       data.so_cau = '';
+      data.so_may = '';
     }
     data.so_cau = numericOnly(data.so_cau);
     data.so_truc = numericOnly(data.so_truc);
@@ -562,13 +565,19 @@
         setFieldValue('loai_mooc', '');
         setFieldValue('so_truc', '');
         setFieldValue('chieu_dai_mooc', '');
+        setFieldValue('so_khung_mooc', '');
       } else if (type === 'mooc') {
         setFieldValue('so_cau', '');
+        setFieldValue('so_khung_dau_keo', '');
+        setFieldValue('so_may', '');
       } else {
         setFieldValue('so_cau', '');
         setFieldValue('loai_mooc', '');
         setFieldValue('so_truc', '');
         setFieldValue('chieu_dai_mooc', '');
+        setFieldValue('so_khung_dau_keo', '');
+        setFieldValue('so_khung_mooc', '');
+        setFieldValue('so_may', '');
       }
     }
   }
@@ -754,21 +763,27 @@
     document.querySelector('#form-phuong-tien input[name="hang_xe"]').value = d.hang_xe || '';
     document.querySelector('#form-phuong-tien input[name="mau_sac"]').value = d.mau_sac || '';
     document.querySelector('#form-phuong-tien input[name="nam_san_xuat"]').value = d.nam_san_xuat || '';
+    document.querySelector('#form-phuong-tien input[name="nuoc_san_xuat"]').value = d.nuoc_san_xuat || '';
     document.querySelector('#form-phuong-tien input[name="tai_trong"]').value = d.tai_trong ? formatMoney(d.tai_trong) : '';
     document.querySelector('#form-phuong-tien input[name="tu_trong"]').value = d.tu_trong ? formatMoney(d.tu_trong) : '';
     document.querySelector('#form-phuong-tien input[name="so_cau"]').value = d.so_cau || '';
+    document.querySelector('#form-phuong-tien input[name="so_khung_dau_keo"]').value = d.loai_phuong_tien === 'dau_keo' ? (d.so_khung || '') : '';
+    document.querySelector('#form-phuong-tien input[name="so_may"]').value = d.loai_phuong_tien === 'dau_keo' ? (d.so_may || '') : '';
     document.querySelector('#form-phuong-tien select[name="loai_mooc"]').value = d.loai_mooc || '';
     document.querySelector('#form-phuong-tien input[name="so_truc"]').value = d.so_truc || '';
+    document.querySelector('#form-phuong-tien input[name="so_khung_mooc"]').value = d.loai_phuong_tien === 'mooc' ? (d.so_khung || '') : '';
     document.querySelector('#form-phuong-tien input[name="chieu_dai_mooc"]').value = d.chieu_dai_mooc || '';
     document.querySelector('#form-phuong-tien input[name="gia_mua"]').value = d.gia_mua ? formatMoney(d.gia_mua) : '';
     document.querySelector('#form-phuong-tien input[name="ngay_mua"]').value = d.ngay_mua || '';
     document.querySelector('#form-phuong-tien input[name="so_dang_kiem"]').value = d.so_dang_kiem || '';
+    document.querySelector('#form-phuong-tien input[name="ngay_dang_kiem"]').value = d.ngay_dang_kiem || '';
     document.querySelector('#form-phuong-tien input[name="han_dang_kiem"]').value = d.han_dang_kiem || '';
+    document.querySelector('#form-phuong-tien input[name="nien_han_su_dung"]').value = d.nien_han_su_dung || '';
     document.querySelector('#form-phuong-tien input[name="so_bao_hiem_than_vo"]').value = d.so_bao_hiem_than_vo || '';
     document.querySelector('#form-phuong-tien input[name="han_bao_hiem_than_vo"]').value = d.han_bao_hiem_than_vo || '';
     document.querySelector('#form-phuong-tien input[name="so_bao_hiem_tnds"]').value = d.so_bao_hiem_tnds || '';
     document.querySelector('#form-phuong-tien input[name="han_bao_hiem_tnds"]').value = d.han_bao_hiem_tnds || '';
-    document.querySelector('#form-phuong-tien input[name="ngay_phu_hieu"]').value = d.ngay_phu_hieu || '';
+    document.querySelector('#form-phuong-tien input[name="so_phu_hieu"]').value = d.so_phu_hieu || '';
     document.querySelector('#form-phuong-tien input[name="han_phu_hieu"]').value = d.han_phu_hieu || '';
     document.querySelector('#form-phuong-tien input[name="so_giay_phep_lien_van"]').value = d.so_giay_phep_lien_van || '';
     document.querySelector('#form-phuong-tien input[name="han_giay_phep_lien_van"]').value = d.han_giay_phep_lien_van || '';

@@ -108,3 +108,35 @@
   font-size: 4rem;
   color: #697a8d;
 }
+
+/* Giấy tờ và thời hạn: nhóm theo cột để đọc nhanh từng bộ chứng từ. */
+.phuong-tien-documents-grid {
+  margin-top: 0;
+}
+
+.phuong-tien-documents-column {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.phuong-tien-documents-block {
+  padding: .85rem;
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.phuong-tien-documents-block + .phuong-tien-documents-block {
+  margin-top: 1rem;
+}
+
+.phuong-tien-documents-block > div + div {
+  margin-top: .75rem;
+}
+
+.phuong-tien-documents-block .form-label {
+  font-size: .82rem;
+  margin-bottom: .25rem;
+}

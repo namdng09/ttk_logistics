@@ -221,8 +221,14 @@ function _phuong_tien_ensure_extended_fields() {
     'loai_mooc' => array('type' => 'varchar', 'length' => 50, 'not null' => FALSE),
     'so_truc' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE),
     'chieu_dai_mooc' => array('type' => 'varchar', 'length' => 20, 'not null' => FALSE),
+    'nuoc_san_xuat' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+    'so_khung' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+    'so_may' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
     'so_giay_phep_lien_van' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
     'han_giay_phep_lien_van' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+    'ngay_dang_kiem' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+    'nien_han_su_dung' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE),
+    'so_phu_hieu' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
   );
   foreach ($fields as $field => $spec) {
     if (!db_field_exists('phuong_tien', $field)) {
@@ -535,6 +541,9 @@ function _phuong_tien_rest_create() {
         'hang_xe' => isset($input['hang_xe']) ? $input['hang_xe'] : '',
         'mau_sac' => isset($input['mau_sac']) ? $input['mau_sac'] : '',
         'nam_san_xuat' => isset($input['nam_san_xuat']) && $input['nam_san_xuat'] !== '' ? (int) $input['nam_san_xuat'] : NULL,
+        'nuoc_san_xuat' => isset($input['nuoc_san_xuat']) ? $input['nuoc_san_xuat'] : '',
+        'so_khung' => isset($input['so_khung']) ? $input['so_khung'] : '',
+        'so_may' => isset($input['so_may']) ? $input['so_may'] : '',
         'tai_trong' => isset($input['tai_trong']) && $input['tai_trong'] !== '' ? $input['tai_trong'] : NULL,
         'tu_trong' => isset($input['tu_trong']) && $input['tu_trong'] !== '' ? $input['tu_trong'] : NULL,
         'so_cau' => isset($input['so_cau']) && $input['so_cau'] !== '' ? (int) $input['so_cau'] : NULL,
@@ -544,6 +553,9 @@ function _phuong_tien_rest_create() {
         'gia_mua' => isset($input['gia_mua']) && $input['gia_mua'] !== '' ? $input['gia_mua'] : NULL,
         'ngay_mua' => isset($input['ngay_mua']) ? $input['ngay_mua'] : '',
         'so_dang_kiem' => isset($input['so_dang_kiem']) ? $input['so_dang_kiem'] : '',
+        'ngay_dang_kiem' => isset($input['ngay_dang_kiem']) ? $input['ngay_dang_kiem'] : '',
+        'nien_han_su_dung' => isset($input['nien_han_su_dung']) && $input['nien_han_su_dung'] !== '' ? (int) $input['nien_han_su_dung'] : NULL,
+        'so_phu_hieu' => isset($input['so_phu_hieu']) ? $input['so_phu_hieu'] : '',
         'han_dang_kiem' => isset($input['han_dang_kiem']) ? $input['han_dang_kiem'] : '',
         'so_bao_hiem_than_vo' => isset($input['so_bao_hiem_than_vo']) ? $input['so_bao_hiem_than_vo'] : '',
         'han_bao_hiem_than_vo' => isset($input['han_bao_hiem_than_vo']) ? $input['han_bao_hiem_than_vo'] : '',
@@ -674,14 +686,14 @@ function _phuong_tien_rest_update($id) {
   }
 
   $fields = array(
-    'bks', 'ma_tai_san', 'loai_phuong_tien', 'hang_xe', 'nam_san_xuat',
+    'bks', 'ma_tai_san', 'loai_phuong_tien', 'hang_xe', 'nam_san_xuat', 'nuoc_san_xuat', 'so_khung', 'so_may',
     'mau_sac', 'tai_trong', 'tu_trong', 'so_cau', 'loai_mooc', 'so_truc',
     'chieu_dai_mooc', 'gia_mua', 'ngay_mua', 'so_dang_kiem', 'han_dang_kiem',
     'so_bao_hiem_than_vo', 'han_bao_hiem_than_vo', 'so_bao_hiem_tnds',
-    'han_bao_hiem_tnds', 'ngay_phu_hieu', 'han_phu_hieu',
+    'han_bao_hiem_tnds', 'ngay_phu_hieu', 'so_phu_hieu', 'han_phu_hieu', 'ngay_dang_kiem', 'nien_han_su_dung',
     'so_giay_phep_lien_van', 'han_giay_phep_lien_van', 'hoat_dong',
   );
-  $nullable = array('ma_tai_san', 'nam_san_xuat', 'gia_mua', 'tai_trong', 'tu_trong', 'so_cau', 'so_truc');
+  $nullable = array('ma_tai_san', 'nam_san_xuat', 'gia_mua', 'tai_trong', 'tu_trong', 'so_cau', 'so_truc', 'nien_han_su_dung');
 
   $update = array('changed' => date('Y-m-d H:i:s', REQUEST_TIME));
   foreach ($fields as $f) {

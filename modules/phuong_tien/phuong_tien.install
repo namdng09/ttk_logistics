@@ -39,6 +39,9 @@ function phuong_tien_schema() {
         'unsigned' => TRUE,
         'not null' => FALSE,
       ),
+      'nuoc_san_xuat' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+      'so_khung' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+      'so_may' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
       'tai_trong' => array(
         'type' => 'numeric',
         'precision' => 12,
@@ -87,6 +90,9 @@ function phuong_tien_schema() {
         'length' => 50,
         'not null' => FALSE,
       ),
+      'ngay_dang_kiem' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+      'nien_han_su_dung' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE),
+      'so_phu_hieu' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
       'han_dang_kiem' => array(
         'type' => 'varchar',
         'length' => 10,
@@ -210,5 +216,25 @@ function phuong_tien_update_7006() {
     if (!db_field_exists('phuong_tien', $field)) {
       db_add_field('phuong_tien', $field, $spec);
     }
+  }
+}
+
+function phuong_tien_update_7007() {
+  foreach (array(
+    'nuoc_san_xuat' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+    'so_khung' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+    'so_may' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+  ) as $field => $spec) {
+    if (!db_field_exists('phuong_tien', $field)) db_add_field('phuong_tien', $field, $spec);
+  }
+}
+
+function phuong_tien_update_7008() {
+  foreach (array(
+    'ngay_dang_kiem' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+    'nien_han_su_dung' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE),
+    'so_phu_hieu' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+  ) as $field => $spec) {
+    if (!db_field_exists('phuong_tien', $field)) db_add_field('phuong_tien', $field, $spec);
   }
 }
