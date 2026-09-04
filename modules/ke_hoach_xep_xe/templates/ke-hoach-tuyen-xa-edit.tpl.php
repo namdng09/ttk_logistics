@@ -50,9 +50,10 @@
                 <label class="form-label">Mốc nghiệp vụ</label>
                 <select class="form-select form-select-sm" id="khxh-plan-file-group">
                   <option value="lay_cont_rong">1. Nhận cont rỗng</option>
-                  <option value="giao_cont_rong_cho_kho">2. Giao cont rỗng</option>
-                  <option value="nhan_cont_hang_tu_kho">3. Nhận cont hàng</option>
-                  <option value="ha_cont">4. Hạ cont hàng</option>
+                  <option value="tang_bo">2. Tăng bo</option>
+                  <option value="giao_cont_rong_cho_kho">3. Giao cont rỗng</option>
+                  <option value="nhan_cont_hang_tu_kho">4. Nhận cont hàng</option>
+                  <option value="ha_cont">5. Hạ cont hàng</option>
                 </select>
               </div>
               <div class="col-12 col-lg-5">

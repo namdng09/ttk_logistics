@@ -383,6 +383,7 @@ function _ke_hoach_xep_xe_plan_role($item) {
 function _ke_hoach_xep_xe_file_groups() {
   return array(
     'lay_cont_rong' => 'Nhận cont rỗng',
+    'tang_bo' => 'Tăng bo',
     'giao_cont_rong_cho_kho' => 'Giao cont rỗng',
     'nhan_cont_hang_tu_kho' => 'Nhận cont hàng',
     'ha_cont' => 'Hạ cont hàng',

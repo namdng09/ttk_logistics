@@ -85,9 +85,10 @@
   };
   var PLAN_FILE_GROUPS = {
     lay_cont_rong: '1. Nhận cont rỗng',
-    giao_cont_rong_cho_kho: '2. Giao cont rỗng',
-    nhan_cont_hang_tu_kho: '3. Nhận cont hàng',
-    ha_cont: '4. Hạ cont hàng'
+    tang_bo: '2. Tăng bo',
+    giao_cont_rong_cho_kho: '3. Giao cont rỗng',
+    nhan_cont_hang_tu_kho: '4. Nhận cont hàng',
+    ha_cont: '5. Hạ cont hàng'
   };
   var PLAN_FILE_GROUP_ORDER = ['lay_cont_rong', 'giao_cont_rong_cho_kho', 'nhan_cont_hang_tu_kho', 'ha_cont'];
   var planFilePreviewMap = {};
@@ -249,19 +250,21 @@
     modal.show();
   }
 
-  function renderPlanFilesHtml(files, editable) {
+  function renderPlanFilesHtml(files, editable, includeTangBo) {
     files = files || [];
+    var groups = PLAN_FILE_GROUP_ORDER.slice();
+    if (includeTangBo !== false) groups.splice(1, 0, 'tang_bo');
     planFilePreviewMap = {};
     var byGroup = {};
-    for (var i = 0; i < PLAN_FILE_GROUP_ORDER.length; i++) byGroup[PLAN_FILE_GROUP_ORDER[i]] = [];
+    for (var i = 0; i < groups.length; i++) byGroup[groups[i]] = [];
     for (var j = 0; j < files.length; j++) {
       var group = files[j].nhom || 'lay_cont_rong';
       if (!byGroup[group]) byGroup[group] = [];
       byGroup[group].push(files[j]);
     }
     var html = '';
-    for (var g = 0; g < PLAN_FILE_GROUP_ORDER.length; g++) {
-      var key = PLAN_FILE_GROUP_ORDER[g];
+    for (var g = 0; g < groups.length; g++) {
+      var key = groups[g];
       var groupFiles = byGroup[key] || [];
       html += '<div class="khxh-plan-file-group" data-group="' + escHtml(key) + '">' +
         '<div class="khxh-plan-file-group-title">' +
@@ -2191,7 +2194,10 @@
       var moocName = moocSummaryText(line);
       var contText = [line.loai_cont || '', line.so_cont || ''].filter(Boolean).join(' - ');
       var sourceContText = line.cont_ref ? [line.cont_ref.loai_cont || '', line.cont_ref.so_cont || ''].filter(Boolean).join(' - ') : '';
-      var routeText = [line.bai_lay_thuc_te || line.bai_lay_cont || '', line.bai_ha_tam_1_enabled ? line.bai_ha_tam_1 : '', line.dia_chi_kho || '', line.bai_ha_tam_2_enabled ? line.bai_ha_tam_2 : '', line.bai_ha_thuc_te || line.bai_ha_cont || ''].filter(Boolean).join(' - ');
+      var routePoints = [line.bai_lay_thuc_te || line.bai_lay_cont || ''];
+      if (optionEnabled(lineTangBo(line).enabled) && lineTangBo(line).dia_chi) routePoints.push(lineTangBo(line).dia_chi);
+      routePoints.push(line.bai_ha_tam_1_enabled ? line.bai_ha_tam_1 : '', line.dia_chi_kho || '', line.bai_ha_tam_2_enabled ? line.bai_ha_tam_2 : '', line.bai_ha_thuc_te || line.bai_ha_cont || '');
+      var routeText = routePoints.filter(Boolean).join(' - ');
       var dateText = [apiToDate(line.ngay_bat_dau || ''), apiToDate(line.ngay_ket_thuc || '')].filter(Boolean).join(' - ');
       var filesCount = planFilesFromRow(editData).length;
       var tangBo = lineTangBo(line);
@@ -2208,7 +2214,6 @@
       $form('#khxh-tuyen-xa-summary').html(
         summaryRow('Khách hàng', customerName, '') +
         summaryRow('Container', contText, line.loai_hang || '') +
-        summaryRow('Tuyến', routeText, '') +
         summaryRow('Phương tiện', vehicleName, '') +
         summaryRow('Mooc', moocName, '') +
         summaryRow('Lái xe', driverName, '') +
@@ -3956,6 +3961,7 @@
       });
       $form('#nid_khach_hang-input').val(khachHangId).trigger('change');
       if ($form('#so_bkg-input').length) $form('#so_bkg-input').val(row.so_bkg || '');
+      renderEditPlanFiles(planFilesFromRow(row));
     }
 
     function planFileApiBase() {
@@ -3965,13 +3971,18 @@
     function renderEditPlanFiles(files) {
       files = files || [];
       var isFull = files.length >= MAX_PLAN_FILES;
+      var line = state.lines[0] || null;
+      var tangBoEnabled = currentPlanType() === 'tuyen_xa' && line && optionEnabled(lineTangBo(line).enabled);
+      var $groupSelect = $form('#khxh-plan-file-group');
+      $groupSelect.find('option[value="tang_bo"]').prop('disabled', !tangBoEnabled).toggleClass('d-none', !tangBoEnabled);
+      if (!tangBoEnabled && $groupSelect.val() === 'tang_bo') $groupSelect.val('lay_cont_rong');
       $form('#khxh-plan-files-count')
         .text(files.length + '/' + MAX_PLAN_FILES + ' file')
         .toggleClass('bg-label-danger', isFull)
         .toggleClass('bg-label-secondary', !isFull);
       $form('#khxh-plan-file-input').prop('disabled', isFull);
       $form('#khxh-plan-file-upload').prop('disabled', isFull);
-      $form('#khxh-plan-files-body').html(renderPlanFilesHtml(files, true));
+      $form('#khxh-plan-files-body').html(renderPlanFilesHtml(files, true, tangBoEnabled));
       if (editData) {
         editData.hinh_anh_chung_tu = files;
         editData.thong_tin_json = editData.thong_tin_json || {};
@@ -4002,11 +4013,17 @@
         if (notyf) notyf.error('Kế hoạch này chỉ được lưu tối đa ' + MAX_PLAN_FILES + ' file chứng từ. Hiện có ' + currentCount + ' file, bạn chỉ có thể upload thêm ' + (MAX_PLAN_FILES - currentCount) + ' file');
         return;
       }
+      var selectedGroup = $form('#khxh-plan-file-group').val() || 'lay_cont_rong';
+      var firstLine = state.lines[0] || null;
+      if (selectedGroup === 'tang_bo' && (!firstLine || !optionEnabled(lineTangBo(firstLine).enabled))) {
+        if (notyf) notyf.error('Chỉ upload chứng từ Tăng bo khi kế hoạch đã bật Tăng bo');
+        return;
+      }
       var formData = new FormData();
       for (var i = 0; i < files.length; i++) {
         formData.append('plan_files[]', files[i], files[i].name || ('file_' + i));
       }
-      formData.append('nhom', $form('#khxh-plan-file-group').val() || 'lay_cont_rong');
+      formData.append('nhom', selectedGroup);
 
       var $btn = $form('#khxh-plan-file-upload');
       $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang upload');
@@ -4253,9 +4270,12 @@
       refreshTuyenXaRouteDerivedUi($card, line, oldPointKey);
     });
     $(document).on('change', '.line-tang-bo-toggle', function () {
-      var $wrap = $(this).closest('.ke-hoach-line-card').find('.khxh-tang-bo-wrap');
+      var $card = $(this).closest('.ke-hoach-line-card');
+      var $wrap = $card.find('.khxh-tang-bo-wrap');
       $wrap.toggleClass('d-none', !this.checked);
       $wrap.find('.khxh-tang-bo-section').toggleClass('d-none', !this.checked);
+      syncLine($card);
+      renderEditPlanFiles(planFilesFromRow(editData));
       updateTuyenXaSidebar();
     });
     $(document).on('change', '.line-ket-hop-toggle', function () {
