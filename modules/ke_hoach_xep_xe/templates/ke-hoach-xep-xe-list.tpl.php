@@ -492,6 +492,7 @@ $create_button_text = $is_tuyen_xa ? 'Thêm kế hoạch tuyến xa' : 'Tạo k�
 	                    <th style="width: 12%"><?php print $is_tuyen_xa ? 'Khách hàng' : 'Khách hàng / BKG'; ?> <span class="text-danger">*</span></th>
 	                    <th style="width: 8%">Phương tiện</th>
 	                    <th style="width: 8%"><span class="th-split-label">Container</span></th>
+	                    <?php if ($is_tuyen_xa): ?><th style="width: 10%"><span class="th-split-label">Kế hoạch nguồn</span></th><?php endif; ?>
 	                    <th style="width: 10%"><span class="th-split-label">H.Thức vận tải</span></th>
 	                    <?php if (!$is_tuyen_xa): ?>
 	                      <th style="width: 8%"><span class="th-split-label">Seal tạm/chính</span></th>

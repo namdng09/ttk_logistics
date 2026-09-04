@@ -28,6 +28,7 @@ $create_title = $is_tuyen_xa ? 'Tạo kế hoạch tuyến xa' : 'Tạo kế ho�
                     <th style="width: 12%">Khách hàng / BKG <span class="text-danger">*</span></th>
                     <th style="width: 8%">Phương tiện</th>
                     <th style="width: 8%"><span class="th-split-label">Container</span></th>
+                    <?php if ($is_tuyen_xa): ?><th style="width: 10%"><span class="th-split-label">Kế hoạch nguồn</span></th><?php endif; ?>
                     <th style="width: 10%"><span class="th-split-label">H.Thức vận tải</span></th>
                     <th style="width: 8%"><span class="th-split-label">Seal tạm/chính</span></th>
                     <th style="width: 8%"><span class="th-split-label">Kho <span class="text-danger">*</span><?php print $is_tuyen_xa ? '' : '/Cảng xuất'; ?></span></th>

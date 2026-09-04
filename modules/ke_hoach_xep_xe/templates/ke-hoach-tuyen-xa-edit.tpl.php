@@ -5,8 +5,8 @@
       <h4 class="card-title mb-0" id="form-title">Xếp xe tuyến xa</h4>
     </div>
     <div class="d-flex gap-2">
-      <button type="button" class="btn btn-success waves-effect d-none" id="complete-plan-btn">
-        <i class="icon-base ti tabler-circle-check me-1"></i>Hoàn thành
+      <button type="button" class="btn btn-label-primary waves-effect d-none" id="khxh-status-btn">
+        <i class="icon-base ti tabler-arrows-exchange me-1"></i>Trạng thái
       </button>
       <button type="button" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu xếp xe</button>
     </div>
@@ -84,6 +84,41 @@
           </div>
         </div>
       </aside>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="khxh-status-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title mb-0">Thay đổi trạng thái</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Trạng thái kế hoạch</label>
+          <select class="form-select" id="khxh-plan-status-select"></select>
+        </div>
+        <div class="mb-3" id="khxh-main-work-status-wrap">
+          <label class="form-label">Công việc chính</label>
+          <select class="form-select" id="khxh-main-work-status-select">
+            <option value="0">Chưa hoàn thành</option>
+            <option value="1">Đã hoàn thành</option>
+          </select>
+        </div>
+        <div class="d-none" id="khxh-return-cont-status-wrap">
+          <label class="form-label">Cont kéo về</label>
+          <select class="form-select" id="khxh-return-cont-status-select">
+            <option value="0">Chưa hoàn thành</option>
+            <option value="1">Đã hoàn thành</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Huỷ</button>
+        <button type="button" class="btn btn-primary" id="khxh-status-save-btn"><i class="ti tabler-device-floppy me-1"></i>Lưu thay đổi</button>
+      </div>
     </div>
   </div>
 </div>

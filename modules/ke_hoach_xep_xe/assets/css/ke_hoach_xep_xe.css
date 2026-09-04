@@ -1845,7 +1845,8 @@ button.khxh-cont-ref-number:focus {
 }
 
 .line-combo-cell .mb-2 {
-  margin-bottom: 0.5rem !important;
+  margin-bottom: 0.9rem !important;
+  margin-top: 0.6rem;
 }
 
 .line-combo-cell .line-bai-lay-select {
