@@ -73,7 +73,8 @@
     tha_mooc: 'Thả mooc',
     rut_mooc: 'Rút mooc',
     dong_hang: 'Đóng hàng',
-    roi_cont: 'Rời Cont'
+    roi_cont: 'Rời Cont',
+    ket_hop: 'Kết hợp'
   };
   var HINH_THUC_COLOR = {
     cat_keo: 'bg-label-success',
@@ -81,7 +82,8 @@
     tha_mooc: 'bg-label-warning',
     rut_mooc: 'bg-label-info',
     dong_hang: 'bg-label-danger',
-    roi_cont: 'bg-label-secondary'
+    roi_cont: 'bg-label-secondary',
+    ket_hop: 'bg-label-info'
   };
   var PLAN_FILE_GROUPS = {
     lay_cont_rong: '1. Nhận cont rỗng',
@@ -1541,10 +1543,20 @@
           var khName = (row.khach_hang && row.khach_hang.ten) || '';
           var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + hinhThucColor(row.hinh_thuc_van_tai) + '">' + escHtml(hinhThucLabel(row.hinh_thuc_van_tai)) + '</span>' : '';
           var hinhThucStatus = '';
+          var planRoleClass = '';
           var listRowJson = row.thong_tin_json || {};
           var returnContText = '';
           if (currentPlanType() === 'tuyen_xa') {
-            hinhThucStatus = listRowJson.vai_tro_ke_hoach === 'thuc_hien_chang' || (!listRowJson.vai_tro_ke_hoach && row.ke_hoach_cont_ref_nid) ? 'Thực hiện chặng' : 'Kế hoạch gốc';
+            if (parseInt(row.nid_ke_hoach_nguon, 10) || listRowJson.ke_hoach_ket_hop_hang) {
+              hinhThucStatus = 'Kế hoạch kết hợp';
+              planRoleClass = 'khxh-plan-role-ket-hop';
+            } else if (listRowJson.vai_tro_ke_hoach === 'thuc_hien_chang' || (!listRowJson.vai_tro_ke_hoach && row.ke_hoach_cont_ref_nid)) {
+              hinhThucStatus = 'Thực hiện chặng';
+              planRoleClass = 'khxh-plan-role-thuc-hien-chang';
+            } else {
+              hinhThucStatus = 'Kế hoạch gốc';
+              planRoleClass = 'khxh-plan-role-goc';
+            }
             var returnInfo = listRowJson.ket_hop || {};
             var returnCont = returnInfo.cont_ref || null;
             if ((parseInt(returnInfo.enabled, 10) === 1 || returnInfo.enabled === true) && returnCont) {
@@ -1576,7 +1588,7 @@
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
             '<td class="khxh-date-cell">' + (currentPlanType() === 'tuyen_xa'
-              ? '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>'
+              ? '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + planRoleClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>'
               : formatDateBadge(row.created)) + '</td>' +
             '<td class="khxh-common-cell">' +
               '<div class="khxh-customer-cell">' + (khName ? escHtml(khName) : '<span class="text-muted fst-italic small">khách hàng</span>') + '</div>' +
@@ -1879,6 +1891,7 @@
           doanh_thu_khach_hang: 0,
           luong_lai_xe: 0
         },
+        ke_hoach_ket_hop_enabled: 0,
         ket_hop: {
           enabled: 0
         }
@@ -2097,6 +2110,9 @@
 
     function hinhThucOptionsForForm() {
       var options = $.extend({}, HINH_THUC_MAP);
+      // "Kết hợp" chỉ được tạo tự động từ chuyến chính, không phải lựa chọn
+      // vận tải để người dùng chọn trong form xếp xe thông thường.
+      delete options.ket_hop;
       if (currentPlanType() === 'tuyen_xa') {
         delete options.cat_keo_cheo;
         delete options.roi_cont;
@@ -2122,7 +2138,7 @@
         '<button type="button" class="khxh-section-nav-item is-active" data-target="#khxh-main-plan-' + escHtml(line.key) + '"><span class="khxh-navnum">1</span><span class="khxh-navlabel">' + (isExecutionPlan(line) ? 'Công việc chính' : 'Kế hoạch gốc') + '</span></button>' +
         '<button type="button" class="khxh-section-nav-item" data-target="#khxh-return-cont-' + escHtml(line.key) + '"><span class="khxh-navnum">2</span><span class="khxh-navlabel">Kế hoạch nguồn</span><span class="khxh-navbadge khxh-nav-return-count">0</span></button>' +
         '<button type="button" class="khxh-section-nav-item" data-target="#khxh-combined-plan-' + escHtml(line.key) + '"><span class="khxh-navnum">3</span><span class="khxh-navlabel">Cont kéo về</span><span class="khxh-navbadge khxh-nav-combine-count">0</span></button>' +
-        (mode === 'edit' ? '<button type="button" class="khxh-section-nav-item" data-target="#khxh-plan-files-card"><span class="khxh-navnum">4</span><span class="khxh-navlabel">Chứng từ</span><span class="khxh-navbadge khxh-nav-files-count">0/25</span></button>' : '') +
+        (mode === 'edit' ? '<button type="button" class="khxh-section-nav-item" data-target="#khxh-combined-plans-card"><span class="khxh-navnum">4</span><span class="khxh-navlabel">Kết hợp</span><span class="khxh-navbadge khxh-nav-combined-plan-count">0</span></button><button type="button" class="khxh-section-nav-item" data-target="#khxh-plan-files-card"><span class="khxh-navnum">5</span><span class="khxh-navlabel">Chứng từ</span><span class="khxh-navbadge khxh-nav-files-count">0/25</span></button>' : '') +
       '</div>';
     }
 
@@ -2479,6 +2495,7 @@
         var chuyenXaChecked = line.hinh_thuc_tinh_luong_lai_xe === 'theo_chuyen';
         var baiHaTam1Checked = optionEnabled(line.bai_ha_tam_1_enabled);
         var baiHaTam2Checked = optionEnabled(line.bai_ha_tam_2_enabled);
+        var combinedPlanChecked = optionEnabled(line.ke_hoach_ket_hop_enabled);
         var executionPlan = isExecutionPlan(line) || !!parseInt(line.ke_hoach_cont_ref_nid, 10);
         var mainWorkDone = optionEnabled(line.cong_viec_chinh_hoan_thanh);
         var rootDongHang = !executionPlan && normalizeHinhThuc(line.hinh_thuc_van_tai) === 'dong_hang';
@@ -2505,6 +2522,7 @@
                 '<label class="form-check form-switch mb-0"><input class="form-check-input line-bai-ha-tam-1-toggle" type="checkbox"' + (baiHaTam1Checked ? ' checked' : '') + (executionPlan || mainWorkDone || rootDongHang ? ' disabled' : '') + '><span class="form-check-label">Bãi hạ tạm 1</span></label>' +
                 '<label class="form-check form-switch mb-0"><input class="form-check-input line-bai-ha-tam-2-toggle" type="checkbox"' + (baiHaTam2Checked ? ' checked' : '') + (executionPlan || mainWorkDone ? ' disabled' : '') + '><span class="form-check-label">Bãi hạ tạm 2</span></label>' +
                 '<label class="form-check form-switch mb-0"><input class="form-check-input line-tang-bo-toggle" type="checkbox"' + (optionEnabled(tangBo.enabled) ? ' checked' : '') + (executionPlan ? ' disabled' : '') + '><span class="form-check-label">Tăng bo</span></label>' +
+                '<label class="form-check form-switch mb-0"><input class="form-check-input line-ke-hoach-ket-hop-toggle" type="checkbox"' + (combinedPlanChecked ? ' checked' : '') + (executionPlan ? ' disabled' : '') + '><span class="form-check-label">Kết hợp</span></label>' +
               '</div>' : '') +
             '</div>' +
             '<div class="khxh-tuyen-xa-section">' +
@@ -2709,6 +2727,7 @@
         line.loai_cont = ($row.find('.line-loai-cont-select').val() || '').trim();
         line.loai_hang = ($row.find('.line-loai-hang-select').val() || '').trim();
         line.hinh_thuc_tinh_luong_lai_xe = $row.find('.line-chuyen-xa-toggle').is(':checked') ? 'theo_chuyen' : 'khoan';
+        line.ke_hoach_ket_hop_enabled = $row.find('.line-ke-hoach-ket-hop-toggle').is(':checked') ? 1 : 0;
         if (currentPlanType() !== 'tuyen_xa') {
           line.so_seal_chinh = $row.find('.line-seal-chinh-input').val().trim();
           line.so_seal_tam = $row.find('.line-seal-tam-input').val().trim();
@@ -3837,7 +3856,7 @@
             ngay_bat_dau: line.ngay_bat_dau || '',
             ngay_ket_thuc: line.ngay_ket_thuc || '',
             ghi_chu: line.ghi_chu || '',
-            thong_tin_json: currentPlanType() === 'tuyen_xa' ? { vai_tro_ke_hoach: planRole(line), cong_viec_chinh_hoan_thanh: line.cong_viec_chinh_hoan_thanh || 0, hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan', bai_ha_tam_1_enabled: line.bai_ha_tam_1_enabled || 0, bai_ha_tam_1: line.bai_ha_tam_1 || '', bai_ha_tam_2_enabled: line.bai_ha_tam_2_enabled || 0, bai_ha_tam_2: line.bai_ha_tam_2 || '', vi_tri_cont_hien_tai: line.vi_tri_cont_hien_tai || '', vi_tri_cont_index_hien_tai: parseInt(line.vi_tri_cont_index_hien_tai, 10) || 0, cont_thuc_hien_tu_index: parseInt(line.cont_thuc_hien_tu_index, 10), cont_thuc_hien_den_index: parseInt(line.cont_thuc_hien_den_index, 10), cont_thuc_hien_chang: line.cont_thuc_hien_chang || [], cont_keo_ve_tu: line.cont_keo_ve_tu || '', cont_keo_ve_den: line.cont_keo_ve_den || '' } : {},
+            thong_tin_json: currentPlanType() === 'tuyen_xa' ? { vai_tro_ke_hoach: planRole(line), cong_viec_chinh_hoan_thanh: line.cong_viec_chinh_hoan_thanh || 0, hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan', ke_hoach_ket_hop_enabled: line.ke_hoach_ket_hop_enabled || 0, bai_ha_tam_1_enabled: line.bai_ha_tam_1_enabled || 0, bai_ha_tam_1: line.bai_ha_tam_1 || '', bai_ha_tam_2_enabled: line.bai_ha_tam_2_enabled || 0, bai_ha_tam_2: line.bai_ha_tam_2 || '', vi_tri_cont_hien_tai: line.vi_tri_cont_hien_tai || '', vi_tri_cont_index_hien_tai: parseInt(line.vi_tri_cont_index_hien_tai, 10) || 0, cont_thuc_hien_tu_index: parseInt(line.cont_thuc_hien_tu_index, 10), cont_thuc_hien_den_index: parseInt(line.cont_thuc_hien_den_index, 10), cont_thuc_hien_chang: line.cont_thuc_hien_chang || [], cont_keo_ve_tu: line.cont_keo_ve_tu || '', cont_keo_ve_den: line.cont_keo_ve_den || '' } : {},
             hinh_thuc_van_tai: line.hinh_thuc_van_tai || '',
             ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
             da_cat_mooc: line.da_cat_mooc || 0,
@@ -3876,7 +3895,7 @@
           ngay_bat_dau: line.ngay_bat_dau || '',
           ngay_ket_thuc: line.ngay_ket_thuc || '',
           ghi_chu: line.ghi_chu || '',
-          thong_tin_json: currentPlanType() === 'tuyen_xa' ? { vai_tro_ke_hoach: planRole(line), cong_viec_chinh_hoan_thanh: line.cong_viec_chinh_hoan_thanh || 0, hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan', bai_ha_tam_1_enabled: line.bai_ha_tam_1_enabled || 0, bai_ha_tam_1: line.bai_ha_tam_1 || '', bai_ha_tam_2_enabled: line.bai_ha_tam_2_enabled || 0, bai_ha_tam_2: line.bai_ha_tam_2 || '', vi_tri_cont_hien_tai: line.vi_tri_cont_hien_tai || '', vi_tri_cont_index_hien_tai: parseInt(line.vi_tri_cont_index_hien_tai, 10) || 0, cont_thuc_hien_tu_index: parseInt(line.cont_thuc_hien_tu_index, 10), cont_thuc_hien_den_index: parseInt(line.cont_thuc_hien_den_index, 10), cont_thuc_hien_chang: line.cont_thuc_hien_chang || [], cont_keo_ve_tu: line.cont_keo_ve_tu || '', cont_keo_ve_den: line.cont_keo_ve_den || '' } : {},
+          thong_tin_json: currentPlanType() === 'tuyen_xa' ? { vai_tro_ke_hoach: planRole(line), cong_viec_chinh_hoan_thanh: line.cong_viec_chinh_hoan_thanh || 0, hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan', ke_hoach_ket_hop_enabled: line.ke_hoach_ket_hop_enabled || 0, bai_ha_tam_1_enabled: line.bai_ha_tam_1_enabled || 0, bai_ha_tam_1: line.bai_ha_tam_1 || '', bai_ha_tam_2_enabled: line.bai_ha_tam_2_enabled || 0, bai_ha_tam_2: line.bai_ha_tam_2 || '', vi_tri_cont_hien_tai: line.vi_tri_cont_hien_tai || '', vi_tri_cont_index_hien_tai: parseInt(line.vi_tri_cont_index_hien_tai, 10) || 0, cont_thuc_hien_tu_index: parseInt(line.cont_thuc_hien_tu_index, 10), cont_thuc_hien_den_index: parseInt(line.cont_thuc_hien_den_index, 10), cont_thuc_hien_chang: line.cont_thuc_hien_chang || [], cont_keo_ve_tu: line.cont_keo_ve_tu || '', cont_keo_ve_den: line.cont_keo_ve_den || '' } : {},
           hinh_thuc_van_tai: useTableLayout ? '' : (line.hinh_thuc_van_tai || ''),
           ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
           da_cat_mooc: line.da_cat_mooc || 0,
@@ -3971,8 +3990,10 @@
         ngay_ket_thuc: row.ngay_ket_thuc || '',
 	        ghi_chu: row.ghi_chu || '',
 	        hinh_thuc_van_tai: row.hinh_thuc_van_tai || '',
-	        hinh_thuc_tinh_luong_lai_xe: row.hinh_thuc_tinh_luong_lai_xe || rowJson.hinh_thuc_tinh_luong_lai_xe || 'khoan',
-	        ke_hoach_cont_ref_nid: row.ke_hoach_cont_ref_nid || 0,
+        hinh_thuc_tinh_luong_lai_xe: row.hinh_thuc_tinh_luong_lai_xe || rowJson.hinh_thuc_tinh_luong_lai_xe || 'khoan',
+        ke_hoach_ket_hop_enabled: rowJson.ke_hoach_ket_hop_enabled || 0,
+        ke_hoach_cont_ref_nid: row.ke_hoach_cont_ref_nid || 0,
+        nid_ke_hoach_nguon: row.nid_ke_hoach_nguon || 0,
 	        cont_ref_label: row.cont_ref ? (row.cont_ref.so_cont || '') : '',
 	        cont_ref: row.cont_ref || null,
 	        da_cat_mooc: row.da_cat_mooc || 0,
@@ -3985,6 +4006,7 @@
       $form('#nid_khach_hang-input').val(khachHangId).trigger('change');
       if ($form('#so_bkg-input').length) $form('#so_bkg-input').val(row.so_bkg || '');
       renderEditPlanFiles(planFilesFromRow(row));
+      loadCombinedPlans();
     }
 
     function planFileApiBase() {
@@ -4112,6 +4134,161 @@
       } else if (confirm('Xoá chứng từ này?')) {
         doDelete();
       }
+    }
+
+    // ===== Kế hoạch kết hợp / hàng vào (chỉ dùng cho kế hoạch tuyến xa gốc) =====
+    var combinedPlans = [];
+
+    function isCombinedPlan(row) {
+      var json = row && row.thong_tin_json ? row.thong_tin_json : {};
+      return !!(row && (parseInt(row.nid_ke_hoach_nguon, 10) || json.ke_hoach_ket_hop_hang));
+    }
+
+    function combinedPlanModalInstance() {
+      var el = document.getElementById('khxh-combined-plan-modal');
+      if (!el || typeof bootstrap === 'undefined' || !bootstrap.Modal) return null;
+      return bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(el) : new bootstrap.Modal(el);
+    }
+
+    function combinedPlanEndpoint(id) {
+      var sourceId = parseInt($form('#nid-input').val(), 10) || 0;
+      var url = '/api/ke-hoach-tuyen-xa/' + sourceId + '/ke-hoach-ket-hop';
+      return id ? url + '/' + parseInt(id, 10) : url;
+    }
+
+    function combinedPlanLoading(show) {
+      $('#khxh-combined-plan-loading').toggle(!!show);
+      $('#khxh-combined-plan-save').prop('disabled', !!show);
+    }
+
+    function combinedPlanRoute(row) {
+      return [row.bai_lay_thuc_te || row.bai_lay_cont || row.diem_di || '', row.dia_chi_kho || '', row.bai_ha_thuc_te || row.bai_ha_cont || row.diem_den || ''].filter(Boolean).join(' → ');
+    }
+
+    function renderCombinedPlans() {
+      var $card = $form('#khxh-combined-plans-card');
+      if (!$card.length) return;
+      var source = editData || {};
+      var line = state.lines[0] || {};
+      var available = currentPlanType() === 'tuyen_xa' && !!parseInt(source.nid, 10) && !isCombinedPlan(source) && optionEnabled(line.ke_hoach_ket_hop_enabled);
+      $card.toggleClass('d-none', !available);
+      if (!available) return;
+      $form('#khxh-combined-plans-count').text(combinedPlans.length + ' kế hoạch');
+      $form('.khxh-nav-combined-plan-count').text(combinedPlans.length);
+      if (!combinedPlans.length) {
+        $form('#khxh-combined-plans-body').html('<div class="text-muted text-center py-3">Chưa có kế hoạch kết hợp</div>');
+        return;
+      }
+      var html = '<div class="khxh-combined-plan-list">';
+      $.each(combinedPlans, function (_, item) {
+        var customer = item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : 'Chưa có khách hàng';
+        var cont = [item.loai_cont || '', item.so_cont || ''].filter(Boolean).join(' - ');
+        html += '<div class="khxh-combined-plan-item">' +
+          '<div class="khxh-combined-plan-main"><strong>' + escHtml(customer) + '</strong><span>' + escHtml(combinedPlanRoute(item)) + '</span><small>' + escHtml([cont, item.loai_hang || ''].filter(Boolean).join(' · ')) + '</small></div>' +
+          '<div class="d-flex align-items-center gap-2"><span class="badge ' + hinhThucColor('ket_hop') + '">Kết hợp</span><span class="badge bg-label-secondary">' + escHtml(item.trang_thai_van_chuyen || 'Chưa xếp xe') + '</span><button type="button" class="btn btn-sm btn-outline-secondary btn-edit-combined-plan" data-id="' + parseInt(item.nid, 10) + '"><i class="ti tabler-pencil me-1"></i>Sửa</button></div>' +
+        '</div>';
+      });
+      $form('#khxh-combined-plans-body').html(html + '</div>');
+    }
+
+    function loadCombinedPlans() {
+      var source = editData || {};
+      var line = state.lines[0] || {};
+      if (currentPlanType() !== 'tuyen_xa' || !source.nid || isCombinedPlan(source) || !optionEnabled(line.ke_hoach_ket_hop_enabled)) {
+        combinedPlans = [];
+        renderCombinedPlans();
+        return;
+      }
+      $form('#khxh-combined-plans-card').removeClass('d-none');
+      $form('#khxh-combined-plans-body').html('<div class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm me-2"></span>Đang tải kế hoạch kết hợp...</div>');
+      $.ajax({
+        url: combinedPlanEndpoint(), type: 'GET', dataType: 'json',
+        success: function (res) {
+          combinedPlans = res && res.status === 'success' && res.data && Array.isArray(res.data.items) ? res.data.items : [];
+          renderCombinedPlans();
+        },
+        error: function () {
+          combinedPlans = [];
+          $form('#khxh-combined-plans-body').html('<div class="text-danger text-center py-3">Không tải được kế hoạch kết hợp</div>');
+        }
+      });
+    }
+
+    function initCombinedPlanSelects(item) {
+      var parent = $('#khxh-combined-plan-modal');
+      // Modal được mở nhiều lần trong một phiên. Huỷ instance cũ trước khi
+      // nạp option mới để Select2 luôn có đúng style, nút x và option tạo mới
+      // giống phần kế hoạch chính.
+      function resetSelect($select, optionsHtml, placeholder, options) {
+        if ($select.data('select2')) $select.select2('destroy');
+        $select
+          .removeData('khxhCustomerCreateAttached')
+          .removeData('khxhCreateAttached')
+          .html(optionsHtml);
+        initSelect2($select[0], placeholder, $.extend({ dropdownParent: parent }, options || {}));
+      }
+
+      var $customer = $('#khxh-combined-customer');
+      var $cargoType = $('#khxh-combined-cargo-type');
+      var $kho = $('#khxh-combined-kho');
+      var $baiHa = $('#khxh-combined-bai-ha');
+      resetSelect($customer, buildCustomerOptions(item && item.khach_hang ? item.khach_hang.nid : 0), '— Chọn khách hàng —');
+      resetSelect($cargoType, buildTagOptions(state.cauHinh.loaiHang, item ? item.loai_hang : ''), '— Chọn loại hàng —', { tags: true });
+      resetSelect($kho, buildTagOptions(state.diaDiem.kho, item ? item.dia_chi_kho : ''), '— Chọn địa chỉ kho —', { tags: true });
+      resetSelect($baiHa, buildTagOptions(state.diaDiem.bai, item ? (item.bai_ha_thuc_te || item.bai_ha_cont) : ''), '— Chọn bãi hạ —', { tags: true });
+
+      attachCustomerCreateOption($customer, null);
+      attachCreateOption($kho, 'Kho', null, null);
+      attachCreateOption($baiHa, 'Bãi', null, null);
+    }
+
+    function openCombinedPlanModal(id) {
+      var item = null;
+      $.each(combinedPlans, function (_, candidate) { if (parseInt(candidate.nid, 10) === parseInt(id, 10)) item = candidate; });
+      var source = editData || {};
+      if (!source.nid || isCombinedPlan(source)) return;
+      $('#khxh-combined-plan-id').val(item ? item.nid : '');
+      $('#khxh-combined-plan-modal-title').text(item ? 'Sửa kế hoạch kết hợp' : 'Tạo kế hoạch kết hợp');
+      $('#khxh-combined-container-type').val((item && item.loai_cont) || source.loai_cont || '');
+      $('#khxh-combined-container-no').val((item && item.so_cont) || source.so_cont || '');
+      $('#khxh-combined-start').val(item ? (item.bai_lay_thuc_te || item.bai_lay_cont || item.diem_di || '') : 'Sẽ lấy theo điểm kết thúc của kế hoạch trước');
+      $('#khxh-combined-note').val(item ? (item.ghi_chu || '') : '');
+      $('#khxh-combined-plan-source').text('Chuyến chính #' + source.nid + ' · Cont ' + (source.so_cont || 'Chưa có') + ' · ' + (source.bai_ha_thuc_te || source.bai_ha_cont || source.diem_den || 'Chưa xác định điểm cuối'));
+      initCombinedPlanSelects(item);
+      $('#khxh-combined-plan-form').removeClass('was-validated');
+      var modal = combinedPlanModalInstance();
+      if (modal) modal.show();
+    }
+
+    function saveCombinedPlan() {
+      var form = $('#khxh-combined-plan-form')[0];
+      if (!form) return;
+      if (!form.checkValidity()) { $(form).addClass('was-validated'); return; }
+      var id = parseInt($('#khxh-combined-plan-id').val(), 10) || 0;
+      var payload = {
+        nid_khach_hang: parseInt($('#khxh-combined-customer').val(), 10) || 0,
+        loai_hang: $('#khxh-combined-cargo-type').val() || '',
+        dia_chi_kho: $('#khxh-combined-kho').val() || '',
+        bai_ha_cont: $('#khxh-combined-bai-ha').val() || '',
+        ghi_chu: $('#khxh-combined-note').val() || ''
+      };
+      combinedPlanLoading(true);
+      $.ajax({
+        url: combinedPlanEndpoint(id), type: id ? 'PUT' : 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify(payload),
+        success: function (res) {
+          if (!res || res.status !== 'success') { if (notyf) notyf.error((res && res.message) || 'Không lưu được kế hoạch kết hợp'); return; }
+          var saved = res.data;
+          var found = false;
+          combinedPlans = $.map(combinedPlans, function (row) { if (parseInt(row.nid, 10) === parseInt(saved.nid, 10)) { found = true; return saved; } return row; });
+          if (!found) combinedPlans.push(saved);
+          renderCombinedPlans();
+          var modal = combinedPlanModalInstance(); if (modal) modal.hide();
+          markForceReloadList();
+          if (notyf) notyf.success('Đã lưu kế hoạch kết hợp');
+        },
+        error: function (jqXHR) { if (notyf) notyf.error(apiMsg(jqXHR)); },
+        complete: function () { combinedPlanLoading(false); }
+      });
     }
 
     function loadEditDetail(done) {
@@ -4301,6 +4478,17 @@
       renderEditPlanFiles(planFilesFromRow(editData));
       updateTuyenXaSidebar();
     });
+    $(document).on('change', '.line-ke-hoach-ket-hop-toggle', function () {
+      var $card = $(this).closest('.ke-hoach-line-card');
+      var line = syncLine($card);
+      if (!line) return;
+      if (this.checked) {
+        loadCombinedPlans();
+      } else {
+        renderCombinedPlans();
+      }
+      updateTuyenXaSidebar();
+    });
     $(document).on('change', '.line-ket-hop-toggle', function () {
       $(this).closest('.khxh-ket-hop-card').find('.khxh-ket-hop-placeholder').toggleClass('d-none', !this.checked);
       updateTuyenXaSidebar();
@@ -4385,6 +4573,19 @@
     });
     $form('#add-line-btn, #reset-lines-btn, #save-btn, #complete-plan-btn, #khxh-status-btn, #vehicle-picker-search, #ke-hoach-form, #khxh-plan-file-upload, #khxh-plan-file-input').off();
     $('#khxh-status-save-btn').off('click.khxhStatus');
+    $form('#khxh-combined-plan-create').off('.khxhCombinedPlan');
+    $form('#khxh-combined-plans-body').off('click.khxhCombinedPlan', '.btn-edit-combined-plan');
+    $('#khxh-combined-plan-form').off('.khxhCombinedPlan');
+    $form('#khxh-combined-plan-create').on('click.khxhCombinedPlan', function () {
+      openCombinedPlanModal(0);
+    });
+    $form('#khxh-combined-plans-body').on('click.khxhCombinedPlan', '.btn-edit-combined-plan', function () {
+      openCombinedPlanModal($(this).attr('data-id'));
+    });
+    $('#khxh-combined-plan-form').on('submit.khxhCombinedPlan', function (e) {
+      e.preventDefault();
+      saveCombinedPlan();
+    });
     $form('#ke-hoach-form').on('input change', 'input, select, textarea', function () {
       if ($(this).is('.line-bai-thuc-te-toggle, .line-bai-ha-tam-1-toggle, .line-bai-ha-tam-2-toggle, .line-kho-select, .line-bai-lay-select, .line-bai-ha-select, .line-bai-ha-tam-1-select, .line-bai-ha-tam-2-select, .line-bai-lay-thuc-te-select, .line-bai-ha-thuc-te-select')) return;
       updateTuyenXaSidebar();

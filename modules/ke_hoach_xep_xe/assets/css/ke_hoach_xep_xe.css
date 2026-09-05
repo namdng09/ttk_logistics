@@ -852,6 +852,15 @@ button.khxh-cont-ref-number:focus {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.khxh-ket-hop-card .khxh-tuyen-xa-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #edf0f4;
 }
@@ -1537,6 +1546,19 @@ button.khxh-cont-ref-number:focus {
   color: #7367f0;
 }
 
+/* Phân biệt vai trò của kế hoạch ở danh sách tuyến xa. */
+.khxh-htvt-status.khxh-plan-role-goc {
+  color: #696cff;
+}
+
+.khxh-htvt-status.khxh-plan-role-thuc-hien-chang {
+  color: #28a745;
+}
+
+.khxh-htvt-status.khxh-plan-role-ket-hop {
+  color: #e67e22;
+}
+
 .khxh-htvt-badge-wrap {
   display: block;
 }
@@ -1613,6 +1635,51 @@ button.khxh-cont-ref-number:focus {
 
 .khxh-plan-files-card {
   border-radius: 8px;
+}
+
+.khxh-combined-plans-card {
+  border: 1px solid #e7e5f5;
+}
+
+.khxh-combined-plan-list {
+  display: grid;
+  gap: 10px;
+}
+
+.khxh-combined-plan-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid #e9e7f5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.khxh-combined-plan-main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.khxh-combined-plan-main strong {
+  color: #383542;
+}
+
+.khxh-combined-plan-main span,
+.khxh-combined-plan-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #6f6b7d;
+}
+
+@media (max-width: 767.98px) {
+  .khxh-combined-plan-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 .khxh-plan-files-title {

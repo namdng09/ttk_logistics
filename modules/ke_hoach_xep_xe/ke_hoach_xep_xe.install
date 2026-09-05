@@ -115,6 +115,14 @@ function ke_hoach_xep_xe_schema() {
         'not null' => FALSE,
         'default' => 0,
       ),
+      // Kế hoạch tuyến xa gốc của một kế hoạch kết hợp/hàng vào.  Không dùng
+      // ke_hoach_cont_ref_nid vì field đó là quan hệ nhận chặng của cont.
+      'nid_ke_hoach_nguon' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ),
       'da_cat_mooc' => array(
         'type' => 'int',
         'size' => 'tiny',
@@ -197,6 +205,7 @@ function ke_hoach_xep_xe_schema() {
       'loai_ke_hoach' => array('loai_ke_hoach'),
       'so_bkg' => array('so_bkg'),
       'trang_thai_van_chuyen' => array('trang_thai_van_chuyen'),
+      'nid_ke_hoach_nguon' => array('nid_ke_hoach_nguon'),
     ),
   );
 
@@ -589,4 +598,23 @@ function ke_hoach_xep_xe_update_7017() {
   }
 
   return 'Đã thêm field loai_hang cho kế hoạch xếp xe.';
+}
+
+/**
+ * Nối kế hoạch kết hợp/hàng vào về kế hoạch tuyến xa gốc.
+ */
+function ke_hoach_xep_xe_update_7018() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'nid_ke_hoach_nguon')) {
+    db_add_field('ke_hoach_xep_xe', 'nid_ke_hoach_nguon', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+      'default' => 0,
+    ));
+  }
+  if (!db_index_exists('ke_hoach_xep_xe', 'nid_ke_hoach_nguon')) {
+    db_add_index('ke_hoach_xep_xe', 'nid_ke_hoach_nguon', array('nid_ke_hoach_nguon'));
+  }
+
+  return 'Đã bổ sung liên kết kế hoạch nguồn cho kế hoạch kết hợp tuyến xa.';
 }

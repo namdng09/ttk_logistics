@@ -36,10 +36,24 @@
           </div>
         </form>
 
+        <div class="khxh-tuyen-xa-card khxh-ket-hop-card khxh-combined-plans-card mt-3 d-none" id="khxh-combined-plans-card">
+          <div class="khxh-tuyen-xa-card-head">
+            <div class="d-flex align-items-center gap-2 min-w-0">
+              <span class="khxh-step-badge">4</span>
+              <span class="khxh-tuyen-xa-card-title">Kế hoạch kết hợp (Hàng vào)</span>
+            </div>
+            <div class="khxh-section-tools">
+              <span class="khxh-cont-ref-section-status" id="khxh-combined-plans-count">0 kế hoạch</span>
+              <button type="button" class="btn btn-sm btn-primary" id="khxh-combined-plan-create"><i class="ti tabler-plus me-1"></i>Tạo kế hoạch kết hợp</button>
+            </div>
+          </div>
+          <div class="khxh-cont-ref-content" id="khxh-combined-plans-body"></div>
+        </div>
+
         <div class="card khxh-plan-files-card mt-3" id="khxh-plan-files-card">
           <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 bg-white">
             <div class="d-flex align-items-center gap-2 min-w-0">
-              <span class="khxh-step-badge">4</span>
+              <span class="khxh-step-badge">5</span>
               <span class="khxh-plan-files-title">Chứng từ hình ảnh kế hoạch</span>
               <span class="badge rounded-pill bg-label-secondary border" id="khxh-plan-files-count">0/25 file</span>
             </div>
@@ -85,6 +99,40 @@
           </div>
         </div>
       </aside>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="khxh-combined-plan-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0" id="khxh-combined-plan-modal-title">Tạo kế hoạch kết hợp</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="khxh-combined-plan-form" novalidate>
+        <div class="modal-body position-relative">
+          <div class="loading-overlay" id="khxh-combined-plan-loading" style="display:none;"><div class="spinner-border text-primary"></div></div>
+          <input type="hidden" id="khxh-combined-plan-id" value="">
+          <div class="alert alert-primary py-2 mb-3" id="khxh-combined-plan-source"></div>
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Khách hàng <span class="text-danger">*</span></label><select class="form-select" id="khxh-combined-customer" required></select></div>
+            <div class="col-md-6"><label class="form-label">Loại hàng</label><select class="form-select" id="khxh-combined-cargo-type"></select></div>
+            <div class="col-md-6"><label class="form-label">Loại cont</label><input type="text" class="form-control" id="khxh-combined-container-type" disabled></div>
+            <div class="col-md-6"><label class="form-label">Số cont</label><input type="text" class="form-control" id="khxh-combined-container-no" disabled></div>
+            <div class="col-12"><label class="form-label">Điểm xuất phát</label><input type="text" class="form-control" id="khxh-combined-start" disabled></div>
+            <div class="col-md-6"><label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label><select class="form-select" id="khxh-combined-kho" required></select></div>
+            <div class="col-md-6"><label class="form-label">Bãi hạ <span class="text-danger">*</span></label><select class="form-select" id="khxh-combined-bai-ha" required></select></div>
+            <div class="col-12"><label class="form-label">Ghi chú</label><input type="text" class="form-control" id="khxh-combined-note" placeholder="Ghi chú"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-primary" id="khxh-combined-plan-save"><i class="ti tabler-device-floppy me-1"></i>Lưu</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
