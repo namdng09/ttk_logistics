@@ -1270,6 +1270,101 @@
       });
     }
 
+    // Click trên vùng trống của một dòng tuyến xa mở menu CN ngay tại con
+    // trỏ. Không chặn hành vi bôi đen chữ: click kéo chuột, có selection và
+    // double-click đều bị bỏ qua.
+    var rowMenuPointer = null;
+    var rowMenuTimer = null;
+    // Chờ rất ngắn để nhận biết double-click trước khi mở menu của click đầu.
+    var rowMenuDelay = 160;
+
+    function clearRowMenuTimer() {
+      if (rowMenuTimer) window.clearTimeout(rowMenuTimer);
+      rowMenuTimer = null;
+    }
+
+    function isRowMenuInteractiveTarget(target) {
+      return $(target).closest('button, a, input, select, textarea, label, .dropdown, .select2-container, [role="button"], .btn-tuyen-xa-toggle-du-hang').length > 0;
+    }
+
+    function hasRowTextSelection(row) {
+      var selection = window.getSelection ? window.getSelection() : null;
+      if (!selection || selection.isCollapsed || !String(selection).trim() || !selection.rangeCount) return false;
+      try {
+        return selection.getRangeAt(0).intersectsNode(row);
+      } catch (ignore) {
+        return true;
+      }
+    }
+
+    function openRowMenuAtCursor(row, x, y) {
+      var dropdown = row.querySelector('.dropdown');
+      var menu = row.querySelector('.dropdown-menu');
+      if (!dropdown || !menu) return;
+
+      // Cùng contract với helper dropdown dùng toàn hệ thống, nhưng không đi
+      // qua nút CN nên menu không bị mở ở nút rồi mới dịch sang con trỏ.
+      document.querySelectorAll('.dropdown[data-fd-open]').forEach(function (openDropdown) {
+        var openMenu = openDropdown.querySelector('.dropdown-menu');
+        if (!openMenu) return;
+        openMenu.style.position = '';
+        openMenu.style.top = '';
+        openMenu.style.left = '';
+        openMenu.style.display = '';
+        openMenu.style.zIndex = '';
+        openDropdown.removeAttribute('data-fd-open');
+      });
+
+      menu.style.position = 'fixed';
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
+      menu.style.display = 'block';
+      menu.style.zIndex = '1080';
+      dropdown.setAttribute('data-fd-open', '1');
+
+      var margin = 8;
+      var width = menu.offsetWidth || 190;
+      var height = menu.offsetHeight || 200;
+      var viewportW = window.innerWidth || document.documentElement.clientWidth;
+      var viewportH = window.innerHeight || document.documentElement.clientHeight;
+      var left = x;
+      var top = y;
+      if (left + width > viewportW - margin) left = Math.max(margin, x - width);
+      if (top + height > viewportH - margin) top = Math.max(margin, y - height);
+      menu.style.left = left + 'px';
+      menu.style.top = top + 'px';
+    }
+
+    $('#list-body')
+      .off('.khxhRowMenu')
+      .on('mousedown.khxhRowMenu', 'tr', function (e) {
+        if (currentPlanType() !== 'tuyen_xa' || isRowMenuInteractiveTarget(e.target)) {
+          rowMenuPointer = null;
+          return;
+        }
+        rowMenuPointer = { x: e.clientX, y: e.clientY, moved: false, row: this };
+      })
+      .on('mousemove.khxhRowMenu', 'tr', function (e) {
+        if (!rowMenuPointer || rowMenuPointer.row !== this) return;
+        if (Math.abs(e.clientX - rowMenuPointer.x) > 4 || Math.abs(e.clientY - rowMenuPointer.y) > 4) rowMenuPointer.moved = true;
+      })
+      .on('dblclick.khxhRowMenu', 'tr', function () {
+        clearRowMenuTimer();
+        rowMenuPointer = null;
+      })
+      .on('click.khxhRowMenu', 'tr', function (e) {
+        var row = this;
+        var pointer = rowMenuPointer;
+        rowMenuPointer = null;
+        if (currentPlanType() !== 'tuyen_xa' || !pointer || pointer.row !== row || pointer.moved || e.detail > 1 || isRowMenuInteractiveTarget(e.target) || hasRowTextSelection(row)) return;
+        clearRowMenuTimer();
+        rowMenuTimer = window.setTimeout(function () {
+          rowMenuTimer = null;
+          if (hasRowTextSelection(row)) return;
+          openRowMenuAtCursor(row, pointer.x, pointer.y);
+        }, rowMenuDelay);
+      });
+
     function deleteItem(id) {
       $.ajax({
         url: '/api/ke-hoach-xep-xe/' + id,
