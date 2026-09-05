@@ -1356,6 +1356,12 @@
         var row = this;
         var pointer = rowMenuPointer;
         rowMenuPointer = null;
+        // Theme sẽ tự đóng dropdown khi event tiếp tục bubble lên document.
+        // Chỉ cần không lên lịch mở lại nếu người dùng click đúng dòng đang mở.
+        if (row.querySelector('.dropdown[data-fd-open]') && !isRowMenuInteractiveTarget(e.target)) {
+          clearRowMenuTimer();
+          return;
+        }
         if (currentPlanType() !== 'tuyen_xa' || !pointer || pointer.row !== row || pointer.moved || e.detail > 1 || isRowMenuInteractiveTarget(e.target) || hasRowTextSelection(row)) return;
         clearRowMenuTimer();
         rowMenuTimer = window.setTimeout(function () {
@@ -1603,7 +1609,7 @@
 
   function loadList() {
     var tbody = document.getElementById('list-body');
-    var listColumnCount = currentPlanType() === 'tuyen_xa' ? 9 : 12;
+    var listColumnCount = currentPlanType() === 'tuyen_xa' ? 8 : 12;
     tbody.innerHTML = '<tr id="loading-row"><td colspan="' + listColumnCount + '" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
     var params = { page: currentPage, loai_ke_hoach: currentPlanType(), limit: currentPlanType() === 'tuyen_xa' ? 50 : 20 };
     if (currentKeyword) params.keyword = currentKeyword;
@@ -1679,11 +1685,12 @@
           if (row.so_cont) contHtml += (contHtml ? ' - ' : '') + escHtml(row.so_cont);
           var baiLayDisplay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
           var baiHaDisplay = row.bai_ha_thuc_te || row.bai_ha_cont || '';
+          var rowActionMenu = currentPlanType() === 'tuyen_xa' ? '<span class="khxh-row-action-menu">' + actions + '</span>' : '';
           html += '<tr>' +
-            '<td class="text-center">' + actions + '</td>' +
+            (currentPlanType() === 'tuyen_xa' ? '' : '<td class="text-center">' + actions + '</td>') +
             '<td>' + stt + '</td>' +
             '<td class="khxh-date-cell">' + (currentPlanType() === 'tuyen_xa'
-              ? '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + planRoleClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>'
+              ? '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + planRoleClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu
               : formatDateBadge(row.created)) + '</td>' +
             '<td class="khxh-common-cell">' +
               '<div class="khxh-customer-cell">' + (khName ? escHtml(khName) : '<span class="text-muted fst-italic small">khách hàng</span>') + '</div>' +
