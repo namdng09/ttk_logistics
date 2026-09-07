@@ -1193,8 +1193,8 @@
     initSelect2(document.getElementById('filter-bks-mooc'), '— Chọn BKS mooc —', { dropdownParent: dropdownParent });
     initSelect2(document.getElementById('filter-lai-xe'), '— Chọn lái xe —', { dropdownParent: dropdownParent, templateResult: formatListDriverResult, templateSelection: formatListDriverSelection });
     initSelect2(document.getElementById('filter-da-du-hang'), '— Chọn đủ hàng —', { dropdownParent: dropdownParent, allowClear: true });
+    initSelect2(document.getElementById('filter-dia-chi-kho'), '— Chọn địa chỉ kho —', { dropdownParent: dropdownParent });
     if (!isTuyenXa) {
-      initSelect2(document.getElementById('filter-dia-chi-kho'), '— Chọn địa chỉ kho —', { dropdownParent: dropdownParent });
       initSelect2(document.getElementById('filter-loai-cont'), 'Loại cont', { tags: true, dropdownParent: dropdownParent });
       initSelect2(document.getElementById('status-filter'), '— Chọn trạng thái —', { dropdownParent: dropdownParent, allowClear: true });
     }

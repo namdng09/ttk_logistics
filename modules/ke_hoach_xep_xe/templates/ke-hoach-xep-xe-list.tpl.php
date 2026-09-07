@@ -13,14 +13,15 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
     <?php if ($is_tuyen_xa): ?>
       <div class="khxh-filter-bar ke-hoach-list-filter mb-3" id="ke-hoach-tuyen-xa-inline-filter">
         <div class="khxh-filter-grid">
-          <div class="khxh-filter-field khxh-filter-field-customer"><label class="form-label">Khách hàng</label><select class="form-select" id="filter-khach-hang"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">Khách hàng</label><select class="form-select" id="filter-khach-hang"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">Địa chỉ kho</label><select class="form-select" id="filter-dia-chi-kho"><option></option></select></div>
           <div class="khxh-filter-field"><label class="form-label">Số cont</label><input type="text" class="form-control" id="filter-so-cont" placeholder="Số cont"></div>
           <div class="khxh-filter-field"><label class="form-label">Đầu kéo</label><select class="form-select" id="filter-bks-dau-keo"><option></option></select></div>
           <div class="khxh-filter-field"><label class="form-label">Mooc</label><select class="form-select" id="filter-bks-mooc"><option></option></select></div>
           <div class="khxh-filter-field"><label class="form-label">Lái xe</label><select class="form-select" id="filter-lai-xe"><option></option></select></div>
           <div class="khxh-filter-field"><label class="form-label">Đủ hàng</label><select class="form-select" id="filter-da-du-hang"><option value="">Tất cả</option><option value="1">Đã đủ hàng</option><option value="0">Chưa đủ hàng</option></select></div>
           <div class="khxh-filter-field khxh-filter-field-date"><label class="form-label">Ngày lập KH</label><div class="khxh-date-range"><input type="text" class="form-control flatpickr-date date-mask" id="filter-date-from" placeholder="dd/mm/yyyy"><span class="khxh-date-range-sep"><i class="ti tabler-arrow-right"></i></span><input type="text" class="form-control flatpickr-date date-mask" id="filter-date-to" placeholder="dd/mm/yyyy"></div></div>
-        <div class="khxh-filter-actions khxh-filter-actions-tx">
+          <div class="khxh-filter-actions khxh-filter-actions-tx">
             <button class="btn btn-primary" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm</button>
             <button type="button" class="btn btn-label-secondary btn-reload waves-effect"><i class="ti tabler-refresh me-1"></i>Reset</button>
             <div class="khxh-filter-actions-sep"></div>
