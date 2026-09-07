@@ -28,41 +28,156 @@
   white-space: nowrap;
 }
 
-.khxh-tuyen-xa-inline-filter {
-  padding: 0.85rem;
+/* ===== Toolbar lọc inline (hiển thị ngay trên danh sách) =====
+ * Input/select xếp trong lưới cột đều nhau (grid). Nút thao tác nằm cùng hàng
+ * với input và neo về phía phải. Nhóm lọc (Tìm/Reset) tách khỏi nhóm tạo mới
+ * bằng gạch dọc. */
+.khxh-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  padding: 0.9rem 1rem;
   border: 1px solid #e7eaf0;
-  border-radius: 0.5rem;
+  border-radius: 0.6rem;
   background: #fbfcfe;
 }
 
-.khxh-tuyen-xa-filter-grid {
-  display: grid;
-  grid-template-columns: minmax(180px, 1.5fr) repeat(4, minmax(120px, 1fr)) repeat(2, minmax(125px, 1fr)) 92px;
-  gap: 0.75rem;
-  align-items: end;
-}
-
-.khxh-tuyen-xa-filter-grid .form-label {
+.khxh-filter-bar .form-label {
   margin-bottom: 0.35rem;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
+  color: #566a7f;
+  white-space: nowrap;
 }
 
-@media (max-width: 1399.98px) {
-  .khxh-tuyen-xa-filter-grid {
-    grid-template-columns: repeat(4, minmax(150px, 1fr));
+.khxh-filter-bar .form-control,
+.khxh-filter-bar .form-select,
+.khxh-filter-bar .select2-container {
+  font-size: 0.85rem;
+}
+
+.khxh-filter-bar .select2-container {
+  width: 100% !important;
+}
+
+.khxh-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.75rem 0.85rem;
+  align-items: end;
+  flex: 1 1 620px;
+  min-width: 0;
+}
+
+.khxh-filter-field {
+  min-width: 0;
+}
+
+/* Các ô cần rộng hơn để hiển thị nội dung dài (khách hàng, địa chỉ kho). */
+.khxh-filter-field-customer,
+.khxh-filter-field-kho {
+  grid-column: span 2;
+}
+
+/* Nhóm ngày "Từ → Đến" gộp chung một nhãn. */
+.khxh-filter-field-date {
+  grid-column: span 2;
+}
+
+.khxh-date-range {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.khxh-date-range .form-control {
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.khxh-date-range-sep {
+  flex: 0 0 auto;
+  color: #98a2b3;
+}
+
+/* Nhóm nút thao tác — nằm cùng hàng với các input, neo về phía phải. */
+.khxh-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.65rem;
+  margin-left: auto;
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+/* Tuyến xa: nút nằm trong lưới, cùng hàng với "Đủ hàng" & "Ngày lập KH"
+ * (hàng 2), ép sát về phía phải, tương ứng cột 4–6. */
+.khxh-filter-actions-tx {
+  grid-column: 4 / -1;
+}
+
+.khxh-filter-actions .btn {
+  white-space: nowrap;
+}
+
+.khxh-filter-actions-sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 2rem;
+  margin: 0 0.15rem;
+  background: #dde3ea;
+}
+
+@media (max-width: 1199.98px) {
+  .khxh-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .khxh-filter-actions-tx {
+    grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 767.98px) {
-  .khxh-tuyen-xa-filter-grid {
+  .khxh-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .khxh-filter-field-customer,
+  .khxh-filter-field-kho,
+  .khxh-filter-field-date {
+    grid-column: span 2;
+  }
+
+  .khxh-filter-actions-tx {
+    grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 575.98px) {
-  .khxh-tuyen-xa-filter-grid {
+  .khxh-filter-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .khxh-filter-field-customer,
+  .khxh-filter-field-kho,
+  .khxh-filter-field-date {
+    grid-column: span 1;
+  }
+
+  .khxh-filter-actions-tx {
+    grid-column: 1 / -1;
+  }
+
+  .khxh-filter-actions {
+    justify-content: stretch;
+  }
+
+  .khxh-filter-actions .btn {
+    flex: 1 1 auto;
   }
 }
 
@@ -271,7 +386,8 @@ body .flatpickr-calendar {
 }
 
 #ke-hoach-form-app .select2-container .select2-selection--single,
-#ke-hoach-search-modal .select2-container .select2-selection--single,
+#ke-hoach-inline-filter .select2-container .select2-selection--single,
+#ke-hoach-tuyen-xa-inline-filter .select2-container .select2-selection--single,
 #cont-ref-picker-modal .select2-container .select2-selection--single,
 #khxh-combined-plan-modal .select2-container .select2-selection--single {
   height: calc(1.5em + 0.75rem + 2px);
@@ -290,7 +406,8 @@ body .flatpickr-calendar {
 }
 
 #ke-hoach-form-app .select2-container .select2-selection--single .select2-selection__rendered,
-#ke-hoach-search-modal .select2-container .select2-selection--single .select2-selection__rendered,
+#ke-hoach-inline-filter .select2-container .select2-selection--single .select2-selection__rendered,
+#ke-hoach-tuyen-xa-inline-filter .select2-container .select2-selection--single .select2-selection__rendered,
 #cont-ref-picker-modal .select2-container .select2-selection--single .select2-selection__rendered,
 #khxh-combined-plan-modal .select2-container .select2-selection--single .select2-selection__rendered {
   line-height: 1.5;
@@ -305,7 +422,8 @@ body .flatpickr-calendar {
 }
 
 #ke-hoach-form-app .select2-container .select2-selection--single .select2-selection__arrow,
-#ke-hoach-search-modal .select2-container .select2-selection--single .select2-selection__arrow,
+#ke-hoach-inline-filter .select2-container .select2-selection--single .select2-selection__arrow,
+#ke-hoach-tuyen-xa-inline-filter .select2-container .select2-selection--single .select2-selection__arrow,
 #cont-ref-picker-modal .select2-container .select2-selection--single .select2-selection__arrow,
 #khxh-combined-plan-modal .select2-container .select2-selection--single .select2-selection__arrow {
   height: 100%;
@@ -315,7 +433,8 @@ body .flatpickr-calendar {
 }
 
 #ke-hoach-form-app .select2-container .select2-selection--single .select2-selection__clear,
-#ke-hoach-search-modal .select2-container .select2-selection--single .select2-selection__clear,
+#ke-hoach-inline-filter .select2-container .select2-selection--single .select2-selection__clear,
+#ke-hoach-tuyen-xa-inline-filter .select2-container .select2-selection--single .select2-selection__clear,
 #cont-ref-picker-modal .select2-container .select2-selection--single .select2-selection__clear,
 #khxh-combined-plan-modal .select2-container .select2-selection--single .select2-selection__clear {
   position: relative;
@@ -330,8 +449,10 @@ body .flatpickr-calendar {
 
 #ke-hoach-form-app .select2-container.khxh-select2-invalid .select2-selection,
 #ke-hoach-form-app .select2-container--default.khxh-select2-invalid .select2-selection--single,
-#ke-hoach-search-modal .select2-container.khxh-select2-invalid .select2-selection,
-#ke-hoach-search-modal .select2-container--default.khxh-select2-invalid .select2-selection--single {
+#ke-hoach-inline-filter .select2-container.khxh-select2-invalid .select2-selection,
+#ke-hoach-inline-filter .select2-container--default.khxh-select2-invalid .select2-selection--single,
+#ke-hoach-tuyen-xa-inline-filter .select2-container.khxh-select2-invalid .select2-selection,
+#ke-hoach-tuyen-xa-inline-filter .select2-container--default.khxh-select2-invalid .select2-selection--single {
   border-color: #ea5455 !important;
   box-shadow: 0 0 0 0.12rem rgba(234, 84, 85, 0.12) !important;
 }

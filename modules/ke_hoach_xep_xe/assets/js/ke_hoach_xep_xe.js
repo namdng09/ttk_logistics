@@ -31,7 +31,8 @@
     kho: [],
     loaiCont: ['20RF', '20DC', '40HC', '40RF', '40DC'],
     vehicles: [],
-    moocs: []
+    moocs: [],
+    drivers: []
   };
 
   function currentPlanType() {
@@ -80,6 +81,7 @@
       so_seal_tam: '#filter-seal-phu',
       bks_dau_keo: '#filter-bks-dau-keo',
       bks_mooc: '#filter-bks-mooc',
+      lai_xe: '#filter-lai-xe',
       da_du_hang: '#filter-da-du-hang'
     };
   }
@@ -1129,8 +1131,7 @@
   }
 
   function setListSearchLoading(show) {
-    var $modal = currentPlanType() === 'tuyen_xa' ? $('#ke-hoach-tuyen-xa-inline-filter') : $('#ke-hoach-search-modal');
-    $('#ke-hoach-search-loading').toggle(!!show);
+    var $modal = currentPlanType() === 'tuyen_xa' ? $('#ke-hoach-tuyen-xa-inline-filter') : $('#ke-hoach-inline-filter');
     $modal.find('input, select, button').prop('disabled', !!show);
   }
 
@@ -1152,7 +1153,7 @@
 
   function initListSearchSelects() {
     var isTuyenXa = currentPlanType() === 'tuyen_xa';
-    var dropdownParent = isTuyenXa ? $('#ke-hoach-tuyen-xa-inline-filter') : $('#ke-hoach-search-modal');
+    var dropdownParent = isTuyenXa ? $('#ke-hoach-tuyen-xa-inline-filter') : $('#ke-hoach-inline-filter');
     var filters = $.extend({}, currentFilters || {});
     dropdownParent.find('input, select, button').prop('disabled', false);
     appendTextOptions($('#filter-khach-hang'), $.map(listSearchDropdownData.customers, function (item) { return customerPlanLabel(item); }), filters.khach_hang || '');
@@ -1160,11 +1161,13 @@
     appendTextOptions($('#filter-loai-cont'), listSearchDropdownData.loaiCont, filters.loai_cont || '');
     appendTextOptions($('#filter-bks-dau-keo'), $.map(listSearchDropdownData.vehicles, function (item) { return item.bks || ''; }), filters.bks_dau_keo || '');
     appendTextOptions($('#filter-bks-mooc'), $.map(listSearchDropdownData.moocs, function (item) { return item.bks || ''; }), filters.bks_mooc || '');
+    appendTextOptions($('#filter-lai-xe'), $.map(listSearchDropdownData.drivers, function (item) { return item.ten || ''; }), filters.lai_xe || '');
     setListFilterInputs(filters);
     $('#status-filter').val(currentStatus || '');
     initSelect2(document.getElementById('filter-khach-hang'), '— Chọn khách hàng —', { dropdownParent: dropdownParent });
     initSelect2(document.getElementById('filter-bks-dau-keo'), '— Chọn BKS đầu kéo —', { dropdownParent: dropdownParent });
     initSelect2(document.getElementById('filter-bks-mooc'), '— Chọn BKS mooc —', { dropdownParent: dropdownParent });
+    initSelect2(document.getElementById('filter-lai-xe'), '— Chọn lái xe —', { dropdownParent: dropdownParent });
     initSelect2(document.getElementById('filter-da-du-hang'), '— Chọn đủ hàng —', { dropdownParent: dropdownParent, allowClear: true });
     if (!isTuyenXa) {
       initSelect2(document.getElementById('filter-dia-chi-kho'), '— Chọn địa chỉ kho —', { dropdownParent: dropdownParent });
@@ -1181,7 +1184,7 @@
     if (done) listSearchDropdownCallbacks.push(done);
     if (listSearchDropdownsLoading) return;
     listSearchDropdownsLoading = true;
-    var pending = 3;
+    var pending = 4;
     function finish() {
       pending -= 1;
       if (pending > 0) return;
@@ -1230,6 +1233,18 @@
       },
       complete: finish
     });
+    $.ajax({
+      url: '/api/lai-xe',
+      type: 'GET',
+      dataType: 'json',
+      data: { limit: 100 },
+      success: function (res) {
+        if (res.status === 'success' && res.data && res.data.items) {
+          listSearchDropdownData.drivers = res.data.items;
+        }
+      },
+      complete: finish
+    });
   }
 
   function initListDateFilters() {
@@ -1249,13 +1264,11 @@
     initList._bound = true;
     var doc = document;
     initListDateFilters();
-    if (currentPlanType() === 'tuyen_xa') {
-      setListSearchLoading(true);
-      loadListSearchDropdowns(function () {
-        initListSearchSelects();
-        setListSearchLoading(false);
-      });
-    }
+    setListSearchLoading(true);
+    loadListSearchDropdowns(function () {
+      initListSearchSelects();
+      setListSearchLoading(false);
+    });
 
     function canRestoreListSnapshot() {
       if (shouldForceReloadList()) return false;
@@ -1462,9 +1475,6 @@
       currentStatus = $('#status-filter').val() || '';
       currentPage = 1;
       loadList();
-      var searchModalEl = document.getElementById('ke-hoach-search-modal');
-      var searchModal = searchModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal.getInstance ? bootstrap.Modal.getInstance(searchModalEl) : null;
-      if (searchModal) searchModal.hide();
     });
     $('.ke-hoach-list-filter input, .ke-hoach-list-filter select').on('keypress', function (e) {
       if (e.which === 13) {
@@ -1473,20 +1483,6 @@
         currentPage = 1;
         loadList();
       }
-    });
-    $('#ke-hoach-search-modal').on('show.bs.modal', function () {
-      if (!listSearchDropdownsLoaded) setListSearchLoading(true);
-    });
-    $('#ke-hoach-search-modal').on('shown.bs.modal', function () {
-      if (listSearchDropdownsLoaded) {
-        initListSearchSelects();
-        setListSearchLoading(false);
-        return;
-      }
-      loadListSearchDropdowns(function () {
-        initListSearchSelects();
-        setListSearchLoading(false);
-      });
     });
     $('.btn-reload').on('click', function () {
       clearListFilters();

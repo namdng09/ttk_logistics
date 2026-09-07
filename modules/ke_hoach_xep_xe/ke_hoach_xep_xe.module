@@ -1676,6 +1676,13 @@ function _ke_hoach_xep_xe_rest_list() {
     $query->leftJoin('phuong_tien', 'mooc_filter', 'mooc_filter.nid = kh.nid_mooc');
     $query->condition('mooc_filter.bks', '%' . db_like(trim($_GET['bks_mooc'])) . '%', 'LIKE');
   }
+  if (!empty($_GET['lai_xe'])) {
+    $query->leftJoin('lai_xe', 'lx_filter', 'lx_filter.nid = kh.nid_lai_xe');
+    $query->condition(db_or()
+      ->condition('lx_filter.ten', '%' . db_like(trim($_GET['lai_xe'])) . '%', 'LIKE')
+      ->condition('lx_filter.ma_nhan_vien', '%' . db_like(trim($_GET['lai_xe'])) . '%', 'LIKE')
+    );
+  }
   $date_from = !empty($_GET['date_from']) ? _ke_hoach_xep_xe_filter_date($_GET['date_from']) : '';
   if ($date_from) {
     $query->condition('kh.created', $date_from, '>=');

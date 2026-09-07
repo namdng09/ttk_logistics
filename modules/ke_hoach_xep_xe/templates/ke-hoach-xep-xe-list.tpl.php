@@ -11,33 +11,50 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
 
   <div class="card-body">
     <?php if ($is_tuyen_xa): ?>
-      <div class="khxh-tuyen-xa-inline-filter ke-hoach-list-filter mb-3" id="ke-hoach-tuyen-xa-inline-filter">
-        <div class="khxh-tuyen-xa-filter-grid">
-          <div><label class="form-label">Khách hàng</label><select class="form-select" id="filter-khach-hang"><option></option></select></div>
-          <div><label class="form-label">Số cont</label><input type="text" class="form-control" id="filter-so-cont" placeholder="Số cont"></div>
-          <div><label class="form-label">Đầu kéo</label><select class="form-select" id="filter-bks-dau-keo"><option></option></select></div>
-          <div><label class="form-label">Mooc</label><select class="form-select" id="filter-bks-mooc"><option></option></select></div>
-          <div><label class="form-label">Đủ hàng</label><select class="form-select" id="filter-da-du-hang"><option value="">Tất cả</option><option value="1">Đã đủ hàng</option><option value="0">Chưa đủ hàng</option></select></div>
-          <div><label class="form-label">Từ ngày</label><input type="text" class="form-control flatpickr-date date-mask" id="filter-date-from" placeholder="dd/mm/yyyy"></div>
-          <div><label class="form-label">Đến ngày</label><input type="text" class="form-control flatpickr-date date-mask" id="filter-date-to" placeholder="dd/mm/yyyy"></div>
-          <div class="khxh-tuyen-xa-filter-action"><label class="form-label d-none d-xl-block">&nbsp;</label><button class="btn btn-primary w-100" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm</button></div>
+      <div class="khxh-filter-bar ke-hoach-list-filter mb-3" id="ke-hoach-tuyen-xa-inline-filter">
+        <div class="khxh-filter-grid">
+          <div class="khxh-filter-field khxh-filter-field-customer"><label class="form-label">Khách hàng</label><select class="form-select" id="filter-khach-hang"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">Số cont</label><input type="text" class="form-control" id="filter-so-cont" placeholder="Số cont"></div>
+          <div class="khxh-filter-field"><label class="form-label">Đầu kéo</label><select class="form-select" id="filter-bks-dau-keo"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">Mooc</label><select class="form-select" id="filter-bks-mooc"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">Lái xe</label><select class="form-select" id="filter-lai-xe"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">Đủ hàng</label><select class="form-select" id="filter-da-du-hang"><option value="">Tất cả</option><option value="1">Đã đủ hàng</option><option value="0">Chưa đủ hàng</option></select></div>
+          <div class="khxh-filter-field khxh-filter-field-date"><label class="form-label">Ngày lập KH</label><div class="khxh-date-range"><input type="text" class="form-control flatpickr-date date-mask" id="filter-date-from" placeholder="dd/mm/yyyy"><span class="khxh-date-range-sep"><i class="ti tabler-arrow-right"></i></span><input type="text" class="form-control flatpickr-date date-mask" id="filter-date-to" placeholder="dd/mm/yyyy"></div></div>
+        <div class="khxh-filter-actions khxh-filter-actions-tx">
+            <button class="btn btn-primary" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm</button>
+            <button type="button" class="btn btn-label-secondary btn-reload waves-effect"><i class="ti tabler-refresh me-1"></i>Reset</button>
+            <div class="khxh-filter-actions-sep"></div>
+            <button type="button" class="btn btn-label-primary waves-effect btn-open-ptkh-create"><i class="ti tabler-file-plus me-1"></i>Tạo phiếu trả KH</button>
+            <button type="button" class="btn btn-success waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i>Tạo tuyến xa</button>
+          </div>
         </div>
       </div>
     <?php endif; ?>
-    <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-3">
-      <?php if (!$is_tuyen_xa): ?><button type="button" class="btn btn-label-primary" data-bs-toggle="modal" data-bs-target="#ke-hoach-search-modal">
-        <i class="ti tabler-search me-1"></i>Tìm kiếm
-      </button><?php endif; ?>
-      <button type="button" class="btn btn-label-secondary btn-reload waves-effect">
-        <i class="ti tabler-refresh me-1"></i>Reset
-      </button>
-      <button type="button" class="btn btn-label-primary waves-effect btn-open-ptkh-create">
-        <i class="ti tabler-file-plus me-1"></i>Tạo phiếu trả KH
-      </button>
-      <button type="button" class="btn btn-primary waves-effect waves-light btn-open-create-ke-hoach">
-        <i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?>
-      </button>
-    </div>
+    <?php if (!$is_tuyen_xa): ?>
+      <div class="khxh-filter-bar ke-hoach-list-filter mb-3" id="ke-hoach-inline-filter">
+        <div class="khxh-filter-grid">
+          <div class="khxh-filter-field khxh-filter-field-customer"><label class="form-label">Khách hàng</label><select class="form-select" id="filter-khach-hang"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">Số BKG</label><input type="text" class="form-control" id="filter-so-bkg" placeholder="Số BKG"></div>
+          <div class="khxh-filter-field"><label class="form-label">Trạng thái vận chuyển</label><select class="form-select" id="status-filter"><option></option><option value="Kéo lên">Kéo lên</option><option value="Kéo về">Kéo về</option><option value="Đã cắt mooc">Đã cắt mooc</option></select></div>
+          <div class="khxh-filter-field khxh-filter-field-date"><label class="form-label">Ngày lập KH</label><div class="khxh-date-range"><input type="text" class="form-control flatpickr-date date-mask" id="filter-date-from" placeholder="dd/mm/yyyy"><span class="khxh-date-range-sep"><i class="ti tabler-arrow-right"></i></span><input type="text" class="form-control flatpickr-date date-mask" id="filter-date-to" placeholder="dd/mm/yyyy"></div></div>
+          <div class="khxh-filter-field khxh-filter-field-kho"><label class="form-label">Địa chỉ kho</label><select class="form-select" id="filter-dia-chi-kho"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">Loại cont</label><select class="form-select" id="filter-loai-cont"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">Số cont</label><input type="text" class="form-control" id="filter-so-cont" placeholder="Số cont"></div>
+          <div class="khxh-filter-field"><label class="form-label">Seal chính</label><input type="text" class="form-control" id="filter-seal-chinh" placeholder="Seal chính"></div>
+          <div class="khxh-filter-field"><label class="form-label">Seal phụ</label><input type="text" class="form-control" id="filter-seal-phu" placeholder="Seal phụ"></div>
+          <div class="khxh-filter-field"><label class="form-label">BKS đầu kéo</label><select class="form-select" id="filter-bks-dau-keo"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">BKS mooc</label><select class="form-select" id="filter-bks-mooc"><option></option></select></div>
+          <div class="khxh-filter-field"><label class="form-label">Đủ hàng</label><select class="form-select" id="filter-da-du-hang"><option value="">Tất cả</option><option value="1">Đã đủ hàng</option><option value="0">Chưa đủ hàng</option></select></div>
+        </div>
+        <div class="khxh-filter-actions">
+          <button class="btn btn-primary" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm</button>
+          <button type="button" class="btn btn-label-secondary btn-reload waves-effect"><i class="ti tabler-refresh me-1"></i>Reset</button>
+          <div class="khxh-filter-actions-sep"></div>
+          <button type="button" class="btn btn-label-primary waves-effect btn-open-ptkh-create"><i class="ti tabler-file-plus me-1"></i>Tạo phiếu trả KH</button>
+          <button type="button" class="btn btn-success waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?></button>
+        </div>
+      </div>
+    <?php endif; ?>
 
     <!-- Table -->
     <div class="table-responsive">
@@ -160,43 +177,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
   </div>
 </div>
 
-<?php if (!$is_tuyen_xa): ?><div class="modal fade" id="ke-hoach-search-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Tìm kiếm kế hoạch</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body position-relative">
-        <div class="loading-overlay" id="ke-hoach-search-loading" style="display:none;">
-          <div class="spinner-border text-primary"></div>
-        </div>
-        <div class="row g-3 ke-hoach-list-filter">
-          <div class="col-12 col-md-4"><label class="form-label">Khách hàng</label><select class="form-select" id="filter-khach-hang"><option></option></select></div>
-          <?php if (!$is_tuyen_xa): ?><div class="col-12 col-md-4"><label class="form-label">Số BKG</label><input type="text" class="form-control" id="filter-so-bkg" placeholder="Số BKG"></div><?php endif; ?>
-          <div class="col-12 col-md-4"><label class="form-label">Trạng thái vận chuyển</label><select class="form-select" id="status-filter"><option></option><option value="Kéo lên">Kéo lên</option><option value="Kéo về">Kéo về</option><option value="Đã cắt mooc">Đã cắt mooc</option></select></div>
-          <div class="col-6 col-md-3"><label class="form-label">Từ ngày</label><input type="text" class="form-control flatpickr-date" id="filter-date-from" placeholder="dd/mm/yyyy"></div>
-          <div class="col-6 col-md-3"><label class="form-label">Đến ngày</label><input type="text" class="form-control flatpickr-date" id="filter-date-to" placeholder="dd/mm/yyyy"></div>
-          <div class="col-6 col-md-3"><label class="form-label">Loại cont</label><select class="form-select" id="filter-loai-cont"><option></option></select></div>
-          <div class="col-6 col-md-3"><label class="form-label">Số cont</label><input type="text" class="form-control" id="filter-so-cont" placeholder="Số cont"></div>
-          <div class="col-12 col-md-6"><label class="form-label">Địa chỉ kho</label><select class="form-select" id="filter-dia-chi-kho"><option></option></select></div>
-          <?php if (!$is_tuyen_xa): ?>
-            <div class="col-6 col-md-3"><label class="form-label">Seal chính</label><input type="text" class="form-control" id="filter-seal-chinh" placeholder="Seal chính"></div>
-            <div class="col-6 col-md-3"><label class="form-label">Seal phụ</label><input type="text" class="form-control" id="filter-seal-phu" placeholder="Seal phụ"></div>
-          <?php endif; ?>
-          <div class="col-6 col-md-4"><label class="form-label">BKS đầu kéo</label><select class="form-select" id="filter-bks-dau-keo"><option></option></select></div>
-          <div class="col-6 col-md-4"><label class="form-label">BKS mooc</label><select class="form-select" id="filter-bks-mooc"><option></option></select></div>
-          <div class="col-12 col-md-4"><label class="form-label">Đủ hàng</label><select class="form-select" id="filter-da-du-hang"><option value="">Tất cả</option><option value="1">Đã đủ hàng</option><option value="0">Chưa đủ hàng</option></select></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-label-secondary btn-reload waves-effect"><i class="ti tabler-refresh me-1"></i>Reset</button>
-        <button class="btn btn-primary" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm kiếm</button>
-      </div>
-    </div>
-  </div>
-</div>
-<?php endif; ?>
+
 
 <div class="modal fade" id="ke-hoach-detail-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
