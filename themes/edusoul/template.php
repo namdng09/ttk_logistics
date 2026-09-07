@@ -345,6 +345,7 @@ function edusoul_preprocess_html(&$variables)
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/notyf/notyf.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/flatpickr/flatpickr.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    drupal_add_css(path_to_theme() . '/quan-ly/assets/css/date-picker.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 2));
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/bootstrap-daterangepicker/bootstrap-daterangepicker.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/jquery-timepicker/jquery-timepicker.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/pickr/pickr-themes.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));

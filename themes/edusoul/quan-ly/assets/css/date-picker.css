@@ -1,0 +1,41 @@
+/* Override dùng chung cho toàn bộ Flatpickr trong hệ thống. Flatpickr đã có
+ * mũi tên tăng/giảm năm riêng nên không dùng spinner native của trình duyệt. */
+.flatpickr-current-month input.cur-year {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.flatpickr-current-month input.cur-year::-webkit-inner-spin-button,
+.flatpickr-current-month input.cur-year::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Chừa chỗ hiển thị đủ 4 chữ số năm, đồng thời mở rộng vùng bấm của hai
+ * mũi tên tăng/giảm mà không cần sửa DOM do Flatpickr sinh ra. */
+.flatpickr-calendar .flatpickr-current-month .numInputWrapper {
+  inline-size: 60px;
+}
+
+.flatpickr-calendar .flatpickr-current-month input.cur-year {
+  inline-size: 60px !important;
+  width: 60px !important;
+  padding-inline-end: 1.25rem;
+}
+
+.flatpickr-calendar .flatpickr-current-month .numInputWrapper span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inset-inline-end: 0;
+  inline-size: 1.25rem;
+  block-size: 50%;
+}
+
+.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowUp {
+  inset-block-start: 0;
+}
+
+.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowDown {
+  inset-block-end: 0;
+}

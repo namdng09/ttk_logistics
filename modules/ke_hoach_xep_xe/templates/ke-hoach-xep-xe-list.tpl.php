@@ -10,10 +10,24 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
   </div>
 
   <div class="card-body">
+    <?php if ($is_tuyen_xa): ?>
+      <div class="khxh-tuyen-xa-inline-filter ke-hoach-list-filter mb-3" id="ke-hoach-tuyen-xa-inline-filter">
+        <div class="khxh-tuyen-xa-filter-grid">
+          <div><label class="form-label">Khách hàng</label><select class="form-select" id="filter-khach-hang"><option></option></select></div>
+          <div><label class="form-label">Số cont</label><input type="text" class="form-control" id="filter-so-cont" placeholder="Số cont"></div>
+          <div><label class="form-label">Đầu kéo</label><select class="form-select" id="filter-bks-dau-keo"><option></option></select></div>
+          <div><label class="form-label">Mooc</label><select class="form-select" id="filter-bks-mooc"><option></option></select></div>
+          <div><label class="form-label">Đủ hàng</label><select class="form-select" id="filter-da-du-hang"><option value="">Tất cả</option><option value="1">Đã đủ hàng</option><option value="0">Chưa đủ hàng</option></select></div>
+          <div><label class="form-label">Từ ngày</label><input type="text" class="form-control flatpickr-date date-mask" id="filter-date-from" placeholder="dd/mm/yyyy"></div>
+          <div><label class="form-label">Đến ngày</label><input type="text" class="form-control flatpickr-date date-mask" id="filter-date-to" placeholder="dd/mm/yyyy"></div>
+          <div class="khxh-tuyen-xa-filter-action"><label class="form-label d-none d-xl-block">&nbsp;</label><button class="btn btn-primary w-100" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm</button></div>
+        </div>
+      </div>
+    <?php endif; ?>
     <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-3">
-      <button type="button" class="btn btn-label-primary" data-bs-toggle="modal" data-bs-target="#ke-hoach-search-modal">
+      <?php if (!$is_tuyen_xa): ?><button type="button" class="btn btn-label-primary" data-bs-toggle="modal" data-bs-target="#ke-hoach-search-modal">
         <i class="ti tabler-search me-1"></i>Tìm kiếm
-      </button>
+      </button><?php endif; ?>
       <button type="button" class="btn btn-label-secondary btn-reload waves-effect">
         <i class="ti tabler-refresh me-1"></i>Reset
       </button>
@@ -146,7 +160,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
   </div>
 </div>
 
-<div class="modal fade" id="ke-hoach-search-modal" tabindex="-1" aria-hidden="true">
+<?php if (!$is_tuyen_xa): ?><div class="modal fade" id="ke-hoach-search-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
@@ -182,6 +196,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
     </div>
   </div>
 </div>
+<?php endif; ?>
 
 <div class="modal fade" id="ke-hoach-detail-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">

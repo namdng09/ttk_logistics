@@ -1108,7 +1108,13 @@
     for (var key in fields) {
       if (!fields.hasOwnProperty(key)) continue;
       var $field = $(fields[key]);
-      $field.val(filters[key] || '');
+      var value = filters[key] || '';
+      if ($field[0] && $field[0]._flatpickr) {
+        if (value) $field[0]._flatpickr.setDate(value, false, 'd/m/Y');
+        else $field[0]._flatpickr.clear();
+      } else {
+        $field.val(value);
+      }
       if ($field.data('select2')) $field.trigger('change');
     }
   }
@@ -1123,7 +1129,7 @@
   }
 
   function setListSearchLoading(show) {
-    var $modal = $('#ke-hoach-search-modal');
+    var $modal = currentPlanType() === 'tuyen_xa' ? $('#ke-hoach-tuyen-xa-inline-filter') : $('#ke-hoach-search-modal');
     $('#ke-hoach-search-loading').toggle(!!show);
     $modal.find('input, select, button').prop('disabled', !!show);
   }
@@ -1145,9 +1151,10 @@
   }
 
   function initListSearchSelects() {
-    var dropdownParent = $('#ke-hoach-search-modal');
+    var isTuyenXa = currentPlanType() === 'tuyen_xa';
+    var dropdownParent = isTuyenXa ? $('#ke-hoach-tuyen-xa-inline-filter') : $('#ke-hoach-search-modal');
     var filters = $.extend({}, currentFilters || {});
-    $('#ke-hoach-search-modal').find('input, select, button').prop('disabled', false);
+    dropdownParent.find('input, select, button').prop('disabled', false);
     appendTextOptions($('#filter-khach-hang'), $.map(listSearchDropdownData.customers, function (item) { return customerPlanLabel(item); }), filters.khach_hang || '');
     appendTextOptions($('#filter-dia-chi-kho'), listSearchDropdownData.kho, filters.dia_chi_kho || '');
     appendTextOptions($('#filter-loai-cont'), listSearchDropdownData.loaiCont, filters.loai_cont || '');
@@ -1156,12 +1163,14 @@
     setListFilterInputs(filters);
     $('#status-filter').val(currentStatus || '');
     initSelect2(document.getElementById('filter-khach-hang'), '— Chọn khách hàng —', { dropdownParent: dropdownParent });
-    initSelect2(document.getElementById('filter-dia-chi-kho'), '— Chọn địa chỉ kho —', { dropdownParent: dropdownParent });
-    initSelect2(document.getElementById('filter-loai-cont'), 'Loại cont', { tags: true, dropdownParent: dropdownParent });
     initSelect2(document.getElementById('filter-bks-dau-keo'), '— Chọn BKS đầu kéo —', { dropdownParent: dropdownParent });
     initSelect2(document.getElementById('filter-bks-mooc'), '— Chọn BKS mooc —', { dropdownParent: dropdownParent });
-    initSelect2(document.getElementById('status-filter'), '— Chọn trạng thái —', { dropdownParent: dropdownParent, allowClear: true });
     initSelect2(document.getElementById('filter-da-du-hang'), '— Chọn đủ hàng —', { dropdownParent: dropdownParent, allowClear: true });
+    if (!isTuyenXa) {
+      initSelect2(document.getElementById('filter-dia-chi-kho'), '— Chọn địa chỉ kho —', { dropdownParent: dropdownParent });
+      initSelect2(document.getElementById('filter-loai-cont'), 'Loại cont', { tags: true, dropdownParent: dropdownParent });
+      initSelect2(document.getElementById('status-filter'), '— Chọn trạng thái —', { dropdownParent: dropdownParent, allowClear: true });
+    }
   }
 
   function loadListSearchDropdowns(done) {
@@ -1240,6 +1249,13 @@
     initList._bound = true;
     var doc = document;
     initListDateFilters();
+    if (currentPlanType() === 'tuyen_xa') {
+      setListSearchLoading(true);
+      loadListSearchDropdowns(function () {
+        initListSearchSelects();
+        setListSearchLoading(false);
+      });
+    }
 
     function canRestoreListSnapshot() {
       if (shouldForceReloadList()) return false;
