@@ -183,8 +183,9 @@
               <div class="invalid-feedback">Vui lòng nhập tên</div>
             </div>
             <div class="col-lg-3">
-              <label class="form-label">Tên ngắn gọn</label>
-              <input type="text" class="form-control" name="ma_kh" placeholder="ABC">
+              <label class="form-label">Tên ngắn gọn <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="ma_kh" required placeholder="ABC">
+              <div class="invalid-feedback">Vui lòng nhập tên ngắn gọn</div>
             </div>
             <div class="col-lg-3">
               <label class="form-label">MST / CCCD</label>

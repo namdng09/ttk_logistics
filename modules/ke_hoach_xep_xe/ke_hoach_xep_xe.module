@@ -1378,6 +1378,7 @@ function _ke_hoach_xep_xe_hinh_thuc_status_text($row) {
 function _ke_hoach_xep_xe_statuses() {
   return array(
     'Chưa xếp xe',
+    'Đang vận chuyển',
     'Đi lấy cont',
     'Đang đến kho',
     'Thả mooc',

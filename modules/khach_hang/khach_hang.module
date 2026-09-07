@@ -133,8 +133,9 @@ function khach_hang_modal_html() {
               <div class="invalid-feedback">Vui lòng nhập tên</div>
             </div>
             <div class="col-lg-3">
-              <label class="form-label">Tên ngắn gọn</label>
-              <input type="text" class="form-control" name="ma_kh" placeholder="ABC">
+              <label class="form-label">Tên ngắn gọn <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="ma_kh" required placeholder="ABC">
+              <div class="invalid-feedback">Vui lòng nhập tên ngắn gọn</div>
             </div>
             <div class="col-lg-3">
               <label class="form-label">MST / CCCD</label>
@@ -538,6 +539,10 @@ function _khach_hang_rest_create() {
   if (empty($input['ten'])) {
     return _khach_hang_fail('Tên khách hàng bắt buộc');
   }
+  $input['ma_kh'] = isset($input['ma_kh']) ? trim((string) $input['ma_kh']) : '';
+  if ($input['ma_kh'] === '') {
+    return _khach_hang_fail('Tên ngắn gọn bắt buộc');
+  }
   if (empty($input['phan_loai'])) {
     return _khach_hang_fail('Phân loại bắt buộc');
   }
@@ -651,6 +656,10 @@ function _khach_hang_rest_update($id) {
 
   if (empty($input['ten'])) {
     return _khach_hang_fail('Tên khách hàng bắt buộc');
+  }
+  $input['ma_kh'] = isset($input['ma_kh']) ? trim((string) $input['ma_kh']) : '';
+  if ($input['ma_kh'] === '') {
+    return _khach_hang_fail('Tên ngắn gọn bắt buộc');
   }
   if (empty($input['phan_loai'])) {
     return _khach_hang_fail('Phân loại bắt buộc');

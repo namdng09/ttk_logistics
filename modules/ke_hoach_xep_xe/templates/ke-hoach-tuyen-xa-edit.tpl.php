@@ -166,7 +166,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Huỷ</button>
-        <button type="button" class="btn btn-primary" id="khxh-status-save-btn"><i class="ti tabler-device-floppy me-1"></i>Lưu thay đổi</button>
+        <button type="button" class="btn btn-primary" id="khxh-status-save-btn"><i class="ti tabler-device-floppy me-1"></i>Lưu</button>
       </div>
     </div>
   </div>
