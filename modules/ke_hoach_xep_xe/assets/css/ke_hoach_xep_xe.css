@@ -131,6 +131,23 @@
   background: #dde3ea;
 }
 
+/* Option "Lái xe" trong dropdown lọc: tên dòng 1, số điện thoại dòng 2. */
+.khxh-driver-result {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  padding: 0.1rem 0;
+}
+
+.khxh-driver-result-name {
+  font-weight: 500;
+}
+
+.khxh-driver-result-phone {
+  font-size: 0.75rem;
+  color: #98a2b3;
+}
+
 @media (max-width: 1199.98px) {
   .khxh-filter-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));

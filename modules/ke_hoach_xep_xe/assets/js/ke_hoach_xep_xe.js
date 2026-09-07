@@ -1151,6 +1151,21 @@
     $select.html(html);
   }
 
+  function formatListDriverResult(data) {
+    if (!data || $.trim(data.text || '') === '') return data.text;
+    var $row = $('<div class="khxh-driver-result"></div>')
+      .append($('<span class="khxh-driver-result-name"></span>').text(data.text));
+    if (data.element) {
+      var phone = String($(data.element).data('phone') || '').trim();
+      if (phone) $row.append($('<span class="khxh-driver-result-phone"></span>').text(phone));
+    }
+    return $row;
+  }
+
+  function formatListDriverSelection(data) {
+    return data.text;
+  }
+
   function initListSearchSelects() {
     var isTuyenXa = currentPlanType() === 'tuyen_xa';
     var dropdownParent = isTuyenXa ? $('#ke-hoach-tuyen-xa-inline-filter') : $('#ke-hoach-inline-filter');
@@ -1162,12 +1177,21 @@
     appendTextOptions($('#filter-bks-dau-keo'), $.map(listSearchDropdownData.vehicles, function (item) { return item.bks || ''; }), filters.bks_dau_keo || '');
     appendTextOptions($('#filter-bks-mooc'), $.map(listSearchDropdownData.moocs, function (item) { return item.bks || ''; }), filters.bks_mooc || '');
     appendTextOptions($('#filter-lai-xe'), $.map(listSearchDropdownData.drivers, function (item) { return item.ten || ''; }), filters.lai_xe || '');
+    var driverMap = {};
+    for (var di = 0; di < (listSearchDropdownData.drivers || []).length; di++) {
+      var dv = listSearchDropdownData.drivers[di];
+      driverMap[String(dv.ten || '').trim()] = String(dv.sdt || '').trim();
+    }
+    $('#filter-lai-xe option').each(function () {
+      var phone = driverMap[String(this.value || '').trim()] || '';
+      if (phone) $(this).data('phone', phone);
+    });
     setListFilterInputs(filters);
     $('#status-filter').val(currentStatus || '');
     initSelect2(document.getElementById('filter-khach-hang'), '— Chọn khách hàng —', { dropdownParent: dropdownParent });
     initSelect2(document.getElementById('filter-bks-dau-keo'), '— Chọn BKS đầu kéo —', { dropdownParent: dropdownParent });
     initSelect2(document.getElementById('filter-bks-mooc'), '— Chọn BKS mooc —', { dropdownParent: dropdownParent });
-    initSelect2(document.getElementById('filter-lai-xe'), '— Chọn lái xe —', { dropdownParent: dropdownParent });
+    initSelect2(document.getElementById('filter-lai-xe'), '— Chọn lái xe —', { dropdownParent: dropdownParent, templateResult: formatListDriverResult, templateSelection: formatListDriverSelection });
     initSelect2(document.getElementById('filter-da-du-hang'), '— Chọn đủ hàng —', { dropdownParent: dropdownParent, allowClear: true });
     if (!isTuyenXa) {
       initSelect2(document.getElementById('filter-dia-chi-kho'), '— Chọn địa chỉ kho —', { dropdownParent: dropdownParent });
