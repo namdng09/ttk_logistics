@@ -689,6 +689,13 @@ body .flatpickr-calendar {
   border-bottom: 1px solid #e9eef3;
 }
 
+/* Giữ cột action cố định giữa Kế hoạch nguồn và Cont kéo về. Nếu action
+ * rộng/hẹp theo text, grid metadata sẽ không còn bị co khác nhau. */
+.khxh-cont-ref-selected-top.is-tuyen-xa {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+}
+
 .khxh-cont-ref-identity {
   display: flex;
   align-items: center;
@@ -754,10 +761,29 @@ button.khxh-cont-ref-number:focus {
   text-overflow: ellipsis;
 }
 
+/* Tuyến xa đưa định danh cont vào cùng grid metadata để các cột Số cont,
+ * Khách hàng, Xe kéo lên, Mooc và Lái xe có nhịp/khoảng cách đồng nhất. */
+.khxh-cont-ref-meta.is-tuyen-xa .khxh-cont-ref-cont strong {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.khxh-cont-ref-meta.is-tuyen-xa .khxh-cont-ref-cont .badge {
+  flex-shrink: 0;
+}
+
 .khxh-cont-ref-actions {
   display: flex;
   gap: 0.4rem;
   flex-shrink: 0;
+}
+
+.khxh-cont-ref-selected-top.is-tuyen-xa .khxh-cont-ref-actions {
+  width: 132px;
+  justify-content: flex-end;
 }
 
 .khxh-cont-ref-selected-bottom {
@@ -789,6 +815,10 @@ button.khxh-cont-ref-number:focus {
   .khxh-cont-ref-selected-top {
     align-items: flex-start;
     flex-wrap: wrap;
+  }
+
+  .khxh-cont-ref-selected-top.is-tuyen-xa {
+    display: flex;
   }
 
   .khxh-cont-ref-meta {
