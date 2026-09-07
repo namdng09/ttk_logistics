@@ -75,7 +75,6 @@
       date_from: '#filter-date-from',
       date_to: '#filter-date-to',
       dia_chi_kho: '#filter-dia-chi-kho',
-      loai_cont: '#filter-loai-cont',
       so_cont: '#filter-so-cont',
       so_seal_chinh: '#filter-seal-chinh',
       so_seal_tam: '#filter-seal-phu',
@@ -1173,7 +1172,6 @@
     dropdownParent.find('input, select, button').prop('disabled', false);
     appendTextOptions($('#filter-khach-hang'), $.map(listSearchDropdownData.customers, function (item) { return customerPlanLabel(item); }), filters.khach_hang || '');
     appendTextOptions($('#filter-dia-chi-kho'), listSearchDropdownData.kho, filters.dia_chi_kho || '');
-    appendTextOptions($('#filter-loai-cont'), listSearchDropdownData.loaiCont, filters.loai_cont || '');
     appendTextOptions($('#filter-bks-dau-keo'), $.map(listSearchDropdownData.vehicles, function (item) { return item.bks || ''; }), filters.bks_dau_keo || '');
     appendTextOptions($('#filter-bks-mooc'), $.map(listSearchDropdownData.moocs, function (item) { return item.bks || ''; }), filters.bks_mooc || '');
     appendTextOptions($('#filter-lai-xe'), $.map(listSearchDropdownData.drivers, function (item) { return item.ten || ''; }), filters.lai_xe || '');
@@ -1195,7 +1193,6 @@
     initSelect2(document.getElementById('filter-da-du-hang'), '— Chọn đủ hàng —', { dropdownParent: dropdownParent, allowClear: true });
     initSelect2(document.getElementById('filter-dia-chi-kho'), '— Chọn địa chỉ kho —', { dropdownParent: dropdownParent });
     if (!isTuyenXa) {
-      initSelect2(document.getElementById('filter-loai-cont'), 'Loại cont', { tags: true, dropdownParent: dropdownParent });
       initSelect2(document.getElementById('status-filter'), '— Chọn trạng thái —', { dropdownParent: dropdownParent, allowClear: true });
     }
   }

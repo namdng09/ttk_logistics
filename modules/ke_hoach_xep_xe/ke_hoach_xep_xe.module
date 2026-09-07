@@ -1664,7 +1664,6 @@ function _ke_hoach_xep_xe_rest_list() {
   }
   _ke_hoach_xep_xe_like_condition($query, 'kh.so_bkg', 'so_bkg');
   _ke_hoach_xep_xe_like_condition($query, 'kh.dia_chi_kho', 'dia_chi_kho');
-  _ke_hoach_xep_xe_like_condition($query, 'kh.loai_cont', 'loai_cont');
   _ke_hoach_xep_xe_like_condition($query, 'kh.so_cont', 'so_cont');
   _ke_hoach_xep_xe_like_condition($query, 'kh.so_seal_chinh', 'so_seal_chinh');
   _ke_hoach_xep_xe_like_condition($query, 'kh.so_seal_tam', 'so_seal_tam');
