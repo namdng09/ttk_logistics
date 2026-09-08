@@ -1,6 +1,6 @@
 <?php
 $is_tuyen_xa = isset($plan_type) && $plan_type === 'tuyen_xa';
-$list_title = $is_tuyen_xa ? 'Kế hoạch tuyến xa' : 'Danh sách kế hoạch xếp xe';
+$list_title = $is_tuyen_xa ? 'Kế hoạch tuyến xa' : 'Kế hoạch hàng cảng';
 $create_title = $is_tuyen_xa ? 'Tạo kế hoạch tuyến xa' : 'Tạo kế hoạch xếp xe';
 $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
 ?>
@@ -60,7 +60,6 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
     <div class="table-responsive">
       <table class="table table-bordered table-hover mb-0 khxh-list-table<?php print $is_tuyen_xa ? ' khxh-tuyen-xa-list-table' : ''; ?>">
         <colgroup>
-          <?php if (!$is_tuyen_xa): ?><col class="khxh-col-actions"><?php endif; ?>
           <col class="khxh-col-stt">
           <col class="khxh-col-date">
           <col class="khxh-col-common">
@@ -74,7 +73,6 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
         </colgroup>
         <thead class="table-light">
           <tr>
-            <?php if (!$is_tuyen_xa): ?><th style="width:60px;text-align:center">CN</th><?php endif; ?>
             <th>#</th>
             <th>Ngày</th>
             <th>T.T Chung</th>
@@ -89,7 +87,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
         </thead>
         <tbody id="list-body">
           <tr id="loading-row">
-            <td colspan="<?php print $is_tuyen_xa ? 8 : 12; ?>" class="text-center py-4">
+            <td colspan="<?php print $is_tuyen_xa ? 8 : 11; ?>" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
