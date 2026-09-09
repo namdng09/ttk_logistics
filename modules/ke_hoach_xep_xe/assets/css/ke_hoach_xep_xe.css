@@ -217,7 +217,6 @@
   min-width: 92px;
   max-width: 92px;
   white-space: nowrap;
-  text-align: center;
 }
 
 #ke-hoach-list-app .khxh-list-table td:first-child {
@@ -242,10 +241,6 @@
 
 /* Hàng cảng: mã khách hàng căn trái trong cột thông tin chung. */
 #ke-hoach-list-app .khxh-list-table:not(.khxh-tuyen-xa-list-table) td:nth-child(3) {
-  text-align: left;
-}
-
-#ke-hoach-list-app .khxh-list-table:not(.khxh-tuyen-xa-list-table) .khxh-customer-cell {
   text-align: left;
 }
 
