@@ -225,6 +225,14 @@
   padding-right: 0;
 }
 
+/* Cột STT của hàng cảng dùng cùng cách căn giữa như tuyến xa. */
+#ke-hoach-list-app .khxh-list-table:not(.khxh-tuyen-xa-list-table) th:first-child,
+#ke-hoach-list-app .khxh-list-table:not(.khxh-tuyen-xa-list-table) td:first-child {
+  text-align: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
 #ke-hoach-list-app .khxh-list-table th:nth-child(2),
 #ke-hoach-list-app .khxh-list-table td:nth-child(2) {
   text-align: center;
@@ -324,6 +332,16 @@
 .khxh-customer-cell,
 .khxh-cang-cell {
   line-height: 1.45;
+}
+
+/* Không để nội dung dài phá vỡ chiều rộng cột; nội dung tự xuống dòng trong ô. */
+#ke-hoach-list-app .khxh-list-table td > div,
+#ke-hoach-list-app .khxh-list-table td > span,
+#ke-hoach-list-app .khxh-list-table td .khxh-hanh-trinh-box,
+#ke-hoach-list-app .khxh-list-table td .khxh-vehicle-cell {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .flatpickr-calendar,
@@ -932,6 +950,11 @@ button.khxh-cont-ref-number:focus {
   flex: 1;
 }
 
+/* Hàng cảng: 6 thông tin trên một hàng, ưu tiên thêm chiều rộng cho số cont. */
+.khxh-cont-ref-meta.is-hang-cang {
+  grid-template-columns: minmax(190px, 1.6fr) repeat(5, minmax(0, 1fr));
+}
+
 .khxh-cont-ref-meta span,
 .khxh-cont-ref-selected-bottom span {
   display: flex;
@@ -970,13 +993,28 @@ button.khxh-cont-ref-number:focus {
   flex-shrink: 0;
 }
 
+/* Không để số cont và badge tràn sang item metadata kế bên ở hàng cảng. */
+.khxh-cont-ref-meta.is-tuyen-xa.is-hang-cang .khxh-cont-ref-cont strong {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.khxh-cont-ref-meta.is-tuyen-xa.is-hang-cang .khxh-cont-ref-number {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .khxh-cont-ref-actions {
   display: flex;
   gap: 0.4rem;
   flex-shrink: 0;
 }
 
-.khxh-cont-ref-selected-top.is-tuyen-xa .khxh-cont-ref-actions {
+.khxh-cont-ref-selected-top.is-tuyen-xa .khxh-cont-ref-actions,
+.khxh-cont-ref-selected-top.is-grid .khxh-cont-ref-actions {
   width: 132px;
   justify-content: flex-end;
 }
@@ -1019,6 +1057,10 @@ button.khxh-cont-ref-number:focus {
   .khxh-cont-ref-meta {
     order: 3;
     flex-basis: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .khxh-cont-ref-meta.is-hang-cang {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
@@ -1307,22 +1349,26 @@ button.khxh-cont-ref-number:focus {
   outline-offset: 2px;
 }
 
-.khxh-status-cell .btn-tuyen-xa-toggle-du-hang {
+.khxh-status-cell .btn-tuyen-xa-toggle-du-hang,
+.khxh-status-cell .btn-hang-cang-toggle-du-hang {
   cursor: pointer;
   user-select: none;
   transition: opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
-.khxh-status-cell .btn-tuyen-xa-toggle-du-hang:hover {
+.khxh-status-cell .btn-tuyen-xa-toggle-du-hang:hover,
+.khxh-status-cell .btn-hang-cang-toggle-du-hang:hover {
   box-shadow: 0 0 0 0.18rem rgba(105, 108, 255, 0.16);
 }
 
-.khxh-status-cell .btn-tuyen-xa-toggle-du-hang:focus-visible {
+.khxh-status-cell .btn-tuyen-xa-toggle-du-hang:focus-visible,
+.khxh-status-cell .btn-hang-cang-toggle-du-hang:focus-visible {
   outline: 2px solid rgba(105, 108, 255, 0.45);
   outline-offset: 2px;
 }
 
-.khxh-status-cell .btn-tuyen-xa-toggle-du-hang.is-saving {
+.khxh-status-cell .btn-tuyen-xa-toggle-du-hang.is-saving,
+.khxh-status-cell .btn-hang-cang-toggle-du-hang.is-saving {
   cursor: wait;
   opacity: 0.6;
   pointer-events: none;

@@ -68,7 +68,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
           <col class="khxh-col-vehicle">
           <col class="khxh-col-kho">
           <col class="khxh-col-route">
-          <?php if (!$is_tuyen_xa): ?><col class="khxh-col-cang"><col class="khxh-col-date"><?php endif; ?>
+          <?php if (!$is_tuyen_xa): ?><col class="khxh-col-cang"><?php endif; ?>
           <col class="khxh-col-status">
         </colgroup>
         <thead class="table-light">
@@ -81,13 +81,13 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
             <th>PT / Lái xe</th>
             <th>Địa chỉ kho</th>
             <th>Bãi lấy/hạ</th>
-            <?php if (!$is_tuyen_xa): ?><th>Cảng xuất</th><th>Cut off</th><?php endif; ?>
+            <?php if (!$is_tuyen_xa): ?><th>Cảng xuất</th><?php endif; ?>
             <th>T.Thái</th>
           </tr>
         </thead>
         <tbody id="list-body">
           <tr id="loading-row">
-            <td colspan="<?php print $is_tuyen_xa ? 8 : 11; ?>" class="text-center py-4">
+            <td colspan="<?php print $is_tuyen_xa ? 8 : 10; ?>" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
