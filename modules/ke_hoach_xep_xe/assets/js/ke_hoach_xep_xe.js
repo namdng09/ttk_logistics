@@ -1337,31 +1337,8 @@
       });
     }
 
-    // Click trên vùng trống của một dòng tuyến xa mở menu CN ngay tại con
-    // trỏ. Không chặn hành vi bôi đen chữ: click kéo chuột, có selection và
-    // double-click đều bị bỏ qua.
-    var rowMenuPointer = null;
-    var rowMenuTimer = null;
-    // Chờ rất ngắn để nhận biết double-click trước khi mở menu của click đầu.
-    var rowMenuDelay = 160;
-
-    function clearRowMenuTimer() {
-      if (rowMenuTimer) window.clearTimeout(rowMenuTimer);
-      rowMenuTimer = null;
-    }
-
     function isRowMenuInteractiveTarget(target) {
       return $(target).closest('button, a, input, select, textarea, label, .dropdown, .select2-container, [role="button"], .btn-tuyen-xa-toggle-du-hang').length > 0;
-    }
-
-    function hasRowTextSelection(row) {
-      var selection = window.getSelection ? window.getSelection() : null;
-      if (!selection || selection.isCollapsed || !String(selection).trim() || !selection.rangeCount) return false;
-      try {
-        return selection.getRangeAt(0).intersectsNode(row);
-      } catch (ignore) {
-        return true;
-      }
     }
 
     function setRowMenuActive(row) {
@@ -1410,39 +1387,35 @@
 
     $('#list-body')
       .off('.khxhRowMenu')
-      .on('mousedown.khxhRowMenu', 'tr', function (e) {
-        if (isRowMenuInteractiveTarget(e.target)) {
-          rowMenuPointer = null;
-          return;
-        }
-        rowMenuPointer = { x: e.clientX, y: e.clientY, moved: false, row: this };
-      })
-      .on('mousemove.khxhRowMenu', 'tr', function (e) {
-        if (!rowMenuPointer || rowMenuPointer.row !== this) return;
-        if (Math.abs(e.clientX - rowMenuPointer.x) > 4 || Math.abs(e.clientY - rowMenuPointer.y) > 4) rowMenuPointer.moved = true;
-      })
-      .on('dblclick.khxhRowMenu', 'tr', function () {
-        clearRowMenuTimer();
-        rowMenuPointer = null;
-      })
-      .on('click.khxhRowMenu', 'tr', function (e) {
+      .on('contextmenu.khxhRowMenu', 'tr', function (e) {
+        if (currentPlanType() !== 'tuyen_xa' || isRowMenuInteractiveTarget(e.target)) return;
+        e.preventDefault();
+        e.stopPropagation();
         var row = this;
-        var pointer = rowMenuPointer;
-        rowMenuPointer = null;
-        // Theme sẽ tự đóng dropdown khi event tiếp tục bubble lên document.
-        // Chỉ cần không lên lịch mở lại nếu người dùng click đúng dòng đang mở.
-        if (row.querySelector('.dropdown[data-fd-open]') && !isRowMenuInteractiveTarget(e.target)) {
-          clearRowMenuTimer();
+        if (row.querySelector('.dropdown[data-fd-open]')) {
+          var openDropdown = row.querySelector('.dropdown[data-fd-open]');
+          var openMenu = openDropdown.querySelector('.dropdown-menu');
+          if (openMenu) {
+            openMenu.style.position = '';
+            openMenu.style.top = '';
+            openMenu.style.left = '';
+            openMenu.style.display = '';
+            openMenu.style.zIndex = '';
+          }
+          openDropdown.removeAttribute('data-fd-open');
           $(row).removeClass('khxh-row-menu-active');
           return;
         }
-        if (!pointer || pointer.row !== row || pointer.moved || e.detail > 1 || isRowMenuInteractiveTarget(e.target) || hasRowTextSelection(row)) return;
-        clearRowMenuTimer();
-        rowMenuTimer = window.setTimeout(function () {
-          rowMenuTimer = null;
-          if (hasRowTextSelection(row)) return;
-          openRowMenuAtCursor(row, pointer.x, pointer.y);
-        }, rowMenuDelay);
+        openRowMenuAtCursor(row, e.clientX, e.clientY);
+      })
+      .on('dblclick.khxhRowMenu', 'tr', function (e) {
+        if (currentPlanType() !== 'tuyen_xa' || isRowMenuInteractiveTarget(e.target)) return;
+        var editButton = this.querySelector('.btn-edit-ke-hoach-xep-xe');
+        var id = editButton && parseInt(editButton.getAttribute('data-id'), 10);
+        if (id) {
+          $('#list-body tr.khxh-row-menu-active').removeClass('khxh-row-menu-active');
+          openEditFullscreenModal(id);
+        }
       })
       // Chọn một chức năng nghĩa là đã rời khỏi thao tác chọn dòng. Bỏ nền
       // ngay tại đây, không đợi modal hoặc màn hình chức năng được đóng.
