@@ -2376,13 +2376,49 @@
     }
 
     function updateTuyenXaSidebar() {
-      if (currentPlanType() !== 'tuyen_xa' || !$form('#khxh-tuyen-xa-summary').length) return;
+      if (!$form('#khxh-tuyen-xa-summary').length) return;
       var line = state.lines[0] || null;
-      var $card = line ? $form('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + line.key + '"]') : $();
+      var $card = line ? $form('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + line.key + '"], #ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + line.key + '"]') : $();
       if (line && $card.length) line = syncLine($card) || line;
       if (!line) {
         $form('#khxh-tuyen-xa-summary').html('<div class="khxh-summary-empty">Chưa có dữ liệu</div>');
         $form('#khxh-tuyen-xa-checklist').empty();
+        return;
+      }
+      if (currentPlanType() !== 'tuyen_xa') {
+        var normalCustomer = lookupName(state.customers, line.nid_khach_hang, 'ma_kh');
+        var normalCustomerFull = lookupName(state.customers, line.nid_khach_hang, 'ten');
+        var normalDriver = lookupName(state.drivers, line.nid_lai_xe, 'ten');
+        var normalVehicle = vehicleOnlyText(line);
+        var normalMooc = moocSummaryText(line);
+        var normalCont = [line.loai_cont || '', line.so_cont || ''].filter(Boolean).join(' - ');
+        var normalRoute = [line.bai_lay_cont || '', line.dia_chi_kho || '', line.cang_xuat || '', line.bai_ha_cont || ''].filter(Boolean).join(' - ');
+        var normalDate = [apiToDate(line.ngay_bat_dau || ''), apiToDate(line.ngay_ket_thuc || '')].filter(Boolean).join(' - ');
+        var normalFilesCount = planFilesFromRow(editData).length;
+        $form('#khxh-tuyen-xa-context [data-context="customer"]').text(normalCustomer || 'Chưa có').attr('title', normalCustomerFull || '');
+        $form('#khxh-tuyen-xa-context [data-context="container"]').text(normalCont || 'Chưa có');
+        $form('#khxh-tuyen-xa-context [data-context="route"]').text(normalRoute || 'Chưa có');
+        $form('#khxh-tuyen-xa-context [data-context="time"]').text(normalDate || 'Chưa có');
+        $form('#khxh-tuyen-xa-summary').html(
+          summaryRow('Khách hàng', normalCustomer, '', normalCustomerFull) +
+          summaryRow('Container', normalCont, line.loai_hang || '') +
+          summaryRow('Phương tiện', normalVehicle, '') +
+          summaryRow('Mooc', normalMooc, '') +
+          summaryRow('Lái xe', normalDriver, '') +
+          summaryRow('Hình thức', line.hinh_thuc_van_tai ? hinhThucLabel(line.hinh_thuc_van_tai) : '', normalDate) +
+          summaryRow('Cont kéo về', line.cont_ref ? (line.cont_ref.so_cont || ('#' + line.ke_hoach_cont_ref_nid)) : '', '') +
+          summaryRow('Chứng từ', normalFilesCount + '/25 file', '')
+        );
+        $form('#khxh-tuyen-xa-checklist').html(
+          checklistItem(!!line.nid_khach_hang, 'Khách hàng', normalCustomer || '', normalCustomerFull) +
+          checklistItem(!!line.so_bkg, 'Booking/Bill', line.so_bkg || '') +
+          checklistItem(!!line.so_cont, 'Số cont', line.so_cont || '') +
+          checklistItem(!!line.dia_chi_kho, 'Kho/Cảng xuất', line.dia_chi_kho || line.cang_xuat || '') +
+          checklistItem(!!line.nid_phuong_tien, 'Phương tiện', normalVehicle || '') +
+          checklistItem(!!line.nid_lai_xe, 'Lái xe', normalDriver || '') +
+          checklistItem(!!line.hinh_thuc_van_tai, 'Hình thức vận tải', line.hinh_thuc_van_tai ? hinhThucLabel(line.hinh_thuc_van_tai) : '') +
+          checklistItem(normalFilesCount > 0, 'Chứng từ', normalFilesCount + '/25 file')
+        );
         return;
       }
       var customerName = lookupName(state.customers, line.nid_khach_hang, 'ma_kh');
@@ -2661,8 +2697,7 @@
         if (isTuyenXa) navHtml += renderTuyenXaNav(line);
         var routeMetaHtml = isTuyenXa
           ? ''
-          : '<div class="khxh-span-4"><label class="form-label">Cut-off</label><input type="text" class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM"></div>' +
-            '<div class="khxh-span-4"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>';
+          : '<div class="khxh-span-4"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>';
         dateInputsHtml = mode === 'edit'
           ? '<div class="khxh-span-4"><label class="form-label">Ngày bắt đầu</label><input type="text" class="form-control line-date-input line-ngay-bat-dau-input" value="' + escHtml(apiToDate(line.ngay_bat_dau || '')) + '" placeholder="dd/mm/yyyy"></div>' +
             '<div class="khxh-span-4"><label class="form-label">Ngày kết thúc</label><input type="text" class="form-control line-date-input line-ngay-ket-thuc-input" value="' + escHtml(apiToDate(line.ngay_ket_thuc || '')) + '" placeholder="dd/mm/yyyy"></div>'
@@ -2671,7 +2706,7 @@
           '<div class="ke-hoach-line-card khxh-tuyen-xa-card khxh-main-plan-card" id="khxh-main-plan-' + escHtml(line.key) + '" data-line-key="' + line.key + '">' +
             '<div class="khxh-tuyen-xa-card-head">' +
               '<div>' +
-                '<div class="khxh-tuyen-xa-card-title">' + (isTuyenXa ? '<span class="khxh-step-badge">1</span>' + (executionPlan ? 'Công việc thực hiện chặng' : 'Kế hoạch gốc') : 'Thông tin xếp xe') + '</div>' +
+                '<div class="khxh-tuyen-xa-card-title"><span class="khxh-step-badge">1</span>' + (isTuyenXa ? (executionPlan ? 'Công việc thực hiện chặng' : 'Kế hoạch gốc') : 'Thông tin xếp xe') + '</div>' +
                 '<div class="khxh-tuyen-xa-card-subtitle">Thông tin hàng, tuyến vận chuyển và điều xe</div>' +
               '</div>' +
               (isTuyenXa ? '<div class="khxh-tuyen-xa-switches khxh-main-plan-switches">' +
@@ -2753,7 +2788,7 @@
           '</div>';
         pickerHtml += '' +
             '<div class="khxh-tuyen-xa-card khxh-cont-ref-card" id="khxh-return-cont-' + escHtml(line.key) + '" data-line-key="' + line.key + '">' +
-              '<div class="khxh-tuyen-xa-card-head"><div><div class="khxh-tuyen-xa-card-title"><span class="khxh-step-badge">2</span>Kế hoạch nguồn</div></div><span class="khxh-cont-ref-section-status">Chưa chọn</span></div>' +
+            '<div class="khxh-tuyen-xa-card-head"><div><div class="khxh-tuyen-xa-card-title"><span class="khxh-step-badge">2</span>' + (isTuyenXa ? 'Kế hoạch nguồn' : 'Cont kéo về') + '</div></div><span class="khxh-cont-ref-section-status">Chưa chọn</span></div>' +
               '<div class="khxh-cont-ref-content"></div>' +
             '</div>' +
             (isTuyenXa ? '<div class="khxh-tuyen-xa-card khxh-ket-hop-card' + (returnContApplicable(line) ? '' : ' d-none') + '" id="khxh-combined-plan-' + escHtml(line.key) + '" data-line-key="' + line.key + '">' +
