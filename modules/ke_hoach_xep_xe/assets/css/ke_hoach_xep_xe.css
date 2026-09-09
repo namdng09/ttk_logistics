@@ -232,6 +232,15 @@
   padding-right: 0.5rem;
 }
 
+/* Hàng cảng: mã khách hàng căn trái trong cột thông tin chung. */
+#ke-hoach-list-app .khxh-list-table:not(.khxh-tuyen-xa-list-table) td:nth-child(3) {
+  text-align: left;
+}
+
+#ke-hoach-list-app .khxh-list-table:not(.khxh-tuyen-xa-list-table) .khxh-customer-cell {
+  text-align: left;
+}
+
 /* Tuyến xa không còn cột CN, do đó các rule thứ tự cột cũ cần dịch lại. */
 #ke-hoach-list-app .khxh-tuyen-xa-list-table th:first-child,
 #ke-hoach-list-app .khxh-tuyen-xa-list-table td:first-child {
@@ -1831,6 +1840,15 @@ button.khxh-cont-ref-number:focus {
 
 .khxh-htvt-status.khxh-plan-role-ket-hop {
   color: #e67e22;
+}
+
+/* Trạng thái kéo lên/kéo về ở cột Ngày của danh sách hàng cảng. */
+.khxh-htvt-status.khxh-list-status-keo-len {
+  color: #28a745;
+}
+
+.khxh-htvt-status.khxh-list-status-keo-ve {
+  color: #696cff;
 }
 
 /* Menu CN của tuyến xa vẫn nằm trong DOM để click cả dòng có thể mở nó,

@@ -1697,7 +1697,11 @@
           var daDuHang = parseInt(row.da_du_hang, 10) === 1;
           var stt = (resp.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(row);
-          var khName = customerPlanLabel(row.khach_hang);
+          // Danh sách hàng cảng dùng mã khách hàng để tránh tên dài làm vỡ bố cục;
+          // tuyến xa vẫn dùng customerPlanLabel như trước.
+          var khName = currentPlanType() === 'tuyen_xa'
+            ? customerPlanLabel(row.khach_hang)
+            : ((row.khach_hang && row.khach_hang.ma_kh) || customerPlanLabel(row.khach_hang));
           var khFullName = customerFullName(row.khach_hang);
           var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + hinhThucColor(row.hinh_thuc_van_tai) + '">' + escHtml(hinhThucLabel(row.hinh_thuc_van_tai)) + '</span>' : '';
           var hinhThucStatus = '';
@@ -1738,6 +1742,14 @@
           } else if (row.hinh_thuc_van_tai === 'cat_keo' || row.hinh_thuc_van_tai === 'cat_keo_cheo' || row.hinh_thuc_van_tai === 'tha_mooc') {
             hinhThucStatus = 'Kéo lên';
           }
+          // Với hàng cảng, cont được chọn trong ô "Cont kéo về" nằm ở cont_ref.
+          // Hiển thị ngay cạnh hình thức vận tải để nhìn nhanh trên danh sách.
+          if (currentPlanType() !== 'tuyen_xa' && row.cont_ref) {
+            returnContText = row.cont_ref.so_cont || '';
+          }
+          var hinhThucStatusClass = hinhThucStatus === 'Kéo về'
+            ? 'khxh-list-status-keo-ve'
+            : (hinhThucStatus === 'Kéo lên' ? 'khxh-list-status-keo-len' : '');
           var contHtml = row.loai_cont ? escHtml(row.loai_cont) : '';
           if (row.so_cont) contHtml += (contHtml ? ' - ' : '') + escHtml(row.so_cont);
           var baiLayDisplay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
@@ -1747,12 +1759,11 @@
             '<td><button type="button" class="khxh-row-actions-trigger" title="Mở chức năng kế hoạch" aria-label="Mở chức năng kế hoạch #' + stt + '">' + stt + '</button></td>' +
             '<td class="khxh-date-cell">' + (currentPlanType() === 'tuyen_xa'
               ? '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + planRoleClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu
-              : formatDateBadge(row.created) + rowActionMenu) + '</td>' +
+              : '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + hinhThucStatusClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu) + '</td>' +
             '<td class="khxh-common-cell">' +
-              '<div class="khxh-customer-cell"' + (currentPlanType() === 'tuyen_xa' && khFullName ? ' title="' + escHtml(khFullName) + '"' : '') + '>' + (khName ? escHtml(khName) : '<span class="text-muted fst-italic small">khách hàng</span>') + '</div>' +
+              '<div class="khxh-customer-cell"' + (khFullName ? ' title="' + escHtml(khFullName) + '"' : '') + '>' + (khName ? escHtml(khName) : '<span class="text-muted fst-italic small">khách hàng</span>') + '</div>' +
               '<div class="khxh-htvt-cell">' +
-                (currentPlanType() !== 'tuyen_xa' && hinhThucStatus ? '<div class="khxh-htvt-status">' + escHtml(hinhThucStatus) + '</div>' : '') +
-                (hinhThucBadge ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list">' + escHtml(returnContText) + '</span>' : '') + '</div>' : '') +
+                ((hinhThucBadge || returnContText) ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list">' + escHtml(returnContText) + '</span>' : '') + '</div>' : '') +
               '</div>' +
             '</td>' +
             (currentPlanType() === 'tuyen_xa' ? '' : '<td class="khxh-bkg-cell">' + escHtml(row.so_bkg || '') + '</td>') +
