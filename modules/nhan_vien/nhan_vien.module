@@ -165,6 +165,7 @@ function _nhan_vien_require_auth() {
 function _nhan_vien_load_row($uid) {
   $uid = (int) $uid;
   if (!$uid) return NULL;
+  if (_nhan_vien_is_driver_account($uid)) return NULL;
 
   $u = db_query("SELECT * FROM {users} WHERE uid = :uid", array(':uid' => $uid))->fetch();
   if (!$u || $u->uid == 0) return NULL;
@@ -206,6 +207,21 @@ function _nhan_vien_load_row($uid) {
     'chuc_vu' => !empty($u->chuc_vu) ? array('nid' => (int) $u->chuc_vu, 'ten' => $chuc_vu_ten) : NULL,
     'role' => $rid ? array('nid' => (int) $rid, 'ten' => $role_name) : NULL,
   );
+}
+
+/** Driver accounts are owned exclusively by the Lái xe screen. */
+function _nhan_vien_is_driver_account($uid) {
+  $uid = (int) $uid;
+  if (!$uid) return FALSE;
+  $role = db_query("SELECT 1 FROM {users_roles} WHERE uid = :uid AND rid = :rid", array(
+    ':uid' => $uid,
+    ':rid' => 7,
+  ))->fetchField();
+  if ($role) return TRUE;
+  if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
+    return (bool) db_query("SELECT 1 FROM {lai_xe} WHERE uid_nguoi_dung = :uid", array(':uid' => $uid))->fetchField();
+  }
+  return FALSE;
 }
 
 /**
@@ -263,8 +279,9 @@ function nhan_vien_rest_roles() {
     return _nhan_vien_unauthorized('Bạn không có quyền xem danh sách role');
   }
 
-  $rows = db_query("SELECT rid, name FROM {role} WHERE rid > :auth_rid ORDER BY name ASC", array(
+  $rows = db_query("SELECT rid, name FROM {role} WHERE rid > :auth_rid AND rid <> :driver_rid ORDER BY name ASC", array(
     ':auth_rid' => DRUPAL_AUTHENTICATED_RID,
+    ':driver_rid' => 7,
   ))->fetchAll();
 
   $items = array();
@@ -303,6 +320,13 @@ function _nhan_vien_rest_list() {
   $query = db_select('users', 'u');
   $query->fields('u');
   $query->condition('u.uid', 0, '!=');
+  // Driver accounts are managed only from the Lái xe screen, never as staff.
+  $query->leftJoin('users_roles', 'ur_driver', 'ur_driver.uid = u.uid AND ur_driver.rid = :driver_rid', array(':driver_rid' => 7));
+  $query->isNull('ur_driver.uid');
+  if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
+    $query->leftJoin('lai_xe', 'lx_driver', 'lx_driver.uid_nguoi_dung = u.uid');
+    $query->isNull('lx_driver.nid');
+  }
 
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
@@ -513,7 +537,7 @@ function _nhan_vien_rest_update($id) {
   }
 
   $existing = user_load($id);
-  if (!$existing || $existing->uid == 0) {
+  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id)) {
     return _nhan_vien_not_found('Nhân viên không tồn tại');
   }
 
@@ -606,7 +630,7 @@ function _nhan_vien_rest_delete($id) {
   }
 
   $existing = user_load($id);
-  if (!$existing || $existing->uid == 0) {
+  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id)) {
     return _nhan_vien_not_found('Nhân viên không tồn tại');
   }
 
@@ -638,7 +662,12 @@ function _nhan_vien_rest_delete($id) {
 
 function nhan_vien_page_list() {
   drupal_add_css(drupal_get_path('module', 'nhan_vien') . '/assets/css/nhan_vien.css');
-  drupal_add_js(drupal_get_path('module', 'nhan_vien') . '/assets/js/nhan_vien.js');
+  // Bump the asset version whenever role filtering changes; otherwise an old
+  // aggregated/browser-cached JS can keep showing role Lái xe.
+  drupal_add_js(drupal_get_path('module', 'nhan_vien') . '/assets/js/nhan_vien.js', array(
+    'group' => JS_THEME,
+    'version' => 2026090901,
+  ));
 
   drupal_add_js(array('nhan_vien' => array(
     'permissions' => array(

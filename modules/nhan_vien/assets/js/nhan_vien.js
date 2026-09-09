@@ -271,6 +271,9 @@
           var html = '';
           for (var i = 0; i < res.data.length; i++) {
             var r = res.data[i];
+            // Role Lái xe (rid 7) is managed exclusively in the Lái xe screen.
+            var roleName = String(r.name || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            if (parseInt(r.rid, 10) === 7 || roleName === 'lái xe' || roleName === 'lai xe') continue;
             html += '<option value="' + r.rid + '">' + escapeHtml(r.name) + '</option>';
           }
           if (filterRole) {

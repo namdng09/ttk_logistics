@@ -141,6 +141,33 @@
               <input type="text" class="form-control flatpickr-date date-mask" name="dod" placeholder="dd/MM/yyyy">
             </div>
 
+            <div class="col-12">
+              <div class="lai-xe-app-account-section" id="lai-xe-app-account-section">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                  <div>
+                    <label class="form-label mb-0"><i class="ti tabler-device-mobile me-2"></i>Tài khoản ứng dụng lái xe</label>
+                    <div class="small text-muted mt-1" id="lai-xe-app-account-status">Chưa tạo tài khoản</div>
+                  </div>
+                  <label class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" name="kich_hoat_app" id="lai-xe-kich-hoat-app" value="1">
+                    <span class="form-check-label">Kích hoạt truy cập app</span>
+                  </label>
+                </div>
+                <div class="row g-3 d-none" id="lai-xe-app-password-fields">
+                  <div class="col-md-6">
+                    <label class="form-label" id="lai-xe-app-password-label">Mật khẩu <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" name="mat_khau_app" autocomplete="new-password" placeholder="Ít nhất 6 ký tự">
+                    <div class="invalid-feedback">Vui lòng nhập mật khẩu ít nhất 6 ký tự</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" id="lai-xe-app-confirm-label">Xác nhận mật khẩu</label>
+                    <input type="password" class="form-control" name="xac_nhan_mat_khau_app" autocomplete="new-password" placeholder="Nhập lại mật khẩu">
+                    <div class="invalid-feedback">Xác nhận mật khẩu chưa khớp</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Bank Info Repeater -->
             <div class="col-12">
               <div class="ngan-hang-section">

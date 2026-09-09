@@ -199,6 +199,18 @@ function _lai_xe_normalize_record($row) {
 
   $row->thong_tin_json = $json;
   $row->files = $json['files'];
+  $row->uid_nguoi_dung = isset($row->uid_nguoi_dung) ? (int) $row->uid_nguoi_dung : 0;
+  $row->tai_khoan_app = array('co_tai_khoan' => FALSE, 'kich_hoat' => FALSE, 'username' => '');
+  if ($row->uid_nguoi_dung) {
+    $account = db_query("SELECT uid, name, status FROM {users} WHERE uid = :uid", array(':uid' => $row->uid_nguoi_dung))->fetch();
+    if ($account) {
+      $row->tai_khoan_app = array(
+        'co_tai_khoan' => TRUE,
+        'kich_hoat' => (bool) $account->status,
+        'username' => (string) $account->name,
+      );
+    }
+  }
   return $row;
 }
 
@@ -226,6 +238,133 @@ function _lai_xe_ensure_thong_tin_json_field() {
       'size' => 'big',
       'not null' => FALSE,
     ));
+  }
+}
+
+/** Keep the feature usable immediately after code deployment, before update.php. */
+function _lai_xe_ensure_user_link_field() {
+  if (db_table_exists('lai_xe') && !db_field_exists('lai_xe', 'uid_nguoi_dung')) {
+    db_add_field('lai_xe', 'uid_nguoi_dung', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+    ));
+  }
+}
+
+function _lai_xe_phone_username($phone) {
+  $phone = preg_replace('/\D+/', '', (string) $phone);
+  // Treat +84xxxxxxxxx and 0xxxxxxxxx as the same login phone number.
+  if (strlen($phone) === 11 && substr($phone, 0, 2) === '84') {
+    $phone = '0' . substr($phone, 2);
+  }
+  return $phone;
+}
+
+function _lai_xe_driver_role_name() {
+  $roles = user_roles();
+  return isset($roles[7]) ? $roles[7] : FALSE;
+}
+
+/**
+ * Validate a requested app-account change without exposing or altering accounts.
+ */
+function _lai_xe_validate_app_account($input, $driver = NULL) {
+  $has_toggle = array_key_exists('kich_hoat_app', $input);
+  $uid = !empty($driver->uid_nguoi_dung) ? (int) $driver->uid_nguoi_dung : 0;
+  $enabled = $has_toggle ? !empty($input['kich_hoat_app']) : FALSE;
+  $has_password = !empty($input['mat_khau_app']) || !empty($input['xac_nhan_mat_khau_app']);
+
+  if (!$has_toggle && !$has_password && !$uid) {
+    return NULL;
+  }
+  if (!$uid && !$enabled && !$has_password) {
+    return NULL;
+  }
+  if (!$uid && !$enabled && $has_password) {
+    return _lai_xe_fail('Cần bật kích hoạt truy cập app trước khi đặt mật khẩu');
+  }
+
+  $phone = _lai_xe_phone_username(isset($input['sdt']) ? $input['sdt'] : ($driver ? $driver->sdt : ''));
+  if (!$uid && $enabled && $phone === '') {
+    return _lai_xe_fail('Cần nhập SĐT để tạo tài khoản app cho lái xe');
+  }
+  if (($enabled || $uid) && $phone === '') {
+    return _lai_xe_fail('Tài khoản app cần có SĐT đăng nhập');
+  }
+  if ($phone !== '' && ($enabled || $uid)) {
+    $found = db_query("SELECT uid FROM {users} WHERE name = :name", array(':name' => $phone))->fetchField();
+    if ($found && (int) $found !== $uid) {
+      return _lai_xe_fail('SĐT "' . $phone . '" đã được dùng cho một tài khoản khác');
+    }
+  }
+  if (!$uid && $enabled && !_lai_xe_driver_role_name()) {
+    return _lai_xe_error('Không tìm thấy role Lái xe (rid 7)');
+  }
+  if (!$uid && $enabled && empty($input['mat_khau_app'])) {
+    return _lai_xe_fail('Vui lòng nhập mật khẩu tài khoản app');
+  }
+  if ($has_password) {
+    if (strlen((string) $input['mat_khau_app']) < 6) {
+      return _lai_xe_fail('Mật khẩu tài khoản app cần ít nhất 6 ký tự');
+    }
+    if ((string) $input['mat_khau_app'] !== (string) $input['xac_nhan_mat_khau_app']) {
+      return _lai_xe_fail('Xác nhận mật khẩu tài khoản app chưa khớp');
+    }
+  }
+  return NULL;
+}
+
+/** Create, enable/disable, or update the account linked to one driver. */
+function _lai_xe_sync_app_account($driver, $input) {
+  $uid = !empty($driver->uid_nguoi_dung) ? (int) $driver->uid_nguoi_dung : 0;
+  $has_toggle = array_key_exists('kich_hoat_app', $input);
+  $enabled = $has_toggle ? !empty($input['kich_hoat_app']) : NULL;
+  $password = !empty($input['mat_khau_app']) ? (string) $input['mat_khau_app'] : '';
+  $phone = _lai_xe_phone_username(isset($input['sdt']) ? $input['sdt'] : $driver->sdt);
+  $driver_active = !isset($driver->hoat_dong) || (int) $driver->hoat_dong === 1;
+
+  if (!$uid && $enabled) {
+    $role_name = _lai_xe_driver_role_name();
+    $edit = array(
+      'name' => $phone,
+      'pass' => $password,
+      'mail' => '',
+      'status' => $driver_active ? 1 : 0,
+      'roles' => array(7 => $role_name),
+    );
+    $account = user_save(NULL, $edit);
+    if (!$account || empty($account->uid)) {
+      throw new Exception('Không thể tạo tài khoản app cho lái xe');
+    }
+    $uid = (int) $account->uid;
+    db_update('lai_xe')->fields(array('uid_nguoi_dung' => $uid))->condition('nid', $driver->nid)->execute();
+    return;
+  }
+
+  if (!$uid) {
+    return;
+  }
+
+  $account = user_load($uid);
+  if (!$account) {
+    throw new Exception('Không tìm thấy tài khoản app đã liên kết');
+  }
+  $edit = array();
+  if ($phone !== '' && $phone !== $account->name) {
+    $edit['name'] = $phone;
+  }
+  if ($password !== '') {
+    $edit['pass'] = $password;
+  }
+  if (!$driver_active) {
+    $edit['status'] = 0;
+  }
+  elseif ($has_toggle) {
+    $edit['status'] = $enabled ? 1 : 0;
+  }
+  if ($edit) {
+    user_save($account, $edit);
   }
 }
 
@@ -317,6 +456,24 @@ function _lai_xe_check_unique($input, $exclude_nid = NULL) {
     $exists = $query->execute()->fetchObject();
     if ($exists && $exists->hoat_dong) {
       return _lai_xe_fail($label . ' "' . $value . '" đã tồn tại');
+    }
+  }
+
+  // SQL's unique key does not consider 098... and +84... equivalent.
+  if (!empty($input['sdt'])) {
+    $phone = _lai_xe_phone_username($input['sdt']);
+    if ($phone !== '') {
+      $phones = db_select('lai_xe', 'lx')
+        ->fields('lx', array('nid', 'sdt'))
+        ->condition('lx.hoat_dong', 1);
+      if ($exclude_nid !== NULL) {
+        $phones->condition('lx.nid', $exclude_nid, '<>');
+      }
+      foreach ($phones->execute() as $row) {
+        if (_lai_xe_phone_username($row->sdt) === $phone) {
+          return _lai_xe_fail('SĐT "' . trim($input['sdt']) . '" đã tồn tại');
+        }
+      }
     }
   }
   return NULL; // no duplicate, or only soft-deleted duplicates
@@ -412,6 +569,10 @@ function _lai_xe_rest_create() {
   if ($dup) return $dup;
 
   _lai_xe_ensure_thong_tin_json_field();
+  _lai_xe_ensure_user_link_field();
+
+  $account_error = _lai_xe_validate_app_account($input);
+  if ($account_error) return $account_error;
 
   $transaction = db_transaction();
   try {
@@ -431,12 +592,15 @@ function _lai_xe_rest_create() {
         'dod' => isset($input['dod']) ? $input['dod'] : '',
         'thong_tin_ngan_hang' => isset($input['thong_tin_ngan_hang']) ? json_encode($input['thong_tin_ngan_hang'], JSON_UNESCAPED_UNICODE) : NULL,
         'thong_tin_json' => _lai_xe_json_encode(array('files' => array())),
+        'uid_nguoi_dung' => NULL,
         'hoat_dong' => isset($input['hoat_dong']) ? (int) $input['hoat_dong'] : 1,
         'created' => date('Y-m-d H:i:s', REQUEST_TIME),
         'changed' => date('Y-m-d H:i:s', REQUEST_TIME),
       ))
       ->execute();
 
+    $driver = db_query("SELECT * FROM {lai_xe} WHERE nid = :nid", array(':nid' => $nid))->fetch();
+    _lai_xe_sync_app_account($driver, $input);
     $row = _lai_xe_load_record($nid);
 
     watchdog('lai_xe', 'Tạo lái xe #%id: %ten', array(
@@ -491,7 +655,8 @@ function _lai_xe_rest_update($id) {
     return _lai_xe_unauthorized('Bạn không có quyền sửa lái xe');
   }
 
-  $existing = db_query("SELECT nid FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  _lai_xe_ensure_user_link_field();
+  $existing = db_query("SELECT * FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
     return _lai_xe_not_found('Lái xe không tồn tại');
   }
@@ -500,6 +665,9 @@ function _lai_xe_rest_update($id) {
 
   $dup = _lai_xe_check_unique($input, $id);
   if ($dup) return $dup;
+
+  $account_error = _lai_xe_validate_app_account($input, $existing);
+  if ($account_error) return $account_error;
 
   $unique_fields = array('ma_nhan_vien', 'sdt', 'cccd', 'so_bang_lai');
   $fields = array(
@@ -529,6 +697,8 @@ function _lai_xe_rest_update($id) {
       ->condition('nid', $id)
       ->execute();
 
+    $driver = db_query("SELECT * FROM {lai_xe} WHERE nid = :nid", array(':nid' => $id))->fetch();
+    _lai_xe_sync_app_account($driver, $input);
     $row = _lai_xe_load_record($id);
 
     watchdog('lai_xe', 'Cập nhật lái xe #%id', array('%id' => $id));
@@ -550,7 +720,8 @@ function _lai_xe_rest_delete($id) {
     return _lai_xe_unauthorized('Bạn không có quyền xoá lái xe');
   }
 
-  $existing = db_query("SELECT nid, ten FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  _lai_xe_ensure_user_link_field();
+  $existing = db_query("SELECT nid, ten, uid_nguoi_dung FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
     return _lai_xe_not_found('Lái xe không tồn tại');
   }
@@ -561,6 +732,10 @@ function _lai_xe_rest_delete($id) {
       ->fields(array('hoat_dong' => 0, 'changed' => date('Y-m-d H:i:s', REQUEST_TIME)))
       ->condition('nid', $id)
       ->execute();
+
+    if (!empty($existing->uid_nguoi_dung) && ($account = user_load($existing->uid_nguoi_dung))) {
+      user_save($account, array('status' => 0));
+    }
 
     watchdog('lai_xe', 'Xoá (soft) lái xe #%id: %ten', array(
       '%id' => $id,

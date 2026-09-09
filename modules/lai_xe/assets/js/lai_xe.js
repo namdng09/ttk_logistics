@@ -9,6 +9,7 @@
   var CURRENT_DRIVER_ID = '';
   var CURRENT_FILES = [];
   var CURRENT_FORM_MODE = 'create';
+  var CURRENT_APP_ACCOUNT = { co_tai_khoan: false, kich_hoat: false, username: '' };
   var SELECTED_DRIVER_FILE = null;
   var FILE_TYPE_LABELS = {
     cccd_truoc: 'CCCD mặt trước',
@@ -164,6 +165,13 @@
       });
     }
 
+    var appToggle = doc.getElementById('lai-xe-kich-hoat-app');
+    if (appToggle) {
+      appToggle.addEventListener('change', function () {
+        updateAppAccountFields();
+      });
+    }
+
     // Modal events
     var modal = doc.getElementById('lai-xe-modal');
     modal.addEventListener('hidden.bs.modal', function () {
@@ -293,6 +301,14 @@
 
   function submitForm() {
     var form = document.getElementById('form-lai-xe');
+    var appToggle = document.getElementById('lai-xe-kich-hoat-app');
+    var password = form.querySelector('input[name="mat_khau_app"]');
+    var confirmPassword = form.querySelector('input[name="xac_nhan_mat_khau_app"]');
+    if (password && confirmPassword && password.value && password.value !== confirmPassword.value) {
+      confirmPassword.setCustomValidity('not-match');
+    } else if (confirmPassword) {
+      confirmPassword.setCustomValidity('');
+    }
     if (form.checkValidity() === false) {
       form.classList.add('was-validated');
       return;
@@ -304,6 +320,7 @@
       var inp = inputs[i];
       if (inp.name) data[inp.name] = inp.value;
     }
+    data.kich_hoat_app = appToggle && appToggle.checked ? 1 : 0;
     data.thong_tin_ngan_hang = collectNganHang();
 
     var nid = data.nid;
@@ -565,6 +582,7 @@
         $sel.select2(mode === 'view' ? 'disable' : 'enable');
       }
     }
+    updateAppAccountFields();
     renderFileSection();
   }
 
@@ -751,12 +769,15 @@
     document.querySelector('#form-lai-xe input[name="nid"]').value = '';
     CURRENT_DRIVER_ID = '';
     CURRENT_FILES = [];
+    CURRENT_APP_ACCOUNT = { co_tai_khoan: false, kich_hoat: false, username: '' };
     SELECTED_DRIVER_FILE = null;
     document.getElementById('lai-xe-modal-title').textContent = 'Thêm lái xe';
+    document.getElementById('form-lai-xe').classList.remove('was-validated');
     var selBang = document.querySelector('#form-lai-xe select[name="loai_bang_lai"]');
     if (selBang) initLoaiBangLaiSelect(selBang, '');
     initRepeater();
     setFormMode('create');
+    updateAppAccountFields(CURRENT_APP_ACCOUNT);
   }
 
   function populateForm(d) {
@@ -778,6 +799,7 @@
     document.querySelector('#form-lai-xe input[name="han_bang_lai"]').value = d.han_bang_lai || '';
     document.querySelector('#form-lai-xe input[name="ngay_nhan_viec"]').value = d.ngay_nhan_viec || '';
     document.querySelector('#form-lai-xe input[name="dod"]').value = d.dod || '';
+    updateAppAccountFields(d.tai_khoan_app || { co_tai_khoan: false, kich_hoat: false, username: '' });
 
     // Repeater ngan hang
     var container = document.getElementById('ngan-hang-repeater');
@@ -790,6 +812,55 @@
       addNganHangRow();
     }
     renderFileSection();
+  }
+
+  function updateAppAccountFields(account) {
+    var form = document.getElementById('form-lai-xe');
+    if (!form) return;
+    var toggle = document.getElementById('lai-xe-kich-hoat-app');
+    var wrap = document.getElementById('lai-xe-app-password-fields');
+    var status = document.getElementById('lai-xe-app-account-status');
+    var password = form.querySelector('input[name="mat_khau_app"]');
+    var confirmPassword = form.querySelector('input[name="xac_nhan_mat_khau_app"]');
+    var phone = form.querySelector('input[name="sdt"]');
+    var mode = CURRENT_FORM_MODE;
+    var accountProvided = !!account;
+    if (accountProvided) CURRENT_APP_ACCOUNT = account;
+    account = CURRENT_APP_ACCOUNT;
+    var hasAccount = !!account.co_tai_khoan;
+
+    if (accountProvided && toggle) toggle.checked = !!account.kich_hoat;
+    var enabled = toggle && toggle.checked;
+    // Keep the password controls visible in create/edit mode so administrators
+    // can manage driver credentials directly from this modal. They remain
+    // optional when an existing account is kept unchanged.
+    var showPassword = mode !== 'view';
+    if (wrap) wrap.classList.toggle('d-none', !showPassword);
+    if (password) password.required = enabled && !hasAccount;
+    if (confirmPassword) confirmPassword.required = enabled && !hasAccount;
+    if (phone) phone.required = enabled || hasAccount;
+
+    if (status) {
+      if (hasAccount) {
+        if (!enabled) {
+          status.textContent = 'Tài khoản sẽ bị khóa sau khi lưu · Đăng nhập: ' + (account.username || '—');
+        } else if (!account.kich_hoat) {
+          status.textContent = 'Tài khoản sẽ được kích hoạt sau khi lưu · Đăng nhập: ' + (account.username || '—');
+        } else {
+          status.textContent = 'Tài khoản đang hoạt động · Đăng nhập: ' + (account.username || '—');
+        }
+      } else {
+        status.textContent = enabled ? 'SĐT sẽ là tên đăng nhập sau khi lưu' : 'Chưa tạo tài khoản';
+      }
+    }
+    var label = document.getElementById('lai-xe-app-password-label');
+    if (label) {
+      label.innerHTML = hasAccount ? 'Mật khẩu mới <span class="text-muted fw-normal">(để trống nếu không đổi)</span>' : (enabled ? 'Mật khẩu <span class="text-danger">*</span>' : 'Mật khẩu <span class="text-muted fw-normal">(chỉ bắt buộc khi kích hoạt app)</span>');
+    }
+    var confirmLabel = document.getElementById('lai-xe-app-confirm-label');
+    if (confirmLabel) {
+      confirmLabel.innerHTML = hasAccount ? 'Xác nhận mật khẩu mới <span class="text-muted fw-normal">(để trống nếu không đổi)</span>' : (enabled ? 'Xác nhận mật khẩu <span class="text-danger">*</span>' : 'Xác nhận mật khẩu <span class="text-muted fw-normal">(chỉ bắt buộc khi kích hoạt app)</span>');
+    }
   }
 
   function renderFileSection() {
