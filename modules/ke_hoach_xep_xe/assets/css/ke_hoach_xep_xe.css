@@ -384,6 +384,10 @@ body .flatpickr-calendar {
   overflow-y: auto;
 }
 
+#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app,
+#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app > .card-body,
+#ke-hoach-edit-fullscreen-modal .khxh-tuyen-xa-layout,
+#ke-hoach-edit-fullscreen-modal .khxh-tuyen-xa-main,
 #ke-hoach-tuyen-xa-edit-fullscreen-modal #ke-hoach-form-app,
 #ke-hoach-tuyen-xa-edit-fullscreen-modal #ke-hoach-form-app > .card-body,
 #ke-hoach-tuyen-xa-edit-fullscreen-modal .khxh-tuyen-xa-layout,
@@ -391,6 +395,7 @@ body .flatpickr-calendar {
   overflow: visible;
 }
 
+#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app > .card-body,
 #ke-hoach-tuyen-xa-edit-fullscreen-modal #ke-hoach-form-app > .card-body {
   background: #eef2f6;
 }

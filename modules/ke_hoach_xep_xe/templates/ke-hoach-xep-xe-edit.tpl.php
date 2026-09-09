@@ -26,6 +26,7 @@
 
     <div class="khxh-tuyen-xa-layout khxh-hang-cang-layout">
       <main class="khxh-tuyen-xa-main">
+        <div id="khxh-tuyen-xa-nav"></div>
         <form id="ke-hoach-form" novalidate>
           <input type="hidden" id="nid-input" value="">
 
@@ -38,7 +39,8 @@
         <div class="card khxh-plan-files-card mt-3" id="khxh-plan-files-card">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 bg-white">
         <div class="d-flex align-items-center gap-2 min-w-0">
-          <span class="khxh-plan-files-title">3. Chứng từ hình ảnh kế hoạch</span>
+          <span class="khxh-step-badge">3</span>
+          <span class="khxh-plan-files-title">Chứng từ hình ảnh kế hoạch</span>
           <span class="badge rounded-pill bg-label-secondary border" id="khxh-plan-files-count">0/25 file</span>
         </div>
       </div>

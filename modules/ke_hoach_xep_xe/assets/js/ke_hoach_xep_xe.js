@@ -2292,6 +2292,13 @@
     }
 
     function renderTuyenXaNav(line) {
+      if (currentPlanType() !== 'tuyen_xa') {
+        return '<div class="khxh-section-nav" data-line-key="' + escHtml(line.key) + '">' +
+          '<button type="button" class="khxh-section-nav-item is-active" data-target="#khxh-main-plan-' + escHtml(line.key) + '"><span class="khxh-navnum">1</span><span class="khxh-navlabel">Thông tin xếp xe</span></button>' +
+          '<button type="button" class="khxh-section-nav-item" data-target="#khxh-return-cont-' + escHtml(line.key) + '"><span class="khxh-navnum">2</span><span class="khxh-navlabel">Cont kéo về</span><span class="khxh-navbadge khxh-nav-return-count">0</span></button>' +
+          '<button type="button" class="khxh-section-nav-item" data-target="#khxh-plan-files-card"><span class="khxh-navnum">3</span><span class="khxh-navlabel">Chứng từ</span><span class="khxh-navbadge khxh-nav-files-count">0/25</span></button>' +
+        '</div>';
+      }
       return '<div class="khxh-section-nav" data-line-key="' + escHtml(line.key) + '">' +
         '<button type="button" class="khxh-section-nav-item is-active" data-target="#khxh-main-plan-' + escHtml(line.key) + '"><span class="khxh-navnum">1</span><span class="khxh-navlabel">' + (isExecutionPlan(line) ? 'Công việc chính' : 'Kế hoạch gốc') + '</span></button>' +
         '<button type="button" class="khxh-section-nav-item" data-target="#khxh-return-cont-' + escHtml(line.key) + '"><span class="khxh-navnum">2</span><span class="khxh-navlabel">Kế hoạch nguồn</span><span class="khxh-navbadge khxh-nav-return-count">0</span></button>' +
@@ -2395,6 +2402,9 @@
         var normalRoute = [line.bai_lay_cont || '', line.dia_chi_kho || '', line.cang_xuat || '', line.bai_ha_cont || ''].filter(Boolean).join(' - ');
         var normalDate = [apiToDate(line.ngay_bat_dau || ''), apiToDate(line.ngay_ket_thuc || '')].filter(Boolean).join(' - ');
         var normalFilesCount = planFilesFromRow(editData).length;
+        var normalNav = $form('.khxh-section-nav[data-line-key="' + line.key + '"]');
+        normalNav.find('.khxh-nav-return-count').text(line.ke_hoach_cont_ref_nid ? '1' : '0');
+        normalNav.find('.khxh-nav-files-count').text(normalFilesCount + '/25');
         $form('#khxh-tuyen-xa-context [data-context="customer"]').text(normalCustomer || 'Chưa có').attr('title', normalCustomerFull || '');
         $form('#khxh-tuyen-xa-context [data-context="container"]').text(normalCont || 'Chưa có');
         $form('#khxh-tuyen-xa-context [data-context="route"]').text(normalRoute || 'Chưa có');
@@ -2694,7 +2704,7 @@
         var executionPlan = isExecutionPlan(line) || !!parseInt(line.ke_hoach_cont_ref_nid, 10);
         var mainWorkDone = optionEnabled(line.cong_viec_chinh_hoan_thanh);
         var rootDongHang = !executionPlan && normalizeHinhThuc(line.hinh_thuc_van_tai) === 'dong_hang';
-        if (isTuyenXa) navHtml += renderTuyenXaNav(line);
+        navHtml += renderTuyenXaNav(line);
         var routeMetaHtml = isTuyenXa
           ? ''
           : '<div class="khxh-span-4"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>';
