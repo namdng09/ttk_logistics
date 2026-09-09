@@ -493,7 +493,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
 	                    <?php endif; ?>
 	                    <th style="width: 8%"><span class="th-split-label"><?php print $is_tuyen_xa ? 'Kho' : 'Kho <span class="text-danger">*</span>/Cảng xuất'; ?></span></th>
 	                    <th style="width: 8%"><span class="th-split-label">Bãi lấy/hạ</span></th>
-                    <?php if (!$is_tuyen_xa): ?><th style="width: 8%"><span class="th-split-label">Cut-off</span></th><?php endif; ?>
+                    <?php if (!$is_tuyen_xa): ?><th style="width: 8%"><span class="th-split-label">Loại hàng</span></th><?php endif; ?>
                     <th width="1%" class="text-center">
                       <button type="button" class="btn btn-sm btn-icon btn-label-success" id="add-line-btn" title="Thêm dòng">
                         <i class="ti tabler-circle-plus"></i>

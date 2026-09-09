@@ -1388,7 +1388,7 @@
     $('#list-body')
       .off('.khxhRowMenu')
       .on('contextmenu.khxhRowMenu', 'tr', function (e) {
-        if (currentPlanType() !== 'tuyen_xa' || isRowMenuInteractiveTarget(e.target)) return;
+        if (isRowMenuInteractiveTarget(e.target)) return;
         e.preventDefault();
         e.stopPropagation();
         var row = this;
@@ -1409,7 +1409,7 @@
         openRowMenuAtCursor(row, e.clientX, e.clientY);
       })
       .on('dblclick.khxhRowMenu', 'tr', function (e) {
-        if (currentPlanType() !== 'tuyen_xa' || isRowMenuInteractiveTarget(e.target)) return;
+        if (isRowMenuInteractiveTarget(e.target)) return;
         var editButton = this.querySelector('.btn-edit-ke-hoach-xep-xe');
         var id = editButton && parseInt(editButton.getAttribute('data-id'), 10);
         if (id) {
@@ -2805,8 +2805,13 @@
       var returnContLabel = returnContItem
         ? (returnContItem.so_cont || ('Cont #' + returnCont.ke_hoach_cont_ref_nid))
         : 'Chọn cont kéo về';
-      var cutOffHtml = '<input type="text" class="form-control line-cut-off-input' + (dateInputsHtml ? ' mb-2' : '') + '" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:MM">' + dateInputsHtml;
-      var cutOffCellHtml = isTX ? '' : '<td class="line-combo-cell line-cutoff-cell' + (dateInputsHtml ? ' has-date-range' : '') + '">' + cutOffHtml + '</td>';
+      var cargoCellHtml = isTX ? '' : '<td class="line-combo-cell line-cargo-cell">' +
+        '<select class="form-select line-loai-hang-select mb-2">' + buildTagOptions(state.cauHinh.loaiHang, line.loai_hang) + '</select>' +
+        dateInputsHtml +
+        '</td>';
+      var normalContPickerHtml = !isTX
+        ? '<button type="button" class="btn btn-outline-secondary w-100 text-start line-cont-picker-display btn-open-cont-ref-modal" data-line-key="' + escHtml(line.key) + '"' + (shouldShowContPicker(selectedHinhThuc) ? '' : ' disabled') + '><span class="' + (line.ke_hoach_cont_ref_nid ? 'vehicle-inline-text' : 'vehicle-inline-placeholder') + '">' + escHtml(shouldShowContPicker(selectedHinhThuc) ? contRefButtonText(line) : 'Không áp dụng') + '</span></button>'
+        : '';
 	      return '' +
 	        '<tr class="ke-hoach-table-row" data-line-key="' + line.key + '">' +
           '<td class="line-combo-cell"><select class="form-select line-customer-select mb-2"' + (sourceLocked ? ' disabled' : '') + '>' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select>' + (isTX ? '<select class="form-select line-loai-hang-select"' + (sourceLocked ? ' disabled' : '') + '>' + buildTagOptions(state.cauHinh.loaiHang, line.loai_hang) + '</select>' : '<input type="text" class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="Số BKG">') + '<div class="line-customer-feedback text-danger small mt-1" style="display:none;">Vui lòng chọn khách hàng</div></td>' +
@@ -2816,15 +2821,14 @@
 	            '<input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '">' +
 	            '<button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal mt-2' + (line.nid_mooc ? ' is-selected' : '') + '">' + moocSummaryHtml(line) + '</button>' +
 	          '</td>' +
-	          '<td class="line-combo-cell">' +
+          '<td class="line-combo-cell">' +
             '<select class="form-select line-loai-cont-select mb-2"' + (sourceLocked ? ' disabled' : '') + '>' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select>' +
-	            (isTX ? '' : '<select class="form-select line-loai-hang-select mt-2">' + buildTagOptions(state.cauHinh.loaiHang, line.loai_hang) + '</select>') +
             '<input type="text" class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"' + (sourceLocked ? ' disabled' : '') + '>' +
           '</td>' +
 	          (isTX ? '<td class="line-combo-cell line-source-plan-cell"><label class="form-check form-switch mb-2"><input class="form-check-input line-plan-root-toggle" type="checkbox"' + (planRole(line) === 'ke_hoach_goc' ? ' checked' : '') + '><span class="form-check-label">Kế hoạch gốc</span></label><button type="button" class="btn btn-outline-secondary w-100 text-start line-cont-picker-display btn-open-cont-ref-modal" data-line-key="' + escHtml(line.key) + '"' + (sourcePickerEditable(line) ? '' : ' disabled') + '><span class="' + (line.ke_hoach_cont_ref_nid ? 'vehicle-inline-text' : 'vehicle-inline-placeholder') + '">' + escHtml(sourcePickerApplicable(line) ? contRefButtonText(line) : 'Chọn kế hoạch nguồn') + '</span></button></td>' : '') +
           '<td class="line-combo-cell">' +
             '<select class="form-select line-hinh-thuc-select mb-2">' + hinhThucOptions + '</select>' +
-	            (isTX ? '<button type="button" class="btn btn-outline-secondary w-100 text-start line-cont-picker-display btn-open-return-cont-modal" data-line-key="' + escHtml(line.key) + '"' + (returnContApplicable(line) ? '' : ' disabled') + '><span class="' + (returnContItem ? 'vehicle-inline-text' : 'vehicle-inline-placeholder') + '">' + escHtml(returnContLabel) + '</span></button>' : '') +
+	            (isTX ? '<button type="button" class="btn btn-outline-secondary w-100 text-start line-cont-picker-display btn-open-return-cont-modal" data-line-key="' + escHtml(line.key) + '"' + (returnContApplicable(line) ? '' : ' disabled') + '><span class="' + (returnContItem ? 'vehicle-inline-text' : 'vehicle-inline-placeholder') + '">' + escHtml(returnContLabel) + '</span></button>' : normalContPickerHtml) +
 	          '</td>' +
           (isTX ? '' :
             '<td class="line-combo-cell">' +
@@ -2839,7 +2843,7 @@
             '<select class="form-select line-bai-lay-select mb-2"' + (sourceLocked ? ' disabled' : '') + '>' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select>' +
             '<select class="form-select line-bai-ha-select"' + (sourceLocked ? ' disabled' : '') + '>' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select>' +
           '</td>' +
-          cutOffCellHtml +
+          cargoCellHtml +
           '<td class="text-center">' + actionCopy + '</td>' +
           '<td class="text-center">' + actionRemove + '</td>' +
         '</tr>';
@@ -2963,7 +2967,9 @@
       line.bai_ha_thuc_te = normalizeBaiHaThucTe(($row.find('.line-bai-ha-thuc-te-select').val() || '').trim(), line.bai_ha_cont);
       line.hinh_thuc_van_tai = normalizeHinhThuc($row.find('.line-hinh-thuc-select').val() || '');
       line.cang_xuat = currentPlanType() === 'tuyen_xa' ? '' : (($row.find('.line-cang-select').val() || '').trim());
-      line.cut_off = currentPlanType() === 'tuyen_xa' ? '' : datetimeToApi(($row.find('.line-cut-off-input').val() || '').trim());
+      if ($row.find('.line-cut-off-input').length) {
+        line.cut_off = datetimeToApi(($row.find('.line-cut-off-input').val() || '').trim());
+      }
       if ($row.find('.line-ngay-bat-dau-input').length) line.ngay_bat_dau = dateToApi($row.find('.line-ngay-bat-dau-input').val().trim());
       if ($row.find('.line-ngay-ket-thuc-input').length) line.ngay_ket_thuc = dateToApi($row.find('.line-ngay-ket-thuc-input').val().trim());
       line.ghi_chu = ($row.find('.line-ghi-chu-input').val() || '').trim();
@@ -4066,7 +4072,7 @@
           ngay_ket_thuc: line.ngay_ket_thuc || '',
           ghi_chu: line.ghi_chu || '',
           thong_tin_json: currentPlanType() === 'tuyen_xa' ? { vai_tro_ke_hoach: planRole(line), cong_viec_chinh_hoan_thanh: line.cong_viec_chinh_hoan_thanh || 0, hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan', ke_hoach_ket_hop_enabled: line.ke_hoach_ket_hop_enabled || 0, bai_ha_tam_1_enabled: line.bai_ha_tam_1_enabled || 0, bai_ha_tam_1: line.bai_ha_tam_1 || '', bai_ha_tam_2_enabled: line.bai_ha_tam_2_enabled || 0, bai_ha_tam_2: line.bai_ha_tam_2 || '', vi_tri_cont_hien_tai: line.vi_tri_cont_hien_tai || '', vi_tri_cont_index_hien_tai: parseInt(line.vi_tri_cont_index_hien_tai, 10) || 0, cont_thuc_hien_tu_index: parseInt(line.cont_thuc_hien_tu_index, 10), cont_thuc_hien_den_index: parseInt(line.cont_thuc_hien_den_index, 10), cont_thuc_hien_chang: line.cont_thuc_hien_chang || [], cont_keo_ve_tu: line.cont_keo_ve_tu || '', cont_keo_ve_den: line.cont_keo_ve_den || '' } : {},
-          hinh_thuc_van_tai: useTableLayout ? '' : (line.hinh_thuc_van_tai || ''),
+          hinh_thuc_van_tai: line.hinh_thuc_van_tai || '',
           ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
           da_cat_mooc: line.da_cat_mooc || 0,
           da_du_hang: line.da_du_hang || 0,

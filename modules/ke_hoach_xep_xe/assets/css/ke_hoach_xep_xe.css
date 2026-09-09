@@ -1845,6 +1845,11 @@ button.khxh-cont-ref-number:focus {
 /* Số STT là điểm mở chức năng cho bàn phím/Vimium, nhưng vẫn hiển thị như
  * một số thứ tự thông thường. */
 .khxh-row-actions-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  text-align: center;
   padding: 0;
   border: 0;
   background: transparent;
@@ -2219,11 +2224,6 @@ button.khxh-cont-ref-number:focus {
 
 .line-combo-cell.line-cutoff-cell:not(.has-date-range) {
   vertical-align: middle !important;
-}
-
-.line-combo-cell .mb-2 {
-  margin-bottom: 0.9rem !important;
-  margin-top: 0.6rem;
 }
 
 .line-combo-cell .line-bai-lay-select {
