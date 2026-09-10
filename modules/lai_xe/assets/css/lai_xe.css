@@ -45,6 +45,73 @@
   cursor: pointer;
 }
 
+/* Bank repeater: đồng bộ với section Thông tin ngân hàng của Khách hàng. */
+.lai-xe-bank-section {
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  padding: 0.85rem;
+  background: #f8fafc;
+}
+
+.lai-xe-bank-section .section-head {
+  min-height: 32px;
+}
+
+#lai-xe-modal .lai-xe-bank-section .form-label {
+  margin-bottom: 0.25rem;
+  color: #566a7f;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+#lai-xe-modal .lai-xe-bank-section .lai-xe-section-title {
+  color: #384551;
+  font-weight: 700 !important;
+}
+
+.lai-xe-section-title {
+  color: #384551;
+  font-weight: 700 !important;
+}
+
+.lai-xe-bank-section #btn-them-ngan-hang {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+#lai-xe-modal .ngan-hang-row {
+  background: #fff;
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+#lai-xe-modal .ngan-hang-row:last-child {
+  margin-bottom: 0;
+}
+
+#lai-xe-modal .ngan-hang-row:hover {
+  background: #f8fbff;
+}
+
+#lai-xe-modal .ngan-hang-row .form-control,
+#lai-xe-modal .ngan-hang-row .form-select {
+  min-height: calc(1.5em + 0.75rem + 2px);
+  font-size: 0.85rem;
+}
+
+#lai-xe-modal .ngan-hang-row .col-lg-1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#lai-xe-modal .ngan-hang-row .btn-xoa-ngan-hang {
+  width: calc(1.5em + 0.75rem + 2px);
+  height: calc(1.5em + 0.75rem + 2px);
+}
+
 .lai-xe-file-table th {
   white-space: nowrap;
   font-size: 0.82rem;

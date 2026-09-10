@@ -234,7 +234,7 @@
                 </div>
 
                 <div class="alert alert-light border py-2 px-3 mb-2 small" id="phuong-tien-file-create-note" style="display:none;">
-                  Lưu thông tin phương tiện trước khi upload hồ sơ.
+                  Có thể chọn hồ sơ ngay tại đây; hồ sơ sẽ được upload tự động sau khi lưu phương tiện.
                 </div>
 
                 <div class="phuong-tien-file-upload row g-2 align-items-end mb-2" id="phuong-tien-file-upload">

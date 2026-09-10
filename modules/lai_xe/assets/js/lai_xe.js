@@ -324,6 +324,10 @@
     data.thong_tin_ngan_hang = collectNganHang();
 
     var nid = data.nid;
+    var pendingInput = document.querySelector('#lai-xe-file-upload input[type="file"]');
+    var pendingFile = pendingInput && pendingInput.files && pendingInput.files.length ? pendingInput.files[0] : null;
+    var pendingFileType = document.getElementById('lx-file-type') ? document.getElementById('lx-file-type').value : 'khac';
+    var pendingFileTitle = document.getElementById('lx-file-title') ? document.getElementById('lx-file-title').value : '';
     var url = nid ? '/api/lai-xe/' + nid : '/api/lai-xe';
     var method = nid ? 'PUT' : 'POST';
 
@@ -341,10 +345,25 @@
         btn.removeAttribute('disabled');
         btn.innerHTML = '<i class="ti tabler-device-floppy me-1"></i> Lưu';
         if (res.status === 'success') {
-          if (notyf) notyf.success(nid ? 'Cập nhật thành công' : 'Tạo mới thành công');
-          modalHide('lai-xe-modal');
-          resetForm();
-          loadList();
+          var savedId = nid || (res.data && res.data.nid);
+          if (pendingFile && savedId) {
+            CURRENT_DRIVER_ID = savedId;
+            CURRENT_FILES = (res.data && res.data.files) || [];
+            uploadDriverFile(function (uploaded) {
+              if (uploaded && notyf) notyf.success(nid ? 'Cập nhật và upload thành công' : 'Tạo mới và upload thành công');
+              else if (notyf) notyf.warning('Đã lưu lái xe nhưng upload hồ sơ chưa thành công');
+              if (uploaded) {
+                modalHide('lai-xe-modal');
+                resetForm();
+                loadList();
+              }
+            }, pendingFile, pendingFileType, pendingFileTitle);
+          } else {
+            if (notyf) notyf.success(nid ? 'Cập nhật thành công' : 'Tạo mới thành công');
+            modalHide('lai-xe-modal');
+            resetForm();
+            loadList();
+          }
         } else {
           if (notyf) notyf.error(res.message || 'Lỗi không xác định');
         }
@@ -360,7 +379,7 @@
   function loadList() {
     var tbody = $('#table-lai-xe-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="9" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="10" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -374,7 +393,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="9" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="10" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -383,7 +402,7 @@
         var pageSize = data.limit || 20;
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="9" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -393,6 +412,12 @@
           var item = items[i];
           var stt = (data.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(item.nid);
+          var app = item.tai_khoan_app || {};
+          var appStatus = !app.co_tai_khoan
+            ? '<span class="badge bg-label-secondary">Chưa tạo</span>'
+            : (app.kich_hoat
+              ? '<span class="badge bg-label-success">Đang hoạt động</span>'
+              : '<span class="badge bg-label-danger">Đang khóa</span>');
           html +=
             '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
@@ -404,6 +429,7 @@
             '<td>' + escapeHtml(item.so_bang_lai || '') + '</td>' +
             '<td>' + escapeHtml(item.loai_bang_lai || '') + '</td>' +
             '<td class="text-center">' + escapeHtml(item.dod || '') + '</td>' +
+            '<td class="text-center">' + appStatus + '</td>' +
             '</tr>';
         }
         tbody.append(html);
@@ -411,7 +437,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="9" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="10" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -590,34 +616,31 @@
     var container = document.getElementById('ngan-hang-repeater');
     if (!container) return;
     container.innerHTML = '';
-    // Header row with labels (only once)
-    var headerHtml = '<div class="row g-2 mb-1">' +
-      '<div class="col-md-3"><label class="form-label mb-0">Tên tài khoản</label></div>' +
-      '<div class="col-md-4"><label class="form-label mb-0">Số tài khoản</label></div>' +
-      '<div class="col-md-4"><label class="form-label mb-0">Ngân hàng</label></div>' +
-      '<div class="col-md-1"></div>' +
-    '</div>';
-    container.innerHTML = headerHtml;
     addNganHangRow();
   }
 
   function addNganHangRow(data) {
     var container = document.getElementById('ngan-hang-repeater');
     if (!container) return;
-    var html = '<div class="ngan-hang-row row g-2 mb-2">' +
-      '<div class="col-md-3">' +
-        '<input type="text" class="form-control nganh-hang-ten-tai-khoan" placeholder="Tên TK">' +
+    var html = '<div class="ngan-hang-row">' +
+      '<div class="row g-2 align-items-end">' +
+      '<div class="col-12 col-lg-4">' +
+        '<label class="form-label">Chủ tài khoản</label>' +
+        '<input type="text" class="form-control nganh-hang-ten-tai-khoan" placeholder="VD: NGUYEN VAN A">' +
       '</div>' +
-      '<div class="col-md-4">' +
-        '<input type="text" class="form-control ngan-hang-so-tai-khoan" placeholder="Số TK">' +
+      '<div class="col-12 col-md-6 col-lg-3">' +
+        '<label class="form-label">Số tài khoản</label>' +
+        '<input type="text" class="form-control ngan-hang-so-tai-khoan" placeholder="VD: 0123456789" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">' +
       '</div>' +
-      '<div class="col-md-4">' +
+      '<div class="col-12 col-md-6 col-lg-4">' +
+        '<label class="form-label">Ngân hàng</label>' +
         '<select class="form-select ngan-hang-ten-ngan-hang" style="width:100%">' +
           '<option value="">Chọn ngân hàng</option>' +
         '</select>' +
       '</div>' +
-      '<div class="col-md-1">' +
-        '<button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-ngan-hang"><i class="ti tabler-x"></i></button>' +
+      '<div class="col-12 col-lg-1 text-lg-end">' +
+        '<button type="button" class="btn btn-icon btn-sm btn-label-danger btn-xoa-ngan-hang" title="Xoá ngân hàng"><i class="ti tabler-trash"></i></button>' +
+      '</div>' +
       '</div>' +
     '</div>';
     var div = document.createElement('div');
@@ -870,10 +893,10 @@
     var count = document.getElementById('lai-xe-file-count');
     var note = document.getElementById('lai-xe-file-create-note');
     var upload = document.getElementById('lai-xe-file-upload');
-    var canUpload = CURRENT_FORM_MODE !== 'view' && !!CURRENT_DRIVER_ID;
+    var canUpload = CURRENT_FORM_MODE !== 'view';
 
     if (count) count.textContent = (CURRENT_FILES.length || 0) + ' file';
-    if (note) note.style.display = CURRENT_DRIVER_ID ? 'none' : '';
+    if (note) note.style.display = 'none';
     if (upload) upload.style.display = canUpload ? '' : 'none';
 
     if (!CURRENT_FILES.length) {
@@ -931,15 +954,15 @@
       '</div></td>';
   }
 
-  function uploadDriverFile() {
+  function uploadDriverFile(afterUpload, overrideFile, overrideType, overrideTitle) {
     if (!CURRENT_DRIVER_ID) {
-      if (notyf) notyf.error('Vui lòng lưu lái xe trước khi upload hồ sơ');
+      if (notyf) notyf.error('Chưa xác định được lái xe để upload hồ sơ');
       return;
     }
 
     var input = document.querySelector('#lai-xe-file-upload input[type="file"]');
     var btn = document.getElementById('btn-upload-lai-xe-file');
-    var selectedFile = input && input.files && input.files.length ? input.files[0] : SELECTED_DRIVER_FILE;
+    var selectedFile = overrideFile || (input && input.files && input.files.length ? input.files[0] : SELECTED_DRIVER_FILE);
     if (!selectedFile && (!input || !input.value)) {
       if (notyf) notyf.error('Vui lòng chọn file cần upload');
       return;
@@ -949,8 +972,8 @@
     if (selectedFile) {
       formData.append('driver_file', selectedFile, selectedFile.name || 'driver_file');
     }
-    formData.append('loai', document.getElementById('lx-file-type').value || 'khac');
-    formData.append('ten_hien_thi', document.getElementById('lx-file-title').value || '');
+    formData.append('loai', overrideType || document.getElementById('lx-file-type').value || 'khac');
+    formData.append('ten_hien_thi', overrideTitle || document.getElementById('lx-file-title').value || '');
 
     btn.setAttribute('disabled', 'disabled');
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang upload';
@@ -974,8 +997,10 @@
           document.getElementById('lx-file-title').value = '';
           renderFileSection();
           if (notyf) notyf.success('Upload hồ sơ thành công');
+          if (afterUpload) afterUpload(true);
         } else {
           if (notyf) notyf.error((res && res.message) || 'Upload không thành công');
+          if (afterUpload) afterUpload(false);
         }
       } else {
         btn.removeAttribute('disabled');
@@ -986,7 +1011,8 @@
     xhr.onerror = function () {
       btn.removeAttribute('disabled');
       btn.innerHTML = '<i class="ti tabler-upload me-1"></i>Upload';
-      if (notyf) notyf.error('Lỗi kết nối server');
+        if (notyf) notyf.error('Lỗi kết nối server');
+        if (afterUpload) afterUpload(false);
     };
     xhr.send(formData);
   }

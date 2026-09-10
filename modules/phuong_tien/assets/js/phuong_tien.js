@@ -372,6 +372,10 @@
     data.chieu_dai_mooc = numericOnly(data.chieu_dai_mooc);
 
     var nid = data.nid;
+    var pendingInput = document.querySelector('#phuong-tien-file-upload input[type="file"]');
+    var pendingFile = pendingInput && pendingInput.files && pendingInput.files.length ? pendingInput.files[0] : null;
+    var pendingFileType = document.getElementById('pt-file-type') ? document.getElementById('pt-file-type').value : 'khac';
+    var pendingFileTitle = document.getElementById('pt-file-title') ? document.getElementById('pt-file-title').value : '';
     var url = nid ? '/api/phuong-tien/' + nid : '/api/phuong-tien';
     var method = nid ? 'PUT' : 'POST';
 
@@ -400,10 +404,25 @@
         btn.removeAttribute('disabled');
         btn.innerHTML = '<i class="ti tabler-device-floppy me-1"></i> Lưu';
         if (res.status === 'success') {
-          if (notyf) notyf.success(nid ? 'Cập nhật thành công' : 'Tạo mới thành công');
-          modalHide('phuong-tien-modal');
-          resetForm();
-          loadList();
+          var savedId = nid || (res.data && res.data.nid);
+          if (pendingFile && savedId) {
+            CURRENT_VEHICLE_ID = savedId;
+            CURRENT_FILES = (res.data && res.data.files) || [];
+            uploadVehicleFile(function (uploaded) {
+              if (uploaded && notyf) notyf.success(nid ? 'Cập nhật và upload thành công' : 'Tạo mới và upload thành công');
+              else if (notyf) notyf.warning('Đã lưu phương tiện nhưng upload hồ sơ chưa thành công');
+              if (uploaded) {
+                modalHide('phuong-tien-modal');
+                resetForm();
+                loadList();
+              }
+            }, pendingFile, pendingFileType, pendingFileTitle);
+          } else {
+            if (notyf) notyf.success(nid ? 'Cập nhật thành công' : 'Tạo mới thành công');
+            modalHide('phuong-tien-modal');
+            resetForm();
+            loadList();
+          }
         } else {
           if (notyf) notyf.error(res.message || 'Lỗi không xác định');
         }
@@ -799,10 +818,10 @@
     var count = document.getElementById('phuong-tien-file-count');
     var note = document.getElementById('phuong-tien-file-create-note');
     var upload = document.getElementById('phuong-tien-file-upload');
-    var canUpload = CURRENT_FORM_MODE !== 'view' && !!CURRENT_VEHICLE_ID;
+    var canUpload = CURRENT_FORM_MODE !== 'view';
 
     if (count) count.textContent = (CURRENT_FILES.length || 0) + ' file';
-    if (note) note.style.display = CURRENT_VEHICLE_ID ? 'none' : '';
+    if (note) note.style.display = 'none';
     if (upload) upload.style.display = canUpload ? '' : 'none';
 
     if (!CURRENT_FILES.length) {
@@ -841,15 +860,15 @@
     return html + '</div>';
   }
 
-  function uploadVehicleFile() {
+  function uploadVehicleFile(afterUpload, overrideFile, overrideType, overrideTitle) {
     if (!CURRENT_VEHICLE_ID) {
-      if (notyf) notyf.error('Vui lòng lưu phương tiện trước khi upload hồ sơ');
+      if (notyf) notyf.error('Chưa xác định được phương tiện để upload hồ sơ');
       return;
     }
 
     var input = document.querySelector('#phuong-tien-file-upload input[type="file"]');
     var btn = document.getElementById('btn-upload-phuong-tien-file');
-    var selectedFile = input && input.files && input.files.length ? input.files[0] : SELECTED_VEHICLE_FILE;
+    var selectedFile = overrideFile || (input && input.files && input.files.length ? input.files[0] : SELECTED_VEHICLE_FILE);
     if (!selectedFile && (!input || !input.value)) {
       if (notyf) notyf.error('Vui lòng chọn file cần upload');
       return;
@@ -859,8 +878,8 @@
     if (selectedFile) {
       formData.append('vehicle_file', selectedFile, selectedFile.name || 'vehicle_file');
     }
-    formData.append('loai', document.getElementById('pt-file-type').value || 'khac');
-    formData.append('ten_hien_thi', document.getElementById('pt-file-title').value || '');
+    formData.append('loai', overrideType || document.getElementById('pt-file-type').value || 'khac');
+    formData.append('ten_hien_thi', overrideTitle || document.getElementById('pt-file-title').value || '');
 
     btn.setAttribute('disabled', 'disabled');
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang upload';
@@ -881,14 +900,17 @@
         document.getElementById('pt-file-title').value = '';
         renderFileSection();
         if (notyf) notyf.success('Upload hồ sơ thành công');
+        if (afterUpload) afterUpload(true);
       } else {
         if (notyf) notyf.error((res && res.message) || 'Upload không thành công');
+        if (afterUpload) afterUpload(false);
       }
     };
     xhr.onerror = function () {
       btn.removeAttribute('disabled');
       btn.innerHTML = '<i class="ti tabler-upload me-1"></i>Upload';
       if (notyf) notyf.error('Lỗi kết nối server');
+      if (afterUpload) afterUpload(false);
     };
     xhr.send(formData);
   }

@@ -488,6 +488,30 @@ function _lai_xe_check_unique($input, $exclude_nid = NULL) {
   return NULL; // no duplicate, or only soft-deleted duplicates
 }
 
+function _lai_xe_validate_identity_fields(&$input, $exclude_nid = NULL) {
+  $input['sdt'] = preg_replace('/\D+/', '', isset($input['sdt']) ? (string) $input['sdt'] : '');
+  $input['cccd'] = preg_replace('/\D+/', '', isset($input['cccd']) ? (string) $input['cccd'] : '');
+  if (strlen($input['sdt']) !== 10) {
+    return _lai_xe_fail('SĐT bắt buộc và phải gồm đúng 10 chữ số');
+  }
+  if ($input['cccd'] !== '' && strlen($input['cccd']) !== 12) {
+    return _lai_xe_fail('Nếu nhập CCCD thì phải gồm đúng 12 chữ số');
+  }
+  $query = db_select('lai_xe', 'lx')
+    ->fields('lx', array('nid', 'sdt', 'cccd'))
+    ->condition('lx.hoat_dong', 1);
+  if ($exclude_nid !== NULL) {
+    $query->condition('lx.nid', $exclude_nid, '<>');
+  }
+  foreach ($query->execute() as $row) {
+    $stored_sdt = preg_replace('/\D+/', '', (string) $row->sdt);
+    $stored_cccd = preg_replace('/\D+/', '', (string) $row->cccd);
+    if ($stored_sdt === $input['sdt']) return _lai_xe_fail('SĐT "' . $input['sdt'] . '" đã tồn tại');
+    if ($stored_cccd === $input['cccd']) return _lai_xe_fail('CCCD "' . $input['cccd'] . '" đã tồn tại');
+  }
+  return NULL;
+}
+
 /*******************************************************************************
  * REST: COLLECTION — GET /api/lai-xe, POST /api/lai-xe
  ******************************************************************************/
@@ -573,6 +597,9 @@ function _lai_xe_rest_create() {
   if (empty($input['ten'])) {
     return _lai_xe_fail('Tên lái xe (ten) bắt buộc');
   }
+
+  $identity_error = _lai_xe_validate_identity_fields($input);
+  if ($identity_error) return $identity_error;
 
   $dup = _lai_xe_check_unique($input);
   if ($dup) return $dup;
@@ -671,6 +698,9 @@ function _lai_xe_rest_update($id) {
   }
 
   $input = _lai_xe_input();
+
+  $identity_error = _lai_xe_validate_identity_fields($input, $id);
+  if ($identity_error) return $identity_error;
 
   $dup = _lai_xe_check_unique($input, $id);
   if ($dup) return $dup;
