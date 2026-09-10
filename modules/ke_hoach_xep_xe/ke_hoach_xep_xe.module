@@ -209,6 +209,11 @@ function ke_hoach_xep_xe_theme() {
       'path' => $path,
       'variables' => array('plan_type' => 'thuong'),
     ),
+    'ke_hoach_hang_cang_create_page' => array(
+      'template' => 'ke-hoach-hang-cang-create-modal',
+      'path' => $path,
+      'variables' => array(),
+    ),
     'ke_hoach_xep_xe_detail_page' => array(
       'template' => 'ke-hoach-xep-xe-detail',
       'path' => $path,

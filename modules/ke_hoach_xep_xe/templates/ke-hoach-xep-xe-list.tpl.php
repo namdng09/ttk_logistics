@@ -460,6 +460,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
   <?php print theme('ke_hoach_tuyen_xa_edit_page', array('mode' => 'edit', 'data' => NULL)); ?>
 </template>
 
+<?php if ($is_tuyen_xa): ?>
 <div id="ke-hoach-form-app">
   <input type="hidden" id="nid-input" value="">
 
@@ -599,3 +600,6 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
     </div>
   </div>
 </div>
+<?php else: ?>
+  <?php print theme('ke_hoach_hang_cang_create_page'); ?>
+<?php endif; ?>
