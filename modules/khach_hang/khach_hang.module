@@ -138,10 +138,11 @@ function khach_hang_modal_html() {
               <div class="invalid-feedback">Vui lòng nhập tên ngắn gọn</div>
             </div>
             <div class="col-lg-3">
-              <label class="form-label">MST / CCCD</label>
-              <input type="text" class="form-control" name="cccd_mst" placeholder="0201234567">
+              <label class="form-label">MST / CCCD <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="cccd_mst" required minlength="10" placeholder="Tối thiểu 10 ký tự">
+              <div class="invalid-feedback">MST / CCCD bắt buộc và phải có ít nhất 10 ký tự</div>
             </div>
-            <div class="col-lg-6">
+            <div class="col-lg-3">
               <label class="form-label">Phân loại <span class="text-danger">*</span></label>
               <input id="tagifyPhanLoai" class="form-control" name="phan_loai_tags" placeholder="Chọn phân loại" required>
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>
@@ -151,7 +152,7 @@ function khach_hang_modal_html() {
               <input type="tel" class="form-control" name="sdt" placeholder="0901234567" inputmode="numeric">
             </div>
             <div class="col-lg-3">
-              <label class="form-label">Ngày sinh</label>
+              <label class="form-label">Ngày thành lập</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="dob" placeholder="dd/MM/yyyy">
             </div>
             <div class="col-12">
@@ -280,7 +281,7 @@ function _khach_hang_bang_gia_encode(array $bang_gia_cuoc = array(), array $dinh
  * Allowed phan_loai values.
  */
 function _khach_hang_phan_loai_options() {
-  return array('Doanh nghiệp', 'Cá nhân', 'Khách hàng', 'Nhà cung cấp', 'Đối tác', 'Khác');
+  return array('Cá nhân', 'Doanh nghiệp', 'Nhà cung cấp');
 }
 
 /**
@@ -341,7 +342,8 @@ function _khach_hang_check_unique_sdt($input, $exclude_nid = NULL) {
 function _khach_hang_check_unique_cccd($input, $exclude_nid = NULL) {
   if (!isset($input['cccd_mst'])) return NULL;
   $value = trim($input['cccd_mst']);
-  if ($value === '') return NULL;
+  if ($value === '') return _khach_hang_fail('MST / CCCD bắt buộc');
+  if (drupal_strlen($value) < 10) return _khach_hang_fail('MST / CCCD phải có ít nhất 10 ký tự');
 
   $query = db_select('khach_hang', 'kh');
   $query->fields('kh', array('nid', 'hoat_dong'));
@@ -353,6 +355,18 @@ function _khach_hang_check_unique_cccd($input, $exclude_nid = NULL) {
   $exists = $query->execute()->fetchObject();
   if ($exists && $exists->hoat_dong) {
     return _khach_hang_fail('CCCD/MST "' . $value . '" đã tồn tại');
+  }
+  return NULL;
+}
+
+function _khach_hang_validate_phan_loai($input) {
+  $values = is_array($input) ? $input : array($input);
+  $allowed = _khach_hang_phan_loai_options();
+  foreach ($values as $value) {
+    $value = trim((string) $value);
+    if ($value !== '' && !in_array($value, $allowed, TRUE)) {
+      return _khach_hang_fail('Phân loại không hợp lệ');
+    }
   }
   return NULL;
 }
@@ -546,6 +560,8 @@ function _khach_hang_rest_create() {
   if (empty($input['phan_loai'])) {
     return _khach_hang_fail('Phân loại bắt buộc');
   }
+  $phan_loai_error = _khach_hang_validate_phan_loai($input['phan_loai']);
+  if ($phan_loai_error) return $phan_loai_error;
 
   $dupMa = _khach_hang_check_unique_ma(isset($input['ma_kh']) ? $input['ma_kh'] : '');
   if ($dupMa) return $dupMa;
@@ -664,6 +680,8 @@ function _khach_hang_rest_update($id) {
   if (empty($input['phan_loai'])) {
     return _khach_hang_fail('Phân loại bắt buộc');
   }
+  $phan_loai_error = _khach_hang_validate_phan_loai($input['phan_loai']);
+  if ($phan_loai_error) return $phan_loai_error;
 
   $dupMa = _khach_hang_check_unique_ma(isset($input['ma_kh']) ? $input['ma_kh'] : '', $id);
   if ($dupMa) return $dupMa;

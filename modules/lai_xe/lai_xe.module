@@ -252,6 +252,12 @@ function _lai_xe_ensure_user_link_field() {
   }
 }
 
+function _lai_xe_ensure_user_phone_field() {
+  if (db_table_exists('users') && !db_field_exists('users', 'sdt')) {
+    db_add_field('users', 'sdt', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  }
+}
+
 function _lai_xe_phone_username($phone) {
   $phone = preg_replace('/\D+/', '', (string) $phone);
   // Treat +84xxxxxxxxx and 0xxxxxxxxx as the same login phone number.
@@ -317,6 +323,7 @@ function _lai_xe_validate_app_account($input, $driver = NULL) {
 
 /** Create, enable/disable, or update the account linked to one driver. */
 function _lai_xe_sync_app_account($driver, $input) {
+  _lai_xe_ensure_user_phone_field();
   $uid = !empty($driver->uid_nguoi_dung) ? (int) $driver->uid_nguoi_dung : 0;
   $has_toggle = array_key_exists('kich_hoat_app', $input);
   $enabled = $has_toggle ? !empty($input['kich_hoat_app']) : NULL;
@@ -338,6 +345,7 @@ function _lai_xe_sync_app_account($driver, $input) {
       throw new Exception('Không thể tạo tài khoản app cho lái xe');
     }
     $uid = (int) $account->uid;
+    db_update('users')->fields(array('sdt' => $phone))->condition('uid', $uid)->execute();
     db_update('lai_xe')->fields(array('uid_nguoi_dung' => $uid))->condition('nid', $driver->nid)->execute();
     return;
   }
@@ -366,6 +374,7 @@ function _lai_xe_sync_app_account($driver, $input) {
   if ($edit) {
     user_save($account, $edit);
   }
+  db_update('users')->fields(array('sdt' => $phone))->condition('uid', $uid)->execute();
 }
 
 function _lai_xe_file_index($files, $file_id) {

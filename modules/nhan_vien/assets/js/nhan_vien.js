@@ -387,6 +387,7 @@
     var apiData = {
       ten: data.ten,
       ma_nhan_vien: data.ma_nhan_vien || '',
+      sdt: data.sdt || '',
       username: data.username,
       mail: data.mail || '',
       dob: data.dob || '',
@@ -439,7 +440,7 @@
   function loadList() {
     var tbody = $('#table-nhan-vien-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="10" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="11" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -461,7 +462,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="10" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="11" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -470,7 +471,7 @@
         var pageSize = data.limit || 20;
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="11" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -490,6 +491,7 @@
             '<td>' + escapeHtml(item.ma_nhan_vien || '') + '</td>' +
             '<td>' + escapeHtml(item.ten || '') + '</td>' +
             '<td>' + escapeHtml(item.name || '') + '</td>' +
+            '<td>' + escapeHtml(item.sdt || '') + '</td>' +
             '<td>' + escapeHtml(item.mail || '') + '</td>' +
             '<td>' + escapeHtml(item.phong_ban ? item.phong_ban.ten : '') + '</td>' +
             '<td>' + escapeHtml(item.chuc_vu ? item.chuc_vu.ten : '') + '</td>' +
@@ -502,7 +504,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="10" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="11" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -705,6 +707,7 @@
     document.querySelector('#form-nhan-vien input[name="uid"]').value = d.uid || '';
     document.querySelector('#form-nhan-vien input[name="ten"]').value = d.ten || '';
     document.querySelector('#form-nhan-vien input[name="ma_nhan_vien"]').value = d.ma_nhan_vien || '';
+    document.querySelector('#form-nhan-vien input[name="sdt"]').value = d.sdt || '';
     document.querySelector('#form-nhan-vien input[name="username"]').value = d.name || '';
     document.querySelector('#form-nhan-vien input[name="password"]').value = '';
     document.querySelector('#form-nhan-vien input[name="mail"]').value = d.mail || '';

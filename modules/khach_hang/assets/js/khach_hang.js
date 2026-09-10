@@ -18,7 +18,7 @@
   var currentPhanLoai = '';
   var tagifyPhanLoai = null;
   var NV_KINH_DOANH_MAP = {};
-  var PHAN_LOAI_LIST = ['Doanh nghiệp', 'Cá nhân', 'Khách hàng', 'Nhà cung cấp', 'Đối tác', 'Khác'];
+  var PHAN_LOAI_LIST = ['Cá nhân', 'Doanh nghiệp', 'Nhà cung cấp'];
   var BANK_LIST = [];
   var BANK_LIST_LOADED = false;
   var DIADIEM_LIST = [];
@@ -1207,7 +1207,7 @@
   function loadList() {
     var tbody = $('#table-khach-hang-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="11" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="9" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -1226,7 +1226,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="11" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="9" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -1235,7 +1235,7 @@
         var pageSize = data.limit || 20;
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="11" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="9" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -1246,12 +1246,6 @@
           var stt = (data.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(item.nid);
           var phanLoaiHtml = escapeHtml(item.phan_loai || '');
-          var nvKdHtml = '';
-          if (item.nv_kinh_doanh) {
-            var nvText = item.nv_kinh_doanh.ten || '';
-            if (item.nv_kinh_doanh.ma_nhan_vien) nvText += ' - ' + item.nv_kinh_doanh.ma_nhan_vien;
-            nvKdHtml = escapeHtml(nvText);
-          }
           html +=
             '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
@@ -1261,8 +1255,6 @@
             '<td>' + escapeHtml(item.cccd_mst || '') + '</td>' +
             '<td>' + escapeHtml(item.sdt || '') + '</td>' +
             '<td>' + escapeHtml(item.dia_chi || '') + '</td>' +
-            '<td>' + nvKdHtml + '</td>' +
-            '<td>' + (item.dob || '') + '</td>' +
             '<td>' + phanLoaiHtml + '</td>' +
             '<td>' + escapeHtml(item.ghi_chu || '') + '</td>' +
             '</tr>';
@@ -1273,7 +1265,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="11" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="9" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });

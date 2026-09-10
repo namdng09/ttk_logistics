@@ -26,6 +26,11 @@ function nhan_vien_schema_alter(&$schema) {
     'length' => 20,
     'not null' => FALSE,
   );
+  $schema['users']['fields']['sdt'] = array(
+    'type' => 'varchar',
+    'length' => 10,
+    'not null' => FALSE,
+  );
   $schema['users']['fields']['dia_chi'] = array(
     'type' => 'varchar',
     'length' => 255,
@@ -86,6 +91,9 @@ function nhan_vien_install() {
       'not null' => FALSE,
     ));
   }
+  if (!db_field_exists('users', 'sdt')) {
+    db_add_field('users', 'sdt', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  }
   if (!db_field_exists('users', 'dia_chi')) {
     db_add_field('users', 'dia_chi', array(
       'type' => 'varchar',
@@ -123,6 +131,19 @@ function nhan_vien_install() {
   }
 
   // Reset schema cache so drupal_get_schema() picks up the new columns
+  cache_clear_all();
+  drupal_get_schema('users', TRUE);
+}
+
+/** Add phone storage for staff records on existing installations. */
+function nhan_vien_update_7001() {
+  if (!db_field_exists('users', 'sdt')) {
+    db_add_field('users', 'sdt', array(
+      'type' => 'varchar',
+      'length' => 10,
+      'not null' => FALSE,
+    ));
+  }
   cache_clear_all();
   drupal_get_schema('users', TRUE);
 }

@@ -8,7 +8,7 @@
     <div class="row mb-3 align-items-center">
       <div class="col-12 col-md-4 mb-2 mb-md-0">
         <div class="input-group">
-          <input type="text" class="form-control" id="search-nhan-vien" placeholder="Tìm kiếm (Họ tên, mã NV, username, email)...">
+          <input type="text" class="form-control" id="search-nhan-vien" placeholder="Tìm kiếm (Họ tên, mã NV, SĐT, username, email)...">
           <button class="btn btn-primary" type="button" id="btn-search-nhan-vien">
             <i class="ti tabler-search"></i> Tìm
           </button>
@@ -48,6 +48,7 @@
             <th>Mã NV</th>
             <th>Họ tên</th>
             <th>Username</th>
+            <th>SĐT</th>
             <th>Email</th>
             <th>Phòng ban</th>
             <th>Chức vụ</th>
@@ -57,7 +58,7 @@
         </thead>
         <tbody id="table-nhan-vien-tbody">
           <tr id="loading-row">
-            <td colspan="10" class="text-center py-4">
+            <td colspan="11" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -123,6 +124,11 @@
               <input type="text" class="form-control" name="ma_nhan_vien" placeholder="NV0001">
             </div>
             <div class="col-md-4">
+              <label class="form-label">SĐT</label>
+              <input type="tel" class="form-control phone-mask" name="sdt" minlength="10" maxlength="10" pattern="[0-9]{10}" placeholder="0987654321" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <div class="invalid-feedback">SĐT phải gồm đúng 10 chữ số</div>
+            </div>
+            <div class="col-md-4">
               <label class="form-label">Email</label>
               <input type="email" class="form-control" name="mail" placeholder="email@example.com">
               <div class="invalid-feedback">Email không hợp lệ</div>
@@ -132,10 +138,11 @@
               <input type="text" class="form-control flatpickr-date date-mask" name="dob" placeholder="dd/MM/yyyy">
             </div>
             <div class="col-md-4">
-              <label class="form-label">CCCD</label>
-              <input type="text" class="form-control" name="cccd" placeholder="Nhập CCCD" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <label class="form-label">CCCD <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="cccd" required minlength="12" maxlength="12" pattern="[0-9]{12}" placeholder="Nhập CCCD 12 số" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <div class="invalid-feedback">CCCD phải gồm đúng 12 chữ số</div>
             </div>
-            <div class="col-md-8">
+            <div class="col-md-4">
               <label class="form-label">Địa chỉ</label>
               <input type="text" class="form-control" name="dia_chi" placeholder="Số nhà, phường, quận, thành phố">
             </div>

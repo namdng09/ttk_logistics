@@ -27,11 +27,12 @@
               <div class="invalid-feedback">Vui lòng nhập tên ngắn gọn</div>
             </div>
             <div class="col-lg-3">
-              <label class="form-label">MST / CCCD</label>
-              <input type="text" class="form-control" name="cccd_mst" placeholder="0201234567">
+              <label class="form-label">MST / CCCD <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="cccd_mst" required minlength="10" placeholder="Tối thiểu 10 ký tự">
+              <div class="invalid-feedback">MST / CCCD bắt buộc và phải có ít nhất 10 ký tự</div>
             </div>
 
-            <div class="col-lg-6">
+            <div class="col-lg-3">
               <label class="form-label">Phân loại <span class="text-danger">*</span></label>
               <input id="tagifyPhanLoai" class="form-control" name="phan_loai_tags" placeholder="Chọn phân loại" required>
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>
@@ -45,7 +46,7 @@
               <input type="email" class="form-control" name="email" placeholder="email@congty.vn">
             </div>
             <div class="col-lg-3">
-              <label class="form-label">Ngày sinh</label>
+              <label class="form-label">Ngày thành lập</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="dob" placeholder="dd/MM/yyyy">
             </div>
 

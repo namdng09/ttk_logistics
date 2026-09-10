@@ -14,18 +14,15 @@
           </button>
         </div>
       </div>
-      <div class="col-6 col-md-5 mb-2 mb-md-0">
+      <div class="col-6 col-md-3 mb-2 mb-md-0">
         <select class="form-select" id="filter-phan-loai">
           <option value="">Tất cả phân loại</option>
-          <option value="Doanh nghiệp">Doanh nghiệp</option>
           <option value="Cá nhân">Cá nhân</option>
-          <option value="Khách hàng">Khách hàng</option>
+          <option value="Doanh nghiệp">Doanh nghiệp</option>
           <option value="Nhà cung cấp">Nhà cung cấp</option>
-          <option value="Đối tác">Đối tác</option>
-          <option value="Khác">Khác</option>
         </select>
       </div>
-      <div class="col-6 col-md-3">
+      <div class="col-6 col-md-5">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-primary btn-them-khach-hang" data-bs-toggle="modal" data-bs-target="#khach-hang-modal">
             <i class="ti tabler-plus me-1"></i>Thêm
@@ -49,15 +46,13 @@
             <th>MST / CCCD</th>
             <th>SĐT</th>
             <th>Địa chỉ</th>
-            <th>NV</th>
-            <th>DOB</th>
             <th>Phân loại</th>
             <th>Ghi chú</th>
           </tr>
         </thead>
         <tbody id="table-khach-hang-tbody">
           <tr id="loading-row">
-            <td colspan="11" class="text-center py-4">
+            <td colspan="9" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -188,11 +183,12 @@
               <div class="invalid-feedback">Vui lòng nhập tên ngắn gọn</div>
             </div>
             <div class="col-lg-3">
-              <label class="form-label">MST / CCCD</label>
-              <input type="text" class="form-control" name="cccd_mst" placeholder="0201234567">
+              <label class="form-label">MST / CCCD <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="cccd_mst" required minlength="10" placeholder="Tối thiểu 10 ký tự">
+              <div class="invalid-feedback">MST / CCCD bắt buộc và phải có ít nhất 10 ký tự</div>
             </div>
 
-            <div class="col-lg-6">
+            <div class="col-lg-3">
               <label class="form-label">Phân loại <span class="text-danger">*</span></label>
               <input id="tagifyPhanLoai" class="form-control" name="phan_loai_tags" placeholder="Chọn phân loại" required>
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>
@@ -206,7 +202,7 @@
               <input type="email" class="form-control" name="email" placeholder="email@congty.vn">
             </div>
             <div class="col-lg-3">
-              <label class="form-label">Ngày sinh</label>
+              <label class="form-label">Ngày thành lập</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="dob" placeholder="dd/MM/yyyy">
             </div>
 
