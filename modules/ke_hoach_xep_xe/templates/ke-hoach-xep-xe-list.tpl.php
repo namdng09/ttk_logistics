@@ -538,7 +538,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
 	              <div class="col-md-4"><select class="form-select line-cont-filter-kho"><option></option></select></div>
 	              <div class="col-md-2"><select class="form-select line-cont-filter-du-hang"><option value="">Trạng thái</option><option value="1">Đã đủ</option><option value="0">Chưa đủ</option></select></div>
 	            </div>
-	            <div class="cont-picker-list-head<?php print $is_tuyen_xa ? ' is-tuyen-xa' : ''; ?>"><span></span><span><?php print $is_tuyen_xa ? 'Container' : 'Cont / Booking'; ?></span><span>Kho</span><span>Bãi hạ</span><?php if (!$is_tuyen_xa): ?><span>Seal</span><?php endif; ?><span>T.Thái</span><span>Ghi chú</span></div>
+	            <div class="cont-picker-list-head<?php print $is_tuyen_xa ? ' is-tuyen-xa' : ''; ?>"><span></span><span><?php print $is_tuyen_xa ? 'Container' : 'Cont / Booking'; ?></span><span>Kho</span><span>Bãi hạ</span><?php if (!$is_tuyen_xa): ?><span>Seal</span><span class="cont-picker-port-requirements-head">Yêu cầu</span><?php endif; ?><span>T.Thái</span><span>Ghi chú</span></div>
 	            <div class="line-cont-picker-body line-cont-picker-list"><div class="text-center text-muted py-4">Chưa có dữ liệu</div></div>
 	          </div>
 	        </div>

@@ -246,6 +246,18 @@
   margin-bottom: 0;
 }
 
+.khxh-port-create-return-checks {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .35rem .75rem;
+}
+
+.khxh-port-create-return-checks .form-check-input:disabled {
+  opacity: .65;
+}
+
 .khxh-port-create-return {
   margin-top: .75rem;
   padding-top: 0;
@@ -2622,6 +2634,31 @@ button.khxh-cont-ref-number:focus {
 
 .cont-picker-list-head span:first-child {
   padding: 0;
+}
+
+.cont-picker-port-requirements-head,
+.cont-picker-port-requirements {
+  display: none;
+}
+
+#cont-ref-picker-modal.is-port-cont-picker .cont-picker-list-head,
+#cont-ref-picker-modal.is-port-cont-picker .cont-picker-row:not(.is-tuyen-xa) {
+  grid-template-columns: 38px minmax(135px, 0.9fr) minmax(140px, 1fr) minmax(130px, 0.9fr) minmax(80px, 0.55fr) minmax(125px, 0.8fr) minmax(55px, 0.35fr) minmax(150px, 1fr);
+}
+
+#cont-ref-picker-modal.is-port-cont-picker .cont-picker-port-requirements-head,
+#cont-ref-picker-modal.is-port-cont-picker .cont-picker-port-requirements {
+  display: block;
+}
+
+#cont-ref-picker-modal .cont-picker-port-requirements .form-check {
+  display: block;
+  margin: 0 0 0.2rem;
+  white-space: nowrap;
+}
+
+#cont-ref-picker-modal .cont-picker-port-requirements .form-check:last-child {
+  margin-bottom: 0;
 }
 
 .cont-picker-list-head.is-tuyen-xa,
