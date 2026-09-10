@@ -39,11 +39,13 @@
             </div>
             <div class="col-lg-3">
               <label class="form-label">SĐT</label>
-              <input type="tel" class="form-control" name="sdt" placeholder="0901234567" inputmode="numeric">
+              <input type="tel" class="form-control" name="sdt" minlength="10" maxlength="10" pattern="[0-9]{10}" placeholder="0901234567" inputmode="numeric">
+              <div class="invalid-feedback">SĐT phải gồm đúng 10 chữ số</div>
             </div>
             <div class="col-lg-3">
               <label class="form-label">Email</label>
               <input type="email" class="form-control" name="email" placeholder="email@congty.vn">
+              <div class="invalid-feedback">Email không đúng định dạng</div>
             </div>
             <div class="col-lg-3">
               <label class="form-label">Ngày thành lập</label>

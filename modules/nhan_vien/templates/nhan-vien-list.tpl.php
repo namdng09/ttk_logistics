@@ -124,9 +124,9 @@
               <input type="text" class="form-control" name="ma_nhan_vien" placeholder="NV0001">
             </div>
             <div class="col-md-4">
-              <label class="form-label">SĐT</label>
-              <input type="tel" class="form-control phone-mask" name="sdt" minlength="10" maxlength="10" pattern="[0-9]{10}" placeholder="0987654321" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
-              <div class="invalid-feedback">SĐT phải gồm đúng 10 chữ số</div>
+              <label class="form-label">CCCD <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="cccd" required minlength="12" maxlength="12" pattern="[0-9]{12}" placeholder="Nhập CCCD 12 số" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <div class="invalid-feedback">CCCD phải gồm đúng 12 chữ số</div>
             </div>
             <div class="col-md-4">
               <label class="form-label">Email</label>
@@ -138,9 +138,9 @@
               <input type="text" class="form-control flatpickr-date date-mask" name="dob" placeholder="dd/MM/yyyy">
             </div>
             <div class="col-md-4">
-              <label class="form-label">CCCD <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" name="cccd" required minlength="12" maxlength="12" pattern="[0-9]{12}" placeholder="Nhập CCCD 12 số" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
-              <div class="invalid-feedback">CCCD phải gồm đúng 12 chữ số</div>
+              <label class="form-label">SĐT</label>
+              <input type="tel" class="form-control phone-mask" name="sdt" minlength="10" maxlength="10" pattern="[0-9]{10}" placeholder="0987654321" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <div class="invalid-feedback">SĐT phải gồm đúng 10 chữ số</div>
             </div>
             <div class="col-md-4">
               <label class="form-label">Địa chỉ</label>

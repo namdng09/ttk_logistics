@@ -14,7 +14,7 @@
           </button>
         </div>
       </div>
-      <div class="col-6 col-md-4 mb-2 mb-md-0">
+      <div class="col-6 col-md-3 mb-2 mb-md-0">
         <select class="form-select" id="filter-phan-loai">
           <option value="">Tất cả phân loại</option>
           <option value="Phòng ban">Phòng ban</option>
@@ -26,7 +26,7 @@
           <option value="Cửa khẩu">Cửa khẩu</option>
         </select>
       </div>
-      <div class="col-6 col-md-4">
+      <div class="col-6 col-md-5">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-primary btn-them-danh-muc" data-bs-toggle="modal" data-bs-target="#danh-muc-modal">
             <i class="ti tabler-plus me-1"></i>Thêm danh mục

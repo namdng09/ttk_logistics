@@ -294,6 +294,27 @@ function _nhan_vien_check_unique_username($value, $exclude_uid = NULL) {
   return NULL;
 }
 
+/**
+ * Check unique email (active users only). Empty email is allowed.
+ */
+function _nhan_vien_check_unique_mail($value, $exclude_uid = NULL) {
+  $value = trim((string) $value);
+  if ($value === '') return NULL;
+
+  $query = db_select('users', 'u');
+  $query->fields('u', array('uid', 'status'));
+  $query->condition('u.mail', $value);
+  if ($exclude_uid !== NULL) {
+    $query->condition('u.uid', $exclude_uid, '<>');
+  }
+  $query->range(0, 1);
+  $exists = $query->execute()->fetchObject();
+  if ($exists && $exists->status) {
+    return _nhan_vien_fail('Email "' . $value . '" đã tồn tại');
+  }
+  return NULL;
+}
+
 /*******************************************************************************
  * REST: ROLES — GET /api/roles
  ******************************************************************************/
@@ -454,6 +475,7 @@ function _nhan_vien_rest_create() {
   $input = _nhan_vien_input();
   _nhan_vien_ensure_sdt_field();
   $input['sdt'] = _nhan_vien_normalize_sdt(isset($input['sdt']) ? $input['sdt'] : '');
+  $input['mail'] = trim(isset($input['mail']) ? $input['mail'] : '');
 
   if (empty($input['ten'])) {
     return _nhan_vien_fail('Họ tên bắt buộc');
@@ -471,6 +493,8 @@ function _nhan_vien_rest_create() {
   if (!empty($input['mail']) && !valid_email_address($input['mail'])) {
     return _nhan_vien_fail('Email không hợp lệ');
   }
+  $dupMail = _nhan_vien_check_unique_mail($input['mail']);
+  if ($dupMail) return $dupMail;
 
   $dupMa = _nhan_vien_check_unique_ma(isset($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : '');
   if ($dupMa) return $dupMa;
@@ -588,6 +612,7 @@ function _nhan_vien_rest_update($id) {
   $input = _nhan_vien_input();
   _nhan_vien_ensure_sdt_field();
   $input['sdt'] = _nhan_vien_normalize_sdt(isset($input['sdt']) ? $input['sdt'] : '');
+  $input['mail'] = trim(isset($input['mail']) ? $input['mail'] : '');
 
   if (empty($input['ten'])) {
     return _nhan_vien_fail('Họ tên bắt buộc');
@@ -602,6 +627,8 @@ function _nhan_vien_rest_update($id) {
   if (!empty($input['mail']) && !valid_email_address($input['mail'])) {
     return _nhan_vien_fail('Email không hợp lệ');
   }
+  $dupMail = _nhan_vien_check_unique_mail($input['mail'], $id);
+  if ($dupMail) return $dupMail;
 
   $dupUser = _nhan_vien_check_unique_username($input['username'], $id);
   if ($dupUser) return $dupUser;
