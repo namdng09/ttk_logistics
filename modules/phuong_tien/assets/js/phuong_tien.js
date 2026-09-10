@@ -12,10 +12,12 @@
   var LOAI_PHUONG_TIEN_MAP = {
     dau_keo: 'Đầu kéo',
     mooc: 'Mooc',
+    may_phat: 'Máy phát',
   };
   var LOAI_PHUONG_TIEN_COLOR = {
     dau_keo: 'bg-label-primary',
     mooc: 'bg-label-warning',
+    may_phat: 'bg-label-info',
   };
   var LOAI_MOOC_MAP = {
     xuong: 'Xương',
@@ -478,22 +480,23 @@
           var actions = buildActions(item.nid);
           var giaMua = item.gia_mua ? formatMoney(item.gia_mua) : '';
           var specs = renderVehicleSpecs(item);
+          var loaiText = LOAI_PHUONG_TIEN_MAP[item.loai_phuong_tien] || item.loai_phuong_tien || '_';
           var laixeName = '';
           var laixeSDT = '';
           if (item.lai_xe) {
-            laixeName = escapeHtml(item.lai_xe.ten || '');
+            laixeName = escapeHtml(item.lai_xe.ten || '_');
             laixeSDT = item.lai_xe.sdt ? ' <small class="text-muted">(' + escapeHtml(item.lai_xe.sdt) + ')</small>' : '';
           } else {
-            laixeName = '<span class="text-muted fst-italic">Chưa chọn</span>';
+            laixeName = '<span class="text-muted">_</span>';
           }
           html +=
             '<tr>' +
             '<td class="text-center">' + actions + '</td>' +
             '<td>' + stt + '</td>' +
-            '<td>' + escapeHtml(item.bks || '') + '</td>' +
-            '<td>' + escapeHtml(item.ma_tai_san || '') + '</td>' +
-            '<td><span class="badge ' + (LOAI_PHUONG_TIEN_COLOR[item.loai_phuong_tien] || 'bg-label-secondary') + '">' + escapeHtml(LOAI_PHUONG_TIEN_MAP[item.loai_phuong_tien] || item.loai_phuong_tien || '') + '</span></td>' +
-            '<td>' + escapeHtml(item.hang_xe || '') + '</td>' +
+            '<td>' + escapeHtml(item.bks || '_') + '</td>' +
+            '<td>' + escapeHtml(item.ma_tai_san || '_') + '</td>' +
+            '<td><span class="badge ' + (LOAI_PHUONG_TIEN_COLOR[item.loai_phuong_tien] || 'bg-label-secondary') + '">' + escapeHtml(loaiText) + '</span></td>' +
+            '<td>' + escapeHtml(item.hang_xe || '_') + '</td>' +
             '<td>' + specs + '</td>' +
             '<td>' + laixeName + laixeSDT + '</td>' +
             '</tr>';
@@ -525,7 +528,7 @@
       if (item.chieu_dai_mooc) mooc.push(escapeHtml(item.chieu_dai_mooc) + ' Feet');
       if (mooc.length) lines.push(mooc.join(' - '));
     }
-    if (!lines.length) return '<span class="text-muted fst-italic">Chưa có</span>';
+    if (!lines.length) return '<span class="text-muted">_</span>';
     return '<div class="phuong-tien-specs-cell">' + lines.join('<br>') + '</div>';
   }
 
@@ -617,7 +620,9 @@
     }
     if (perms.phuong_tien_create) {
       items += '<li><button type="button" class="dropdown-item btn-edit-phuong-tien" data-id="' + nid + '"><i class="ti tabler-edit me-2"></i>Sửa</button></li>';
-      items += '<li><button type="button" class="dropdown-item btn-assign-lai-xe" data-id="' + nid + '"><i class="ti tabler-steering-wheel me-2"></i>Chọn lái xe</button></li>';
+      if (!item || item.loai_phuong_tien === 'dau_keo') {
+        items += '<li><button type="button" class="dropdown-item btn-assign-lai-xe" data-id="' + nid + '"><i class="ti tabler-steering-wheel me-2"></i>Chọn lái xe</button></li>';
+      }
     }
     if (perms.phuong_tien_delete) {
       items += '<li><hr class="dropdown-divider"></li>';

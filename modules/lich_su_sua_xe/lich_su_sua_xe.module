@@ -162,10 +162,9 @@ function _lssx_normalize_hang_muc($items) {
     if ($ten === '') continue;
     $so_luong = isset($item['so_luong']) ? (int) _lssx_numeric_only($item['so_luong']) : 1;
     $don_gia = isset($item['don_gia']) ? _lssx_money_value($item['don_gia']) : 0;
-    $thanh_tien = isset($item['thanh_tien']) ? _lssx_money_value($item['thanh_tien']) : NULL;
-    if ($thanh_tien === NULL) {
-      $thanh_tien = ((float) $don_gia) * max(1, $so_luong);
-    }
+    // Thành tiền luôn được tính từ đơn giá x số lượng; không nhận giá trị
+    // gửi lên từ client để tránh lệch tổng chi phí.
+    $thanh_tien = ((float) $don_gia) * max(1, $so_luong);
     $result[] = array(
       'ten_hang_muc' => $ten,
       'so_luong' => max(1, $so_luong),
@@ -187,12 +186,34 @@ function _lssx_total_hang_muc($items) {
   return $total;
 }
 
+/**
+ * Validate cost rows before normalizing them. Empty untouched rows are allowed,
+ * but a row containing an amount or a non-default quantity must have a name.
+ */
+function _lssx_validate_hang_muc($items) {
+  if (!is_array($items)) return NULL;
+  foreach ($items as $item) {
+    if (!is_array($item)) continue;
+    $name = isset($item['ten_hang_muc']) ? trim((string) $item['ten_hang_muc']) : '';
+    $price = isset($item['don_gia']) ? (float) _lssx_money_value($item['don_gia']) : 0;
+    $quantity = isset($item['so_luong']) && $item['so_luong'] !== '' ? (int) _lssx_numeric_only($item['so_luong']) : 1;
+    $submitted_total = isset($item['thanh_tien']) ? (float) _lssx_money_value($item['thanh_tien']) : 0;
+    if ($name === '' && ($price > 0 || $quantity !== 1 || $submitted_total > 0)) {
+      return _lssx_fail('Vui lòng nhập tên hạng mục cho dòng chi phí');
+    }
+  }
+  return NULL;
+}
+
 function _lssx_normalize_record($row) {
   if (!$row) return $row;
   $json = _lssx_default_json(_lssx_json_decode(isset($row->thong_tin_json) ? $row->thong_tin_json : ''));
+  // Chuẩn hoá lại hạng mục để tổng hiển thị luôn là tổng đơn giá x số lượng.
+  $json['hang_muc'] = _lssx_normalize_hang_muc($json['hang_muc']);
   $row->thong_tin_json = $json;
   $row->hang_muc = $json['hang_muc'];
   $row->files = $json['files'];
+  $row->tong_chi_phi = _lssx_total_hang_muc($json['hang_muc']);
 
   $row->phuong_tien = !empty($row->pt_nid) ? (object) array(
     'nid' => (int) $row->pt_nid,
@@ -264,9 +285,8 @@ function _lssx_payload_fields($input, $existing_json = array()) {
     $json['thay_nhot'] = $input['thay_nhot'];
   }
 
-  $tong = isset($input['tong_chi_phi']) && trim((string) $input['tong_chi_phi']) !== ''
-    ? _lssx_money_value($input['tong_chi_phi'])
-    : _lssx_total_hang_muc($json['hang_muc']);
+  // Tổng chi phí phải là tổng thành tiền của toàn bộ hạng mục.
+  $tong = _lssx_total_hang_muc($json['hang_muc']);
 
   return array(
     'nid_phuong_tien' => isset($input['nid_phuong_tien']) ? (int) $input['nid_phuong_tien'] : 0,
@@ -368,6 +388,8 @@ function _lssx_rest_create() {
   if (empty($input['ngay_sua'])) {
     return _lssx_fail('Ngày sửa là bắt buộc');
   }
+  $hang_muc_err = _lssx_validate_hang_muc(isset($input['hang_muc']) ? $input['hang_muc'] : array());
+  if ($hang_muc_err) return $hang_muc_err;
 
   $fields = _lssx_payload_fields($input);
   $fields['hoat_dong'] = 1;
@@ -424,6 +446,8 @@ function _lssx_rest_update($id) {
   if (empty($input['ngay_sua'])) {
     return _lssx_fail('Ngày sửa là bắt buộc');
   }
+  $hang_muc_err = _lssx_validate_hang_muc(isset($input['hang_muc']) ? $input['hang_muc'] : array());
+  if ($hang_muc_err) return $hang_muc_err;
 
   $existing_json = _lssx_json_decode($existing->thong_tin_json);
   $fields = _lssx_payload_fields($input, $existing_json);

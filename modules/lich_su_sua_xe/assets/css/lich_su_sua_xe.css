@@ -329,6 +329,7 @@
 
 .lssx-file-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
 }
 
@@ -376,6 +377,12 @@
 
 .lssx-file-item:hover {
   background: #f8fbff;
+}
+
+@media (max-width: 767.98px) {
+  .lssx-file-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .lssx-file-thumb {

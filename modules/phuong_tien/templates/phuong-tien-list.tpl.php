@@ -19,6 +19,7 @@
           <option value="">Tất cả loại</option>
           <option value="dau_keo">Đầu kéo</option>
           <option value="mooc">Mooc</option>
+          <option value="may_phat">Máy phát</option>
         </select>
       </div>
       <div class="col-6 col-md-5">
@@ -98,60 +99,57 @@
             <div class="col-12">
               <div class="phuong-tien-form-section-title">Thông tin chung</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Biển kiểm soát <span class="text-danger">*</span></label>
               <input type="text" class="form-control" name="bks" required placeholder="VD: 15H12345">
               <div class="invalid-feedback">Vui lòng nhập biển kiểm soát</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Mã tài sản</label>
               <input type="text" class="form-control" name="ma_tai_san" placeholder="VD: HMN">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Loại phương tiện <span class="text-danger">*</span></label>
               <select class="form-select" name="loai_phuong_tien" required>
                 <option value="">Chọn loại</option>
                 <option value="dau_keo">Đầu kéo</option>
                 <option value="mooc">Mooc</option>
+                <option value="may_phat">Máy phát</option>
               </select>
               <div class="invalid-feedback">Vui lòng chọn loại phương tiện</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Nhãn hiệu</label>
               <input type="text" class="form-control" name="hang_xe" placeholder="VD: HYUNDAI, CIMC, DONGFENG...">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Màu sắc</label>
               <input type="text" class="form-control" name="mau_sac" placeholder="VD: Trắng, xanh...">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Năm sản xuất</label>
               <input type="text" class="form-control" name="nam_san_xuat" placeholder="2026" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Tải trọng</label>
               <input type="text" class="form-control weight-mask pt-weight-field" name="tai_trong" placeholder="0">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Tự trọng</label>
               <input type="text" class="form-control weight-mask pt-weight-field" name="tu_trong" placeholder="0">
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Tổng trọng lượng</label>
-              <input type="text" class="form-control bg-light" id="pt-tong-trong-luong" placeholder="Tự tính" readonly>
-            </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Nước sản xuất</label>
               <input type="text" class="form-control" name="nuoc_san_xuat" placeholder="VD: Việt Nam">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Giá mua</label>
               <div class="input-group">
                 <span class="input-group-text">đ</span>
                 <input type="text" class="form-control money-mask" name="gia_mua" placeholder="1.000.000">
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Ngày mua</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="ngay_mua" placeholder="dd/MM/yyyy">
             </div>
@@ -321,8 +319,8 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Chọn lái xe <span class="text-danger">*</span></label>
-            <select class="form-select" id="ptlx-select-lai-xe" required>
+            <label class="form-label">Chọn lái xe</label>
+            <select class="form-select" id="ptlx-select-lai-xe">
               <option value="">Đang tải...</option>
             </select>
           </div>

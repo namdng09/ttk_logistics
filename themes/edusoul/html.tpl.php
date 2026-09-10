@@ -14,7 +14,7 @@
             name="viewport"
             content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>
     <?php print $head; ?>
-    <link rel="icon" type="image/x-icon" href="/<?php print $directory; ?>/quan-ly/assets/img/favicon/favicon.ico"/>
+    <link rel="icon" type="image/x-icon" href="/<?php print $directory; ?>/quan-ly/assets/img/favicon/logo-ttk.ico"/>
     <title>Tân Trường Khoa</title>
 
     <!-- Fonts -->

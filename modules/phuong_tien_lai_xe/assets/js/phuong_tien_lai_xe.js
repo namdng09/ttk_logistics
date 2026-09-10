@@ -116,18 +116,13 @@
     var modal = document.getElementById('phuong-tien-lai-xe-modal');
     var nidPT = parseInt(modal.getAttribute('data-nid-pt'));
     var selectLX = document.getElementById('ptlx-select-lai-xe');
-    var nidLX = parseInt(selectLX.value);
+    var nidLX = parseInt(selectLX.value) || 0;
     var btn = document.querySelector('.btn-luu-ptlx');
 
     if (!nidPT || nidPT <= 0) {
       if (notyf) notyf.error('Thiếu thông tin phương tiện');
       return;
     }
-    if (!nidLX || nidLX <= 0) {
-      if (notyf) notyf.error('Vui lòng chọn lái xe');
-      return;
-    }
-
     btn.setAttribute('disabled', 'disabled');
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang lưu...';
 
@@ -144,7 +139,7 @@
         btn.removeAttribute('disabled');
         btn.innerHTML = '<i class="ti tabler-device-floppy me-1"></i> Lưu';
         if (res.status === 'success') {
-          if (notyf) notyf.success('Chọn lái xe thành công');
+          if (notyf) notyf.success(nidLX > 0 ? 'Chọn lái xe thành công' : 'Đã xoá lái xe khỏi phương tiện');
           var bsModal = bootstrap.Modal.getInstance(modal);
           if (bsModal) bsModal.hide();
           if (typeof window.ptlxLoadList === 'function') window.ptlxLoadList();

@@ -17,6 +17,7 @@ function edusoul_preprocess_page(&$variables)
 function getMainMenuSoft()
 {
     global $user;
+    $brand_logo = base_path() . drupal_get_path('theme', 'edusoul') . '/quan-ly/assets/img/favicon/logo.jpg';
     $current_path = current_path();
     $active_ke_hoach_tuyen_xa = strpos($current_path, 'ke-hoach-tuyen-xa') === 0;
     $active_ke_hoach_xep_xe = strpos($current_path, 'ke-hoach-xep-xe') === 0 || $current_path === 'tao-ke-hoach-xep-xe';
@@ -33,7 +34,8 @@ function getMainMenuSoft()
                 <div class="app-brand demo">
                     <a href="/" class="app-brand-link">
           <span class="app-brand-logo demo">
-                <span class="text-primary">
+                <img src="' . check_plain($brand_logo) . '" alt="Tân Trường Khoa" style="width:37px;height:22px;object-fit:contain;display:block;" />
+                <!--
                   <svg width="32" height="22" viewBox="0 0 32 22" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                             fill-rule="evenodd"
@@ -59,6 +61,7 @@ function getMainMenuSoft()
                             fill="currentColor" />
                   </svg>
                 </span>
+              -->
               </span>
                         <span class="app-brand-text demo menu-text fw-bold ms-3">Tân Trường Khoa</span>
                     </a>

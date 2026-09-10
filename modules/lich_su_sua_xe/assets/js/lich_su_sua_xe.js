@@ -73,7 +73,7 @@
     });
     $('#btn-lssx-save').bind('click', submitForm);
     $('#btn-lssx-add-hang-muc').bind('click', function () {
-      addHangMucRow({});
+      addHangMucRow({}, false);
     });
     $('#lssx-pagination-jump').bind('keypress', function (e) {
       if (e.which === 13) {
@@ -450,9 +450,10 @@
     field('ngay_nhac_tiep_theo').val(d.ngay_nhac_tiep_theo || '');
     field('thoi_gian_sua').val(d.thoi_gian_sua || '');
     field('tinh_trang_xe').val(d.tinh_trang_xe || '');
-    field('tong_chi_phi').val(money(d.tong_chi_phi));
+    field('tong_chi_phi').val(money(viewItemsTotal(hangMuc)));
     field('ghi_chu').val(d.ghi_chu || '');
     renderHangMuc();
+    updateTotalFromItems();
     renderFiles();
     setMode(currentMode);
   }
@@ -464,6 +465,7 @@
       form.classList.add('was-validated');
       return;
     }
+    if (!validateHangMucRows()) return;
     collectHangMuc();
     var payload = {
       nid_phuong_tien: field('nid_phuong_tien').val(),
@@ -518,7 +520,8 @@
     $('#lssx-file-input').val('');
     $('#lssx-file-title').val('');
     clearSelect2Value('#lssx-form [name="nid_phuong_tien"]');
-    addHangMucRow({});
+    // Dòng mặc định có thể để trống nếu lịch sử chưa có hạng mục chi phí.
+    addHangMucRow({}, true);
     renderFiles();
     setMode('create');
     showLoading(false);
@@ -528,7 +531,8 @@
     currentMode = mode;
     var readonly = mode === 'view';
     $('#lssx-form').find('input, select, textarea').each(function () {
-      if (readonly) this.setAttribute('disabled', 'disabled');
+      var calculatedAmount = $(this).is('[data-field="thanh_tien"]');
+      if (readonly || calculatedAmount) this.setAttribute('disabled', 'disabled');
       else this.removeAttribute('disabled');
     });
     $('#btn-lssx-save').toggle(!readonly);
@@ -538,12 +542,13 @@
     $('.btn-lssx-file-delete').toggle(!readonly);
   }
 
-  function addHangMucRow(row) {
+  function addHangMucRow(row, optionalEmpty) {
     hangMuc.push($.extend({
       ten_hang_muc: '',
       so_luong: 1,
       don_gia: 0,
       thanh_tien: 0,
+      _optional_empty: !!optionalEmpty,
       co_bao_hanh: 0,
       ngay_het_bao_hanh: '',
       ghi_chu_bao_hanh: ''
@@ -555,12 +560,12 @@
     var html = '';
     for (var i = 0; i < hangMuc.length; i++) {
       var item = hangMuc[i];
-      html += '<tr data-index="' + i + '">' +
+      html += '<tr data-index="' + i + '" data-optional-empty="' + (item._optional_empty ? '1' : '0') + '">' +
         '<td class="text-center text-muted">' + (i + 1) + '</td>' +
-        '<td><input type="text" class="form-control form-control-sm lssx-hang-muc-field" data-field="ten_hang_muc" value="' + escAttr(item.ten_hang_muc || '') + '" placeholder="VD: Thay vỏ"></td>' +
+        '<td><input type="text" class="form-control form-control-sm lssx-hang-muc-field" data-field="ten_hang_muc" value="' + escAttr(item.ten_hang_muc || '') + '" placeholder="VD: Thay vỏ"><div class="invalid-feedback">Vui lòng nhập tên hạng mục</div></td>' +
         '<td><input type="text" class="form-control form-control-sm money-mask lssx-hang-muc-field" data-field="don_gia" value="' + escAttr(money(item.don_gia)) + '"></td>' +
         '<td><input type="number" class="form-control form-control-sm lssx-hang-muc-field" data-field="so_luong" value="' + escAttr(item.so_luong || 1) + '" min="1" step="1" inputmode="numeric"></td>' +
-        '<td><input type="text" class="form-control form-control-sm money-mask lssx-hang-muc-field" data-field="thanh_tien" value="' + escAttr(money(item.thanh_tien)) + '"></td>' +
+        '<td><input type="text" class="form-control form-control-sm money-mask lssx-hang-muc-field" data-field="thanh_tien" value="' + escAttr(money(item.thanh_tien)) + '" disabled></td>' +
         '<td class="text-center"><input type="checkbox" class="form-check-input lssx-hang-muc-field" data-field="co_bao_hanh"' + (parseInt(item.co_bao_hanh, 10) ? ' checked' : '') + '></td>' +
         '<td><input type="text" class="form-control form-control-sm flatpickr-date date-mask lssx-hang-muc-field" data-field="ngay_het_bao_hanh" value="' + escAttr(item.ngay_het_bao_hanh || '') + '" placeholder="dd/MM/yyyy"></td>' +
         '<td><input type="text" class="form-control form-control-sm lssx-hang-muc-field" data-field="ghi_chu_bao_hanh" value="' + escAttr(item.ghi_chu_bao_hanh || '') + '"></td>' +
@@ -571,6 +576,29 @@
     initDatePickers();
     initMasks();
     setMode(currentMode);
+  }
+
+  function validateHangMucRows() {
+    var valid = true;
+    $('#lssx-hang-muc-body tr[data-index]').each(function () {
+      var row = $(this);
+      var nameInput = row.find('[data-field="ten_hang_muc"]');
+      var name = $.trim(nameInput.val() || '');
+      var price = parseFloat(intClean(row.find('[data-field="don_gia"]').val() || '')) || 0;
+      var quantity = parseInt(intClean(row.find('[data-field="so_luong"]').val() || ''), 10) || 1;
+      var total = parseFloat(intClean(row.find('[data-field="thanh_tien"]').val() || '')) || 0;
+      var optionalEmpty = row.attr('data-optional-empty') === '1';
+      nameInput.removeAttr('required').removeClass('is-invalid');
+      if (!name && !optionalEmpty) {
+        nameInput.attr('required', 'required').addClass('is-invalid');
+        valid = false;
+      }
+    });
+    if (!valid) {
+      $('#lssx-form').addClass('was-validated');
+      toastError('Vui lòng nhập tên hạng mục cho dòng chi phí');
+    }
+    return valid;
   }
 
   function collectHangMuc() {
@@ -610,7 +638,7 @@
   function updateTotalFromItems() {
     var total = 0;
     for (var i = 0; i < hangMuc.length; i++) total += parseFloat(hangMuc[i].thanh_tien || 0);
-    if (total > 0) field('tong_chi_phi').val(money(total));
+    field('tong_chi_phi').val(money(total));
   }
 
   function uploadFile() {
