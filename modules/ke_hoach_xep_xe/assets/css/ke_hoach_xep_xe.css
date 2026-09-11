@@ -187,28 +187,40 @@
   box-shadow: 0 .125rem .375rem rgba(34, 41, 47, .08);
 }
 
-.khxh-port-create-grid,
-.khxh-port-create-return-grid {
-  display: grid;
-  grid-template-columns: repeat(36, minmax(0, 1fr));
-  gap: .75rem;
-  align-items: end;
+.khxh-port-create-flex-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 1rem .75rem;
 }
 
 .khxh-port-create-row-2 {
   margin-top: 1rem;
 }
 
-.khxh-port-create-grid > div,
-.khxh-port-create-return-grid > div {
+.khxh-port-create-flex-row > div {
   min-width: 0;
 }
 
-.pc-span-2 { grid-column: span 2; }
-.pc-span-3 { grid-column: span 3; }
-.pc-span-4 { grid-column: span 4; }
-.pc-span-5 { grid-column: span 5; }
-.pc-span-6 { grid-column: span 6; }
+/* Kích cỡ theo nghiệp vụ: có thể chỉnh từng ô mà không phá bố cục các ô còn lại. */
+.pc-field-customer { flex: 1 1 135px; }
+.pc-field-bkg { flex: 0 0 155px; }
+.pc-field-datetime { flex: 0 2 142px; }
+.pc-field-kho { flex: 1 1 140px; }
+.pc-field-cont-type { flex: 0 1 74px; }
+.pc-field-yard { flex: 1 1 134px; }
+.pc-field-port { flex: 1 1 134px; }
+.pc-field-cutoff { flex: 0 2 140px; }
+.pc-field-transport { flex: 0 0 115px; }
+
+.pc-field-vehicle { flex: 0 0 155px; }
+.pc-field-driver { flex: 0 1 234px; }
+.pc-field-cont-label { flex: 0 0 145px; }
+.pc-field-mooc { flex: 0 0 155px; }
+.pc-field-container { flex: 0 0 155px; }
+.pc-field-seal { flex: 0 0 155px; }
+.pc-field-options { flex: 0 0 97px; }
+.pc-field-note { flex: 2 1 230px; }
 
 .khxh-port-create-cont-label {
   display: flex;
@@ -265,7 +277,6 @@
 }
 
 .khxh-port-create-return-label {
-  grid-column: span 3 !important;
   min-height: 38px;
   display: flex;
   align-items: center;
@@ -301,35 +312,9 @@
   background: #eef2f6;
 }
 
-@media (max-width: 1199.98px) {
-  .khxh-port-create-grid,
-  .khxh-port-create-return-grid {
-    grid-template-columns: repeat(24, minmax(0, 1fr));
-  }
-
-  .khxh-port-create-grid > div,
-  .khxh-port-create-return-grid > div {
-    grid-column: span 4;
-  }
-
-  .khxh-port-create-return-label {
-    grid-column: span 4 !important;
-  }
-}
-
 @media (max-width: 767.98px) {
-  .khxh-port-create-grid,
-  .khxh-port-create-return-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .khxh-port-create-grid > div,
-  .khxh-port-create-return-grid > div {
-    grid-column: 1;
-  }
-
-  .khxh-port-create-return-label {
-    grid-column: 1 !important;
+  .khxh-port-create-flex-row > div {
+    flex-basis: 100%;
   }
 
   .khxh-port-create-checks {

@@ -2784,18 +2784,19 @@
     function portCreateReturnMarkup(line) {
       var item = line && line.cont_ref ? line.cont_ref : {};
       var selected = !!(line && line.ke_hoach_cont_ref_nid);
-      var mooc = item.bks_mooc || item.so_mooc || (typeof item.mooc === 'object' ? (item.mooc.bks || item.mooc.bien_so || item.mooc.ma_tai_san || '') : item.mooc) || '';
+      // typeof null === 'object'; chỉ đọc thuộc tính khi dữ liệu mooc thực sự tồn tại.
+      var moocData = item.mooc || null;
+      var mooc = item.bks_mooc || item.so_mooc || (moocData && typeof moocData === 'object' ? (moocData.bks || moocData.bien_so || moocData.ma_tai_san || '') : moocData) || '';
       var baiHa = item.bai_ha_cont || item.bai_ha || '';
       var value = function (key) { return selected ? (item[key] || '') : ''; };
-      return '<div class="khxh-port-create-return khxh-port-create-grid khxh-port-create-row-2' + (shouldShowContPicker(line && line.hinh_thuc_van_tai) ? '' : ' d-none') + '">' +
-        '<div class="pc-span-3 khxh-port-create-cont-label"><i class="ti tabler-arrow-down me-1"></i>Cont kéo về</div>' +
-        '<div class="pc-span-3"><label class="form-label">Số mooc</label><input class="form-control" value="' + escHtml(selected ? mooc : '') + '" disabled></div>' +
-        '<div class="pc-span-4"><label class="form-label">Số cont</label><input class="form-control" value="' + escHtml(value('so_cont')) + '" disabled></div>' +
-        '<div class="pc-span-3"><label class="form-label">Seal chính</label><input class="form-control" value="' + escHtml(value('so_seal_chinh')) + '" disabled></div>' +
-        '<div class="pc-span-3"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input"' + (line.cont_keo_ve_seal_phu ? ' checked' : '') + ' disabled><span class="form-check-label">Seal phụ</span></label></div>' +
-        '<div class="pc-span-4"><label class="form-label">Bãi hạ dự kiến</label><input class="form-control" value="' + escHtml(selected ? baiHa : '') + '" disabled></div>' +
-        '<div class="pc-span-6"><label class="form-label">Ghi chú</label><input class="form-control" value="' + escHtml(value('ghi_chu')) + '" disabled></div>' +
-        '<div class="pc-span-6 khxh-port-create-return-checks">' +
+      return '<div class="khxh-port-create-return khxh-port-create-flex-row khxh-port-create-row-2' + (shouldShowContPicker(line && line.hinh_thuc_van_tai) ? '' : ' d-none') + '">' +
+        '<div class="pc-field-mooc"><label class="form-label">Số mooc</label><input class="form-control" value="' + escHtml(selected ? mooc : '') + '" disabled></div>' +
+        '<div class="pc-field-container"><label class="form-label">Số cont</label><input class="form-control" value="' + escHtml(value('so_cont')) + '" disabled></div>' +
+        '<div class="pc-field-seal"><label class="form-label">Seal chính</label><input class="form-control" value="' + escHtml(value('so_seal_chinh')) + '" disabled></div>' +
+        '<div class="pc-field-options"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input"' + (line.cont_keo_ve_seal_phu ? ' checked' : '') + ' disabled><span class="form-check-label">Seal phụ</span></label></div>' +
+        '<div class="pc-field-yard"><label class="form-label">Bãi hạ dự kiến</label><input class="form-control" value="' + escHtml(selected ? baiHa : '') + '" disabled></div>' +
+        '<div class="pc-field-note"><label class="form-label">Ghi chú</label><input class="form-control" value="' + escHtml(value('ghi_chu')) + '" disabled></div>' +
+        '<div class="pc-field-options khxh-port-create-return-checks">' +
           portCreateReadOnlyCheck('return-kiem-dich', 'Kiểm dịch', !!line.cont_keo_ve_kiem_dich) +
           portCreateReadOnlyCheck('return-kiem-hoa', 'Kiểm hoá', !!line.cont_keo_ve_kiem_hoa) +
           portCreateReadOnlyCheck('return-hun-trung', 'Hun trùng', !!line.cont_keo_ve_hun_trung) +
@@ -2834,26 +2835,25 @@
       var sealPhuChecked = !!String(line.so_seal_tam || '').trim();
       return '<section class="ke-hoach-line-card khxh-tuyen-xa-card khxh-port-create-section" id="khxh-main-plan-' + escHtml(line.key) + '" data-line-key="' + escHtml(line.key) + '">' +
         '<div class="khxh-tuyen-xa-card-head"><div><div class="khxh-tuyen-xa-card-title"><span class="khxh-step-badge">' + (index + 1) + '</span><strong>' + escHtml(title) + '</strong></div></div><div class="khxh-section-tools"><button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-copy-row-ke-hoach" title="Nhân bản"><i class="ti tabler-copy"></i></button><button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-row-ke-hoach" title="Xóa kế hoạch"><i class="ti tabler-trash"></i></button></div></div>' +
-        '<div class="khxh-tuyen-xa-section khxh-port-create-body"><div class="khxh-port-create-grid khxh-port-create-row-1">' +
-        '<div class="pc-span-5"><label class="form-label">Khách hàng <span class="text-danger">*</span></label><select class="form-select line-customer-select" required>' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select></div>' +
-        '<div class="pc-span-3"><label class="form-label">Số BKG</label><input class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="BKG"></div>' +
-        '<div class="pc-span-4"><label class="form-label">Ngày giờ</label><input class="form-control line-ngay-gio-input" value="' + escHtml(apiToDatetime(line.ngay_bat_dau || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
-        '<div class="pc-span-5"><label class="form-label">Địa chỉ kho</label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
-        '<div class="pc-span-2"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
-        '<div class="pc-span-4"><label class="form-label">Bãi lấy dự kiến</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
-        '<div class="pc-span-4"><label class="form-label">Bãi hạ dự kiến</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
-        '<div class="pc-span-3"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
-        '<div class="pc-span-2"><label class="form-label">Cut-off</label><input class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
-        '<div class="pc-span-4"><label class="form-label">Hình thức vận tải</label><select class="form-select line-hinh-thuc-select">' + portCreateTransportOptions(line.hinh_thuc_van_tai) + '</select></div>' +
-        '</div><div class="khxh-port-create-grid khxh-port-create-row-2">' +
-        '<div class="pc-span-4"><label class="form-label">Phương tiện / Đầu kéo</label><input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start vehicle-summary btn-open-vehicle-modal"></button></div>' +
-        '<div class="pc-span-4"><label class="form-label">Lái xe</label><select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select></div>' +
-        '<div class="pc-span-3 khxh-port-create-cont-label"><i class="ti tabler-box me-1"></i>Cont kéo lên</div>' +
-        '<div class="pc-span-3"><label class="form-label">Số mooc</label><input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal">' + moocSummaryHtml(line) + '</button></div>' +
-        '<div class="pc-span-4"><label class="form-label">Số cont</label><input class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
-        '<div class="pc-span-3"><label class="form-label">Seal chính</label><input class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Seal chính"></div>' +
-        '<div class="pc-span-3"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input line-seal-phu-check"' + (sealPhuChecked ? ' checked' : '') + '><span class="form-check-label">Seal phụ</span></label></div>' +
-        '<div class="pc-span-6 khxh-port-create-checks"><label class="form-label d-block">Yêu cầu hàng trong ngày</label>' + portCreateCheck('kiem-dich', 'Kiểm dịch', !!line.kiem_dich) + portCreateCheck('kiem-hoa', 'Kiểm hoá', !!line.kiem_hoa) + portCreateCheck('hun-trung', 'Hun trùng', !!line.hun_trung) + '</div>' +
+        '<div class="khxh-tuyen-xa-section khxh-port-create-body"><div class="khxh-port-create-flex-row khxh-port-create-row-1">' +
+        '<div class="pc-field-customer"><label class="form-label">Khách hàng <span class="text-danger">*</span></label><select class="form-select line-customer-select" required>' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select></div>' +
+        '<div class="pc-field-bkg"><label class="form-label">Số BKG</label><input class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="BKG"></div>' +
+        '<div class="pc-field-datetime"><label class="form-label">Ngày giờ</label><input class="form-control line-ngay-gio-input" value="' + escHtml(apiToDatetime(line.ngay_bat_dau || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
+        '<div class="pc-field-kho"><label class="form-label">Địa chỉ kho</label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
+        '<div class="pc-field-cont-type"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
+        '<div class="pc-field-yard"><label class="form-label">Bãi lấy dự kiến</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
+        '<div class="pc-field-yard"><label class="form-label">Bãi hạ dự kiến</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
+        '<div class="pc-field-port"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
+        '<div class="pc-field-cutoff"><label class="form-label">Cut-off</label><input class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
+        '<div class="pc-field-transport"><label class="form-label">Hình thức vận tải</label><select class="form-select line-hinh-thuc-select">' + portCreateTransportOptions(line.hinh_thuc_van_tai) + '</select></div>' +
+        '</div><div class="khxh-port-create-flex-row khxh-port-create-row-2">' +
+        '<div class="pc-field-vehicle"><label class="form-label">Phương tiện / Đầu kéo</label><input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start vehicle-summary btn-open-vehicle-modal"></button></div>' +
+        '<div class="pc-field-driver"><label class="form-label">Lái xe</label><select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select></div>' +
+        '<div class="pc-field-mooc"><label class="form-label">Số mooc</label><input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal">' + moocSummaryHtml(line) + '</button></div>' +
+        '<div class="pc-field-container"><label class="form-label">Số cont</label><input class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
+        '<div class="pc-field-seal"><label class="form-label">Seal chính</label><input class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Seal chính"></div>' +
+        '<div class="pc-field-options"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input line-seal-phu-check"' + (sealPhuChecked ? ' checked' : '') + '><span class="form-check-label">Seal phụ</span></label></div>' +
+        '<div class="pc-field-options khxh-port-create-checks"><label class="form-label d-block">Yêu cầu hàng trong ngày</label>' + portCreateCheck('kiem-dich', 'Kiểm dịch', !!line.kiem_dich) + portCreateCheck('kiem-hoa', 'Kiểm hoá', !!line.kiem_hoa) + portCreateCheck('hun-trung', 'Hun trùng', !!line.hun_trung) + '</div>' +
         '</div>' + returnHtml + '</div></section>';
     }
 
@@ -3694,7 +3694,7 @@
       var mooc = item.bks_mooc || item.so_mooc || item.mooc || '';
       var baiHa = item.bai_ha_cont || item.bai_ha || '';
       var key = line && line.key ? line.key : '';
-      return '<div class="khxh-port-create-return-grid"><div class="khxh-port-create-return-label"><span><i class="ti tabler-arrow-down me-1"></i>Cont kéo về</span><button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-cont-ref" data-line-key="' + escHtml(key) + '" title="Bỏ cont"><i class="ti tabler-x"></i></button></div><div><label class="form-label">Số mooc</label><input class="form-control" value="' + escHtml(selected ? mooc : '') + '" disabled></div><div><label class="form-label">Số cont</label><input class="form-control" value="' + escHtml(selected ? (item.so_cont || '') : '') + '" disabled></div><div><label class="form-label">Seal chính</label><input class="form-control" value="' + escHtml(selected ? (item.so_seal_chinh || '') : '') + '" disabled></div><div><label class="form-label">Seal phụ</label><input class="form-control" value="' + escHtml(selected ? (item.so_seal_tam || '') : '') + '" disabled></div><div><label class="form-label">Bãi hạ dự kiến</label><input class="form-control" value="' + escHtml(selected ? baiHa : '') + '" disabled></div><div><label class="form-label">Ghi chú</label><input class="form-control" value="' + escHtml(selected ? (item.ghi_chu || '') : '') + '" disabled></div></div>';
+      return '<div class="khxh-port-create-flex-row"><div class="pc-field-cont-label khxh-port-create-return-label"><span><i class="ti tabler-arrow-down me-1"></i>Cont kéo về</span><button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-cont-ref" data-line-key="' + escHtml(key) + '" title="Bỏ cont"><i class="ti tabler-x"></i></button></div><div class="pc-field-mooc"><label class="form-label">Số mooc</label><input class="form-control" value="' + escHtml(selected ? mooc : '') + '" disabled></div><div class="pc-field-container"><label class="form-label">Số cont</label><input class="form-control" value="' + escHtml(selected ? (item.so_cont || '') : '') + '" disabled></div><div class="pc-field-seal"><label class="form-label">Seal chính</label><input class="form-control" value="' + escHtml(selected ? (item.so_seal_chinh || '') : '') + '" disabled></div><div class="pc-field-options"><label class="form-label">Seal phụ</label><input class="form-control" value="' + escHtml(selected ? (item.so_seal_tam || '') : '') + '" disabled></div><div class="pc-field-yard"><label class="form-label">Bãi hạ dự kiến</label><input class="form-control" value="' + escHtml(selected ? baiHa : '') + '" disabled></div><div class="pc-field-note"><label class="form-label">Ghi chú</label><input class="form-control" value="' + escHtml(selected ? (item.ghi_chu || '') : '') + '" disabled></div></div>';
     }
 
 	    function updateContRefButton($row, line) {
