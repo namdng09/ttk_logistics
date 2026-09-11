@@ -2782,25 +2782,12 @@
     }
 
     function portCreateReturnMarkup(line) {
-      var item = line && line.cont_ref ? line.cont_ref : {};
+      var applicable = shouldShowContPicker(line && line.hinh_thuc_van_tai);
       var selected = !!(line && line.ke_hoach_cont_ref_nid);
-      // typeof null === 'object'; chỉ đọc thuộc tính khi dữ liệu mooc thực sự tồn tại.
-      var moocData = item.mooc || null;
-      var mooc = item.bks_mooc || item.so_mooc || (moocData && typeof moocData === 'object' ? (moocData.bks || moocData.bien_so || moocData.ma_tai_san || '') : moocData) || '';
-      var baiHa = item.bai_ha_cont || item.bai_ha || '';
-      var isDongHang = normalizeHinhThuc(line && line.hinh_thuc_van_tai) === 'dong_hang';
-      var value = function (key) { return selected ? (item[key] || '') : ''; };
-      return '<div class="khxh-port-create-return khxh-port-create-flex-row khxh-port-create-row-2' + (shouldShowContPicker(line && line.hinh_thuc_van_tai) ? '' : ' d-none') + '">' +
-        '<div class="pc-field-mooc"><label class="form-label">Số mooc</label><input class="form-control" value="' + escHtml(selected ? mooc : '') + '" disabled></div>' +
-        '<div class="pc-field-container"><label class="form-label">Số cont</label><input class="form-control" value="' + escHtml(value('so_cont')) + '" disabled></div>' +
-        '<div class="pc-field-seal"><label class="form-label">Seal chính</label><input class="form-control" value="' + escHtml(value('so_seal_chinh')) + '" disabled></div>' +
-        '<div class="pc-field-options khxh-port-create-option-group' + (isDongHang ? ' is-dong-hang' : '') + '"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input"' + (line.cont_keo_ve_seal_phu ? ' checked' : '') + ' disabled><span class="form-check-label">Seal phụ</span></label><span class="khxh-port-create-requirements khxh-port-create-return-requirements' + (isDongHang ? '' : ' d-none') + '">' +
-          portCreateReadOnlyCheck('return-kiem-dich', 'Kiểm dịch', !!line.cont_keo_ve_kiem_dich) +
-          portCreateReadOnlyCheck('return-kiem-hoa', 'Kiểm hoá', !!line.cont_keo_ve_kiem_hoa) +
-          portCreateReadOnlyCheck('return-hun-trung', 'Hun trùng', !!line.cont_keo_ve_hun_trung) +
-        '</span></div>' +
-        '<div class="pc-field-yard"><label class="form-label">Bãi hạ dự kiến</label><input class="form-control" value="' + escHtml(selected ? baiHa : '') + '" disabled></div>' +
-        '<div class="pc-field-note"><label class="form-label">Ghi chú</label><input class="form-control" value="' + escHtml(value('ghi_chu')) + '" disabled></div>' +
+      var key = line && line.key ? line.key : '';
+      return '<div class="pc-field-return-cont khxh-port-create-cont-picker' + (applicable ? '' : ' d-none') + '">' +
+        '<label class="form-label">Cont kéo về</label>' +
+        '<button type="button" class="btn btn-outline-secondary w-100 text-start line-cont-picker-display btn-open-cont-ref-modal" data-line-key="' + escHtml(key) + '"' + (applicable ? '' : ' disabled') + '><span class="' + (selected ? 'vehicle-inline-text' : 'vehicle-inline-placeholder') + '">' + escHtml(contRefButtonText(line)) + '</span></button>' +
         '</div>';
     }
 
@@ -2810,7 +2797,7 @@
         if (parseInt(item.nid, 10) === parseInt(line.nid_khach_hang, 10)) customer = item;
       });
       updatePortCreateCardTitle($card, line, index, customer);
-      $card.find('.khxh-port-create-return').replaceWith(portCreateReturnMarkup(line));
+      $card.find('.khxh-port-create-cont-picker').replaceWith(portCreateReturnMarkup(line));
       var isDongHang = normalizeHinhThuc(line.hinh_thuc_van_tai) === 'dong_hang';
       $card.find('.khxh-port-create-option-group')
         .toggleClass('is-dong-hang', isDongHang)
@@ -2853,7 +2840,8 @@
         '<div class="pc-field-container"><label class="form-label">Số cont</label><input class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
         '<div class="pc-field-seal"><label class="form-label">Seal chính</label><input class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Seal chính"></div>' +
         '<div class="pc-field-options khxh-port-create-option-group' + (isDongHang ? ' is-dong-hang' : '') + '"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input line-seal-phu-check"' + (sealPhuChecked ? ' checked' : '') + '><span class="form-check-label">Seal phụ</span></label><span class="khxh-port-create-requirements khxh-port-create-main-requirements' + (isDongHang ? '' : ' d-none') + '">' + portCreateCheck('kiem-dich', 'Kiểm dịch', !!line.kiem_dich) + portCreateCheck('kiem-hoa', 'Kiểm hoá', !!line.kiem_hoa) + portCreateCheck('hun-trung', 'Hun trùng', !!line.hun_trung) + '</span></div>' +
-        '</div>' + returnHtml + '</div></section>';
+        returnHtml +
+        '</div></div></section>';
     }
 
     function renderCards() {
@@ -3408,6 +3396,12 @@
 	      if (!line || !line.ke_hoach_cont_ref_nid) {
 	        return currentPlanType() === 'tuyen_xa' ? 'Chọn kế hoạch nguồn' : 'Chọn cont kéo về';
 	      }
+      if (currentPlanType() !== 'tuyen_xa') {
+        var item = line.cont_ref || {};
+        var soCont = item.so_cont || line.cont_ref_label || ('Cont #' + line.ke_hoach_cont_ref_nid);
+        var baiHa = item.bai_ha_thuc_te || item.bai_ha_cont || item.bai_ha || '';
+        return soCont + (baiHa ? ' (Về) - ' + baiHa : '');
+      }
       return line.cont_ref_label || ('Cont #' + line.ke_hoach_cont_ref_nid);
     }
 
@@ -3666,12 +3660,12 @@
 
     function renderSelectedContRef($card, line) {
       var $section = $form('#khxh-return-cont-' + line.key);
-      if (!$section.length && currentPlanType() !== 'tuyen_xa' && mode !== 'edit') {
-        $section = $card.find('.khxh-port-create-return');
-      }
-      if (!$section.length) return;
       var applicable = sourcePickerApplicable(line);
       var isPortCreate = currentPlanType() !== 'tuyen_xa' && mode !== 'edit';
+      if (!$section.length && isPortCreate) {
+        $section = $card.find('.khxh-port-create-cont-picker');
+      }
+      if (!$section.length) return;
       if (isPortCreate) {
         var $replacement = $(portCreateReturnMarkup(line));
         $section.attr('class', $replacement.attr('class')).html($replacement.html());
@@ -3922,10 +3916,15 @@
       var rows = [];
       var candidates = [];
       var currentNid = parseInt($form('#nid-input').val(), 10) || 0;
+      var pendingContId = parseInt($picker.data('pending-cont-id'), 10) || 0;
       var requiredReturnStart = activeContPickerMode === 'return' ? mainWorkEndLocation(line) : '';
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
-        if (currentPlanType() !== 'tuyen_xa' && parseInt(item.da_cat_mooc, 10) !== 1) continue;
+        var isPendingSelection = pendingContId === (parseInt(item.nid, 10) || 0);
+        // Cont đã được chọn luôn phải được hiển thị lại khi mở modal để người
+        // dùng biết trạng thái hiện tại, kể cả khi dữ liệu cũ không còn khớp
+        // toàn bộ bộ lọc của hình thức vận tải.
+        if (currentPlanType() !== 'tuyen_xa' && parseInt(item.da_cat_mooc, 10) !== 1 && !isPendingSelection) continue;
         if (currentPlanType() === 'tuyen_xa') {
           if (!tuyenXaRouteSegments(item).length) continue;
           var candidateJson = item.thong_tin_json || {};
@@ -3934,14 +3933,13 @@
         }
         if ((parseInt(item.nid, 10) || 0) === currentNid) continue;
         if (activeContPickerMode === 'return' && (parseInt(item.nid, 10) || 0) === (parseInt(line.ke_hoach_cont_ref_nid, 10) || 0)) continue;
-        if (currentPlanType() !== 'tuyen_xa' && hinhThuc === 'cat_keo' && item.dia_chi_kho !== line.dia_chi_kho) continue;
-        if (currentPlanType() !== 'tuyen_xa' && hinhThuc === 'cat_keo_cheo' && item.dia_chi_kho === line.dia_chi_kho) continue;
+        if (currentPlanType() !== 'tuyen_xa' && hinhThuc === 'cat_keo' && item.dia_chi_kho !== line.dia_chi_kho && !isPendingSelection) continue;
+        if (currentPlanType() !== 'tuyen_xa' && hinhThuc === 'cat_keo_cheo' && item.dia_chi_kho === line.dia_chi_kho && !isPendingSelection) continue;
         if (fBkg && String(item.so_bkg || '').toLowerCase().indexOf(fBkg) === -1) continue;
         if (fCont && String(item.so_cont || '').toLowerCase().indexOf(fCont) === -1) continue;
         var currentLocation = contCurrentLocation(item);
         if (fKho && String(currentLocation).toLowerCase().indexOf(fKho) === -1) continue;
         if (fDuHang !== '' && parseInt(item.da_du_hang, 10) !== parseInt(fDuHang, 10)) continue;
-        var pendingContId = parseInt($picker.data('pending-cont-id'), 10) || 0;
         var selected = pendingContId === parseInt(item.nid, 10);
 	        var selectedByOtherLine = false;
 	        for (var lineIndex = 0; lineIndex < state.lines.length; lineIndex++) {
@@ -3952,7 +3950,7 @@
 	            break;
 	          }
 	        }
-	        if (selectedByOtherLine && currentPlanType() !== 'tuyen_xa') continue;
+        if (selectedByOtherLine && currentPlanType() !== 'tuyen_xa' && !selected) continue;
 	        var usedBy = item.cont_keo_ve_by || null;
         var usedByNid = usedBy && usedBy.nid ? (parseInt(usedBy.nid, 10) || 0) : 0;
         if (currentPlanType() !== 'tuyen_xa' && !selected && usedByNid && usedByNid !== currentNid) continue;
@@ -5456,10 +5454,11 @@
         activePortTransportSelect = null;
         return;
       }
-      // Khi đổi hình thức và mở lại picker, cont cũ không còn là lựa chọn
-      // hợp lệ cho hình thức mới. Xóa ngay để đóng modal/không có kết quả cũng
-      // không thể giữ dữ liệu cũ.
-      clearPortReturnCont(syncLine($card));
+      // Chỉ đổi sang một hình thức khác mới bỏ cont cũ. Bấm lại đúng option
+      // đang chọn là thao tác xem/đổi cont, vì vậy phải giữ lựa chọn hiện tại.
+      var currentTransport = normalizeHinhThuc($select.val());
+      var nextTransport = normalizeHinhThuc(selectedValue);
+      if (currentTransport !== nextTransport) clearPortReturnCont(syncLine($card));
       if (activePortTransportTimer) window.clearTimeout(activePortTransportTimer);
       activePortTransportTimer = window.setTimeout(function () {
         activePortTransportTimer = null;
@@ -5607,6 +5606,15 @@
       if (!line) return;
       var selectedId = parseInt($picker.data('pending-cont-id'), 10) || 0;
       if (!selectedId) {
+        // Riêng hàng cảng, bỏ chọn cont kéo về là trạng thái hợp lệ. Tuyến xa
+        // vẫn phải chọn kế hoạch nguồn/chặng theo các validation hiện có.
+        if (currentPlanType() !== 'tuyen_xa' && activeContPickerMode === 'source') {
+          clearPortReturnCont(line);
+          renderSelectedContRef($card, line);
+          if (contRefModal) contRefModal.hide();
+          if (notyf) notyf.success('Đã bỏ chọn cont kéo về');
+          return;
+        }
         if (notyf) notyf.error(activeContPickerMode === 'return' ? 'Vui lòng chọn cont kéo về' : 'Vui lòng chọn kế hoạch nguồn');
         return;
       }

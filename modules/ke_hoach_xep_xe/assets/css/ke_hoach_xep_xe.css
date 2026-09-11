@@ -221,6 +221,7 @@
 .pc-field-seal { flex: 0 0 155px; }
 .pc-field-options { flex: 0 0 97px; }
 .pc-field-note { flex: 2 1 230px; }
+.pc-field-return-cont { flex: 0.4 1 190px; }
 
 /* Seal phụ đứng riêng; khi Đóng hàng thì bốn checkbox thành cụm 2 x 2. */
 .khxh-port-create-option-group {
