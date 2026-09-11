@@ -2788,19 +2788,19 @@
       var moocData = item.mooc || null;
       var mooc = item.bks_mooc || item.so_mooc || (moocData && typeof moocData === 'object' ? (moocData.bks || moocData.bien_so || moocData.ma_tai_san || '') : moocData) || '';
       var baiHa = item.bai_ha_cont || item.bai_ha || '';
+      var isDongHang = normalizeHinhThuc(line && line.hinh_thuc_van_tai) === 'dong_hang';
       var value = function (key) { return selected ? (item[key] || '') : ''; };
       return '<div class="khxh-port-create-return khxh-port-create-flex-row khxh-port-create-row-2' + (shouldShowContPicker(line && line.hinh_thuc_van_tai) ? '' : ' d-none') + '">' +
         '<div class="pc-field-mooc"><label class="form-label">Số mooc</label><input class="form-control" value="' + escHtml(selected ? mooc : '') + '" disabled></div>' +
         '<div class="pc-field-container"><label class="form-label">Số cont</label><input class="form-control" value="' + escHtml(value('so_cont')) + '" disabled></div>' +
         '<div class="pc-field-seal"><label class="form-label">Seal chính</label><input class="form-control" value="' + escHtml(value('so_seal_chinh')) + '" disabled></div>' +
-        '<div class="pc-field-options"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input"' + (line.cont_keo_ve_seal_phu ? ' checked' : '') + ' disabled><span class="form-check-label">Seal phụ</span></label></div>' +
-        '<div class="pc-field-yard"><label class="form-label">Bãi hạ dự kiến</label><input class="form-control" value="' + escHtml(selected ? baiHa : '') + '" disabled></div>' +
-        '<div class="pc-field-note"><label class="form-label">Ghi chú</label><input class="form-control" value="' + escHtml(value('ghi_chu')) + '" disabled></div>' +
-        '<div class="pc-field-options khxh-port-create-return-checks">' +
+        '<div class="pc-field-options khxh-port-create-option-group' + (isDongHang ? ' is-dong-hang' : '') + '"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input"' + (line.cont_keo_ve_seal_phu ? ' checked' : '') + ' disabled><span class="form-check-label">Seal phụ</span></label><span class="khxh-port-create-requirements khxh-port-create-return-requirements' + (isDongHang ? '' : ' d-none') + '">' +
           portCreateReadOnlyCheck('return-kiem-dich', 'Kiểm dịch', !!line.cont_keo_ve_kiem_dich) +
           portCreateReadOnlyCheck('return-kiem-hoa', 'Kiểm hoá', !!line.cont_keo_ve_kiem_hoa) +
           portCreateReadOnlyCheck('return-hun-trung', 'Hun trùng', !!line.cont_keo_ve_hun_trung) +
-        '</div>' +
+        '</span></div>' +
+        '<div class="pc-field-yard"><label class="form-label">Bãi hạ dự kiến</label><input class="form-control" value="' + escHtml(selected ? baiHa : '') + '" disabled></div>' +
+        '<div class="pc-field-note"><label class="form-label">Ghi chú</label><input class="form-control" value="' + escHtml(value('ghi_chu')) + '" disabled></div>' +
         '</div>';
     }
 
@@ -2812,10 +2812,9 @@
       updatePortCreateCardTitle($card, line, index, customer);
       $card.find('.khxh-port-create-return').replaceWith(portCreateReturnMarkup(line));
       var isDongHang = normalizeHinhThuc(line.hinh_thuc_van_tai) === 'dong_hang';
-      var $checks = $card.find('.khxh-port-create-checks');
-      $checks.find('.form-label').remove();
-      $checks.toggleClass('d-none', !isDongHang);
-      $card.find('.line-seal-phu-check').closest('.khxh-port-create-check').prev('.form-label').remove();
+      $card.find('.khxh-port-create-option-group')
+        .toggleClass('is-dong-hang', isDongHang)
+        .find('.khxh-port-create-requirements').toggleClass('d-none', !isDongHang);
     }
 
     function updatePortCreateCardTitle($card, line, index, customer) {
@@ -2833,6 +2832,7 @@
       var title = line.so_bkg || ('Kế hoạch ' + (index + 1));
       var returnHtml = portCreateReturnMarkup(line);
       var sealPhuChecked = !!String(line.so_seal_tam || '').trim();
+      var isDongHang = normalizeHinhThuc(line.hinh_thuc_van_tai) === 'dong_hang';
       return '<section class="ke-hoach-line-card khxh-tuyen-xa-card khxh-port-create-section" id="khxh-main-plan-' + escHtml(line.key) + '" data-line-key="' + escHtml(line.key) + '">' +
         '<div class="khxh-tuyen-xa-card-head"><div><div class="khxh-tuyen-xa-card-title"><span class="khxh-step-badge">' + (index + 1) + '</span><strong>' + escHtml(title) + '</strong></div></div><div class="khxh-section-tools"><button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-copy-row-ke-hoach" title="Nhân bản"><i class="ti tabler-copy"></i></button><button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-row-ke-hoach" title="Xóa kế hoạch"><i class="ti tabler-trash"></i></button></div></div>' +
         '<div class="khxh-tuyen-xa-section khxh-port-create-body"><div class="khxh-port-create-flex-row khxh-port-create-row-1">' +
@@ -2852,8 +2852,7 @@
         '<div class="pc-field-mooc"><label class="form-label">Số mooc</label><input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal">' + moocSummaryHtml(line) + '</button></div>' +
         '<div class="pc-field-container"><label class="form-label">Số cont</label><input class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
         '<div class="pc-field-seal"><label class="form-label">Seal chính</label><input class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Seal chính"></div>' +
-        '<div class="pc-field-options"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input line-seal-phu-check"' + (sealPhuChecked ? ' checked' : '') + '><span class="form-check-label">Seal phụ</span></label></div>' +
-        '<div class="pc-field-options khxh-port-create-checks"><label class="form-label d-block">Yêu cầu hàng trong ngày</label>' + portCreateCheck('kiem-dich', 'Kiểm dịch', !!line.kiem_dich) + portCreateCheck('kiem-hoa', 'Kiểm hoá', !!line.kiem_hoa) + portCreateCheck('hun-trung', 'Hun trùng', !!line.hun_trung) + '</div>' +
+        '<div class="pc-field-options khxh-port-create-option-group' + (isDongHang ? ' is-dong-hang' : '') + '"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input line-seal-phu-check"' + (sealPhuChecked ? ' checked' : '') + '><span class="form-check-label">Seal phụ</span></label><span class="khxh-port-create-requirements khxh-port-create-main-requirements' + (isDongHang ? '' : ' d-none') + '">' + portCreateCheck('kiem-dich', 'Kiểm dịch', !!line.kiem_dich) + portCreateCheck('kiem-hoa', 'Kiểm hoá', !!line.kiem_hoa) + portCreateCheck('hun-trung', 'Hun trùng', !!line.hun_trung) + '</span></div>' +
         '</div>' + returnHtml + '</div></section>';
     }
 

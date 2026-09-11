@@ -222,6 +222,30 @@
 .pc-field-options { flex: 0 0 97px; }
 .pc-field-note { flex: 2 1 230px; }
 
+/* Seal phụ đứng riêng; khi Đóng hàng thì bốn checkbox thành cụm 2 x 2. */
+.khxh-port-create-option-group {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+}
+
+.khxh-port-create-option-group.is-dong-hang {
+  flex: 0 0 225px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  align-items: center;
+  column-gap: 1rem;
+  row-gap: .35rem;
+}
+
+.khxh-port-create-option-group.is-dong-hang .khxh-port-create-requirements {
+  display: contents;
+}
+
+.khxh-port-create-requirements.d-none {
+  display: none;
+}
+
 .khxh-port-create-cont-label {
   display: flex;
   align-items: center;
@@ -315,6 +339,10 @@
 @media (max-width: 767.98px) {
   .khxh-port-create-flex-row > div {
     flex-basis: 100%;
+  }
+
+  .khxh-port-create-option-group.is-dong-hang {
+    grid-template-columns: repeat(2, minmax(0, max-content));
   }
 
   .khxh-port-create-checks {
