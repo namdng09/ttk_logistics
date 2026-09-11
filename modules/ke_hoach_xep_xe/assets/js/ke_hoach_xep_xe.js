@@ -129,6 +129,11 @@
     return HINH_THUC_COLOR[normalizeHinhThuc(value)] || 'bg-label-secondary';
   }
 
+  function formatTransportSelect2Option(option) {
+    if (!option || !option.id) return option ? option.text : '';
+    return $('<span class="badge ' + hinhThucColor(option.id) + '">' + escHtml(hinhThucLabel(option.id) || option.text) + '</span>');
+  }
+
   function apiMsg(jqXHR) {
     try {
       var r = JSON.parse(jqXHR.responseText);
@@ -2708,7 +2713,7 @@
       initSelect2($card.find('.line-tang-bo-customer-select')[0], '— Chọn khách hàng —');
       attachCustomerCreateOption($card.find('.line-tang-bo-customer-select'), null);
       initSelect2($card.find('.line-driver-select')[0], '— Chọn lái xe —');
-      initSelect2($card.find('.line-hinh-thuc-select')[0], '— Chọn hình thức vận tải —');
+      initSelect2($card.find('.line-hinh-thuc-select')[0], '— Chọn hình thức vận tải —', currentPlanType() !== 'tuyen_xa' && mode !== 'edit' ? { templateResult: formatTransportSelect2Option } : {});
       initSelect2($card.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true });
       attachCreateOption($card.find('.line-kho-select'), 'Kho', line, 'dia_chi_kho');
       // Select2 thay select gốc bằng phần tử khác; chuyển title sang phần nhìn
@@ -3244,6 +3249,7 @@
 
     function openPickerModal(key) {
       state.activeLineKey = key;
+      var isPortCreatePicker = !useTableLayout && currentPlanType() !== 'tuyen_xa' && mode !== 'edit';
       var lineIndex = $form('#ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + key + '"]').index() + 1;
       if (!useTableLayout) {
         lineIndex = $form('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]').index() + 1;
@@ -3253,14 +3259,17 @@
         $('#vehicle-picker-modal .modal-title').text('Chọn mooc');
         $('#vehicle-picker-col-bks').text('Biển số');
         $('#vehicle-picker-col-type').text('Loại xe');
-        $('#vehicle-picker-col-extra').text('Mã tài sản');
+        $('#vehicle-picker-col-extra').text('Nhãn hiệu / Năm SX');
+        $('#vehicle-picker-search').attr('placeholder', 'Tìm theo BKS, mã tài sản, nhãn hiệu...');
       } else {
         $('#vehicle-picker-target').text('Đang chọn phương tiện cho dòng #' + lineIndex);
         $('#vehicle-picker-modal .modal-title').text('Chọn phương tiện');
         $('#vehicle-picker-col-bks').text('Biển số');
         $('#vehicle-picker-col-type').text('Loại xe');
         $('#vehicle-picker-col-extra').text('Lái xe hiện tại');
+        $('#vehicle-picker-search').attr('placeholder', 'Tìm theo BKS, mã tài sản, lái xe...');
       }
+      $('#vehicle-picker-modal').toggleClass('is-port-create-picker', isPortCreatePicker);
       $formOrPage('#vehicle-picker-search').val('');
       renderVehicleTable('');
       var vehicleModalEl = $formOrPage('#vehicle-picker-modal')[0];
@@ -3283,6 +3292,7 @@
       var activeLine = findLine(state.activeLineKey);
       var html = '';
       var sourceItems = activePickerType === 'mooc' ? state.moocs : state.vehicles;
+      var isPortCreatePicker = !useTableLayout && currentPlanType() !== 'tuyen_xa' && mode !== 'edit';
       if (activePickerType === 'mooc' && (!sourceItems || !sourceItems.length)) {
         sourceItems = $.grep(state.vehicles, function (item) {
           return String(item.loai_phuong_tien || '').toLowerCase().indexOf('mooc') !== -1;
@@ -3298,15 +3308,21 @@
         var checked = activeLine && (activePickerType === 'mooc'
           ? parseInt(activeLine.nid_mooc, 10) === parseInt(item.nid, 10)
           : parseInt(activeLine.nid_phuong_tien, 10) === parseInt(item.nid, 10));
+        var selectCell = isPortCreatePicker
+          ? '<td class="text-center"><button type="button" class="btn btn-sm btn-primary btn-pick-vehicle" data-id="' + item.nid + '">Chọn</button></td>'
+          : '<td class="text-center"><input type="radio" name="vehicle-picker-radio" value="' + item.nid + '"' + (checked ? ' checked' : '') + '></td>';
+        var extraCell = activePickerType === 'mooc'
+          ? '<td><div>' + escHtml(item.hang_xe || '—') + '</div><div class="vehicle-picker-driver">' + escHtml(item.nam_san_xuat || '—') + '</div></td>'
+          : '<td><div>' + escHtml(item.lai_xe && item.lai_xe.ten ? item.lai_xe.ten : 'Chưa gán lái xe') + '</div><div class="vehicle-picker-driver">' + escHtml(item.lai_xe && item.lai_xe.sdt ? item.lai_xe.sdt : '') + '</div></td>';
         html += '<tr>' +
-          '<td class="text-center"><input type="radio" name="vehicle-picker-radio" value="' + item.nid + '"' + (checked ? ' checked' : '') + '></td>' +
+          selectCell +
           '<td><strong>' + escHtml(item.bks || ('#' + item.nid)) + '</strong><div class="text-muted small">' + escHtml(item.ma_tai_san || '') + '</div></td>' +
           '<td><span class="badge bg-label-warning">' + escHtml(item.loai_phuong_tien || 'Chưa phân loại') + '</span></td>' +
-          '<td><div>' + escHtml(activePickerType === 'mooc' ? (item.ma_tai_san || 'Chưa có mã tài sản') : (item.lai_xe && item.lai_xe.ten ? item.lai_xe.ten : 'Chưa gán lái xe')) + '</div><div class="vehicle-picker-driver">' + escHtml(activePickerType === 'mooc' ? '' : (item.lai_xe && item.lai_xe.sdt ? item.lai_xe.sdt : '')) + '</div></td>' +
-          '<td class="text-center"><button type="button" class="btn btn-sm btn-primary btn-pick-vehicle" data-id="' + item.nid + '">Chọn</button></td>' +
+          extraCell +
+          (isPortCreatePicker ? '' : '<td class="text-center"><button type="button" class="btn btn-sm btn-primary btn-pick-vehicle" data-id="' + item.nid + '">Chọn</button></td>') +
           '</tr>';
       }
-      if (!html) html = '<tr><td colspan="5" class="text-center text-muted py-4">Không tìm thấy ' + (activePickerType === 'mooc' ? 'mooc' : 'phương tiện') + ' phù hợp</td></tr>';
+      if (!html) html = '<tr><td colspan="' + (isPortCreatePicker ? 4 : 5) + '" class="text-center text-muted py-4">Không tìm thấy ' + (activePickerType === 'mooc' ? 'mooc' : 'phương tiện') + ' phù hợp</td></tr>';
       $('#vehicle-picker-body').html(html);
     }
 
