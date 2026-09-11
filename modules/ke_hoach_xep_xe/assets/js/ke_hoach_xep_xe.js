@@ -2783,7 +2783,7 @@
     }
 
     function portCreateCheck(name, label, checked) {
-      return '<label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input line-' + name + '"' + (checked ? ' checked' : '') + '><span class="form-check-label">' + label + '</span></label>';
+      return '<label class="form-check form-check-inline mb-0 khxh-port-create-option"><input type="checkbox" class="form-check-input line-' + name + '"' + (checked ? ' checked' : '') + '><span class="form-check-label">' + label + '</span></label>';
     }
 
     function portCreateReadOnlyCheck(name, label, checked) {
@@ -2843,12 +2843,12 @@
         '<div class="pc-field-cutoff"><label class="form-label">Cut-off</label><input class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
         '<div class="pc-field-transport"><label class="form-label">Hình thức vận tải</label><select class="form-select line-hinh-thuc-select">' + portCreateTransportOptions(line.hinh_thuc_van_tai) + '</select></div>' +
         '</div><div class="khxh-port-create-flex-row khxh-port-create-row-2">' +
-        '<div class="pc-field-vehicle"><label class="form-label">Phương tiện / Đầu kéo</label><input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start vehicle-summary btn-open-vehicle-modal"></button></div>' +
+        '<div class="pc-field-vehicle"><label class="form-label">Phương tiện</label><input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start vehicle-summary btn-open-vehicle-modal"></button></div>' +
         '<div class="pc-field-driver"><label class="form-label">Lái xe</label><select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select></div>' +
         '<div class="pc-field-mooc"><label class="form-label">Số mooc</label><input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal">' + moocSummaryHtml(line) + '</button></div>' +
         '<div class="pc-field-container"><label class="form-label">Số cont</label><input class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
         '<div class="pc-field-seal"><label class="form-label">Seal chính</label><input class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Seal chính"></div>' +
-        '<div class="pc-field-options khxh-port-create-option-group' + (isDongHang ? ' is-dong-hang' : '') + '"><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input line-seal-phu-check"' + (sealPhuChecked ? ' checked' : '') + '><span class="form-check-label">Seal phụ</span></label><span class="khxh-port-create-requirements khxh-port-create-main-requirements' + (isDongHang ? '' : ' d-none') + '">' + portCreateCheck('kiem-dich', 'Kiểm dịch', !!line.kiem_dich) + portCreateCheck('kiem-hoa', 'Kiểm hoá', !!line.kiem_hoa) + portCreateCheck('hun-trung', 'Hun trùng', !!line.hun_trung) + '</span></div>' +
+        '<div class="pc-field-options khxh-port-create-option-group' + (isDongHang ? ' is-dong-hang' : '') + '"><label class="form-check form-check-inline mb-0 khxh-port-create-option"><input type="checkbox" class="form-check-input line-seal-phu-check"' + (sealPhuChecked ? ' checked' : '') + '><span class="form-check-label">Seal phụ</span></label><span class="khxh-port-create-requirements khxh-port-create-main-requirements' + (isDongHang ? '' : ' d-none') + '">' + portCreateCheck('kiem-dich', 'Kiểm dịch', !!line.kiem_dich) + portCreateCheck('kiem-hoa', 'Kiểm hoá', !!line.kiem_hoa) + portCreateCheck('hun-trung', 'Hun trùng', !!line.hun_trung) + '</span></div>' +
         returnHtml +
         '</div></div></section>';
     }

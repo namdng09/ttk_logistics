@@ -214,11 +214,11 @@
 .pc-field-transport { flex: 0 0 115px; }
 
 .pc-field-vehicle { flex: 0 0 155px; }
-.pc-field-driver { flex: 0 1 234px; }
-.pc-field-cont-label { flex: 0 0 145px; }
-.pc-field-mooc { flex: 0 0 155px; }
-.pc-field-container { flex: 0 0 155px; }
-.pc-field-seal { flex: 0 0 155px; }
+.pc-field-driver { flex: 0 1 200px; }
+.pc-field-cont-label { flex: 0 0 125px; }
+.pc-field-mooc { flex: 0 0 125px; }
+.pc-field-container { flex: 0 0 125px; }
+.pc-field-seal { flex: 0 0 125px; }
 .pc-field-options { flex: 0 0 97px; }
 .pc-field-note { flex: 2 1 230px; }
 .pc-field-return-cont { flex: 0.4 1 190px; }
@@ -230,13 +230,56 @@
   align-items: center;
 }
 
-.khxh-port-create-option-group.is-dong-hang {
-  flex: 0 0 225px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, max-content));
+/* Giữ checkbox thật để form/logic cũ không đổi, nhưng biến cả label thành
+ * toggle button để có vùng chạm đủ lớn và nhìn rõ trạng thái đã chọn. */
+.khxh-port-create-option-group .khxh-port-create-option {
+  min-height: 38px;
+  margin: 0;
+  padding: .45rem .65rem;
+  display: inline-flex;
   align-items: center;
-  column-gap: 1rem;
-  row-gap: .35rem;
+  gap: .45rem;
+  border: 1px solid var(--bs-border-color, #d9dee3);
+  border-radius: .375rem;
+  background: var(--bs-body-bg, #fff);
+  color: var(--bs-body-color, #566a7f);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
+}
+
+.khxh-port-create-option-group .khxh-port-create-option:hover {
+  border-color: rgba(105, 108, 255, .55);
+  background: rgba(105, 108, 255, .045);
+}
+
+.khxh-port-create-option-group .khxh-port-create-option:has(.form-check-input:focus-visible) {
+  box-shadow: 0 0 0 .2rem rgba(105, 108, 255, .16);
+}
+
+.khxh-port-create-option-group .khxh-port-create-option:has(.form-check-input:checked) {
+  border-color: var(--bs-primary, #696cff);
+  background: rgba(105, 108, 255, .12);
+  color: var(--bs-primary, #696cff);
+  font-weight: 600;
+}
+
+.khxh-port-create-option-group .khxh-port-create-option .form-check-input {
+  float: none;
+  flex: 0 0 auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+.khxh-port-create-option-group .khxh-port-create-option .form-check-label {
+  cursor: pointer;
+}
+
+.khxh-port-create-option-group.is-dong-hang {
+  flex: 0 0 230px;
+  align-items: center;
+  column-gap: .45rem;
 }
 
 .khxh-port-create-option-group.is-dong-hang .khxh-port-create-requirements {
