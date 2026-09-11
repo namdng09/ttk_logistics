@@ -2592,9 +2592,17 @@ button.khxh-cont-ref-number:focus {
   pointer-events: auto;
 }
 
+/* Modal chọn cont hàng cảng có nhiều cột nghiệp vụ, nên dùng gần hết bề
+ * ngang màn hình thay vì giới hạn modal-xl mặc định của Bootstrap. */
+#port-cont-ref-picker-modal .modal-dialog {
+  width: calc(100vw - 2rem);
+  max-width: 1250px;
+}
+
 #cont-ref-picker-modal .modal-content,
 #port-cont-ref-picker-modal .modal-content {
-  border: 0;
+  border: 0 !important;
+  outline: 0;
   border-radius: 11px;
   box-shadow: 0 20px 65px rgba(15, 23, 42, 0.22);
 }
@@ -2656,7 +2664,7 @@ button.khxh-cont-ref-number:focus {
 #cont-ref-picker-modal.is-port-cont-picker .cont-picker-row:not(.is-tuyen-xa),
 #port-cont-ref-picker-modal.is-port-cont-picker .cont-picker-list-head,
 #port-cont-ref-picker-modal.is-port-cont-picker .cont-picker-row:not(.is-tuyen-xa) {
-  grid-template-columns: 38px minmax(135px, 0.9fr) minmax(140px, 1fr) minmax(130px, 0.9fr) minmax(80px, 0.55fr) minmax(125px, 0.8fr) minmax(55px, 0.35fr) minmax(150px, 1fr);
+  grid-template-columns: 38px minmax(135px, 0.9fr) minmax(140px, 1fr) minmax(130px, 0.9fr) minmax(80px, 0.55fr) minmax(125px, 0.5fr) minmax(55px, 0.4fr) minmax(150px, 1fr);
 }
 
 #cont-ref-picker-modal.is-port-cont-picker .cont-picker-port-requirements-head,
