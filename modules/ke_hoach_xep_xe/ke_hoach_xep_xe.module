@@ -30,6 +30,36 @@ function ke_hoach_xep_xe_init() {
 function ke_hoach_xep_xe_menu() {
   $items = array();
 
+  // Mobile driver APIs. These routes deliberately use a token-to-driver
+  // mapping instead of the broad web-plan permissions used by back-office UI.
+  $items['api/mobile/chuyen-xe-cua-toi'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_my_trips',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/mobile/chuyen-xe/%/nhan'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_accept_trip',
+    'page arguments' => array(3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/mobile/chuyen-xe/%/hoan-thanh'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_complete_trip',
+    'page arguments' => array(3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/mobile/chuyen-xe/%'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_trip_detail',
+    'page arguments' => array(3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
   $items['api/ke-hoach-xep-xe'] = array(
     'page callback' => 'ke_hoach_xep_xe_rest_collection',
     'access callback' => TRUE,
@@ -289,6 +319,131 @@ function _ke_hoach_xep_xe_method_not_allowed($allowed) {
   drupal_add_http_header('Status', '405 Method Not Allowed');
   drupal_add_http_header('Allow', $allowed);
   return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+/** Return the API token, prioritising Authorization: Bearer <token>. */
+function _ke_hoach_xep_xe_mobile_token(array $input = array()) {
+  $authorization = !empty($_SERVER['HTTP_AUTHORIZATION']) ? $_SERVER['HTTP_AUTHORIZATION'] : (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION']) ? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] : '');
+  if ($authorization && preg_match('/^Bearer\s+(.+)$/i', trim($authorization), $matches)) return trim($matches[1]);
+  if (!empty($input['token'])) return trim((string) $input['token']);
+  if (!empty($_GET['token'])) return trim((string) $_GET['token']);
+  return '';
+}
+
+/** Authenticate the token and resolve its active linked driver. */
+function _ke_hoach_xep_xe_mobile_driver(array $input = array()) {
+  $token = _ke_hoach_xep_xe_mobile_token($input);
+  if ($token === '') return _ke_hoach_xep_xe_unauthorized('Thiếu token xác thực');
+  module_load_include('module', 'user_login_api', 'user_login_api');
+  if (!function_exists('api_validate_token')) return _ke_hoach_xep_xe_error('Hệ thống xác thực chưa sẵn sàng');
+  $account = api_validate_token($token);
+  if (!$account || empty($account->uid) || empty($account->status)) return _ke_hoach_xep_xe_unauthorized('Token không hợp lệ hoặc tài khoản đã bị khóa');
+  $driver = db_query("SELECT nid, ten, sdt, ma_nhan_vien, uid_nguoi_dung FROM {lai_xe} WHERE uid_nguoi_dung = :uid AND hoat_dong = 1", array(':uid' => (int) $account->uid))->fetch();
+  if (!$driver) return _ke_hoach_xep_xe_unauthorized('Tài khoản này chưa được liên kết với lái xe đang hoạt động');
+  return array('account' => $account, 'driver' => $driver);
+}
+
+function _ke_hoach_xep_xe_mobile_audit(array &$json, $action, $account, $driver, $note = '') {
+  if (empty($json['lich_su_mobile']) || !is_array($json['lich_su_mobile'])) $json['lich_su_mobile'] = array();
+  $json['lich_su_mobile'][] = array(
+    'hanh_dong' => $action,
+    'thoi_gian' => _ke_hoach_xep_xe_now(),
+    'uid' => (int) $account->uid,
+    'nid_lai_xe' => (int) $driver->nid,
+    'ghi_chu' => trim((string) $note),
+  );
+  if (count($json['lich_su_mobile']) > 100) $json['lich_su_mobile'] = array_slice($json['lich_su_mobile'], -100);
+}
+
+function _ke_hoach_xep_xe_mobile_enrich_plan($plan) {
+  if (!empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach === 'tuyen_xa' && function_exists('_ke_hoach_tuyen_xa_enrich_row')) return _ke_hoach_tuyen_xa_enrich_row($plan);
+  return _ke_hoach_xep_xe_enrich_row($plan, TRUE);
+}
+
+function _ke_hoach_xep_xe_mobile_load_trip($id, $driver_id) {
+  return db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND nid_lai_xe = :nid_lai_xe AND hoat_dong = 1", array(':nid' => (int) $id, ':nid_lai_xe' => (int) $driver_id))->fetch();
+}
+
+function ke_hoach_xep_xe_mobile_my_trips() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _ke_hoach_xep_xe_method_not_allowed('GET');
+  $identity = _ke_hoach_xep_xe_mobile_driver();
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $query = db_select('ke_hoach_xep_xe', 'kh')->fields('kh')->condition('kh.hoat_dong', 1)->condition('kh.nid_lai_xe', (int) $identity['driver']->nid);
+  if (!empty($_GET['trang_thai_van_chuyen'])) {
+    $status = trim((string) $_GET['trang_thai_van_chuyen']);
+    if (!in_array($status, _ke_hoach_xep_xe_statuses(), TRUE)) return _ke_hoach_xep_xe_fail('Trạng thái vận chuyển không hợp lệ');
+    $query->condition('kh.trang_thai_van_chuyen', $status);
+  }
+  if (!empty($_GET['loai_ke_hoach'])) {
+    $type = trim((string) $_GET['loai_ke_hoach']);
+    if (!in_array($type, array('thuong', 'tuyen_xa'), TRUE)) return _ke_hoach_xep_xe_fail('Loại kế hoạch không hợp lệ');
+    $query->condition('kh.loai_ke_hoach', $type);
+  }
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like(trim((string) $_GET['keyword'])) . '%';
+    $query->condition(db_or()->condition('kh.so_bkg', $like, 'LIKE')->condition('kh.so_cont', $like, 'LIKE')->condition('kh.dia_chi_kho', $like, 'LIKE')->condition('kh.bai_lay_cont', $like, 'LIKE')->condition('kh.bai_ha_cont', $like, 'LIKE'));
+  }
+  $count_query = clone $query;
+  $total = (int) $count_query->countQuery()->execute()->fetchField();
+  $rows = $query->orderBy('kh.changed', 'DESC')->orderBy('kh.nid', 'DESC')->range(($page - 1) * $limit, $limit)->execute()->fetchAll();
+  $items = array();
+  foreach ($rows as $row) $items[] = _ke_hoach_xep_xe_mobile_enrich_plan($row);
+  return _ke_hoach_xep_xe_success(array('items' => $items, 'total' => $total, 'current_page' => $page, 'total_pages' => max(1, (int) ceil($total / $limit)), 'limit' => $limit));
+}
+
+function ke_hoach_xep_xe_mobile_trip_detail($id) {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _ke_hoach_xep_xe_method_not_allowed('GET');
+  $identity = _ke_hoach_xep_xe_mobile_driver();
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+  return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_mobile_enrich_plan($plan));
+}
+
+function ke_hoach_xep_xe_mobile_accept_trip($id) {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _ke_hoach_xep_xe_method_not_allowed('POST');
+  $input = _ke_hoach_xep_xe_input();
+  $identity = _ke_hoach_xep_xe_mobile_driver($input);
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+  if ($plan->trang_thai_van_chuyen === 'Hoàn thành') return _ke_hoach_xep_xe_fail('Chuyến xe đã hoàn thành, không thể nhận lại');
+  $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
+  $accepted_uid = !empty($json['uid_nhan_chuyen']) ? (int) $json['uid_nhan_chuyen'] : 0;
+  if ($accepted_uid && $accepted_uid !== (int) $identity['account']->uid) return _ke_hoach_xep_xe_fail('Chuyến xe đã được một tài khoản khác nhận');
+  if (!$accepted_uid) {
+    $now = _ke_hoach_xep_xe_now();
+    $json['uid_nhan_chuyen'] = (int) $identity['account']->uid;
+    $json['nid_lai_xe_nhan_chuyen'] = (int) $identity['driver']->nid;
+    $json['thoi_gian_nhan_chuyen'] = $now;
+    _ke_hoach_xep_xe_mobile_audit($json, 'nhan_chuyen', $identity['account'], $identity['driver'], !empty($input['ghi_chu']) ? $input['ghi_chu'] : '');
+    db_update('ke_hoach_xep_xe')->fields(array('trang_thai_van_chuyen' => 'Đang vận chuyển', 'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json), 'changed' => $now))->condition('nid', (int) $plan->nid)->execute();
+  }
+  $fresh = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  return _ke_hoach_xep_xe_success(array('da_nhan_chuyen' => TRUE, 'ke_hoach' => _ke_hoach_xep_xe_mobile_enrich_plan($fresh)));
+}
+
+function ke_hoach_xep_xe_mobile_complete_trip($id) {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _ke_hoach_xep_xe_method_not_allowed('POST');
+  $input = _ke_hoach_xep_xe_input();
+  $identity = _ke_hoach_xep_xe_mobile_driver($input);
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+  if ($plan->trang_thai_van_chuyen === 'Hoàn thành') return _ke_hoach_xep_xe_fail('Chuyến xe đã hoàn thành');
+  $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
+  if (empty($json['uid_nhan_chuyen'])) return _ke_hoach_xep_xe_fail('Bạn cần nhận chuyến trước khi báo hoàn thành');
+  if ((int) $json['uid_nhan_chuyen'] !== (int) $identity['account']->uid) return _ke_hoach_xep_xe_unauthorized('Chỉ lái xe đã nhận chuyến mới có thể báo hoàn thành');
+  $now = _ke_hoach_xep_xe_now();
+  $json['uid_hoan_thanh_chuyen'] = (int) $identity['account']->uid;
+  $json['nid_lai_xe_hoan_thanh'] = (int) $identity['driver']->nid;
+  $json['thoi_gian_hoan_thanh_chuyen'] = $now;
+  _ke_hoach_xep_xe_mobile_audit($json, 'hoan_thanh_chuyen', $identity['account'], $identity['driver'], !empty($input['ghi_chu']) ? $input['ghi_chu'] : '');
+  db_update('ke_hoach_xep_xe')->fields(array('trang_thai_van_chuyen' => 'Hoàn thành', 'ngay_ket_thuc' => date('Y-m-d', REQUEST_TIME), 'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json), 'changed' => $now))->condition('nid', (int) $plan->nid)->execute();
+  $fresh = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  return _ke_hoach_xep_xe_success(array('da_hoan_thanh' => TRUE, 'ke_hoach' => _ke_hoach_xep_xe_mobile_enrich_plan($fresh)));
 }
 
 function _ke_hoach_xep_xe_hinh_thuc_options() {

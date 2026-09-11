@@ -207,7 +207,7 @@
 .pc-field-bkg { flex: 0 0 155px; }
 .pc-field-datetime { flex: 0 2 142px; }
 .pc-field-kho { flex: 1 1 140px; }
-.pc-field-cont-type { flex: 0 1 74px; }
+.pc-field-cont-type { flex: 0 0 80px; }
 .pc-field-yard { flex: 1 1 134px; }
 .pc-field-port { flex: 1 1 134px; }
 .pc-field-cutoff { flex: 0 2 140px; }
@@ -673,14 +673,27 @@ body .flatpickr-calendar {
   font-family: inherit;
 }
 
+/* Select2 trong màn kế hoạch: danh sách dài hơn và giữ độ rộng tối thiểu
+ * dù dropdown tự lật lên phía trên khi gần đáy modal. */
+#ke-hoach-fullscreen-modal .select2-container--default .select2-results > .select2-results__options {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#ke-hoach-fullscreen-modal .select2-container--open .select2-dropdown--below,
+#ke-hoach-fullscreen-modal .select2-container--open .select2-dropdown--above {
+  min-width: 200px !important;
+  max-width: calc(100vw - 1rem);
+}
+
 #ke-hoach-form-app .select2-container.khxh-select2-invalid .select2-selection,
 #ke-hoach-form-app .select2-container--default.khxh-select2-invalid .select2-selection--single,
 #ke-hoach-inline-filter .select2-container.khxh-select2-invalid .select2-selection,
 #ke-hoach-inline-filter .select2-container--default.khxh-select2-invalid .select2-selection--single,
 #ke-hoach-tuyen-xa-inline-filter .select2-container.khxh-select2-invalid .select2-selection,
 #ke-hoach-tuyen-xa-inline-filter .select2-container--default.khxh-select2-invalid .select2-selection--single {
-  border-color: #ea5455 !important;
-  box-shadow: 0 0 0 0.12rem rgba(234, 84, 85, 0.12) !important;
+  border-color: var(--bs-form-validation-border-color) !important;
+  box-shadow: var(--bs-form-validation-shadow) !important;
 }
 
 .ke-hoach-lines-wrap {
@@ -2610,7 +2623,7 @@ button.khxh-cont-ref-number:focus {
  * ngang màn hình thay vì giới hạn modal-xl mặc định của Bootstrap. */
 #port-cont-ref-picker-modal .modal-dialog {
   width: calc(100vw - 2rem);
-  max-width: 1250px;
+  max-width: 1400px;
 }
 
 #cont-ref-picker-modal .modal-content,
@@ -2678,7 +2691,7 @@ button.khxh-cont-ref-number:focus {
 #cont-ref-picker-modal.is-port-cont-picker .cont-picker-row:not(.is-tuyen-xa),
 #port-cont-ref-picker-modal.is-port-cont-picker .cont-picker-list-head,
 #port-cont-ref-picker-modal.is-port-cont-picker .cont-picker-row:not(.is-tuyen-xa) {
-  grid-template-columns: 38px minmax(135px, 0.9fr) minmax(140px, 1fr) minmax(130px, 0.9fr) minmax(80px, 0.55fr) minmax(125px, 0.5fr) minmax(55px, 0.4fr) minmax(150px, 1fr);
+  grid-template-columns: 38px minmax(135px, 0.9fr) minmax(140px, 0.9fr) minmax(130px, 0.9fr) minmax(80px, 0.55fr) minmax(125px, 0.5fr) minmax(55px, 0.4fr) minmax(150px, 1fr);
 }
 
 #cont-ref-picker-modal.is-port-cont-picker .cont-picker-port-requirements-head,

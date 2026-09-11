@@ -2711,6 +2711,15 @@
       initSelect2($card.find('.line-hinh-thuc-select')[0], '— Chọn hình thức vận tải —');
       initSelect2($card.find('.line-kho-select')[0], '— Chọn địa chỉ kho —', { tags: true });
       attachCreateOption($card.find('.line-kho-select'), 'Kho', line, 'dia_chi_kho');
+      // Select2 thay select gốc bằng phần tử khác; chuyển title sang phần nhìn
+      // thấy để browser vẫn hiện tooltip bắt buộc giống input Số BKG.
+      $card.find('.line-customer-select, .line-kho-select').each(function () {
+        var $select = $(this);
+        var title = $select.attr('title');
+        var instance = $select.data('select2');
+        var $container = instance && instance.$container ? instance.$container : $select.nextAll('.select2-container').first();
+        if (title && $container.length) $container.find('.select2-selection').attr('title', title);
+      });
       initSelect2($card.find('.line-loai-cont-select')[0], 'Loại cont', { tags: true });
       initSelect2($card.find('.line-loai-hang-select')[0], '— Chọn loại hàng —', { tags: true });
       initSelect2($card.find('.line-bai-lay-select')[0], '— Chọn bãi lấy —');
@@ -2823,10 +2832,10 @@
       return '<section class="ke-hoach-line-card khxh-tuyen-xa-card khxh-port-create-section" id="khxh-main-plan-' + escHtml(line.key) + '" data-line-key="' + escHtml(line.key) + '">' +
         '<div class="khxh-tuyen-xa-card-head"><div><div class="khxh-tuyen-xa-card-title"><span class="khxh-step-badge">' + (index + 1) + '</span><strong>' + escHtml(title) + '</strong></div></div><div class="khxh-section-tools"><button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-copy-row-ke-hoach" title="Nhân bản"><i class="ti tabler-copy"></i></button><button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-row-ke-hoach" title="Xóa kế hoạch"><i class="ti tabler-trash"></i></button></div></div>' +
         '<div class="khxh-tuyen-xa-section khxh-port-create-body"><div class="khxh-port-create-flex-row khxh-port-create-row-1">' +
-        '<div class="pc-field-customer"><label class="form-label">Khách hàng <span class="text-danger">*</span></label><select class="form-select line-customer-select" required>' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select></div>' +
-        '<div class="pc-field-bkg"><label class="form-label">Số BKG</label><input class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="BKG"></div>' +
+        '<div class="pc-field-customer"><label class="form-label">Khách hàng <span class="text-danger">*</span></label><select class="form-select line-customer-select" required title="Không được để trống khách hàng">' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select></div>' +
+        '<div class="pc-field-bkg"><label class="form-label">Số BKG <span class="text-danger">*</span></label><input class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="BKG" required title="Không được để trống số BKG"></div>' +
         '<div class="pc-field-datetime"><label class="form-label">Ngày giờ</label><input class="form-control line-ngay-gio-input" value="' + escHtml(apiToDatetime(line.ngay_bat_dau || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
-        '<div class="pc-field-kho"><label class="form-label">Địa chỉ kho</label><select class="form-select line-kho-select">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
+        '<div class="pc-field-kho"><label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label><select class="form-select line-kho-select" required title="Không được để trống địa chỉ kho">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
         '<div class="pc-field-cont-type"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
         '<div class="pc-field-yard"><label class="form-label">Bãi lấy dự kiến</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
         '<div class="pc-field-yard"><label class="form-label">Bãi hạ dự kiến</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
@@ -4151,7 +4160,34 @@
       if (callback) callback();
     }
 
-	    function validateForm() {
+    function reportPortCreateRequiredValidity() {
+      if (currentPlanType() === 'tuyen_xa' || mode === 'edit') return true;
+      var firstInvalid = null;
+      $form('.khxh-port-create-section').each(function () {
+        var $card = $(this);
+        var fields = [
+          { selector: '.line-customer-select', message: 'Vui lòng chọn khách hàng', select2: true },
+          { selector: '.line-so-bkg-input', message: 'Vui lòng nhập số BKG', select2: false },
+          { selector: '.line-kho-select', message: 'Vui lòng chọn địa chỉ kho', select2: true }
+        ];
+        $.each(fields, function (_, config) {
+          var $field = $card.find(config.selector).first();
+          if (!$field.length) return;
+          var empty = !String($field.val() || '').trim();
+          // Đây là thông điệp native validation của trình duyệt, không phải
+          // title hover. Khi bấm Lưu, browser sẽ hiện đúng câu tiếng Việt này.
+          $field[0].setCustomValidity(empty ? config.message : '');
+          if (config.select2) setSelect2Invalid($field, empty);
+          else $field.toggleClass('is-invalid', empty);
+          if (empty && !firstInvalid) firstInvalid = $field[0];
+        });
+      });
+      if (!firstInvalid) return true;
+      if (typeof firstInvalid.reportValidity === 'function') firstInvalid.reportValidity();
+      return false;
+    }
+
+    function validateForm() {
 	      var ok = true;
 	      var contRefSeen = {};
 	      if (!useTableLayout) setSelect2Invalid($form('.line-customer-select'), false);
@@ -4172,9 +4208,10 @@
 	          setSelect2Invalid($row.find('.line-kho-select'), false);
 	          setSelect2Invalid($row.find('.line-cang-select'), false);
 	          $row.find('.btn-open-cont-ref-modal').removeClass('is-invalid');
-	        } else {
+        } else {
           $row.removeClass('line-card-invalid');
           $form('#so_bkg-input').removeClass('is-invalid');
+          $row.find('.line-so-bkg-input').removeClass('is-invalid');
           setSelect2Invalid($row.find('.line-driver-select'), false);
           setSelect2Invalid($row.find('.line-kho-select'), false);
           setSelect2Invalid($row.find('.line-cang-select'), false);
@@ -5288,6 +5325,7 @@
       }
     });
     $form('#save-btn').on('click', function () {
+      if (!reportPortCreateRequiredValidity()) return;
       if (!validateForm()) return;
       showLoading(true);
       var nid = $form('#nid-input').val();
