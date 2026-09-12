@@ -8,6 +8,14 @@
           <i class="ti tabler-route-2 me-1"></i><span></span>
         </div>
       </div>
+      <div class="khxh-hang-cang-modal-tabs d-none" role="tablist" aria-label="Nội dung kế hoạch">
+        <button type="button" role="tab" class="khxh-hang-cang-modal-tab is-active" data-khxh-port-tab="plan" aria-selected="true">
+          <i class="ti tabler-truck-delivery"></i>Thông tin xếp xe
+        </button>
+        <button type="button" role="tab" class="khxh-hang-cang-modal-tab" data-khxh-port-tab="cost" aria-selected="false">
+          <i class="ti tabler-receipt-2"></i>Chi phí
+        </button>
+      </div>
     </div>
     <div class="d-flex gap-2">
       <button type="button" class="btn btn-success waves-effect d-none" id="complete-plan-btn">
@@ -24,17 +32,18 @@
 
     <div class="khxh-hang-cang-layout">
       <main class="khxh-hang-cang-main">
-        <div id="khxh-hang-cang-nav"></div>
-        <form id="ke-hoach-form" novalidate>
-          <input type="hidden" id="nid-input" value="">
+        <div class="khxh-hang-cang-tab-pane" data-khxh-port-pane="plan">
+          <div id="khxh-hang-cang-nav"></div>
+          <form id="ke-hoach-form" novalidate>
+            <input type="hidden" id="nid-input" value="">
 
-          <div class="ke-hoach-lines-wrap">
-            <div id="ke-hoach-lines"></div>
-            <div id="ke-hoach-cont-pickers"></div>
-          </div>
-        </form>
+            <div class="ke-hoach-lines-wrap">
+              <div id="ke-hoach-lines"></div>
+              <div id="ke-hoach-cont-pickers"></div>
+            </div>
+          </form>
 
-        <div class="card khxh-plan-files-card mt-3" id="khxh-plan-files-card">
+          <div class="card khxh-plan-files-card mt-3" id="khxh-plan-files-card">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 bg-white">
         <div class="d-flex align-items-center gap-2 min-w-0">
           <span class="khxh-step-badge">3</span>
@@ -65,6 +74,10 @@
         </div>
         <div id="khxh-plan-files-body" class="khxh-plan-files-body"></div>
       </div>
+          </div>
+        </div>
+        <div class="khxh-hang-cang-tab-pane d-none" data-khxh-port-pane="cost">
+          <div class="khxh-hang-cang-cost-mount" id="khxh-hang-cang-cost-mount"></div>
         </div>
       </main>
 

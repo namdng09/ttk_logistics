@@ -196,6 +196,107 @@
   white-space: nowrap;
 }
 
+/* Hai tab chỉ dành cho modal xếp xe hàng cảng. */
+.khxh-hang-cang-modal-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+  padding: .2rem;
+  border: 1px solid #e5e7eb;
+  border-radius: .5rem;
+  background: #f7f8fa;
+}
+
+.khxh-hang-cang-modal-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  min-height: 30px;
+  padding: .32rem .6rem;
+  border: 0;
+  border-radius: .34rem;
+  background: transparent;
+  color: #667085;
+  font-size: .78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.khxh-hang-cang-modal-tab:hover,
+.khxh-hang-cang-modal-tab:focus-visible {
+  color: #696cff;
+}
+
+.khxh-hang-cang-modal-tab:focus-visible {
+  outline: 2px solid rgba(105, 108, 255, .3);
+  outline-offset: 1px;
+}
+
+.khxh-hang-cang-modal-tab.is-active {
+  background: #fff;
+  color: #696cff;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .12);
+}
+
+.khxh-hang-cang-cost-mount {
+  position: relative;
+  min-width: 0;
+  --khcp-border: #e7e9ee;
+  --khcp-muted: #6c757d;
+  --khcp-bg: #f6f7f9;
+  --khcp-input-h: 34px;
+}
+
+.khxh-hang-cang-cost-mount > .row {
+  min-height: 0;
+}
+
+/* Card kế hoạch cũ là thông tin trùng với Tóm tắt xếp xe nên không nhúng lại. */
+.khxh-hang-cang-cost-mount .khcp-plan-card {
+  display: none;
+}
+
+/* Tổng quan chi phí sẽ được thiết kế lại sau; hiện tab chỉ giữ các bảng thao tác. */
+.khxh-hang-cang-cost-mount > .row > .col-xl-4 {
+  display: none;
+}
+
+.khxh-hang-cang-cost-mount > .row > .col-xl-8 {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-table > thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 3px 5px !important;
+  line-height: 1.2 !important;
+  vertical-align: middle !important;
+  border-bottom: 1px solid #d9e2ec !important;
+  background: #eef3f8 !important;
+  color: #344054 !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-table .select2-container {
+  width: 100% !important;
+}
+
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-table-wrap {
+  max-height: min(52vh, 620px);
+}
+
+@media (max-width: 1199.98px) {
+  .khxh-hang-cang-modal-tabs {
+    order: 3;
+    width: 100%;
+  }
+}
+
 .khxh-hang-cang-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -221,6 +322,35 @@
   border-radius: 8px;
   background: #fbfcfe;
   box-shadow: 0 4px 14px rgba(16, 24, 40, .04);
+}
+
+/* Cụm yêu cầu trong modal xếp xe: dùng đúng button-checkbox của modal tạo,
+ * nhưng đủ rộng để bốn lựa chọn luôn gọn trong 2 cột. */
+#ke-hoach-edit-fullscreen-modal .khxh-port-edit-options {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: end;
+  justify-content: start;
+  gap: .3rem;
+  overflow: visible;
+}
+
+#ke-hoach-edit-fullscreen-modal .khxh-port-edit-options .khxh-port-create-option {
+  padding-right: .45rem;
+  padding-left: .45rem;
+  font-size: .78rem;
+}
+
+/* Select2 của modal xếp xe hàng cảng dùng cùng giới hạn như modal tạo. */
+#ke-hoach-edit-fullscreen-modal .select2-container--default .select2-results > .select2-results__options {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#ke-hoach-edit-fullscreen-modal .select2-container--open .select2-dropdown--below,
+#ke-hoach-edit-fullscreen-modal .select2-container--open .select2-dropdown--above {
+  min-width: 200px !important;
+  max-width: calc(100vw - 1rem);
 }
 
 #ke-hoach-lines .ke-hoach-line-card.khxh-hang-cang-card {

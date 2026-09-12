@@ -24,6 +24,10 @@
   var DRIVER_COST_TYPE = 'lai_xe_tu_chiu';
   var notyf;
   var modal;
+  var embedded = {
+    mounted: false,
+    nodes: []
+  };
   var state = {
     nidKeHoach: 0,
     nidLaiXe: 0,
@@ -44,6 +48,70 @@
   function uid() {
     state.tempIndex += 1;
     return 'tmp_' + Date.now() + '_' + state.tempIndex;
+  }
+
+  /* Chi phí có thể chạy trong modal riêng cũ hoặc được gắn vào tab của
+   * modal xếp xe hàng cảng. Chỉ có một bộ DOM/ID tại một thời điểm để tránh
+   * hai bảng cùng ghi vào một state. */
+  function interactionRoot() {
+    return embedded.mounted ? $('#ke-hoach-edit-fullscreen-modal') : $('#ke-hoach-chi-phi-modal');
+  }
+
+  function select2DropdownParent() {
+    return interactionRoot();
+  }
+
+  function moveToEmbeddedHost($node, $target) {
+    if (!$node || !$node.length || !$target || !$target.length) return;
+    var $placeholder = $('<span class="khcp-embedded-placeholder" aria-hidden="true"></span>');
+    $node.before($placeholder);
+    embedded.nodes.push({ node: $node, placeholder: $placeholder });
+    $target.append($node);
+  }
+
+  function unmountEmbedded() {
+    if (!embedded.mounted) return;
+    for (var i = embedded.nodes.length - 1; i >= 0; i--) {
+      var item = embedded.nodes[i];
+      if (item.placeholder && item.placeholder.length && item.node && item.node.length) {
+        item.placeholder.before(item.node);
+        item.placeholder.remove();
+      }
+    }
+    embedded.nodes = [];
+    embedded.mounted = false;
+  }
+
+  function resetState(options) {
+    options = options || {};
+    state.nidKeHoach = Number(options.id) || 0;
+    state.nidLaiXe = Number(options.driverId) || 0;
+    state.loaiKeHoach = String(options.planType || 'thuong');
+    state.plan = null;
+    state.rows = [];
+    state.dinhMucRows = [];
+    state.dinhMucRoutes = [];
+    state.oilRows = [];
+    state.driverPayMode = 'khoan';
+    $('#khcp-plan-code').text('#' + state.nidKeHoach);
+    clearPlanInfo();
+  }
+
+  function loadCurrentPlanCosts() {
+    setBusy(true);
+    renderAll();
+    var planChain = loadPlanInfo().then(loadCustomerDinhMuc);
+    return $.when(loadDanhMuc(), planChain, loadOilRows(), fetchRows())
+      .done(function () {
+        rebuildDinhMucRows(true);
+      })
+      .fail(function (jqXHR) {
+        notify(jqXHR && jqXHR.responseText ? apiMsg(jqXHR) : 'Không tải được dữ liệu chi phí', 'error');
+      })
+      .always(function () {
+        renderAll();
+        setBusy(false);
+      });
   }
 
   function apiMsg(jqXHR) {
@@ -356,7 +424,7 @@
         placeholder: 'Chọn địa điểm',
         allowClear: true,
         width: '100%',
-        dropdownParent: $('#ke-hoach-chi-phi-modal')
+        dropdownParent: select2DropdownParent()
       });
       attachCreateOption($select, '', function (ten) {
         addLocationName(ten);
@@ -777,7 +845,7 @@
         placeholder: 'Tên chi phí',
         allowClear: true,
         width: '100%',
-        dropdownParent: $('#ke-hoach-chi-phi-modal')
+        dropdownParent: select2DropdownParent()
       });
       attachCreateOption($select, 'Chi phí', function (ten) {
         addExpenseName(ten);
@@ -1085,8 +1153,16 @@
   function setBusy(busy) {
     state.busy = !!busy;
     $('#khcp-loading').toggleClass('is-visible', state.busy);
-    $('#ke-hoach-chi-phi-modal button, #ke-hoach-chi-phi-modal select').prop('disabled', state.busy);
-    $('#ke-hoach-chi-phi-modal input').not('[readonly]').prop('disabled', state.busy);
+    var $root = interactionRoot();
+    $root.find('.khcp-loading').toggleClass('is-visible', state.busy);
+    var $controls = embedded.mounted
+      ? $root.find('.khxh-hang-cang-cost-mount button, .khxh-hang-cang-cost-mount select')
+      : $root.find('button, select');
+    var $inputs = embedded.mounted
+      ? $root.find('.khxh-hang-cang-cost-mount input')
+      : $root.find('input');
+    $controls.prop('disabled', state.busy);
+    $inputs.not('[readonly]').prop('disabled', state.busy);
   }
 
   function payloadFromRow(row) {
@@ -1273,17 +1349,18 @@
     });
   }
 
-  function saveAllRows() {
+  function saveAllRows(options) {
+    options = options || {};
     var rows = $.grep(state.rows, function (row) { return !isBlankRow(row) || row.nid > 0; });
     var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
     if (invalidRows.length) {
-      notify('Vui lòng chọn tên chi phí từ danh mục cho các dòng có số tiền.', 'error');
+      if (!options.silent) notify('Vui lòng chọn tên chi phí từ danh mục cho các dòng có số tiền.', 'error');
       $('tr[data-row-key="' + invalidRows[0].key + '"] .cost-name').trigger('focus');
-      return;
+      return $.Deferred().reject({ message: 'Vui lòng chọn tên chi phí từ danh mục cho các dòng có số tiền.' }).promise();
     }
     if (!rows.length && !(state.dinhMucRows || []).length) {
-      notify('Chưa có dữ liệu cần lưu.', 'error');
-      return;
+      if (!options.allowEmpty) notify('Chưa có dữ liệu cần lưu.', 'error');
+      return options.allowEmpty ? $.Deferred().resolve().promise() : $.Deferred().reject({ message: 'Chưa có dữ liệu cần lưu.' }).promise();
     }
     setBusy(true);
     var chain = persistDinhMucRows().then(function () {
@@ -1292,13 +1369,14 @@
       return persistOilRows();
     });
     chain.done(function () {
-      notify('Đã lưu toàn bộ dữ liệu chi phí.', 'success');
+      if (!options.silent) notify('Đã lưu toàn bộ dữ liệu chi phí.', 'success');
       loadRows();
     }).fail(function (error) {
-      notify(error && error.responseText ? apiMsg(error) : (error && error.message ? error.message : 'Lưu dữ liệu chi phí thất bại.'), 'error');
+      if (!options.silent) notify(error && error.responseText ? apiMsg(error) : (error && error.message ? error.message : 'Lưu dữ liệu chi phí thất bại.'), 'error');
     }).always(function () {
       setBusy(false);
     });
+    return chain;
   }
 
   function deleteRow(row) {
@@ -1324,34 +1402,51 @@
   }
 
   function openModal($button) {
-    state.nidKeHoach = Number($button.data('id')) || 0;
-    state.nidLaiXe = Number($button.data('nid-lai-xe')) || 0;
-    state.loaiKeHoach = String($button.data('loai-ke-hoach') || 'thuong');
-    state.rows = [];
-    state.dinhMucRows = [];
-    state.dinhMucRoutes = [];
-    state.oilRows = [];
-    state.driverPayMode = 'khoan';
-    $('#khcp-plan-code').text('#' + state.nidKeHoach);
-    clearPlanInfo();
-    setBusy(true);
-    renderAll();
+    unmountEmbedded();
+    resetState({
+      id: $button.data('id'),
+      driverId: $button.data('nid-lai-xe'),
+      planType: $button.data('loai-ke-hoach')
+    });
     if (!modal) {
       modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(document.getElementById('ke-hoach-chi-phi-modal'), { backdrop: 'static', keyboard: true }) : new bootstrap.Modal(document.getElementById('ke-hoach-chi-phi-modal'), { backdrop: 'static', keyboard: true });
     }
     modal.show();
-    var planChain = loadPlanInfo().then(loadCustomerDinhMuc);
-    $.when(loadDanhMuc(), planChain, loadOilRows(), fetchRows())
-      .done(function () {
-        rebuildDinhMucRows(true);
-      })
-      .fail(function (jqXHR) {
-        notify(jqXHR && jqXHR.responseText ? apiMsg(jqXHR) : 'Không tải được dữ liệu modal chi phí', 'error');
-      })
-      .always(function () {
-        renderAll();
-        setBusy(false);
-      });
+    loadCurrentPlanCosts();
+  }
+
+  function mountPortTab(options) {
+    options = options || {};
+    var $mount = $(options.mount || '#khxh-hang-cang-cost-mount');
+    var $source = $('#ke-hoach-chi-phi-modal');
+    if (!$mount.length || !$source.length || !Number(options.id)) return false;
+
+    unmountEmbedded();
+    embedded.mounted = true;
+    moveToEmbeddedHost($source.find('.khcp-modal-body > .khcp-loading'), $mount);
+    moveToEmbeddedHost($source.find('.khcp-modal-body > .row'), $mount);
+    resetState(options);
+    loadCurrentPlanCosts();
+    return true;
+  }
+
+  function unmountPortTab() {
+    unmountEmbedded();
+  }
+
+  function savePortTab() {
+    if (!embedded.mounted) return $.Deferred().resolve().promise();
+    return saveAllRows({ allowEmpty: true, silent: true });
+  }
+
+  function validatePortTab() {
+    if (!embedded.mounted) return true;
+    var rows = $.grep(state.rows, function (row) { return !isBlankRow(row) || row.nid > 0; });
+    var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
+    if (!invalidRows.length) return true;
+    notify('Vui lòng chọn tên chi phí từ danh mục cho các dòng có số tiền.', 'error');
+    $('tr[data-row-key="' + invalidRows[0].key + '"] .cost-name').trigger('focus');
+    return false;
   }
 
   function bindEvents() {
@@ -1500,6 +1595,13 @@
       state.oilRows = [];
     });
   }
+
+  Drupal.keHoachChiPhi = Drupal.keHoachChiPhi || {};
+  Drupal.keHoachChiPhi.mountPortTab = mountPortTab;
+  Drupal.keHoachChiPhi.unmountPortTab = unmountPortTab;
+  Drupal.keHoachChiPhi.savePortTab = savePortTab;
+  Drupal.keHoachChiPhi.validatePortTab = validatePortTab;
+  Drupal.keHoachChiPhi.hasPortTab = function () { return embedded.mounted; };
 
   Drupal.behaviors.keHoachChiPhi = {
     attach: function (context) {

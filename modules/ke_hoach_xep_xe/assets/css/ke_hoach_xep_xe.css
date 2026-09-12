@@ -1731,8 +1731,8 @@ button.khxh-cont-ref-number:focus {
 }
 
 .line-hinh-thuc-option.is-active .form-check-label {
-  background: #fff;
-  color: #1f2937;
+  background: var(--bs-primary, #696cff);
+  color: #fff;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 

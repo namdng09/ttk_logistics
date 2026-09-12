@@ -12,6 +12,7 @@
   var notyf;
   var KHACH_HANG_INITIALIZED = false;
   var KHACH_HANG_EVENTS_BOUND = false;
+  var KHACH_HANG_VIEW_ACTION_BOUND = false;
   var quickCreateCallback = null;
   var currentPage = 1;
   var currentKeyword = '';
@@ -102,13 +103,15 @@
    * Bind theo delegation để click luôn tới được luồng xem, kể cả khi menu
    * dropdown do helper toàn cục đóng/mở lại. */
   function bindViewAction() {
-    $(document)
-      .off('click.khachHangView', '.btn-view-khach-hang')
-      .on('click.khachHangView', '.btn-view-khach-hang', function (e) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        openViewModal(this.getAttribute('data-id'));
-      });
+    if (KHACH_HANG_VIEW_ACTION_BOUND) return;
+    KHACH_HANG_VIEW_ACTION_BOUND = true;
+    document.addEventListener('click', function (e) {
+      var button = e.target && e.target.closest ? e.target.closest('.btn-view-khach-hang') : null;
+      if (!button) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openViewModal(button.getAttribute('data-id'));
+    });
   }
 
   function bindRenderedViewButtons() {
