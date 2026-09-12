@@ -17,16 +17,16 @@
       <div class="spinner-border text-primary"></div>
     </div>
 
-    <div class="khxh-tuyen-xa-context" id="khxh-tuyen-xa-context">
+    <div class="khxh-hang-cang-context" id="khxh-hang-cang-context">
       <div class="khxh-context-item"><span>Khách hàng</span><strong data-context="customer">Chưa có</strong></div>
       <div class="khxh-context-item"><span>Container</span><strong data-context="container">Chưa có</strong></div>
       <div class="khxh-context-item khxh-context-route"><span>Tuyến</span><strong data-context="route">Chưa có</strong></div>
       <div class="khxh-context-item"><span>Thời gian</span><strong data-context="time">Chưa có</strong></div>
     </div>
 
-    <div class="khxh-tuyen-xa-layout khxh-hang-cang-layout">
-      <main class="khxh-tuyen-xa-main">
-        <div id="khxh-tuyen-xa-nav"></div>
+    <div class="khxh-hang-cang-layout">
+      <main class="khxh-hang-cang-main">
+        <div id="khxh-hang-cang-nav"></div>
         <form id="ke-hoach-form" novalidate>
           <input type="hidden" id="nid-input" value="">
 
@@ -70,15 +70,15 @@
         </div>
       </main>
 
-      <aside class="khxh-tuyen-xa-side">
-        <div class="khxh-tuyen-xa-side-sticky">
+      <aside class="khxh-hang-cang-side">
+        <div class="khxh-hang-cang-side-sticky">
           <div class="khxh-side-card">
             <div class="khxh-side-title">Tóm tắt xếp xe</div>
-            <div id="khxh-tuyen-xa-summary" class="khxh-summary-list"><div class="khxh-summary-empty">Chưa có dữ liệu</div></div>
+            <div id="khxh-hang-cang-summary" class="khxh-summary-list"><div class="khxh-summary-empty">Chưa có dữ liệu</div></div>
           </div>
           <div class="khxh-side-card mt-3">
             <div class="khxh-side-title">Kiểm tra trước khi lưu</div>
-            <div id="khxh-tuyen-xa-checklist" class="khxh-check-list"></div>
+            <div id="khxh-hang-cang-checklist" class="khxh-check-list"></div>
           </div>
         </div>
       </aside>

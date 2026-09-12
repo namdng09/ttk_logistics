@@ -93,3 +93,197 @@
   min-width: 200px !important;
   max-width: calc(100vw - 1rem);
 }
+
+/* Hàng cảng: card điều khiển và card danh sách tách biệt. */
+#ke-hoach-hang-cang-screen .khxh-port-list-app {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-bar {
+  margin-bottom: 0 !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-grid {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-field-date {
+  flex-grow: 1.15;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-actions-row {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0;
+}
+
+/* Chỉ nội dung bảng cuộn; header filter ở card phía trên luôn nhìn thấy. */
+#ke-hoach-hang-cang-screen .khxh-port-table-scroll {
+  min-height: 280px;
+  max-height: min(620px, calc(100vh - 310px));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-table-scroll .table-responsive {
+  overflow: visible;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-table-scroll .khxh-list-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bs-table-bg, #f8f9fa);
+}
+
+@media (max-width: 1199.98px) {
+  #ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-grid {
+    flex-wrap: wrap;
+  }
+
+  #ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-field {
+    flex: 1 1 180px;
+  }
+}
+
+/* Modal xếp xe hàng cảng: namespace riêng, không dùng selector tuyến xa. */
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-layout,
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-main {
+  overflow: visible;
+}
+
+.khxh-hang-cang-context {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.7fr) minmax(140px, 0.7fr) minmax(220px, 1.6fr) minmax(140px, 0.7fr);
+  gap: 0;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.khxh-hang-cang-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 1rem;
+}
+
+.khxh-hang-cang-main { min-width: 0; }
+
+.khxh-hang-cang-side {
+  min-width: 0;
+  padding-left: 1rem;
+  border-left: 1px solid #e6e8ef;
+}
+
+.khxh-hang-cang-side-sticky {
+  position: sticky;
+  top: .75rem;
+}
+
+.khxh-hang-cang-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fbfcfe;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, .04);
+}
+
+#ke-hoach-lines .ke-hoach-line-card.khxh-hang-cang-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 1rem;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, .04);
+}
+
+.khxh-cont-ref-card .khxh-hang-cang-card-head {
+  padding: .75rem 1rem;
+  background: #fbfcfd;
+  border-bottom: 1px solid #e9eef3;
+}
+
+.khxh-hang-cang-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: .85rem;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.khxh-hang-cang-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  color: #263445;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.khxh-hang-cang-card-subtitle {
+  margin-top: .2rem;
+  color: #a1acb8;
+  font-size: .82rem;
+}
+
+.khxh-hang-cang-section { margin-top: 1rem; }
+.khxh-hang-cang-section:first-of-type { margin-top: 0; }
+
+.khxh-hang-cang-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .75rem;
+}
+
+.khxh-hang-cang-section-title {
+  margin-bottom: 0;
+  color: #667085;
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.khxh-hang-cang-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual) {
+  display: flex;
+  align-items: flex-end;
+  overflow-x: auto;
+  padding-bottom: .25rem;
+}
+
+.khxh-hang-cang-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual) .khxh-route-node {
+  flex: 1 0 190px;
+}
+
+.khxh-hang-cang-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual) .khxh-route-arrow {
+  flex: 0 0 1.5rem;
+}
+
+@media (max-width: 767.98px) {
+  .khxh-hang-cang-context { grid-template-columns: 1fr; }
+  .khxh-hang-cang-layout { grid-template-columns: 1fr; }
+  .khxh-hang-cang-side { padding-left: 0; border-left: 0; }
+  .khxh-hang-cang-side-sticky { position: static; }
+  .khxh-hang-cang-section-head,
+  .khxh-hang-cang-card-head { align-items: flex-start; flex-direction: column; }
+}

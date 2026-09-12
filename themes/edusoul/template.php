@@ -432,6 +432,7 @@ function edusoul_preprocess_html(&$variables)
     drupal_add_js(path_to_theme() . '/quan-ly/assets/vendor/libs/cleave-zen/cleave-zen.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_js(path_to_theme() . '/quan-ly/assets/js/main.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_js(path_to_theme() . '/quan-ly/assets/js/function-dropdown.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    drupal_add_js(path_to_theme() . '/quan-ly/assets/js/admin-menu-shortcuts.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
 
     if ($current_path == 'user/login') {
         drupal_add_js(path_to_theme() . '/quan-ly/assets/js/login.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));

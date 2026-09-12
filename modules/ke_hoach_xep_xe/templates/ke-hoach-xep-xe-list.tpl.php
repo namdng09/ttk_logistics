@@ -4,12 +4,21 @@ $list_title = $is_tuyen_xa ? 'Kế hoạch tuyến xa' : 'Kế hoạch hàng c�
 $create_title = $is_tuyen_xa ? 'Tạo kế hoạch tuyến xa' : 'Tạo kế hoạch xếp xe';
 $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
 ?>
+<?php if ($is_tuyen_xa): ?>
 <div class="card" id="ke-hoach-list-app">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h4 class="card-title"><?php print check_plain($list_title); ?></h4>
   </div>
-
   <div class="card-body">
+<?php else: ?>
+<div id="ke-hoach-list-app" class="khxh-port-list-app">
+  <div class="card khxh-port-controls-card">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <h4 class="card-title mb-0"><?php print check_plain($list_title); ?></h4>
+      <button type="button" class="btn btn-success waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?></button>
+    </div>
+    <div class="card-body">
+<?php endif; ?>
     <?php if ($is_tuyen_xa): ?>
       <div class="khxh-filter-bar ke-hoach-list-filter mb-3" id="ke-hoach-tuyen-xa-inline-filter">
         <div class="khxh-filter-grid">
@@ -42,12 +51,17 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
           <div class="khxh-filter-actions khxh-filter-actions-row">
             <button class="btn btn-primary" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm</button>
             <button type="button" class="btn btn-label-secondary btn-reload waves-effect"><i class="ti tabler-refresh me-1"></i>Reset</button>
-            <div class="khxh-filter-actions-sep"></div>
-            <button type="button" class="btn btn-label-primary waves-effect btn-open-ptkh-create"><i class="ti tabler-file-plus me-1"></i>Tạo phiếu trả KH</button>
-            <button type="button" class="btn btn-success waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?></button>
           </div>
         </div>
       </div>
+    <?php endif; ?>
+
+    <?php if (!$is_tuyen_xa): ?>
+    </div>
+  </div>
+  <div class="card khxh-port-list-card">
+    <div class="card-body p-0">
+      <div class="khxh-port-table-scroll">
     <?php endif; ?>
 
     <!-- Table -->
@@ -89,7 +103,9 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
       </table>
     </div>
 
-    <div id="pagination-wrap" class="mt-3" style="display:none;">
+    <?php if (!$is_tuyen_xa): ?></div><?php endif; ?>
+
+    <div id="pagination-wrap" class="mt-3<?php print !$is_tuyen_xa ? ' px-3 pb-3' : ''; ?>" style="display:none;">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div class="text-muted small" id="pagination-info"></div>
         <nav>
@@ -102,8 +118,14 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
         </div>
       </div>
     </div>
+<?php if ($is_tuyen_xa): ?>
   </div>
 </div>
+<?php else: ?>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
 
 <div class="modal fade" id="khxh-ptkh-create-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
