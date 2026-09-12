@@ -169,15 +169,31 @@
   overflow: visible;
 }
 
-.khxh-hang-cang-context {
-  display: grid;
-  grid-template-columns: minmax(140px, 0.7fr) minmax(140px, 0.7fr) minmax(220px, 1.6fr) minmax(140px, 0.7fr);
-  gap: 0;
-  margin-bottom: 1rem;
+#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app > .card-header {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-layout {
+  margin-top: 1rem;
+}
+
+.khxh-hang-cang-header-title { min-width: 0; }
+
+.khxh-hang-cang-header-route {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-top: .2rem;
+  color: #7b8794;
+  font-size: .76rem;
+  font-weight: 600;
+}
+
+.khxh-hang-cang-header-route span {
   overflow: hidden;
-  border: 1px solid #e6e8ef;
-  border-radius: 8px;
-  background: #fbfcfe;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .khxh-hang-cang-layout {
@@ -280,7 +296,6 @@
 }
 
 @media (max-width: 767.98px) {
-  .khxh-hang-cang-context { grid-template-columns: 1fr; }
   .khxh-hang-cang-layout { grid-template-columns: 1fr; }
   .khxh-hang-cang-side { padding-left: 0; border-left: 0; }
   .khxh-hang-cang-side-sticky { position: static; }

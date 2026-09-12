@@ -2652,7 +2652,7 @@ button.khxh-cont-ref-number:focus {
 
 #cont-ref-picker-modal .modal-dialog,
 #port-cont-ref-picker-modal .modal-dialog {
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 /* Modal chọn cont hàng cảng có nhiều cột nghiệp vụ, nên dùng gần hết bề
@@ -2664,6 +2664,7 @@ button.khxh-cont-ref-number:focus {
 
 #cont-ref-picker-modal .modal-content,
 #port-cont-ref-picker-modal .modal-content {
+  pointer-events: auto;
   border: 0 !important;
   outline: 0;
   border-radius: 11px;

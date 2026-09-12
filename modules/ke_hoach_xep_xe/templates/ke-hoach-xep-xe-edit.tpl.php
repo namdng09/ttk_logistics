@@ -1,8 +1,13 @@
 <div class="card" id="ke-hoach-form-app">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 min-w-0">
       <a href="/ke-hoach-xep-xe" class="btn btn-outline-secondary btn-sm waves-effect"><i class="icon-base ti tabler-arrow-left me-1"></i> Quay lại</a>
-      <h4 class="card-title mb-0" id="form-title">Xếp xe</h4>
+      <div class="khxh-hang-cang-header-title min-w-0">
+        <h4 class="card-title mb-0" id="form-title">Xếp xe</h4>
+        <div class="khxh-hang-cang-header-route d-none" id="khxh-hang-cang-header-route">
+          <i class="ti tabler-route-2 me-1"></i><span></span>
+        </div>
+      </div>
     </div>
     <div class="d-flex gap-2">
       <button type="button" class="btn btn-success waves-effect d-none" id="complete-plan-btn">
@@ -15,13 +20,6 @@
   <div class="card-body position-relative">
     <div class="loading-overlay" id="form-loading" style="display:none;">
       <div class="spinner-border text-primary"></div>
-    </div>
-
-    <div class="khxh-hang-cang-context" id="khxh-hang-cang-context">
-      <div class="khxh-context-item"><span>Khách hàng</span><strong data-context="customer">Chưa có</strong></div>
-      <div class="khxh-context-item"><span>Container</span><strong data-context="container">Chưa có</strong></div>
-      <div class="khxh-context-item khxh-context-route"><span>Tuyến</span><strong data-context="route">Chưa có</strong></div>
-      <div class="khxh-context-item"><span>Thời gian</span><strong data-context="time">Chưa có</strong></div>
     </div>
 
     <div class="khxh-hang-cang-layout">
