@@ -83,20 +83,23 @@
   }
 
   function listFilterFields() {
-    return {
+    var fields = {
       khach_hang: '#filter-khach-hang',
-      so_bkg: '#filter-so-bkg',
-      date_from: '#filter-date-from',
-      date_to: '#filter-date-to',
-      dia_chi_kho: '#filter-dia-chi-kho',
-      so_cont: '#filter-so-cont',
-      so_seal_chinh: '#filter-seal-chinh',
-      so_seal_tam: '#filter-seal-phu',
-      bks_dau_keo: '#filter-bks-dau-keo',
-      bks_mooc: '#filter-bks-mooc',
-      lai_xe: '#filter-lai-xe',
-      da_du_hang: '#filter-da-du-hang'
+      dia_chi_kho: '#filter-dia-chi-kho'
     };
+    if (currentPlanType() === 'tuyen_xa') {
+      fields.so_cont = '#filter-so-cont';
+      fields.bks_dau_keo = '#filter-bks-dau-keo';
+      fields.bks_mooc = '#filter-bks-mooc';
+      fields.lai_xe = '#filter-lai-xe';
+      fields.da_du_hang = '#filter-da-du-hang';
+      fields.date_from = '#filter-date-from';
+      fields.date_to = '#filter-date-to';
+    } else {
+      fields.bkg_cont_seal = '#filter-bkg-cont-seal';
+      fields.phuong_tien = '#filter-phuong-tien';
+    }
+    return fields;
   }
 
   var HINH_THUC_MAP = {
@@ -1134,11 +1137,29 @@
       var value = ($(fields[key]).val() || '').trim();
       if (value) filters[key] = value;
     }
+    if (currentPlanType() !== 'tuyen_xa') {
+      var rangeInput = document.getElementById('filter-date-range');
+      var dates = rangeInput && rangeInput._flatpickr ? rangeInput._flatpickr.selectedDates : [];
+      if (dates[0]) filters.date_from = rangeInput._flatpickr.formatDate(dates[0], 'd/m/Y');
+      if (dates[1]) filters.date_to = rangeInput._flatpickr.formatDate(dates[1], 'd/m/Y');
+    }
     return filters;
   }
 
   function setListFilterInputs(filters) {
     filters = filters || {};
+    if (currentPlanType() !== 'tuyen_xa') {
+      var $range = $('#filter-date-range');
+      var rangeDates = [];
+      if (filters.date_from) rangeDates.push(filters.date_from);
+      if (filters.date_to) rangeDates.push(filters.date_to);
+      if ($range[0] && $range[0]._flatpickr) {
+        if (rangeDates.length) {
+          $range[0]._flatpickr.setDate(rangeDates, false, 'd/m/Y');
+          if (rangeDates.length === 2) $range.val(rangeDates[0] + ' đến ' + rangeDates[1]);
+        } else $range[0]._flatpickr.clear();
+      }
+    }
     var fields = listFilterFields();
     for (var key in fields) {
       if (!fields.hasOwnProperty(key)) continue;
@@ -1184,6 +1205,34 @@
     $select.html(html);
   }
 
+  function appendVehicleFilterOptions($select, selectedValue) {
+    var html = '<option></option>';
+    var groups = [
+      { type: 'dau_keo', label: 'Đầu kéo', items: listSearchDropdownData.vehicles || [] },
+      { type: 'mooc', label: 'Mooc', items: listSearchDropdownData.moocs || [] }
+    ];
+    for (var g = 0; g < groups.length; g++) {
+      for (var i = 0; i < groups[g].items.length; i++) {
+        var item = groups[g].items[i] || {};
+        var nid = parseInt(item.nid, 10) || 0;
+        var bks = String(item.bks || item.bien_so || '').trim();
+        if (!nid || !bks) continue;
+        var value = groups[g].type + ':' + nid;
+        var rawType = String(item.loai_phuong_tien || '').trim();
+        var typeLabels = {
+          dau_keo: 'Đầu kéo',
+          mooc: 'Mooc',
+          ro_mooc: 'Mooc',
+          romooc: 'Mooc',
+          may_phat: 'Máy phát'
+        };
+        var typeLabel = typeLabels[rawType.toLowerCase()] || rawType || groups[g].label;
+        html += '<option value="' + escHtml(value) + '"' + (value === selectedValue ? ' selected' : '') + '>' + escHtml(bks + ' (' + typeLabel + ')') + '</option>';
+      }
+    }
+    $select.html(html);
+  }
+
   function formatListDriverResult(data) {
     if (!data || $.trim(data.text || '') === '') return data.text;
     var $row = $('<div class="khxh-driver-result"></div>')
@@ -1218,6 +1267,7 @@
       var phone = driverMap[String(this.value || '').trim()] || '';
       if (phone) $(this).data('phone', phone);
     });
+    if (!isTuyenXa) appendVehicleFilterOptions($('#filter-phuong-tien'), filters.phuong_tien || '');
     setListFilterInputs(filters);
     $('#status-filter').val(currentStatus || '');
     initSelect2(document.getElementById('filter-khach-hang'), '— Chọn khách hàng —', { dropdownParent: dropdownParent });
@@ -1227,6 +1277,7 @@
     initSelect2(document.getElementById('filter-da-du-hang'), '— Chọn đủ hàng —', { dropdownParent: dropdownParent, allowClear: true });
     initSelect2(document.getElementById('filter-dia-chi-kho'), '— Chọn địa chỉ kho —', { dropdownParent: dropdownParent });
     if (!isTuyenXa) {
+      initSelect2(document.getElementById('filter-phuong-tien'), '— Chọn phương tiện —', { dropdownParent: dropdownParent, allowClear: true });
       initSelect2(document.getElementById('status-filter'), '— Chọn trạng thái —', { dropdownParent: dropdownParent, allowClear: true });
     }
   }
@@ -1304,6 +1355,20 @@
 
   function initListDateFilters() {
     if (typeof flatpickr === 'undefined') return;
+    if (currentPlanType() !== 'tuyen_xa') {
+      var rangeInput = document.getElementById('filter-date-range');
+      if (!rangeInput || rangeInput._flatpickr) return;
+      flatpickr(rangeInput, {
+        mode: 'range',
+        dateFormat: 'd/m/Y',
+        allowInput: true,
+        static: true,
+        locale: {
+          rangeSeparator: ' đến '
+        }
+      });
+      return;
+    }
     $('#filter-date-from, #filter-date-to').each(function () {
       if (this._flatpickr) return;
       flatpickr(this, {
@@ -1347,7 +1412,7 @@
       if (!snapshot) return false;
       currentPage = snapshot.currentPage || 1;
       currentKeyword = snapshot.currentKeyword || '';
-      currentStatus = snapshot.currentStatus || '';
+      currentStatus = currentPlanType() === 'tuyen_xa' ? (snapshot.currentStatus || '') : '';
       currentFilters = snapshot.currentFilters || {};
       currentPortDateSort = snapshot.currentPortDateSort === 'asc' ? 'asc' : 'desc';
       setListFilterInputs(currentFilters);
@@ -1713,7 +1778,7 @@
     var params = { page: currentPage, loai_ke_hoach: currentPlanType(), limit: currentPlanType() === 'tuyen_xa' ? 50 : 20 };
     params.sort_created = currentPortDateSort;
     if (currentKeyword) params.keyword = currentKeyword;
-    if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
+    if (currentPlanType() === 'tuyen_xa' && currentStatus) params.trang_thai_van_chuyen = currentStatus;
     $.extend(params, currentFilters || {});
     params.limit = currentPlanType() === 'tuyen_xa' ? 50 : 20;
     $.ajax({

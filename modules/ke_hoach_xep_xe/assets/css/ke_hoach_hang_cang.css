@@ -81,3 +81,15 @@
   outline-offset: 2px;
   border-radius: 0.2rem;
 }
+
+/* Filter hàng cảng dùng cùng giới hạn Select2 của modal tạo kế hoạch. */
+#ke-hoach-hang-cang-screen #ke-hoach-inline-filter .select2-container--default .select2-results > .select2-results__options {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#ke-hoach-hang-cang-screen #ke-hoach-inline-filter .select2-container--open .select2-dropdown--below,
+#ke-hoach-hang-cang-screen #ke-hoach-inline-filter .select2-container--open .select2-dropdown--above {
+  min-width: 200px !important;
+  max-width: calc(100vw - 1rem);
+}

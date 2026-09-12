@@ -1835,6 +1835,25 @@ function _ke_hoach_xep_xe_rest_list() {
   _ke_hoach_xep_xe_like_condition($query, 'kh.so_cont', 'so_cont');
   _ke_hoach_xep_xe_like_condition($query, 'kh.so_seal_chinh', 'so_seal_chinh');
   _ke_hoach_xep_xe_like_condition($query, 'kh.so_seal_tam', 'so_seal_tam');
+  if ($loai_ke_hoach === 'thuong' && !empty($_GET['bkg_cont_seal'])) {
+    $like = '%' . db_like(trim((string) $_GET['bkg_cont_seal'])) . '%';
+    $query->condition(db_or()
+      ->condition('kh.so_bkg', $like, 'LIKE')
+      ->condition('kh.so_cont', $like, 'LIKE')
+      ->condition('kh.so_seal_chinh', $like, 'LIKE')
+    );
+  }
+  if ($loai_ke_hoach === 'thuong' && !empty($_GET['phuong_tien'])) {
+    $vehicle_parts = explode(':', (string) $_GET['phuong_tien'], 2);
+    $vehicle_type = isset($vehicle_parts[0]) ? $vehicle_parts[0] : '';
+    $vehicle_nid = isset($vehicle_parts[1]) ? (int) $vehicle_parts[1] : 0;
+    if ($vehicle_nid > 0 && $vehicle_type === 'dau_keo') {
+      $query->condition('kh.nid_phuong_tien', $vehicle_nid);
+    }
+    elseif ($vehicle_nid > 0 && $vehicle_type === 'mooc') {
+      $query->condition('kh.nid_mooc', $vehicle_nid);
+    }
+  }
   if (!empty($_GET['bks_dau_keo'])) {
     $query->leftJoin('phuong_tien', 'pt_filter', 'pt_filter.nid = kh.nid_phuong_tien');
     $query->condition('pt_filter.bks', '%' . db_like(trim($_GET['bks_dau_keo'])) . '%', 'LIKE');
