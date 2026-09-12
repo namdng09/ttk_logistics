@@ -50,3 +50,34 @@
   font-weight: 600;
   color: #158fff;
 }
+
+/* Nút sort của header Ngày — gọn như một nhãn cột, nhưng vùng click rõ ràng. */
+#ke-hoach-hang-cang-screen .khxh-date-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+#ke-hoach-hang-cang-screen .khxh-date-sort-btn i {
+  color: #696cff;
+  font-size: 0.9rem;
+}
+
+#ke-hoach-hang-cang-screen .khxh-date-sort-btn:hover,
+#ke-hoach-hang-cang-screen .khxh-date-sort-btn:focus-visible {
+  color: #696cff;
+}
+
+#ke-hoach-hang-cang-screen .khxh-date-sort-btn:focus-visible {
+  outline: 2px solid rgba(105, 108, 255, 0.4);
+  outline-offset: 2px;
+  border-radius: 0.2rem;
+}

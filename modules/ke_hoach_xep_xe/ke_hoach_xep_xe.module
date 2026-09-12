@@ -1862,7 +1862,11 @@ function _ke_hoach_xep_xe_rest_list() {
   $count = clone $query;
   $total = $count->countQuery()->execute()->fetchField();
 
-  $query->orderBy('kh.nid', 'DESC');
+  // Cả hàng cảng và tuyến xa cho phép đảo thứ tự cột Ngày. Chỉ nhận hai giá
+  // trị whitelist để không đưa dữ liệu request trực tiếp vào truy vấn SQL.
+  $sort_created = !empty($_GET['sort_created']) && strtolower($_GET['sort_created']) === 'asc' ? 'ASC' : 'DESC';
+  $query->orderBy('kh.created', $sort_created);
+  $query->orderBy('kh.nid', $sort_created);
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();
 

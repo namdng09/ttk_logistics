@@ -11,6 +11,8 @@
   var currentKeyword = '';
   var currentStatus = '';
   var currentFilters = {};
+  // Dùng cho cả hai danh sách; mặc định giữ đúng thứ tự hiện tại là mới → cũ.
+  var currentPortDateSort = 'desc';
   var FORM_DROPDOWN_CACHE_KEY = 'ke_hoach_xep_xe_form_dropdowns_v3';
   var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v2';
   var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
@@ -37,6 +39,16 @@
 
   function currentPlanType() {
     return settings.plan_type === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
+  }
+
+  function updatePortDateSortButton() {
+    var $button = $('#khxh-date-sort');
+    if (!$button.length) return;
+    var ascending = currentPortDateSort === 'asc';
+    $button.attr('data-direction', currentPortDateSort)
+      .attr('title', ascending ? 'Sắp xếp ngày: cũ đến mới' : 'Sắp xếp ngày: mới đến cũ')
+      .attr('aria-label', ascending ? 'Sắp xếp ngày: cũ đến mới' : 'Sắp xếp ngày: mới đến cũ');
+    $button.find('i').attr('class', 'ti ' + (ascending ? 'tabler-sort-ascending' : 'tabler-sort-descending'));
   }
 
   function customerFullName(customer) {
@@ -1337,8 +1349,10 @@
       currentKeyword = snapshot.currentKeyword || '';
       currentStatus = snapshot.currentStatus || '';
       currentFilters = snapshot.currentFilters || {};
+      currentPortDateSort = snapshot.currentPortDateSort === 'asc' ? 'asc' : 'desc';
       setListFilterInputs(currentFilters);
       $('#status-filter').val(currentStatus);
+      updatePortDateSortButton();
       $('#list-body').html(snapshot.bodyHtml || '');
       if (snapshot.paginationWrapHtml) {
         $('#pagination-wrap').replaceWith(snapshot.paginationWrapHtml);
@@ -1354,6 +1368,7 @@
         currentKeyword: currentKeyword,
         currentStatus: currentStatus,
         currentFilters: currentFilters,
+        currentPortDateSort: currentPortDateSort,
         bodyHtml: $('#list-body').html(),
         paginationWrapHtml: paginationWrap ? paginationWrap.outerHTML : ''
       });
@@ -1504,6 +1519,13 @@
       currentPage = 1;
       loadList();
     });
+    $('#khxh-date-sort').on('click', function () {
+      currentPortDateSort = currentPortDateSort === 'desc' ? 'asc' : 'desc';
+      currentPage = 1;
+      updatePortDateSortButton();
+      loadList();
+    });
+    updatePortDateSortButton();
     $('#pagination-jump').on('keypress', function (e) {
       if (e.which === 13) {
         var total = parseInt($(this).attr('data-total-pages'), 10) || 0;
@@ -1689,6 +1711,7 @@
     var listColumnCount = currentPlanType() === 'tuyen_xa' ? 8 : 9;
     tbody.innerHTML = '<tr id="loading-row"><td colspan="' + listColumnCount + '" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
     var params = { page: currentPage, loai_ke_hoach: currentPlanType(), limit: currentPlanType() === 'tuyen_xa' ? 50 : 20 };
+    params.sort_created = currentPortDateSort;
     if (currentKeyword) params.keyword = currentKeyword;
     if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
     $.extend(params, currentFilters || {});
@@ -1821,6 +1844,7 @@
             currentPage: currentPage,
             currentKeyword: currentKeyword,
             currentStatus: currentStatus,
+            currentPortDateSort: currentPortDateSort,
             bodyHtml: $('#list-body').html(),
             paginationWrapHtml: document.getElementById('pagination-wrap') ? document.getElementById('pagination-wrap').outerHTML : ''
           });

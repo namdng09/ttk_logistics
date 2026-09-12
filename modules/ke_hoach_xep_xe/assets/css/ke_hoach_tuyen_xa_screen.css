@@ -17,3 +17,34 @@
 #ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-kho { width: 90px; }
 #ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-route { width: 90px; }
 #ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-status { width: 78px; }
+
+/* Nút sort của header Ngày. */
+#ke-hoach-tuyen-xa-screen .khxh-date-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+#ke-hoach-tuyen-xa-screen .khxh-date-sort-btn i {
+  color: #696cff;
+  font-size: 0.9rem;
+}
+
+#ke-hoach-tuyen-xa-screen .khxh-date-sort-btn:hover,
+#ke-hoach-tuyen-xa-screen .khxh-date-sort-btn:focus-visible {
+  color: #696cff;
+}
+
+#ke-hoach-tuyen-xa-screen .khxh-date-sort-btn:focus-visible {
+  outline: 2px solid rgba(105, 108, 255, 0.4);
+  outline-offset: 2px;
+  border-radius: 0.2rem;
+}

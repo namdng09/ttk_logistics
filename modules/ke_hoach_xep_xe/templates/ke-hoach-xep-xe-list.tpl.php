@@ -73,7 +73,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
         <thead class="table-light">
           <tr>
             <th>#</th>
-            <th>Ngày</th>
+            <th><button type="button" class="khxh-date-sort-btn" id="khxh-date-sort" data-direction="desc" title="Sắp xếp ngày: mới đến cũ" aria-label="Sắp xếp ngày: mới đến cũ"><span>Ngày</span><i class="ti tabler-sort-descending"></i></button></th>
             <th>T.T Chung</th>
             <th>Container</th>
             <th>PT / Lái xe</th>
