@@ -1686,7 +1686,7 @@
 
   function loadList() {
     var tbody = document.getElementById('list-body');
-    var listColumnCount = currentPlanType() === 'tuyen_xa' ? 8 : 10;
+    var listColumnCount = currentPlanType() === 'tuyen_xa' ? 8 : 9;
     tbody.innerHTML = '<tr id="loading-row"><td colspan="' + listColumnCount + '" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
     var params = { page: currentPage, loai_ke_hoach: currentPlanType(), limit: currentPlanType() === 'tuyen_xa' ? 50 : 20 };
     if (currentKeyword) params.keyword = currentKeyword;
@@ -1772,13 +1772,16 @@
             ? 'khxh-list-status-keo-ve'
             : (hinhThucStatus === 'Kéo lên' ? 'khxh-list-status-keo-len' : '');
           var contTextRaw = [row.loai_cont || '', row.so_cont || ''].filter(Boolean).join(' - ');
-          var contHtml = escHtml(contTextRaw);
           var baiLayDisplay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
           var baiHaDisplay = row.bai_ha_thuc_te || row.bai_ha_cont || '';
           var isHangCangList = currentPlanType() !== 'tuyen_xa';
           var customerTitle = isHangCangList
-            ? 'Khách hàng: ' + (khName ? (khName + (khFullName ? ' - ' + khFullName : '')) : 'Chưa có')
+            ? 'Khách hàng: ' + (khName ? (khName + (khFullName ? ' - ' + khFullName : '')) : 'Chưa có') + (row.so_bkg ? ' | BKG: ' + row.so_bkg : '')
             : khFullName;
+          var customerDisplay = khName ? escHtml(khName) : (isHangCangList ? '_' : '<span class="text-muted fst-italic small">khách hàng</span>');
+          if (isHangCangList && row.so_bkg) {
+            customerDisplay += ' <span class="khxh-customer-bkg">- ' + escHtml(row.so_bkg) + '</span>';
+          }
           var rowActionMenu = '<span class="khxh-row-action-menu">' + actions + '</span>';
           html += '<tr>' +
             '<td><button type="button" class="khxh-row-actions-trigger" title="Mở chức năng kế hoạch" aria-label="Mở chức năng kế hoạch #' + stt + '">' + stt + '</button></td>' +
@@ -1786,20 +1789,19 @@
               ? '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + planRoleClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu
               : '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + hinhThucStatusClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu) + '</td>' +
             '<td class="khxh-common-cell">' +
-              '<div class="khxh-customer-cell"' + (customerTitle ? ' title="' + escHtml(customerTitle) + '"' : '') + '>' + (khName ? escHtml(khName) : (isHangCangList ? '_' : '<span class="text-muted fst-italic small">khách hàng</span>')) + '</div>' +
+              '<div class="khxh-customer-cell"' + (customerTitle ? ' title="' + escHtml(customerTitle) + '"' : '') + '>' + customerDisplay + '</div>' +
               '<div class="khxh-htvt-cell">' +
                 ((hinhThucBadge || returnContText) ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list" title="Cont kéo về: ' + escHtml(returnContText) + '">' + escHtml(returnContText) + '</span>' : '') + '</div>' : '') +
               '</div>' +
             '</td>' +
-            (currentPlanType() === 'tuyen_xa' ? '' : '<td class="khxh-bkg-cell" title="Bkg: ' + escHtml(row.so_bkg || '_') + '">' + (row.so_bkg ? escHtml(row.so_bkg) : '_') + '</td>') +
             '<td class="khxh-container-cell">' +
               (currentPlanType() === 'tuyen_xa'
                 ? '<div>' + (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '</div>' +
                   '<div>' + (row.so_cont ? escHtml(row.so_cont) : '<span class="text-muted fst-italic small">số cont</span>') + '</div>' +
                   '<div>' + (row.loai_hang ? escHtml(row.loai_hang) : '<span class="text-muted fst-italic small">loại hàng</span>') + '</div>'
-                : '<div title="Container: ' + escHtml(contTextRaw || 'Chưa có') + '">' + (contHtml || '_') + '</div>' +
+                : '<div title="Container: ' + escHtml(contTextRaw || 'Chưa có') + '">' + (contTextRaw ? (row.loai_cont ? escHtml(row.loai_cont) + (row.so_cont ? ' - ' : '') : '') + (row.so_cont ? '<span class="khxh-port-list-cont-number">' + escHtml(row.so_cont) + '</span>' : '') : '_') + '</div>' +
                 '<div title="Seal chính: ' + escHtml(row.so_seal_chinh || 'Chưa có') + '">' + (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '_') + '</div>' +
-                '<div title="Seal phụ: ' + escHtml(row.so_seal_tam || 'Chưa có') + '">' + (row.so_seal_tam ? escHtml(row.so_seal_tam) : '_') + '</div>') +
+                (row.so_seal_tam ? '<div title="Seal phụ: Có"><span class="fst-italic">Có seal phụ</span></div>' : '')) +
             '</td>' +
             '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(row) + '</td>' +
             '<td class="khxh-kho-cell"' + (isHangCangList ? ' title="Địa chỉ kho: ' + escHtml(row.dia_chi_kho || 'Chưa có') + '"' : '') + '>' + (row.dia_chi_kho ? escHtml(row.dia_chi_kho) : (isHangCangList ? '_' : '')) + '</td>' +

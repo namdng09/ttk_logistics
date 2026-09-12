@@ -1,0 +1,19 @@
+/**
+ * Screen tuyến xa.
+ *
+ * Các style danh sách/filter mới của tuyến xa chỉ được thêm dưới root này,
+ * không dùng selector chung với hàng cảng.
+ */
+#ke-hoach-tuyen-xa-screen {
+  min-width: 0;
+}
+
+/* Giữ nguyên độ rộng đang dùng của bảng tuyến xa, tách khỏi hàng cảng. */
+#ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-stt { width: 30px; }
+#ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-date { width: 70px; }
+#ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-common { width: 155px; }
+#ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-container { width: 90px; }
+#ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-vehicle { width: 90px; }
+#ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-kho { width: 90px; }
+#ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-route { width: 90px; }
+#ke-hoach-tuyen-xa-screen .khxh-list-table .khxh-col-status { width: 78px; }

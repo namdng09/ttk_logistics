@@ -12,18 +12,6 @@
   table-layout: fixed;
 }
 
-.khxh-list-table .khxh-col-actions { width: 30px; }
-.khxh-list-table .khxh-col-stt { width: 30px; }
-.khxh-list-table .khxh-col-date { width: 70px; }
-.khxh-list-table .khxh-col-common { width: 155px; }
-.khxh-list-table .khxh-col-bkg { width: 130px; }
-.khxh-list-table .khxh-col-kho { width: 90px; }
-.khxh-list-table .khxh-col-container { width: 90px; }
-.khxh-list-table .khxh-col-vehicle { width: 90px; }
-.khxh-list-table .khxh-col-route { width: 90px; }
-.khxh-list-table .khxh-col-cang { width: 90px; }
-.khxh-list-table .khxh-col-status { width: 78px; }
-
 .khxh-list-table th {
   white-space: nowrap;
 }
@@ -510,6 +498,11 @@
   font-weight: 700;
   color: #1f2937;
   margin-bottom: 0.45rem;
+}
+
+/* Hàng cảng: mã khách hàng giữ nổi bật, số BKG đi kèm ở trọng lượng thường. */
+.khxh-common-cell .khxh-customer-bkg {
+  font-weight: 400;
 }
 
 .khxh-common-cell .khxh-htvt-cell {

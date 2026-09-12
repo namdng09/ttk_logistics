@@ -1,0 +1,52 @@
+/**
+ * Screen hàng cảng.
+ *
+ * Các style danh sách/filter mới của hàng cảng chỉ được thêm dưới root này,
+ * không dùng selector chung với tuyến xa.
+ */
+#ke-hoach-hang-cang-screen {
+  min-width: 0;
+}
+
+/* Độ rộng cột chỉ của bảng kế hoạch hàng cảng. */
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-stt { width: 25px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-date { width: 55px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-common { width: 155px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-container { width: 95px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-vehicle { width: 90px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-kho { width: 90px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-route { width: 90px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-cang { width: 90px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-status { width: 66px; }
+
+/* Ba cột có text biến động: luôn ngắt trong chính ô, không lấn sang cột kế. */
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-date-cell,
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-common-cell,
+#ke-hoach-hang-cang-screen .khxh-list-table td:nth-child(7),
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-status-cell {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-date-cell *,
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-common-cell *,
+#ke-hoach-hang-cang-screen .khxh-list-table td:nth-child(7) *,
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-status-cell * {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Cột Bãi lấy/hạ vốn có text-nowrap từ markup chung. */
+#ke-hoach-hang-cang-screen .khxh-list-table td:nth-child(7) {
+  white-space: normal !important;
+}
+
+/* Chỉ số container của hàng cảng nổi bật hơn loại cont và seal. */
+#ke-hoach-hang-cang-screen .khxh-port-list-cont-number {
+  font-weight: 600;
+  color: #158fff;
+}

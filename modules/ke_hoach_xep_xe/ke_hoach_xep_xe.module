@@ -224,6 +224,14 @@ function ke_hoach_xep_xe_theme() {
       'path' => $path,
       'variables' => array('plan_type' => 'thuong'),
     ),
+    'ke_hoach_hang_cang_list_page' => array(
+      'template' => 'ke-hoach-hang-cang-list',
+      'path' => $path,
+    ),
+    'ke_hoach_tuyen_xa_screen_list_page' => array(
+      'template' => 'ke-hoach-tuyen-xa-screen-list',
+      'path' => $path,
+    ),
     'ke_hoach_xep_xe_edit_page' => array(
       'template' => 'ke-hoach-xep-xe-edit',
       'path' => $path,
@@ -2532,6 +2540,7 @@ function _ke_hoach_cont_rest_update($id) {
 
 function ke_hoach_xep_xe_page_list() {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
+  drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_hang_cang.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_chi_phi.js', array('group' => JS_THEME, 'weight' => 3));
 
@@ -2556,7 +2565,7 @@ function ke_hoach_xep_xe_page_list() {
     ),
   )), 'setting');
 
-  return theme('ke_hoach_xep_xe_list_page', array('plan_type' => 'thuong'));
+  return theme('ke_hoach_hang_cang_list_page');
 }
 
 function ke_hoach_cont_page_list($mode = 'overall') {
@@ -3432,6 +3441,7 @@ function _ke_hoach_tuyen_xa_rest_delete($id) {
 
 function ke_hoach_tuyen_xa_page_list() {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
+  drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_tuyen_xa_screen.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_chi_phi.js', array('group' => JS_THEME, 'weight' => 3));
 
@@ -3455,5 +3465,5 @@ function ke_hoach_tuyen_xa_page_list() {
       'delete' => user_access('ke_hoach_xep_xe_delete'),
     ),
   )), 'setting');
-  return theme('ke_hoach_xep_xe_list_page', array('plan_type' => 'tuyen_xa'));
+  return theme('ke_hoach_tuyen_xa_screen_list_page');
 }
