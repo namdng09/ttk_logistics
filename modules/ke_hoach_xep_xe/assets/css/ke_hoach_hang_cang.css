@@ -142,6 +142,27 @@
   overscroll-behavior: contain;
 }
 
+/* Lọc nhanh theo trạng thái: nằm trong card bảng để vẫn thấy khi cuộn bảng. */
+#ke-hoach-hang-cang-screen .khxh-port-status-tabs-wrap {
+  padding: .75rem 1rem;
+  border-bottom: 1px solid #eef0f4;
+  background: #fff;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-status-tabs {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-status-tabs .nav-link {
+  border: 0;
+  cursor: pointer;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-status-tabs .nav-link .badge {
+  pointer-events: none;
+}
+
 #ke-hoach-hang-cang-screen .khxh-port-table-scroll .table-responsive {
   overflow: visible;
 }

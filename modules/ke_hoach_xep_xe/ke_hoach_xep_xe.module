@@ -1922,6 +1922,25 @@ function _ke_hoach_xep_xe_rest_list() {
   $offset = ($page - 1) * $limit;
   $loai_ke_hoach = !empty($_GET['loai_ke_hoach']) && $_GET['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
 
+  // Số lượng cho dải lọc nhanh của hàng cảng. Không phụ thuộc tab đang chọn
+  // để người dùng luôn thấy toàn bộ tiến độ của nhóm kế hoạch này.
+  $status_counts = array();
+  $status_total = 0;
+  if ($loai_ke_hoach === 'thuong') {
+    $status_query = db_select('ke_hoach_xep_xe', 'kh_status');
+    $status_query->fields('kh_status', array('trang_thai_van_chuyen'));
+    $status_query->addExpression('COUNT(*)', 'total');
+    $status_query->condition('kh_status.hoat_dong', 1);
+    _ke_hoach_xep_xe_query_condition_thuong($status_query, 'kh_status');
+    $status_query->groupBy('kh_status.trang_thai_van_chuyen');
+    foreach ($status_query->execute() as $status_row) {
+      $label = trim((string) $status_row->trang_thai_van_chuyen);
+      $amount = (int) $status_row->total;
+      $status_total += $amount;
+      if ($label !== '') $status_counts[$label] = $amount;
+    }
+  }
+
   $query = db_select('ke_hoach_xep_xe', 'kh');
   $query->fields('kh');
   $query->condition('kh.hoat_dong', 1);
@@ -2034,6 +2053,8 @@ function _ke_hoach_xep_xe_rest_list() {
     'current_page' => $total_pages > 0 ? $page : 0,
     'total_pages' => $total_pages,
     'limit' => $limit,
+    'status_counts' => $status_counts,
+    'status_total' => $status_total,
   ));
 }
 

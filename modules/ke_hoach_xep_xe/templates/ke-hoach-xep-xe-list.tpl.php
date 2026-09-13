@@ -61,6 +61,16 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
   </div>
   <div class="card khxh-port-list-card">
     <div class="card-body p-0">
+      <div class="khxh-port-status-tabs-wrap">
+        <ul class="nav nav-pills khxh-port-status-tabs" id="khxh-port-status-tabs" role="tablist">
+          <li class="nav-item"><button type="button" class="nav-link active waves-effect waves-light" data-status="" role="tab">Tất cả <span class="badge bg-label-primary ms-1" data-status-count="all">0</span></button></li>
+          <li class="nav-item"><button type="button" class="nav-link waves-effect waves-light" data-status="Chờ thực hiện" role="tab">Chờ thực hiện <span class="badge bg-label-primary ms-1" data-status-count="Chờ thực hiện">0</span></button></li>
+          <li class="nav-item"><button type="button" class="nav-link waves-effect waves-light" data-status="Đã nhận chuyến" role="tab">Đã nhận chuyến <span class="badge bg-label-primary ms-1" data-status-count="Đã nhận chuyến">0</span></button></li>
+          <li class="nav-item"><button type="button" class="nav-link waves-effect waves-light" data-status="Đang kéo lên" role="tab">Đang kéo lên <span class="badge bg-label-primary ms-1" data-status-count="Đang kéo lên">0</span></button></li>
+          <li class="nav-item"><button type="button" class="nav-link waves-effect waves-light" data-status="Đang kéo về" role="tab">Đang kéo về <span class="badge bg-label-primary ms-1" data-status-count="Đang kéo về">0</span></button></li>
+          <li class="nav-item"><button type="button" class="nav-link waves-effect waves-light" data-status="Hoàn thành" role="tab">Hoàn thành <span class="badge bg-label-primary ms-1" data-status-count="Hoàn thành">0</span></button></li>
+        </ul>
+      </div>
       <div class="khxh-port-table-scroll">
     <?php endif; ?>
 

@@ -144,6 +144,18 @@
     return HINH_THUC_COLOR[normalizeHinhThuc(value)] || 'bg-label-secondary';
   }
 
+  function hangCangPlanStatusColor(status) {
+    var colors = {
+      'Chờ thực hiện': 'bg-label-secondary',
+      'Đã nhận chuyến': 'bg-label-info',
+      'Đang kéo lên': 'bg-label-primary',
+      'Đang kéo về': 'bg-label-warning',
+      'Hoàn thành': 'bg-label-success',
+      'Đã huỷ': 'bg-label-danger'
+    };
+    return colors[String(status || '')] || 'bg-label-secondary';
+  }
+
   function formatTransportSelect2Option(option) {
     if (!option || !option.id) return option ? option.text : '';
     return $('<span class="badge ' + hinhThucColor(option.id) + '">' + escHtml(hinhThucLabel(option.id) || option.text) + '</span>');
@@ -178,7 +190,7 @@
         data: JSON.stringify(payload),
         success: function (res) {
           if (res.status === 'success') {
-            if (notyf) notyf.success(isComplete ? 'Chuyến này đã hoàn thành' : 'Đã cập nhật trạng thái kế hoạch');
+            if (!options.silentSuccess && notyf) notyf.success(isComplete ? 'Chuyến này đã hoàn thành' : 'Đã cập nhật trạng thái kế hoạch');
             if (typeof options.onSuccess === 'function') options.onSuccess(res, payload);
           } else if (notyf) {
             notyf.error(res.message || 'Cập nhật trạng thái thất bại');
@@ -194,7 +206,9 @@
         }
       });
     };
-    if (typeof Swal !== 'undefined') {
+    if (options.skipConfirm) {
+      doUpdate();
+    } else if (typeof Swal !== 'undefined') {
       Swal.fire({
         title: isComplete ? 'Chuyển hoàn thành?' : 'Chuyển về Chưa xếp xe?',
         text: isComplete ? 'Kế hoạch hoàn thành sẽ được đưa vào kỳ tính lương lái xe.' : 'Kế hoạch sẽ quay về trạng thái Chưa xếp xe.',
@@ -1458,6 +1472,20 @@
     });
   }
 
+  function updatePortStatusTabs(counts, total) {
+    if (currentPlanType() === 'tuyen_xa') return;
+    counts = counts || {};
+    $('#khxh-port-status-tabs [data-status-count]').each(function () {
+      var status = String($(this).attr('data-status-count') || '');
+      var count = status === 'all' ? (Number(total) || 0) : (Number(counts[status]) || 0);
+      $(this).text(count);
+    });
+    $('#khxh-port-status-tabs [data-status]').each(function () {
+      var isActive = String($(this).attr('data-status') || '') === String(currentStatus || '');
+      $(this).toggleClass('active', isActive).attr('aria-selected', isActive ? 'true' : 'false');
+    });
+  }
+
   function initList() {
     if (initList._bound) return;
     initList._bound = true;
@@ -1491,12 +1519,13 @@
       if (!snapshot) return false;
       currentPage = snapshot.currentPage || 1;
       currentKeyword = snapshot.currentKeyword || '';
-      currentStatus = currentPlanType() === 'tuyen_xa' ? (snapshot.currentStatus || '') : '';
+      currentStatus = snapshot.currentStatus || '';
       currentFilters = snapshot.currentFilters || {};
       currentPortDateSort = snapshot.currentPortDateSort === 'asc' ? 'asc' : 'desc';
       setListFilterInputs(currentFilters);
       $('#status-filter').val(currentStatus);
       updatePortDateSortButton();
+      updatePortStatusTabs(snapshot.portStatusCounts || {}, snapshot.portStatusTotal || 0);
       $('#list-body').html(snapshot.bodyHtml || '');
       if (snapshot.paginationWrapHtml) {
         $('#pagination-wrap').replaceWith(snapshot.paginationWrapHtml);
@@ -1513,6 +1542,8 @@
         currentStatus: currentStatus,
         currentFilters: currentFilters,
         currentPortDateSort: currentPortDateSort,
+        portStatusCounts: window._khxhPortStatusCounts || {},
+        portStatusTotal: window._khxhPortStatusTotal || 0,
         bodyHtml: $('#list-body').html(),
         paginationWrapHtml: paginationWrap ? paginationWrap.outerHTML : ''
       });
@@ -1646,14 +1677,14 @@
 
     $('#search-btn').on('click', function () {
       currentFilters = collectListFilters();
-      currentStatus = $('#status-filter').val() || '';
+      if ($('#status-filter').length) currentStatus = $('#status-filter').val() || '';
       currentPage = 1;
       loadList();
     });
     $('.ke-hoach-list-filter input, .ke-hoach-list-filter select').on('keypress', function (e) {
       if (e.which === 13) {
         currentFilters = collectListFilters();
-        currentStatus = $('#status-filter').val() || '';
+        if ($('#status-filter').length) currentStatus = $('#status-filter').val() || '';
         currentPage = 1;
         loadList();
       }
@@ -1661,6 +1692,15 @@
     $('.btn-reload').on('click', function () {
       clearListFilters();
       currentPage = 1;
+      loadList();
+    });
+    $('#ke-hoach-list-app').on('click', '#khxh-port-status-tabs [data-status]', function () {
+      if (currentPlanType() === 'tuyen_xa') return;
+      var nextStatus = String($(this).attr('data-status') || '');
+      if (nextStatus === String(currentStatus || '')) return;
+      currentStatus = nextStatus;
+      currentPage = 1;
+      updatePortStatusTabs(window._khxhPortStatusCounts || {}, window._khxhPortStatusTotal || 0);
       loadList();
     });
     $('#khxh-date-sort').on('click', function () {
@@ -1860,7 +1900,7 @@
     var params = { page: currentPage, loai_ke_hoach: currentPlanType(), limit: currentPlanType() === 'tuyen_xa' ? 50 : 20 };
     params.sort_created = currentPortDateSort;
     if (currentKeyword) params.keyword = currentKeyword;
-    if (currentPlanType() === 'tuyen_xa' && currentStatus) params.trang_thai_van_chuyen = currentStatus;
+    if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
     $.extend(params, currentFilters || {});
     params.limit = currentPlanType() === 'tuyen_xa' ? 50 : 20;
     $.ajax({
@@ -1877,6 +1917,9 @@
         var resp = res.data;
         var items = resp.items || [];
         var pageSize = resp.limit || 20;
+        window._khxhPortStatusCounts = resp.status_counts || {};
+        window._khxhPortStatusTotal = Number(resp.status_total) || 0;
+        updatePortStatusTabs(window._khxhPortStatusCounts, window._khxhPortStatusTotal);
         if (!items.length) {
           tbody.innerHTML = '<tr><td colspan="' + listColumnCount + '" class="text-center py-4">Không có dữ liệu</td></tr>';
           renderPagination(resp);
@@ -1941,6 +1984,7 @@
           var hinhThucStatusClass = hinhThucStatus === 'Kéo về'
             ? 'khxh-list-status-keo-ve'
             : (hinhThucStatus === 'Kéo lên' ? 'khxh-list-status-keo-len' : '');
+          var hangCangPlanStatus = String(row.trang_thai_van_chuyen || 'Chờ thực hiện');
           var contTextRaw = [row.loai_cont || '', row.so_cont || ''].filter(Boolean).join(' - ');
           var baiLayDisplay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
           var baiHaDisplay = row.bai_ha_thuc_te || row.bai_ha_cont || '';
@@ -1981,7 +2025,9 @@
               '</div>' +
             '</td>' +
             (currentPlanType() === 'tuyen_xa' ? '' : '<td class="khxh-cang-cell" title="Cảng xuất: ' + escHtml(row.cang_xuat || 'Chưa có') + '">' + (row.cang_xuat ? escHtml(row.cang_xuat) : '_') + '</td>') +
-            '<td class="khxh-status-cell"><span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + (currentPlanType() === 'tuyen_xa' ? ' btn-tuyen-xa-toggle-du-hang' : ' btn-hang-cang-toggle-du-hang') + '" role="button" tabindex="0" aria-pressed="' + (daDuHang ? 'true' : 'false') + '" data-id="' + parseInt(row.nid, 10) + '" data-current="' + (daDuHang ? '1' : '0') + '" data-cont="' + escHtml(row.so_cont || '') + '" title="Trạng thái cont: ' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '. Bấm để thay đổi">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</span></td>' +
+            '<td class="khxh-status-cell">' + (currentPlanType() === 'tuyen_xa'
+              ? '<span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + ' btn-tuyen-xa-toggle-du-hang" role="button" tabindex="0" aria-pressed="' + (daDuHang ? 'true' : 'false') + '" data-id="' + parseInt(row.nid, 10) + '" data-current="' + (daDuHang ? '1' : '0') + '" data-cont="' + escHtml(row.so_cont || '') + '" title="Trạng thái cont: ' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '. Bấm để thay đổi">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</span>'
+              : '<span class="badge ' + hangCangPlanStatusColor(hangCangPlanStatus) + '" title="Trạng thái kế hoạch: ' + escHtml(hangCangPlanStatus) + '">' + escHtml(hangCangPlanStatus) + '</span>') + '</td>' +
             '</tr>';
         }
         tbody.innerHTML = html;
@@ -1992,6 +2038,8 @@
             currentKeyword: currentKeyword,
             currentStatus: currentStatus,
             currentPortDateSort: currentPortDateSort,
+            portStatusCounts: window._khxhPortStatusCounts || {},
+            portStatusTotal: window._khxhPortStatusTotal || 0,
             bodyHtml: $('#list-body').html(),
             paginationWrapHtml: document.getElementById('pagination-wrap') ? document.getElementById('pagination-wrap').outerHTML : ''
           });
@@ -2691,7 +2739,6 @@
         var normalFilesCount = planFilesFromRow(editData).length;
         var normalCost = state.costSummary || {};
         var normalCostText = summaryMoney(normalCost.total);
-        var normalCostSub = 'KH: ' + summaryMoney(normalCost.customer) + ' · CT: ' + summaryMoney(normalCost.company) + ' · LX: ' + summaryMoney(normalCost.driver_self);
         var normalNav = $form('.khxh-section-nav[data-line-key="' + line.key + '"]');
         normalNav.find('.khxh-nav-return-count').text(line.ke_hoach_cont_ref_nid ? '1' : '0');
         normalNav.find('.khxh-nav-files-count').text(normalFilesCount + '/25');
@@ -2706,7 +2753,7 @@
           summaryRow('Mooc', normalMooc, '') +
           summaryRow('Lái xe', normalDriver, '') +
           summaryRow('Hình thức', line.hinh_thuc_van_tai ? hinhThucLabel(line.hinh_thuc_van_tai) : '', normalCreated) +
-          summaryRow('Chi phí', normalCostText, normalCostSub) +
+          summaryRow('Chi phí', normalCostText, '') +
           summaryRow('Cont kéo về', line.cont_ref ? (line.cont_ref.so_cont || ('#' + line.ke_hoach_cont_ref_nid)) : '', '') +
           summaryRow('Chứng từ', normalFilesCount + '/25 file', '')
         );
@@ -5520,6 +5567,8 @@
       if (!id || !nextStatus) return;
       setPlanStatus(id, nextStatus, {
         $button: $save,
+        silentSuccess: true,
+        skipConfirm: true,
         onSuccess: function (res) {
           var updated = res && res.data ? res.data : {};
           var modal = hangCangStatusModalInstance();
