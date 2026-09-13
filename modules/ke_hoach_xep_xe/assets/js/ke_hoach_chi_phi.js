@@ -2,6 +2,7 @@
   'use strict';
 
   var API_BASE = '/api/ke-hoach-chi-phi';
+  var PRESET_API_BASE = '/api/ke-hoach-chi-phi-mau';
   var REVENUE_TYPE = 'doanh_thu';
   var DRIVER_SALARY_TYPE = 'luong_lai_xe';
   var REVENUE_FIELDS = [
@@ -14,8 +15,7 @@
   var COST_SECTIONS = [
     { value: 'tinh_cho_khach', label: 'Chi hộ khách hàng', source: 'ke_hoach' },
     { value: 'cong_ty_chi_tra', label: 'Công ty chi trả', source: 'ke_hoach' },
-    { value: 'lai_xe_tu_chiu', label: 'Lái xe chi trả', source: 'lai_xe' },
-    { value: DRIVER_SALARY_TYPE, label: 'Lương lái xe', source: 'lai_xe' }
+    { value: 'lai_xe_tu_chiu', label: 'Lái xe chi trả', source: 'lai_xe' }
   ];
   var OIL_TYPES = [
     { value: 'do_dau_ngoai', label: 'Đổ dầu bãi ngoài' },
@@ -35,6 +35,7 @@
     plan: null,
     expenseNames: [],
     expenseCatalogNames: [],
+    presetCosts: [],
     locationNames: [],
     dinhMucRoutes: [],
     dinhMucRows: [],
@@ -87,6 +88,8 @@
     state.nidKeHoach = Number(options.id) || 0;
     state.nidLaiXe = Number(options.driverId) || 0;
     state.loaiKeHoach = String(options.planType || 'thuong');
+    state.draftPlan = options.draftPlan || null;
+    state.rebuildDinhMucFromDraft = !!options.rebuildDinhMucFromDraft;
     state.plan = null;
     state.rows = [];
     state.dinhMucRows = [];
@@ -101,9 +104,11 @@
     setBusy(true);
     renderAll();
     var planChain = loadPlanInfo().then(loadCustomerDinhMuc);
-    return $.when(loadDanhMuc(), planChain, loadOilRows(), fetchRows())
+    return $.when(loadDanhMuc(), loadPresetCosts(), planChain, loadOilRows(), fetchRows())
       .done(function () {
-        rebuildDinhMucRows(true);
+        // Nếu cont kéo về/hình thức vừa đổi nhưng chưa lưu kế hoạch, định mức
+        // cũ trong DB không còn đúng; luôn dựng lại theo draft của modal.
+        rebuildDinhMucRows(!state.rebuildDinhMucFromDraft);
       })
       .fail(function (jqXHR) {
         notify(jqXHR && jqXHR.responseText ? apiMsg(jqXHR) : 'Không tải được dữ liệu chi phí', 'error');
@@ -275,14 +280,23 @@
 
   function planRouteText(plan) {
     plan = plan || {};
-    var related = plan.hinh_thuc_van_tai === 'cat_keo_cheo' ? relatedContPlan() : null;
+    var hinhThuc = normalizeHinhThuc(plan.hinh_thuc_van_tai);
+    var related = isReturnContTransport(hinhThuc) ? relatedContPlan() : null;
     var points = [];
     pushRoutePoint(points, plan.bai_lay_thuc_te || plan.bai_lay_cont);
     pushRoutePoint(points, plan.dia_chi_kho || plan.diem_den);
-    if (related) {
-      pushRoutePoint(points, khoPoint(related));
+    if (hinhThuc === 'dong_hang') {
+      pushRoutePoint(points, plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den);
     }
-    pushRoutePoint(points, related ? (related.bai_ha_thuc_te || related.bai_ha_cont || plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den) : (plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den));
+    else if (related) {
+      // Xe chỉ nhận cont tại điểm kết thúc công việc chính rồi kéo thẳng
+      // đến bãi hạ của cont được chọn. Riêng cắt kéo chéo, đầu xe phải
+      // chạy rỗng tới kho của cont kéo về trước khi nhận cont.
+      if (hinhThuc === 'cat_keo_cheo') {
+        pushRoutePoint(points, returnContStart(related));
+      }
+      pushRoutePoint(points, returnContEnd(related) || plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den);
+    }
     return points.join(' - ');
   }
 
@@ -370,6 +384,34 @@
             addLocationName(item.ten);
           }
         });
+      });
+  }
+
+  function normalizePreset(item, index) {
+    item = item || {};
+    var type = String(item.loai_chi_phi || 'cong_ty_chi_tra');
+    if ($.inArray(type, ['tinh_cho_khach', 'cong_ty_chi_tra', DRIVER_COST_TYPE]) === -1) type = 'cong_ty_chi_tra';
+    return {
+      nid: String(item.nid || '').indexOf('tmp_preset_') === 0 ? String(item.nid) : (Number(item.nid) || 0),
+      ten: String(item.ten || '').trim(),
+      loai_chi_phi: type,
+      thu_tu: Number(item.thu_tu) || (index + 1),
+      changed: false
+    };
+  }
+
+  function loadPresetCosts() {
+    return $.getJSON(PRESET_API_BASE)
+      .done(function (response) {
+        var items = response && response.data && $.isArray(response.data.items) ? response.data.items : [];
+        state.presetCosts = $.map(items, function (item, index) { return normalizePreset(item, index); });
+        $.each(state.presetCosts, function (_, item) {
+          addExpenseName(item.ten);
+        });
+      })
+      .fail(function (jqXHR) {
+        state.presetCosts = [];
+        notify(apiMsg(jqXHR), 'error');
       });
   }
 
@@ -594,7 +636,33 @@
 
   function relatedContPlan() {
     if (!state.plan) return null;
-    return state.plan.cont_keo_ve_by || state.plan.cont_ref || null;
+    // cont_ref là cont mà kế hoạch/xe hiện tại chọn để kéo về.
+    // cont_keo_ve_by là chiều ngược lại: kế hoạch khác đang nhận cont này,
+    // không được dùng để tính lộ trình hay định mức của xe hiện tại.
+    return state.plan.cont_ref || null;
+  }
+
+  function isReturnContTransport(hinhThuc) {
+    return $.inArray(normalizeHinhThuc(hinhThuc), ['cat_keo', 'cat_keo_cheo', 'rut_mooc']) !== -1;
+  }
+
+  function returnContEnd(plan) {
+    plan = plan || {};
+    // cont_keo_ve_den là điểm modal chọn cont đã xác định cho chính xe này.
+    // Danh sách candidate có thể không trả về đủ bai_ha_* nên không dùng nó
+    // làm nguồn duy nhất.
+    return (state.plan && state.plan.cont_keo_ve_den) || plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den || '';
+  }
+
+  function returnContStart(plan) {
+    plan = plan || {};
+    return (state.plan && state.plan.cont_keo_ve_tu) || plan.vi_tri_cont_hien_tai || khoPoint(plan) || '';
+  }
+
+  function returnContStatus(plan) {
+    // Trạng thái cont (đủ hàng/chưa đủ hàng) quyết định trạng thái xe
+    // của chặng kéo cont về: Hàng hoặc Vỏ.
+    return plan && (parseInt(plan.da_du_hang, 10) === 1 || plan.da_du_hang === true) ? 'h' : 'v';
   }
 
   function buildDefaultDinhMucRows() {
@@ -602,7 +670,8 @@
     var start = actualStart();
     var end = actualEnd();
     var kho = khoPoint(plan);
-    var hinhThuc = plan.hinh_thuc_van_tai || 'cat_keo';
+    var hinhThuc = normalizeHinhThuc(plan.hinh_thuc_van_tai || 'cat_keo');
+    var related = relatedContPlan();
     var rows = [];
 
     function push(name, status, from, to) {
@@ -616,25 +685,84 @@
       rows.push(row);
     }
 
-    if (hinhThuc === 'cat_keo_cheo') {
-      var related = relatedContPlan() || {};
-      var kho2 = khoPoint(related) || '';
-      var end2 = related.bai_ha_thuc_te || related.bai_ha_cont || end;
-      push('Chặng 1', 'v', start, kho);
-      push('Chặng 2', 't', kho, kho2);
-      push('Chặng 3', 'h', kho2, end2);
-    }
-    else if (hinhThuc === 'rut_mooc') {
+    if (hinhThuc === 'dong_hang') {
+      // Xe đi cùng cont của chính kế hoạch đến điểm cuối: Vỏ rồi Hàng.
       push('Chặng 1', 'v', start, kho);
       push('Chặng 2', 'h', kho, end);
     }
-    else if (hinhThuc === 'roi_cont') {
-      if (start && kho) push('Chặng 1', 'v', start, kho);
-      push('Chặng ' + (rows.length + 1), 'h', kho, end);
+    else if (hinhThuc === 'cat_keo_cheo') {
+      // Cắt kéo chéo: cont của kế hoạch đi tới Kho 1; đầu xe chạy rỗng
+      // Kho 1 -> Kho 2, sau đó nhận cont kéo về ở Kho 2 để đi bãi hạ.
+      push('Chặng 1', 'v', start, kho);
+      var returnStart = returnContStart(related);
+      if (related && returnStart) {
+        push('Chặng 2', 't', kho, returnStart);
+        if (returnContEnd(related)) {
+          push('Chặng 3', returnContStatus(related), returnStart, returnContEnd(related));
+        }
+      }
+    }
+    else if (isReturnContTransport(hinhThuc)) {
+      // Cắt kéo/cắt kéo chéo/rút mooc: công việc chính kết thúc tại kho.
+      // Nếu có cont kéo về, xe tiếp tục đi từ kho đến đúng bãi hạ của cont
+      // đó. Tuyệt đối không lấy kho của cont kéo về làm điểm trung gian.
+      push('Chặng 1', 'v', start, kho);
+      if (related && returnContEnd(related)) {
+        push('Chặng 2', returnContStatus(related), kho, returnContEnd(related));
+      }
+      else if (hinhThuc === 'rut_mooc' && kho && end && kho !== end) {
+        // Rút mooc nhưng chưa nhận cont khác: đầu kéo di chuyển rỗng
+        // từ kho đến điểm cuối đã khai báo của chính kế hoạch.
+        push('Chặng 2', 't', kho, end);
+      }
+    }
+    else if (hinhThuc === 'tha_mooc' || hinhThuc === 'roi_cont') {
+      // Thả/rời cont: xe chỉ hoàn thành chặng đưa cont tới kho.
+      push('Chặng 1', 'v', start, kho);
     }
     else {
       push('Chặng 1', 'v', start, kho);
       push('Chặng 2', 'h', kho, end);
+    }
+
+    if (state.loaiKeHoach === 'thuong') {
+      console.log('[KHXH COST DM] build-default', {
+        planId: state.nidKeHoach,
+        hinhThuc: hinhThuc,
+        start: start,
+        kho: kho,
+        end: end,
+        contRef: related ? {
+          nid: related.nid || 0,
+          soCont: related.so_cont || '',
+          kho: khoPoint(related),
+          diemLay: returnContStart(related),
+          baiHa: returnContEnd(related),
+          baiHaCont: related.bai_ha_cont || '',
+          baiHaThucTe: related.bai_ha_thuc_te || '',
+          diemDen: related.diem_den || '',
+          viTri: related.vi_tri_cont_hien_tai || '',
+          daDuHang: related.da_du_hang
+        } : null,
+        rows: $.map(rows, function (row) {
+          return { status: row.trang_thai_xe, from: row.diem_dau, to: row.diem_cuoi };
+        })
+      });
+      if (related) {
+        console.log('[KHXH COST DM] return-cont-fields', JSON.stringify({
+          nid: related.nid || '',
+          bai_lay_cont: related.bai_lay_cont || '',
+          bai_lay_thuc_te: related.bai_lay_thuc_te || '',
+          dia_chi_kho: related.dia_chi_kho || '',
+          bai_ha_cont: related.bai_ha_cont || '',
+          bai_ha_thuc_te: related.bai_ha_thuc_te || '',
+          diem_den: related.diem_den || '',
+          vi_tri_cont_hien_tai: related.vi_tri_cont_hien_tai || '',
+          cont_keo_ve_tu: state.plan && state.plan.cont_keo_ve_tu || '',
+          cont_keo_ve_den: state.plan && state.plan.cont_keo_ve_den || '',
+          thong_tin_json: related.thong_tin_json || null
+        }));
+      }
     }
 
     return rows;
@@ -729,8 +857,8 @@
     var quantity = toNumber(item.so_luong || 1) || 1;
     var vat = clampPercent(item.vat_percent);
     var rawType = item.loai_chi_phi || '';
-    var type = rawType || (fallbackSource === 'lai_xe' ? DRIVER_COST_TYPE : 'cong_ty_chi_tra');
-    if (type !== REVENUE_TYPE && type !== 'tinh_cho_khach' && type !== 'cong_ty_chi_tra' && type !== DRIVER_COST_TYPE && type !== DRIVER_SALARY_TYPE) type = 'cong_ty_chi_tra';
+    var type = rawType;
+    if (type && type !== REVENUE_TYPE && type !== 'tinh_cho_khach' && type !== 'cong_ty_chi_tra' && type !== DRIVER_COST_TYPE && type !== DRIVER_SALARY_TYPE) type = 'cong_ty_chi_tra';
     var source = item.source || fallbackSource || resolveSource($.extend({}, item, { loai_chi_phi: type }));
     if (type === DRIVER_COST_TYPE || type === DRIVER_SALARY_TYPE) source = 'lai_xe';
     else source = 'ke_hoach';
@@ -755,12 +883,12 @@
   }
 
   function createEmptyRow(type) {
-    var section = getSection(type);
+    var section = type ? getSection(type) : null;
     return normalizeRow({
-      source: section.source,
-      loai_chi_phi: section.value,
+      source: section ? section.source : 'ke_hoach',
+      loai_chi_phi: section ? section.value : '',
       so_luong: 1
-    }, section.source);
+    }, section ? section.source : 'ke_hoach');
   }
 
   function getRow(key) {
@@ -804,7 +932,9 @@
     return toNumber(row.don_gia) === 0
       && toNumber(row.tong_truoc_vat) === 0
       && toNumber(row.tong_sau_vat) === 0
-      && !String(row.ghi_chu || '').trim();
+      && !String(row.ghi_chu || '').trim()
+      && !String(row.ten_chi_phi || '').trim()
+      && !String(row.loai_chi_phi || '').trim();
   }
 
   function ensureEmptyRows() {
@@ -872,44 +1002,56 @@
   }
 
   function rowTemplate(row, index) {
+    function typeCheck(type, short, title) {
+      var active = row.loai_chi_phi === type;
+      return '<td class="khcp-cost-type-cell is-' + type + '"><label class="khcp-cost-type-toggle' + (active ? ' is-active' : '') + '" title="' + escHtml(title) + '">' +
+        '<input type="checkbox" class="khcp-cost-type-check" data-cost-type="' + type + '"' + (active ? ' checked' : '') + '><span>' + short + '</span></label></td>';
+    }
     return '' +
       '<tr data-row-key="' + escHtml(row.key) + '">' +
         '<td class="khcp-col-index"><span class="khcp-row-number">' + (index + 1) + '</span></td>' +
         '<td><select class="form-select form-select-sm row-field cost-name cost-name-select" data-field="ten_chi_phi">' + expenseNameOptions(row.ten_chi_phi) + '</select></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field money-input" data-field="don_gia" value="' + formatMoney(row.don_gia) + '"></td>' +
-        '<td><input type="number" min="1" step="1" class="form-control form-control-sm row-field qty-input" data-field="so_luong" value="' + Math.max(1, parseInt(row.so_luong, 10) || 1) + '"></td>' +
+        '<td><input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control form-control-sm row-field qty-input" data-field="so_luong" value="' + Math.max(1, parseInt(row.so_luong, 10) || 1) + '"></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm money-input calculated-input ' + (row.override_before ? 'is-overridden' : '') + '" data-field="tong_truoc_vat" value="' + formatMoney(row.tong_truoc_vat) + '" readonly disabled></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field decimal-input vat-input" data-field="vat_percent" value="' + formatDecimal(row.vat_percent) + '"></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm money-input calculated-input ' + (row.override_after ? 'is-overridden' : '') + '" data-field="tong_sau_vat" value="' + formatMoney(row.tong_sau_vat) + '" readonly disabled></td>' +
         '<td><input type="text" class="form-control form-control-sm row-field" data-field="ghi_chu" value="' + escHtml(row.ghi_chu) + '" placeholder="Ghi chú"></td>' +
+        typeCheck('tinh_cho_khach', 'KH', 'Chi hộ khách hàng') +
+        typeCheck('cong_ty_chi_tra', 'CT', 'Công ty chi trả') +
+        typeCheck(DRIVER_COST_TYPE, 'LX', 'Lái xe chi trả') +
         '<td><div class="khcp-row-actions">' +
+          '<button type="button" class="btn btn-label-primary btn-sm btn-add-cost-row" title="Thêm dòng"><i class="ti tabler-plus"></i></button>' +
           '<button type="button" class="btn btn-label-danger btn-sm btn-delete-row" title="Xoá dòng"><i class="ti tabler-trash"></i></button>' +
         '</div></td>' +
       '</tr>';
   }
 
-  function sectionTemplate(section) {
-    return '' +
-      '<tr class="khcp-type-divider" data-cost-type="' + escHtml(section.value) + '">' +
-        '<td class="text-center py-1">' +
-          '<button type="button" class="btn btn-sm btn-icon btn-primary btn-add-row text-white" data-cost-type="' + escHtml(section.value) + '" title="Thêm dòng">' +
-            '<i class="ti tabler-plus"></i>' +
-          '</button>' +
-        '</td>' +
-        '<td colspan="8" class="py-2 px-3"><strong class="small">' + escHtml(section.label) + '</strong></td>' +
-      '</tr>';
-  }
-
   function renderTable() {
     var html = '';
-    for (var s = 0; s < COST_SECTIONS.length; s++) {
-      var section = COST_SECTIONS[s];
-      var rows = getRowsByType(section.value);
-      html += sectionTemplate(section);
-      for (var i = 0; i < rows.length; i++) {
-        html += rowTemplate(rows[i], i);
-      }
+    var rows = $.grep(state.rows, function (row) {
+      return row.loai_chi_phi !== DRIVER_SALARY_TYPE && row.loai_chi_phi !== REVENUE_TYPE;
+    });
+    var onlyUnsavedBlankRows = rows.length > 0 && $.grep(rows, function (row) { return !row.nid && isBlankRow(row); }).length === rows.length;
+    if ((rows.length === 0 || onlyUnsavedBlankRows) && state.presetCosts.length) {
+      state.rows = $.grep(state.rows, function (row) {
+        return row.loai_chi_phi === DRIVER_SALARY_TYPE || row.loai_chi_phi === REVENUE_TYPE || !(!row.nid && isBlankRow(row));
+      });
+      rows = [];
+      $.each(state.presetCosts, function (_, preset) {
+        if (!preset || !preset.ten) return;
+        var row = createEmptyRow(preset.loai_chi_phi);
+        row.ten_chi_phi = preset.ten;
+        state.rows.push(row);
+        rows.push(row);
+      });
     }
+    if (!rows.length) {
+      var empty = createEmptyRow();
+      state.rows.push(empty);
+      rows.push(empty);
+    }
+    for (var i = 0; i < rows.length; i++) html += rowTemplate(rows[i], i);
     $('#khcp-cost-table-body').html(html);
     initExpenseSelect2('#khcp-cost-table-body');
   }
@@ -1141,11 +1283,13 @@
     if (row.loai_chi_phi === REVENUE_TYPE) return true;
     var hasMoney = toNumber(row.don_gia) > 0 || toNumber(row.tong_truoc_vat) > 0 || toNumber(row.tong_sau_vat) > 0;
     var hasName = String(row.ten_chi_phi || '').trim().length > 0;
-    var valid = !hasMoney || (hasName && hasExpenseName(row.ten_chi_phi));
+    var validType = $.inArray(row.loai_chi_phi, ['tinh_cho_khach', 'cong_ty_chi_tra', DRIVER_COST_TYPE]) !== -1;
+    var valid = !hasMoney || (hasName && hasExpenseName(row.ten_chi_phi) && validType);
     if (mark) {
       var $tr = $('tr[data-row-key="' + row.key + '"]');
       $tr.toggleClass('is-invalid-row', !valid);
-      $tr.find('.cost-name').toggleClass('is-invalid', !valid);
+      $tr.find('.cost-name').toggleClass('is-invalid', hasMoney && (!hasName || !hasExpenseName(row.ten_chi_phi)));
+      $tr.find('.khcp-cost-type-toggle').toggleClass('is-invalid', hasMoney && !validType);
     }
     return valid;
   }
@@ -1220,9 +1364,40 @@
     return $.getJSON('/api/ke-hoach-xep-xe/' + state.nidKeHoach, { context: 'chi_phi' })
       .done(function (response) {
         if (response && response.status === 'success' && response.data) {
-          fillPlanInfo(response.data);
+          // Các thay đổi cont kéo về trong modal xếp xe chưa được lưu DB.
+          // Gộp draft vào phản hồi API để tab Chi phí luôn tính theo thao tác
+          // hiện tại, không phải trạng thái cũ khi vừa mở modal.
+          fillPlanInfo($.extend(true, {}, response.data, state.draftPlan || {}));
         }
+        else if (state.draftPlan) fillPlanInfo(state.draftPlan);
       });
+  }
+
+  function updatePortPlanDraft(plan, options) {
+    if (!embedded.mounted || !plan || !state.nidKeHoach) return false;
+    options = options || {};
+    // Dòng đang sửa trong modal là draft phía client nên không mang `nid`.
+    // id của kế hoạch đã có sẵn trong state của tab Chi phí.
+    plan = $.extend(true, { nid: state.nidKeHoach }, plan);
+    if (Number(plan.nid) !== state.nidKeHoach) return false;
+    console.log('[KHXH COST DM] receive-draft', {
+      planId: state.nidKeHoach,
+      hinhThuc: plan.hinh_thuc_van_tai || '',
+      contRefId: plan.ke_hoach_cont_ref_nid || 0,
+      contRef: plan.cont_ref || null,
+      contKeoVeTu: plan.cont_keo_ve_tu || '',
+      contKeoVeDen: plan.cont_keo_ve_den || '',
+      kho: plan.dia_chi_kho || '',
+      baiHa: plan.bai_ha_thuc_te || plan.bai_ha_cont || ''
+    });
+    state.draftPlan = $.extend(true, {}, state.draftPlan || {}, plan);
+    state.rebuildDinhMucFromDraft = true;
+    fillPlanInfo($.extend(true, {}, state.plan || {}, state.draftPlan));
+    if (options.rebuild !== false) {
+      state.dinhMucRows = buildDefaultDinhMucRows();
+      renderDinhMucTable();
+    }
+    return true;
   }
 
   function loadOilRows() {
@@ -1308,7 +1483,7 @@
 
   function saveRow(row, silent) {
     if (isBlankRow(row) && !row.nid) return $.Deferred().resolve({ skipped: true }).promise();
-    if (!validateRow(row, true)) return $.Deferred().reject({ message: 'Vui lòng chọn tên chi phí từ danh mục.' }).promise();
+    if (!validateRow(row, true)) return $.Deferred().reject({ message: 'Vui lòng chọn tên chi phí và một phân loại chi trả.' }).promise();
     var isUpdate = row.nid > 0;
     return $.ajax({
       url: isUpdate ? API_BASE + '/' + row.nid : API_BASE,
@@ -1354,9 +1529,9 @@
     var rows = $.grep(state.rows, function (row) { return !isBlankRow(row) || row.nid > 0; });
     var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
     if (invalidRows.length) {
-      if (!options.silent) notify('Vui lòng chọn tên chi phí từ danh mục cho các dòng có số tiền.', 'error');
+      if (!options.silent) notify('Vui lòng chọn tên chi phí và một phân loại chi trả cho các dòng có số tiền.', 'error');
       $('tr[data-row-key="' + invalidRows[0].key + '"] .cost-name').trigger('focus');
-      return $.Deferred().reject({ message: 'Vui lòng chọn tên chi phí từ danh mục cho các dòng có số tiền.' }).promise();
+      return $.Deferred().reject({ message: 'Vui lòng chọn tên chi phí và một phân loại chi trả cho các dòng có số tiền.' }).promise();
     }
     if (!rows.length && !(state.dinhMucRows || []).length) {
       if (!options.allowEmpty) notify('Chưa có dữ liệu cần lưu.', 'error');
@@ -1444,7 +1619,7 @@
     var rows = $.grep(state.rows, function (row) { return !isBlankRow(row) || row.nid > 0; });
     var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
     if (!invalidRows.length) return true;
-    notify('Vui lòng chọn tên chi phí từ danh mục cho các dòng có số tiền.', 'error');
+    notify('Vui lòng chọn tên chi phí và một phân loại chi trả cho các dòng có số tiền.', 'error');
     $('tr[data-row-key="' + invalidRows[0].key + '"] .cost-name').trigger('focus');
     return false;
   }
@@ -1452,6 +1627,10 @@
   function bindEvents() {
     if (bindEvents._bound) return;
     bindEvents._bound = true;
+    $(document).on('input', '.qty-input', function () {
+      var value = this.value.replace(/\D/g, '');
+      if (this.value !== value) this.value = value;
+    });
 
     $(document).on('click', '.btn-open-ke-hoach-chi-phi', function (e) {
       e.preventDefault();
@@ -1464,6 +1643,35 @@
       renderTable();
       updateSummary();
       $('tr[data-row-key="' + row.key + '"] .cost-name').trigger('focus');
+    });
+    $(document).on('click', '.btn-add-cost-row', function () {
+      var row = createEmptyRow();
+      var current = getRow($(this).closest('tr').data('row-key'));
+      var at = current ? state.rows.indexOf(current) + 1 : state.rows.length;
+      state.rows.splice(at, 0, row);
+      renderTable();
+      updateSummary();
+      $('tr[data-row-key="' + row.key + '"] .cost-name').trigger('focus');
+    });
+    $(document).on('change', '.khcp-cost-type-check', function () {
+      var $input = $(this);
+      var $tr = $input.closest('tr');
+      var row = getRow($tr.data('row-key'));
+      if (!row) return;
+      if ($input.prop('checked')) {
+        row.loai_chi_phi = String($input.data('cost-type') || '');
+        row.source = row.loai_chi_phi === DRIVER_COST_TYPE ? 'lai_xe' : 'ke_hoach';
+        $tr.find('.khcp-cost-type-check').not($input).prop('checked', false);
+      }
+      else {
+        row.loai_chi_phi = '';
+        row.source = 'ke_hoach';
+      }
+      $tr.find('.khcp-cost-type-toggle').each(function () {
+        $(this).toggleClass('is-active', $(this).find('input').prop('checked'));
+      });
+      validateRow(row, false);
+      updateSummary();
     });
     $(document).on('click', '#khcp-dm-add-row', function () {
       var row = normalizeDinhMucRow({ manual: true }, state.dinhMucRows.length);
@@ -1601,6 +1809,7 @@
   Drupal.keHoachChiPhi.unmountPortTab = unmountPortTab;
   Drupal.keHoachChiPhi.savePortTab = savePortTab;
   Drupal.keHoachChiPhi.validatePortTab = validatePortTab;
+  Drupal.keHoachChiPhi.updatePortPlanDraft = updatePortPlanDraft;
   Drupal.keHoachChiPhi.hasPortTab = function () { return embedded.mounted; };
 
   Drupal.behaviors.keHoachChiPhi = {

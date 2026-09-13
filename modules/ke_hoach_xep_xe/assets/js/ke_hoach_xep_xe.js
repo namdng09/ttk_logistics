@@ -178,7 +178,7 @@
         data: JSON.stringify(payload),
         success: function (res) {
           if (res.status === 'success') {
-            if (notyf) notyf.success(isComplete ? 'Chuyến này đã hoàn thành' : 'Đã chuyển kế hoạch về Chưa xếp xe');
+            if (notyf) notyf.success(isComplete ? 'Chuyến này đã hoàn thành' : 'Đã cập nhật trạng thái kế hoạch');
             if (typeof options.onSuccess === 'function') options.onSuccess(res, payload);
           } else if (notyf) {
             notyf.error(res.message || 'Cập nhật trạng thái thất bại');
@@ -1052,7 +1052,23 @@
     var $panes = $app.find('[data-khxh-port-pane]');
     if (!$tabs.length || !$panes.length) return;
     $app.find('.khxh-hang-cang-modal-tabs').removeClass('d-none');
+    // Form app được detach/reuse giữa các modal. populateEdit() sẽ đặt draft
+    // đầy đủ (gồm cont_keo_ve_tu/den); chỉ reset khi nó thuộc kế hoạch khác.
+    var savedDraft = $app.data('khxh-port-plan-draft');
+    if (!savedDraft || String(savedDraft.nid || '') !== String((plan && plan.nid) || '')) {
+      $app.data('khxh-port-plan-draft', $.extend(true, {}, plan || {}));
+    }
     var costMounted = false;
+
+    function portPlanDraft() {
+      return $.extend(true, {}, plan || {}, $app.data('khxh-port-plan-draft') || {});
+    }
+
+    function portPlanDraftChanged(draft) {
+      if (!draft || !plan) return false;
+      return String(draft.ke_hoach_cont_ref_nid || 0) !== String(plan.ke_hoach_cont_ref_nid || 0) ||
+        String(draft.hinh_thuc_van_tai || '') !== String(plan.hinh_thuc_van_tai || '');
+    }
 
     function activate(tab) {
       tab = tab === 'cost' ? 'cost' : 'plan';
@@ -1068,10 +1084,23 @@
           if (notyf) notyf.error('Không tải được phần chi phí. Vui lòng tải lại trang.');
           return;
         }
+        var draft = portPlanDraft();
+        console.log('[KHXH COST DM] mount-cost-tab', {
+          planId: plan && plan.nid,
+          hinhThuc: draft && draft.hinh_thuc_van_tai,
+          contRefId: draft && draft.ke_hoach_cont_ref_nid,
+          contRef: draft && draft.cont_ref,
+          contKeoVeTu: draft && draft.cont_keo_ve_tu,
+          contKeoVeDen: draft && draft.cont_keo_ve_den,
+          kho: draft && draft.dia_chi_kho,
+          baiHa: draft && (draft.bai_ha_thuc_te || draft.bai_ha_cont)
+        });
         costMounted = Drupal.keHoachChiPhi.mountPortTab({
           id: plan && plan.nid,
           driverId: plan && plan.nid_lai_xe,
           planType: 'thuong',
+          draftPlan: draft,
+          rebuildDinhMucFromDraft: portPlanDraftChanged(draft),
           mount: '#khxh-hang-cang-cost-mount'
         });
       }
@@ -4612,14 +4641,9 @@
           .html('<i class="icon-base ti tabler-arrows-exchange me-1"></i>' + escHtml(displayStatus));
         return;
       }
-      var isComplete = status === 'Hoàn thành';
       $btn.removeClass('d-none').attr('data-id', nid);
-      $btn
-        .toggleClass('btn-success', !isComplete)
-        .toggleClass('btn-outline-success', isComplete)
-        .html(isComplete
-          ? '<i class="icon-base ti tabler-circle-check me-1"></i>Đã hoàn thành'
-          : '<i class="icon-base ti tabler-circle-check me-1"></i>Hoàn thành');
+      $btn.removeClass('btn-success btn-outline-success').addClass('btn-label-primary')
+        .html('<i class="icon-base ti tabler-arrows-exchange me-1"></i>' + escHtml(status || 'Chờ thực hiện'));
     }
 
     function populateEdit(row) {
@@ -4688,6 +4712,11 @@
         tang_bo: rowJson.tang_bo || {},
         ket_hop: rowJson.ket_hop || {}
       });
+      if (currentPlanType() !== 'tuyen_xa' && state.lines[0]) {
+        // Dòng form đã bổ sung điểm hiện tại/kế tiếp của cont kéo về từ
+        // cont_ref. Lưu nó làm draft cho tab Chi phí sử dụng.
+        $form('#ke-hoach-form-app').data('khxh-port-plan-draft', $.extend(true, {}, row, state.lines[0]));
+      }
       $form('#nid_khach_hang-input').val(khachHangId).trigger('change');
       if ($form('#so_bkg-input').length) $form('#so_bkg-input').val(row.so_bkg || '');
       renderEditPlanFiles(planFilesFromRow(row));
@@ -5323,6 +5352,12 @@
       return bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
     }
 
+    function hangCangStatusModalInstance() {
+      var modalEl = document.getElementById('khxh-hang-cang-status-modal');
+      if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) return null;
+      return bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
+    }
+
     function planStatusOptions(selected) {
       var html = '';
       var seen = {};
@@ -5427,10 +5462,35 @@
       };
       runUpdate(0);
     });
+    $('#khxh-hang-cang-status-save-btn').off('click.khxhPortStatus').on('click.khxhPortStatus', function () {
+      var $save = $(this);
+      var id = parseInt($form('#nid-input').val(), 10) || 0;
+      var nextStatus = String($('#khxh-hang-cang-status-select').val() || '');
+      if (!id || !nextStatus) return;
+      setPlanStatus(id, nextStatus, {
+        $button: $save,
+        onSuccess: function (res) {
+          var updated = res && res.data ? res.data : {};
+          var modal = hangCangStatusModalInstance();
+          if (modal) modal.hide();
+          markForceReloadList();
+          editData = $.extend({}, editData || {}, updated, { nid: id, trang_thai_van_chuyen: nextStatus });
+          updateCompleteButton(editData);
+          if (notyf) notyf.success('Đã cập nhật trạng thái kế hoạch.');
+        }
+      });
+    });
     $form('#complete-plan-btn').on('click', function () {
       var $btn = $(this);
       var id = parseInt($btn.attr('data-id') || $form('#nid-input').val(), 10) || 0;
       if (!id) return;
+      if (currentPlanType() !== 'tuyen_xa') {
+        var currentPortStatus = String((editData && editData.trang_thai_van_chuyen) || 'Chờ thực hiện');
+        $('#khxh-hang-cang-status-select').html(planStatusOptions(currentPortStatus));
+        var portStatusModal = hangCangStatusModalInstance();
+        if (portStatusModal) portStatusModal.show();
+        return;
+      }
       if (currentPlanType() === 'tuyen_xa') {
         var nextMainDone = $btn.attr('data-main-work-done') === '1' ? 0 : 1;
         var runMainWorkUpdate = function () {
@@ -5857,6 +5917,10 @@
         if (currentPlanType() !== 'tuyen_xa' && activeContPickerMode === 'source') {
           clearPortReturnCont(line);
           renderSelectedContRef($card, line);
+          $form('#ke-hoach-form-app').data('khxh-port-plan-draft', $.extend(true, {}, editData || {}, line));
+          if (Drupal.keHoachChiPhi && typeof Drupal.keHoachChiPhi.updatePortPlanDraft === 'function') {
+            Drupal.keHoachChiPhi.updatePortPlanDraft(line);
+          }
           if (contRefModal) contRefModal.hide();
           if (notyf) notyf.success('Đã bỏ chọn cont kéo về');
           return;
@@ -5926,6 +5990,19 @@
       }
       updateContRefButton($card, line);
       renderSelectedContRef($card, line);
+      $form('#ke-hoach-form-app').data('khxh-port-plan-draft', $.extend(true, {}, editData || {}, line));
+      console.log('[KHXH COST DM] selected-return-cont', {
+        hinhThuc: line.hinh_thuc_van_tai || '',
+        contRefId: line.ke_hoach_cont_ref_nid || 0,
+        contRef: line.cont_ref || null,
+        contKeoVeTu: line.cont_keo_ve_tu || '',
+        contKeoVeDen: line.cont_keo_ve_den || '',
+        kho: line.dia_chi_kho || '',
+        baiHa: line.bai_ha_thuc_te || line.bai_ha_cont || ''
+      });
+      if (currentPlanType() !== 'tuyen_xa' && Drupal.keHoachChiPhi && typeof Drupal.keHoachChiPhi.updatePortPlanDraft === 'function') {
+        Drupal.keHoachChiPhi.updatePortPlanDraft(line);
+      }
       updateTuyenXaSidebar();
       if (contRefModal) contRefModal.hide();
       if (currentPlanType() === 'tuyen_xa') renderRows();
@@ -5961,6 +6038,10 @@
       line.cont_thuc_hien_chang = [];
       updateContRefButton($card, line);
       renderSelectedContRef($card, line);
+      $form('#ke-hoach-form-app').data('khxh-port-plan-draft', $.extend(true, {}, editData || {}, line));
+      if (currentPlanType() !== 'tuyen_xa' && Drupal.keHoachChiPhi && typeof Drupal.keHoachChiPhi.updatePortPlanDraft === 'function') {
+        Drupal.keHoachChiPhi.updatePortPlanDraft(line);
+      }
       updateTuyenXaSidebar();
     });
     $(document).on('change', '.line-bai-ha-theo-ke-hoach-checkbox', function () {

@@ -153,6 +153,19 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/ke-hoach-chi-phi-mau'] = array(
+    'page callback' => 'ke_hoach_chi_phi_mau_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/ke-hoach-chi-phi-mau/%'] = array(
+    'page callback' => 'ke_hoach_chi_phi_mau_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/quan-ly-cont'] = array(
     'page callback' => 'ke_hoach_cont_rest_collection',
     'access callback' => TRUE,
@@ -427,7 +440,8 @@ function ke_hoach_xep_xe_mobile_accept_trip($id) {
     $json['nid_lai_xe_nhan_chuyen'] = (int) $identity['driver']->nid;
     $json['thoi_gian_nhan_chuyen'] = $now;
     _ke_hoach_xep_xe_mobile_audit($json, 'nhan_chuyen', $identity['account'], $identity['driver'], !empty($input['ghi_chu']) ? $input['ghi_chu'] : '');
-    db_update('ke_hoach_xep_xe')->fields(array('trang_thai_van_chuyen' => 'Đang vận chuyển', 'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json), 'changed' => $now))->condition('nid', (int) $plan->nid)->execute();
+    $accepted_status = !empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach === 'tuyen_xa' ? 'Đang vận chuyển' : 'Đã nhận chuyến';
+    db_update('ke_hoach_xep_xe')->fields(array('trang_thai_van_chuyen' => $accepted_status, 'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json), 'changed' => $now))->condition('nid', (int) $plan->nid)->execute();
   }
   $fresh = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
   return _ke_hoach_xep_xe_success(array('da_nhan_chuyen' => TRUE, 'ke_hoach' => _ke_hoach_xep_xe_mobile_enrich_plan($fresh)));
@@ -739,6 +753,63 @@ function _ke_hoach_xep_xe_normalize_percent($value, $default = 0) {
   return $percent;
 }
 
+function _ke_hoach_chi_phi_mau_allowed_types() {
+  return array('tinh_cho_khach', 'cong_ty_chi_tra', 'lai_xe_tu_chiu');
+}
+
+function _ke_hoach_chi_phi_mau_build_record(array $input, $existing = NULL) {
+  $type = isset($input['loai_chi_phi']) ? trim((string) $input['loai_chi_phi']) : ($existing ? (string) $existing->loai_chi_phi : 'cong_ty_chi_tra');
+  if (!in_array($type, _ke_hoach_chi_phi_mau_allowed_types(), TRUE)) $type = 'cong_ty_chi_tra';
+  return array(
+    'ten' => isset($input['ten']) ? trim((string) $input['ten']) : ($existing ? (string) $existing->ten : ''),
+    'loai_chi_phi' => $type,
+    'thu_tu' => isset($input['thu_tu']) ? max(0, (int) $input['thu_tu']) : ($existing ? (int) $existing->thu_tu : 0),
+  );
+}
+
+function ke_hoach_chi_phi_mau_rest_collection() {
+  if (!db_table_exists('ke_hoach_chi_phi_mau')) return _ke_hoach_xep_xe_error('Bảng chi phí mặc định chưa được tạo. Hãy chạy update database.');
+  if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if (!user_access('ke_hoach_xep_xe_view')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem chi phí mặc định');
+    $items = db_select('ke_hoach_chi_phi_mau', 'm')->fields('m')->condition('m.hoat_dong', 1)->orderBy('m.thu_tu', 'ASC')->orderBy('m.nid', 'ASC')->execute()->fetchAll();
+    return _ke_hoach_xep_xe_success(array('items' => array_values($items), 'total' => count($items)));
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _ke_hoach_xep_xe_method_not_allowed('GET, POST');
+  if (!user_access('ke_hoach_xep_xe_create')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền tạo chi phí mặc định');
+  $input = _ke_hoach_xep_xe_input();
+  $record = _ke_hoach_chi_phi_mau_build_record($input);
+  if ($record['ten'] === '') return _ke_hoach_xep_xe_fail('Vui lòng nhập tên chi phí mặc định');
+  if (!$record['thu_tu']) $record['thu_tu'] = (int) db_query("SELECT COALESCE(MAX(thu_tu), 0) + 1 FROM {ke_hoach_chi_phi_mau}")->fetchField();
+  $now = _ke_hoach_xep_xe_now();
+  $record += array('created' => $now, 'changed' => $now, 'hoat_dong' => 1);
+  $nid = db_insert('ke_hoach_chi_phi_mau')->fields($record)->execute();
+  return _ke_hoach_xep_xe_success((array) db_query("SELECT * FROM {ke_hoach_chi_phi_mau} WHERE nid = :nid", array(':nid' => $nid))->fetch());
+}
+
+function ke_hoach_chi_phi_mau_rest_item($nid) {
+  if (!db_table_exists('ke_hoach_chi_phi_mau')) return _ke_hoach_xep_xe_error('Bảng chi phí mặc định chưa được tạo. Hãy chạy update database.');
+  $nid = (int) $nid;
+  $item = $nid ? db_query("SELECT * FROM {ke_hoach_chi_phi_mau} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid))->fetch() : FALSE;
+  if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if (!user_access('ke_hoach_xep_xe_view')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem chi phí mặc định');
+    return $item ? _ke_hoach_xep_xe_success((array) $item) : _ke_hoach_xep_xe_not_found('Chi phí mặc định không tồn tại');
+  }
+  if (!user_access('ke_hoach_xep_xe_create')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật chi phí mặc định');
+  if (!$item) return _ke_hoach_xep_xe_not_found('Chi phí mặc định không tồn tại');
+  if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+    $record = _ke_hoach_chi_phi_mau_build_record(_ke_hoach_xep_xe_input(), $item);
+    if ($record['ten'] === '') return _ke_hoach_xep_xe_fail('Vui lòng nhập tên chi phí mặc định');
+    $record['changed'] = _ke_hoach_xep_xe_now();
+    db_update('ke_hoach_chi_phi_mau')->fields($record)->condition('nid', $nid)->execute();
+    return _ke_hoach_xep_xe_success((array) db_query("SELECT * FROM {ke_hoach_chi_phi_mau} WHERE nid = :nid", array(':nid' => $nid))->fetch());
+  }
+  if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+    db_update('ke_hoach_chi_phi_mau')->fields(array('hoat_dong' => 0, 'changed' => _ke_hoach_xep_xe_now()))->condition('nid', $nid)->execute();
+    return _ke_hoach_xep_xe_success(array('nid' => $nid, 'deleted' => TRUE));
+  }
+  return _ke_hoach_xep_xe_method_not_allowed('GET, PUT, DELETE');
+}
+
 function _ke_hoach_chi_phi_build_record(array $input, $existing = NULL) {
   static $parents = array();
   $nid_ke_hoach = !empty($input['nid_ke_hoach']) ? (int) $input['nid_ke_hoach'] : ($existing && !empty($existing->nid_ke_hoach) ? (int) $existing->nid_ke_hoach : 0);
@@ -770,6 +841,17 @@ function _ke_hoach_chi_phi_build_record(array $input, $existing = NULL) {
     'ghi_chu' => isset($input['ghi_chu']) ? trim((string) $input['ghi_chu']) : ($existing && isset($existing->ghi_chu) ? (string) $existing->ghi_chu : ''),
     'thong_tin_json' => !empty($json) ? _ke_hoach_xep_xe_json_encode($json) : '',
   );
+}
+
+function _ke_hoach_chi_phi_validate_record(array $record) {
+  if (in_array($record['loai_chi_phi'], array('doanh_thu', 'luong_lai_xe'), TRUE)) {
+    return;
+  }
+  $has_money = !empty($record['don_gia']) || !empty($record['tong_truoc_vat']) || !empty($record['tong_sau_vat']);
+  $cost_types = array('tinh_cho_khach', 'cong_ty_chi_tra', 'lai_xe_tu_chiu');
+  if ($has_money && (empty($record['ten_chi_phi']) || !in_array($record['loai_chi_phi'], $cost_types, TRUE))) {
+    throw new Exception('Vui lòng chọn tên chi phí và một phân loại chi trả cho dòng có số tiền');
+  }
 }
 
 function ke_hoach_chi_phi_rest_collection() {
@@ -864,6 +946,12 @@ function _ke_hoach_chi_phi_rest_create() {
     return _ke_hoach_xep_xe_fail('Vui lòng nhập kế hoạch và tên chi phí');
   }
   $record = _ke_hoach_chi_phi_build_record($input);
+  try {
+    _ke_hoach_chi_phi_validate_record($record);
+  }
+  catch (Exception $e) {
+    return _ke_hoach_xep_xe_fail($e->getMessage());
+  }
   $record['created'] = _ke_hoach_xep_xe_now();
   $record['changed'] = $record['created'];
   $record['hoat_dong'] = 1;
@@ -881,6 +969,12 @@ function _ke_hoach_chi_phi_rest_update($id) {
     return _ke_hoach_xep_xe_not_found('Chi phí kế hoạch không tồn tại');
   }
   $record = _ke_hoach_chi_phi_build_record(_ke_hoach_xep_xe_input(), $existing);
+  try {
+    _ke_hoach_chi_phi_validate_record($record);
+  }
+  catch (Exception $e) {
+    return _ke_hoach_xep_xe_fail($e->getMessage());
+  }
   $record['changed'] = _ke_hoach_xep_xe_now();
   db_update('ke_hoach_chi_phi')->fields($record)->condition('nid', $id)->execute();
   $row = db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid = :id", array(':id' => $id))->fetch();
@@ -920,11 +1014,13 @@ function _ke_hoach_chi_phi_rest_bulk_save() {
           throw new Exception('Dòng #' . ($index + 1) . ': chi phí kế hoạch không tồn tại');
         }
         $record = _ke_hoach_chi_phi_build_record($item, $existing);
+        _ke_hoach_chi_phi_validate_record($record);
         $record['changed'] = $now;
         db_update('ke_hoach_chi_phi')->fields($record)->condition('nid', $id)->execute();
       }
       else {
         $record = _ke_hoach_chi_phi_build_record($item);
+        _ke_hoach_chi_phi_validate_record($record);
         $record['created'] = $now;
         $record['changed'] = $now;
         $record['hoat_dong'] = 1;
@@ -974,7 +1070,8 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['so_cont'] = !empty($line['so_cont']) ? trim($line['so_cont']) : '';
   $record['so_seal_chinh'] = !empty($line['so_seal_chinh']) ? trim($line['so_seal_chinh']) : '';
   $record['so_seal_tam'] = !empty($line['so_seal_tam']) ? trim($line['so_seal_tam']) : '';
-  $record['trang_thai_van_chuyen'] = !empty($line['trang_thai_van_chuyen']) ? trim($line['trang_thai_van_chuyen']) : 'Chưa xếp xe';
+  $is_tuyen_xa = !empty($common['loai_ke_hoach']) && $common['loai_ke_hoach'] === 'tuyen_xa';
+  $record['trang_thai_van_chuyen'] = !empty($line['trang_thai_van_chuyen']) ? trim($line['trang_thai_van_chuyen']) : ($is_tuyen_xa ? 'Chưa xếp xe' : 'Chờ thực hiện');
   $record['bai_lay_cont'] = !empty($line['bai_lay_cont']) ? trim($line['bai_lay_cont']) : '';
   $record['bai_lay_thuc_te'] = !empty($line['bai_lay_thuc_te']) ? trim($line['bai_lay_thuc_te']) : '';
   $record['bai_ha_cont'] = !empty($line['bai_ha_cont']) ? trim($line['bai_ha_cont']) : '';
@@ -1543,7 +1640,18 @@ function _ke_hoach_xep_xe_hinh_thuc_status_text($row) {
   return '';
 }
 
-function _ke_hoach_xep_xe_statuses() {
+function _ke_hoach_xep_xe_statuses($loai_ke_hoach = '') {
+  $hang_cang = array(
+    'Chờ thực hiện',
+    'Đã nhận chuyến',
+    'Đang kéo lên',
+    'Đang kéo về',
+    'Hoàn thành',
+    'Đã huỷ',
+  );
+  if ($loai_ke_hoach !== 'tuyen_xa') {
+    return $loai_ke_hoach === 'thuong' ? $hang_cang : array_merge($hang_cang, _ke_hoach_xep_xe_statuses('tuyen_xa'));
+  }
   return array(
     'Chưa xếp xe',
     'Đang vận chuyển',
@@ -2429,7 +2537,7 @@ function _ke_hoach_cont_rest_update($id) {
   }
   if (array_key_exists('trang_thai_van_chuyen', $input)) {
     $status = trim((string) $input['trang_thai_van_chuyen']);
-    if (!in_array($status, _ke_hoach_xep_xe_statuses(), TRUE)) {
+    if (!in_array($status, _ke_hoach_xep_xe_statuses($existing_plan->loai_ke_hoach), TRUE)) {
       return _ke_hoach_xep_xe_fail('Trạng thái vận chuyển không hợp lệ');
     }
     $update['trang_thai_van_chuyen'] = $status;
@@ -2437,6 +2545,9 @@ function _ke_hoach_cont_rest_update($id) {
       $ngay_ket_thuc = !empty($input['ngay_ket_thuc']) ? trim((string) $input['ngay_ket_thuc']) : '';
       $ngay_ket_thuc = $ngay_ket_thuc ? substr(_ke_hoach_xep_xe_filter_date($ngay_ket_thuc), 0, 10) : '';
       $update['ngay_ket_thuc'] = $ngay_ket_thuc ?: date('Y-m-d', REQUEST_TIME);
+    }
+    else {
+      $update['ngay_ket_thuc'] = '';
     }
   }
   if (array_key_exists('bai_lay_thuc_te', $input)) {
@@ -2579,7 +2690,7 @@ function ke_hoach_xep_xe_page_list() {
     'list_title' => 'Danh sách kế hoạch xếp xe',
     'create_title' => 'Tạo kế hoạch xếp xe',
     'create_button_text' => 'Tạo kế hoạch',
-    'statuses' => _ke_hoach_xep_xe_statuses(),
+    'statuses' => _ke_hoach_xep_xe_statuses('thuong'),
     'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
       'view' => user_access('ke_hoach_xep_xe_view'),
@@ -2641,7 +2752,7 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
     'mode' => $mode,
     'plan_type' => !empty($data['loai_ke_hoach']) && $data['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong',
     'data' => $data,
-    'statuses' => _ke_hoach_xep_xe_statuses(),
+    'statuses' => _ke_hoach_xep_xe_statuses(!empty($data['loai_ke_hoach']) && $data['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong'),
     'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
       'view' => user_access('ke_hoach_xep_xe_view'),
@@ -3480,7 +3591,7 @@ function ke_hoach_tuyen_xa_page_list() {
     'list_title' => 'Kế hoạch tuyến xa',
     'create_title' => 'Tạo kế hoạch tuyến xa',
     'create_button_text' => 'Thêm kế hoạch tuyến xa',
-    'statuses' => _ke_hoach_xep_xe_statuses(),
+    'statuses' => _ke_hoach_xep_xe_statuses('tuyen_xa'),
     'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
       'view' => user_access('ke_hoach_xep_xe_view'),

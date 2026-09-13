@@ -286,6 +286,12 @@
   width: 100% !important;
 }
 
+/* Tab Chi phí hàng cảng không cần người dùng nhập tên/chỉ số chặng. */
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-dm-table .khcp-dm-col-leg,
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-dm-table tbody td:nth-child(2) {
+  display: none;
+}
+
 #ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-table-wrap {
   max-height: min(52vh, 620px);
 }

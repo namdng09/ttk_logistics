@@ -272,6 +272,24 @@ function ke_hoach_xep_xe_schema() {
     ),
   );
 
+  $schema['ke_hoach_chi_phi_mau'] = array(
+    'description' => 'Danh mục chi phí mặc định dùng chung khi nhập chi phí kế hoạch.',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'ten' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'loai_chi_phi' => array('type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => 'cong_ty_chi_tra'),
+      'thu_tu' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'hoat_dong_thu_tu' => array('hoat_dong', 'thu_tu'),
+      'loai_chi_phi' => array('loai_chi_phi'),
+    ),
+  );
+
   $schema['ke_hoach_tuyen_xa_dau'] = array(
     'description' => 'Nhật ký dầu của kế hoạch tuyến xa.',
     'fields' => array(
@@ -617,4 +635,36 @@ function ke_hoach_xep_xe_update_7018() {
   }
 
   return 'Đã bổ sung liên kết kế hoạch nguồn cho kế hoạch kết hợp tuyến xa.';
+}
+
+/**
+ * Danh mục chi phí mặc định dùng chung cho bảng chi phí kế hoạch.
+ */
+function ke_hoach_xep_xe_update_7019() {
+  $schema = ke_hoach_xep_xe_schema();
+  if (!db_table_exists('ke_hoach_chi_phi_mau')) {
+    db_create_table('ke_hoach_chi_phi_mau', $schema['ke_hoach_chi_phi_mau']);
+  }
+
+  $existing = (int) db_query("SELECT COUNT(*) FROM {ke_hoach_chi_phi_mau}")->fetchField();
+  if ($existing) return 'Đã tạo bảng danh mục chi phí mặc định.';
+
+  $items = array(
+    'Số tiền hạ', 'Số tiền hạ sớm', 'Kiểm hóa', 'Số tiền phát sinh',
+    'Thưởng lễ', 'Neo xe', 'Vé cầu đường', 'Mua đồ xe+ sửa chửa',
+    'Lấp vỏ', 'Hạ cảng đổi biển số', 'Phát sinh thêm', 'Đổ dầu ngoài',
+    'Xét xe+mooc', 'Vá vỏ+ Rửa xe', 'Công an', 'Qua cửa khẩu',
+  );
+  $now = date('Y-m-d H:i:s', REQUEST_TIME);
+  foreach ($items as $index => $ten) {
+    db_insert('ke_hoach_chi_phi_mau')->fields(array(
+      'ten' => $ten,
+      'loai_chi_phi' => $ten === 'Qua cửa khẩu' ? 'lai_xe_tu_chiu' : 'cong_ty_chi_tra',
+      'thu_tu' => $index + 1,
+      'created' => $now,
+      'changed' => $now,
+      'hoat_dong' => 1,
+    ))->execute();
+  }
+  return 'Đã tạo và nạp danh mục chi phí mặc định.';
 }

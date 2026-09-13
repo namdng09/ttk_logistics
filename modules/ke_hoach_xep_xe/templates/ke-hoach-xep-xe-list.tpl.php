@@ -344,6 +344,9 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
                         <th class="khcp-col-vat">VAT (%)</th>
                         <th class="khcp-col-money">Sau VAT</th>
                         <th class="khcp-col-note">Ghi chú</th>
+                        <th class="khcp-col-type" title="Chi hộ khách hàng">KH</th>
+                        <th class="khcp-col-type" title="Công ty chi trả">CT</th>
+                        <th class="khcp-col-type" title="Lái xe chi trả">LX</th>
                         <th class="khcp-col-action"></th>
                       </tr>
                     </thead>

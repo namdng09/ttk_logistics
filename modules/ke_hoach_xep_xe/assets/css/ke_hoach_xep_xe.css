@@ -3470,6 +3470,52 @@ button.khxh-cont-ref-number:focus {
   width: 148px;
 }
 
+.khcp-col-type {
+  width: 42px;
+  text-align: center;
+}
+
+.khcp-cost-type-cell {
+  padding: 4px 2px !important;
+  text-align: center;
+}
+
+.khcp-cost-type-toggle {
+  display: inline-flex;
+  width: 29px;
+  height: 27px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  border: 1px solid #d9dee7;
+  border-radius: 5px;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  transition: all .15s ease;
+}
+
+.khcp-cost-type-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.khcp-cost-type-toggle:hover {
+  border-color: currentColor;
+}
+
+.khcp-cost-type-cell.is-tinh_cho_khach .khcp-cost-type-toggle { color: #d98200; }
+.khcp-cost-type-cell.is-cong_ty_chi_tra .khcp-cost-type-toggle { color: #5d5fef; }
+.khcp-cost-type-cell.is-lai_xe_tu_chiu .khcp-cost-type-toggle { color: #d63624; }
+.khcp-cost-type-cell.is-tinh_cho_khach .khcp-cost-type-toggle.is-active { background: #ffab00; border-color: #ffab00; }
+.khcp-cost-type-cell.is-cong_ty_chi_tra .khcp-cost-type-toggle.is-active { background: #696cff; border-color: #696cff; }
+.khcp-cost-type-cell.is-lai_xe_tu_chiu .khcp-cost-type-toggle.is-active { background: #ff3e1d; border-color: #ff3e1d; }
+.khcp-cost-type-toggle.is-active { color: #fff !important; box-shadow: 0 2px 5px rgba(31, 41, 55, .16); }
+.khcp-cost-type-toggle.is-invalid { border-color: #ea5455; box-shadow: 0 0 0 2px rgba(234, 84, 85, .12); }
+
 .khcp-col-action {
   width: 75px;
   text-align: right;

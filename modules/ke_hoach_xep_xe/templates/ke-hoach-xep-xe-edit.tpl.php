@@ -97,6 +97,25 @@
   </div>
 </div>
 
+<div class="modal fade" id="khxh-hang-cang-status-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Thay đổi trạng thái kế hoạch</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Trạng thái kế hoạch</label>
+        <select class="form-select" id="khxh-hang-cang-status-select"></select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary" id="khxh-hang-cang-status-save-btn"><i class="ti tabler-device-floppy me-1"></i>Lưu trạng thái</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="cont-ref-picker-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
