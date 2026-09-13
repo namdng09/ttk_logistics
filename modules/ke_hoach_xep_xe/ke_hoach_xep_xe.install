@@ -177,6 +177,12 @@ function ke_hoach_xep_xe_schema() {
         'length' => 10,
         'not null' => FALSE,
       ),
+      // Mốc ngày giờ nghiệp vụ của kế hoạch hàng cảng, độc lập với tiến độ.
+      'ngay_gio_ke_hoach' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
+      ),
       'ngay_ket_thuc' => array(
         'type' => 'varchar',
         'length' => 10,
@@ -667,4 +673,18 @@ function ke_hoach_xep_xe_update_7019() {
     ))->execute();
   }
   return 'Đã tạo và nạp danh mục chi phí mặc định.';
+}
+
+/**
+ * Thêm mốc ngày giờ nghiệp vụ riêng cho kế hoạch hàng cảng.
+ */
+function ke_hoach_xep_xe_update_7020() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'ngay_gio_ke_hoach')) {
+    db_add_field('ke_hoach_xep_xe', 'ngay_gio_ke_hoach', array(
+      'type' => 'varchar',
+      'length' => 19,
+      'not null' => FALSE,
+    ));
+  }
+  return 'Đã thêm trường ngày giờ nghiệp vụ cho kế hoạch hàng cảng.';
 }

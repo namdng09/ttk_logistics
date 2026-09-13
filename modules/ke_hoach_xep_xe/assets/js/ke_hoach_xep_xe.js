@@ -384,7 +384,7 @@
     var parts = String(val).split(' ');
     if (parts.length === 2) {
       var d = parts[0].split('-');
-      if (d.length === 3) return d[2] + '/' + d[1] + '/' + d[0] + ' ' + parts[1];
+      if (d.length === 3) return d[2] + '/' + d[1] + '/' + d[0] + ' ' + parts[1].slice(0, 5);
     }
     return val;
   }
@@ -2076,7 +2076,8 @@
       contCandidatePending: {},
       pendingContDestinationUpdates: {},
       lines: [],
-      activeLineKey: null
+      activeLineKey: null,
+      costSummary: { total: 0, customer: 0, company: 0, driver_self: 0 }
     };
 	    var lineSeq = 0;
 	    var vehicleModal = null;
@@ -2250,6 +2251,7 @@
         cang_xuat: '',
         cut_off: '',
         ngay_bat_dau: '',
+        ngay_gio_ke_hoach: '',
         ngay_ket_thuc: '',
         ghi_chu: '',
         kiem_dich: 0,
@@ -2627,6 +2629,33 @@
       '</div>';
     }
 
+    function summaryMoney(value) {
+      return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(Number(value) || 0) + 'đ';
+    }
+
+    function resetPortCostSummary() {
+      state.costSummary = { total: 0, customer: 0, company: 0, driver_self: 0 };
+    }
+
+    function loadPortCostSummary(planId) {
+      resetPortCostSummary();
+      planId = parseInt(planId, 10) || 0;
+      if (!planId || currentPlanType() === 'tuyen_xa') return;
+      $.getJSON('/api/ke-hoach-chi-phi', { nid_ke_hoach: planId, limit: 100 }).done(function (res) {
+        var currentPlanId = parseInt($form('#nid-input').val(), 10) || 0;
+        if (currentPlanId && currentPlanId !== planId) return;
+        var items = res && res.data && $.isArray(res.data.items) ? res.data.items : [];
+        $.each(items, function (_, item) {
+          var amount = Number(item.tong_sau_vat) || 0;
+          if (item.loai_chi_phi === 'tinh_cho_khach') state.costSummary.customer += amount;
+          else if (item.loai_chi_phi === 'cong_ty_chi_tra') state.costSummary.company += amount;
+          else if (item.loai_chi_phi === 'lai_xe_tu_chiu') state.costSummary.driver_self += amount;
+        });
+        state.costSummary.total = state.costSummary.customer + state.costSummary.company + state.costSummary.driver_self;
+        updateTuyenXaSidebar();
+      });
+    }
+
     function checklistItem(ok, label, value, title) {
       return '<div class="khxh-check-item' + (ok ? '' : ' is-warning') + '">' +
         '<span class="khxh-check-mark"><i class="ti ' + (ok ? 'tabler-check' : 'tabler-alert-triangle') + '"></i></span>' +
@@ -2660,6 +2689,9 @@
         var normalRoute = [line.bai_lay_cont || '', line.dia_chi_kho || '', line.bai_ha_cont || '', line.cang_xuat || ''].filter(Boolean).join(' → ');
         var normalCreated = apiToDatetime((editData && editData.created) || line.created || '');
         var normalFilesCount = planFilesFromRow(editData).length;
+        var normalCost = state.costSummary || {};
+        var normalCostText = summaryMoney(normalCost.total);
+        var normalCostSub = 'KH: ' + summaryMoney(normalCost.customer) + ' · CT: ' + summaryMoney(normalCost.company) + ' · LX: ' + summaryMoney(normalCost.driver_self);
         var normalNav = $form('.khxh-section-nav[data-line-key="' + line.key + '"]');
         normalNav.find('.khxh-nav-return-count').text(line.ke_hoach_cont_ref_nid ? '1' : '0');
         normalNav.find('.khxh-nav-files-count').text(normalFilesCount + '/25');
@@ -2674,6 +2706,7 @@
           summaryRow('Mooc', normalMooc, '') +
           summaryRow('Lái xe', normalDriver, '') +
           summaryRow('Hình thức', line.hinh_thuc_van_tai ? hinhThucLabel(line.hinh_thuc_van_tai) : '', normalCreated) +
+          summaryRow('Chi phí', normalCostText, normalCostSub) +
           summaryRow('Cont kéo về', line.cont_ref ? (line.cont_ref.so_cont || ('#' + line.ke_hoach_cont_ref_nid)) : '', '') +
           summaryRow('Chứng từ', normalFilesCount + '/25 file', '')
         );
@@ -3024,7 +3057,7 @@
         '<div class="khxh-hang-cang-section khxh-port-create-body"><div class="khxh-port-create-flex-row khxh-port-create-row-1">' +
         '<div class="pc-field-customer"><label class="form-label">Khách hàng <span class="text-danger">*</span></label><select class="form-select line-customer-select" required title="Không được để trống khách hàng">' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select></div>' +
         '<div class="pc-field-bkg"><label class="form-label">Số BKG <span class="text-danger">*</span></label><input class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="BKG" required title="Không được để trống số BKG"></div>' +
-        '<div class="pc-field-datetime"><label class="form-label">Ngày giờ</label><input class="form-control line-ngay-gio-input" value="' + escHtml(apiToDatetime(line.ngay_bat_dau || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
+        '<div class="pc-field-datetime"><label class="form-label">Ngày giờ</label><input class="form-control line-ngay-gio-input" value="' + escHtml(apiToDatetime(line.ngay_gio_ke_hoach || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
         '<div class="pc-field-kho"><label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label><select class="form-select line-kho-select" required title="Không được để trống địa chỉ kho">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
         '<div class="pc-field-cont-type"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
         '<div class="pc-field-yard"><label class="form-label">Bãi lấy dự kiến</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
@@ -3330,7 +3363,7 @@
           line.bai_ha_thuc_te = '';
         }
         line.cut_off = currentPlanType() === 'tuyen_xa' ? '' : datetimeToApi(($row.find('.line-cut-off-input').val() || '').trim());
-        if ($row.find('.line-ngay-gio-input').length) line.ngay_bat_dau = datetimeToApi(($row.find('.line-ngay-gio-input').val() || '').trim());
+        if ($row.find('.line-ngay-gio-input').length) line.ngay_gio_ke_hoach = datetimeToApi(($row.find('.line-ngay-gio-input').val() || '').trim());
         if ($row.find('.line-ngay-bat-dau-input').length) line.ngay_bat_dau = dateToApi($row.find('.line-ngay-bat-dau-input').val().trim());
         if ($row.find('.line-ngay-ket-thuc-input').length) line.ngay_ket_thuc = dateToApi($row.find('.line-ngay-ket-thuc-input').val().trim());
         line.ghi_chu = ($row.find('.line-ghi-chu-input').val() || '').trim();
@@ -4561,6 +4594,7 @@
             cang_xuat: line.cang_xuat || '',
             cut_off: line.cut_off || '',
             ngay_bat_dau: line.ngay_bat_dau || '',
+            ngay_gio_ke_hoach: line.ngay_gio_ke_hoach || '',
             ngay_ket_thuc: line.ngay_ket_thuc || '',
             ghi_chu: line.ghi_chu || '',
             thong_tin_json: currentPlanType() === 'tuyen_xa' ? { vai_tro_ke_hoach: planRole(line), cong_viec_chinh_hoan_thanh: line.cong_viec_chinh_hoan_thanh || 0, hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan', ke_hoach_ket_hop_enabled: line.ke_hoach_ket_hop_enabled || 0, bai_ha_tam_1_enabled: line.bai_ha_tam_1_enabled || 0, bai_ha_tam_1: line.bai_ha_tam_1 || '', bai_ha_tam_2_enabled: line.bai_ha_tam_2_enabled || 0, bai_ha_tam_2: line.bai_ha_tam_2 || '', vi_tri_cont_hien_tai: line.vi_tri_cont_hien_tai || '', vi_tri_cont_index_hien_tai: parseInt(line.vi_tri_cont_index_hien_tai, 10) || 0, cont_thuc_hien_tu_index: parseInt(line.cont_thuc_hien_tu_index, 10), cont_thuc_hien_den_index: parseInt(line.cont_thuc_hien_den_index, 10), cont_thuc_hien_chang: line.cont_thuc_hien_chang || [], cont_keo_ve_tu: line.cont_keo_ve_tu || '', cont_keo_ve_den: line.cont_keo_ve_den || '' } : { kiem_dich: line.kiem_dich || 0, kiem_hoa: line.kiem_hoa || 0, hun_trung: line.hun_trung || 0, cont_keo_ve_seal_phu: line.cont_keo_ve_seal_phu || 0, cont_keo_ve_kiem_dich: line.cont_keo_ve_kiem_dich || 0, cont_keo_ve_kiem_hoa: line.cont_keo_ve_kiem_hoa || 0, cont_keo_ve_hun_trung: line.cont_keo_ve_hun_trung || 0 },
@@ -4600,6 +4634,7 @@
           cang_xuat: line.cang_xuat || '',
           cut_off: line.cut_off || '',
           ngay_bat_dau: line.ngay_bat_dau || '',
+          ngay_gio_ke_hoach: line.ngay_gio_ke_hoach || '',
           ngay_ket_thuc: line.ngay_ket_thuc || '',
           ghi_chu: line.ghi_chu || '',
           thong_tin_json: currentPlanType() === 'tuyen_xa' ? { vai_tro_ke_hoach: planRole(line), cong_viec_chinh_hoan_thanh: line.cong_viec_chinh_hoan_thanh || 0, hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan', ke_hoach_ket_hop_enabled: line.ke_hoach_ket_hop_enabled || 0, bai_ha_tam_1_enabled: line.bai_ha_tam_1_enabled || 0, bai_ha_tam_1: line.bai_ha_tam_1 || '', bai_ha_tam_2_enabled: line.bai_ha_tam_2_enabled || 0, bai_ha_tam_2: line.bai_ha_tam_2 || '', vi_tri_cont_hien_tai: line.vi_tri_cont_hien_tai || '', vi_tri_cont_index_hien_tai: parseInt(line.vi_tri_cont_index_hien_tai, 10) || 0, cont_thuc_hien_tu_index: parseInt(line.cont_thuc_hien_tu_index, 10), cont_thuc_hien_den_index: parseInt(line.cont_thuc_hien_den_index, 10), cont_thuc_hien_chang: line.cont_thuc_hien_chang || [], cont_keo_ve_tu: line.cont_keo_ve_tu || '', cont_keo_ve_den: line.cont_keo_ve_den || '' } : { kiem_dich: line.kiem_dich || 0, kiem_hoa: line.kiem_hoa || 0, hun_trung: line.hun_trung || 0, cont_keo_ve_seal_phu: line.cont_keo_ve_seal_phu || 0, cont_keo_ve_kiem_dich: line.cont_keo_ve_kiem_dich || 0, cont_keo_ve_kiem_hoa: line.cont_keo_ve_kiem_hoa || 0, cont_keo_ve_hun_trung: line.cont_keo_ve_hun_trung || 0 },
@@ -4648,6 +4683,7 @@
 
     function populateEdit(row) {
       editData = row || editData;
+      resetPortCostSummary();
       var khachHangId = (row.khach_hang && row.khach_hang.nid) || 0;
       var rowJson = row.thong_tin_json || {};
       updateEditTitle(row);
@@ -4689,6 +4725,7 @@
         cang_xuat: row.cang_xuat || '',
         cut_off: row.cut_off || '',
         ngay_bat_dau: row.ngay_bat_dau || '',
+        ngay_gio_ke_hoach: row.ngay_gio_ke_hoach || '',
         ngay_ket_thuc: row.ngay_ket_thuc || '',
 	        ghi_chu: row.ghi_chu || '',
 	        kiem_dich: rowJson.kiem_dich || 0,
@@ -4720,6 +4757,7 @@
       $form('#nid_khach_hang-input').val(khachHangId).trigger('change');
       if ($form('#so_bkg-input').length) $form('#so_bkg-input').val(row.so_bkg || '');
       renderEditPlanFiles(planFilesFromRow(row));
+      if (currentPlanType() !== 'tuyen_xa') loadPortCostSummary(row.nid);
       loadCombinedPlans();
     }
 
@@ -5288,6 +5326,19 @@
     });
     $form('#add-line-btn, #reset-lines-btn, #save-btn, #complete-plan-btn, #khxh-status-btn, #vehicle-picker-search, #ke-hoach-form, #khxh-plan-file-upload, #khxh-plan-file-input').off();
     $('#khxh-status-save-btn').off('click.khxhStatus');
+    $(document).off('khcp:summary-changed.khxhPort').on('khcp:summary-changed.khxhPort', function (e, summary) {
+      if (currentPlanType() === 'tuyen_xa' || !summary) return;
+      var currentPlanId = parseInt($form('#nid-input').val(), 10) || 0;
+      var summaryPlanId = parseInt(summary.nid_ke_hoach, 10) || 0;
+      if (currentPlanId && summaryPlanId && currentPlanId !== summaryPlanId) return;
+      state.costSummary = {
+        total: Number(summary.total) || 0,
+        customer: Number(summary.customer) || 0,
+        company: Number(summary.company) || 0,
+        driver_self: Number(summary.driver_self) || 0
+      };
+      updateTuyenXaSidebar();
+    });
     $form('#khxh-combined-plan-create').off('.khxhCombinedPlan');
     $form('#khxh-combined-plans-body').off('click.khxhCombinedPlan', '.btn-edit-combined-plan');
     $('#khxh-combined-plan-form').off('.khxhCombinedPlan');

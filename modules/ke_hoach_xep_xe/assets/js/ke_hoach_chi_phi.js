@@ -1222,6 +1222,16 @@
     $('#khcp-total-driver-salary').text(formatMoney(driverSalary));
     $('#khcp-total-customer').text(formatMoney(customer));
     $('#khcp-total-all').text(formatMoney(company + driverSelf + driverSalary + customer + revenue));
+    // Modal xếp xe hàng cảng dùng số liệu này để hiển thị tóm tắt chung.
+    // Không cộng doanh thu hay định mức lương ở đây vì ba nhóm dưới là các
+    // khoản chi được phân loại trực tiếp trên bảng chi phí.
+    $(document).trigger('khcp:summary-changed', [{
+      nid_ke_hoach: state.nidKeHoach,
+      total: company + driverSelf + customer,
+      customer: customer,
+      company: company,
+      driver_self: driverSelf
+    }]);
   }
 
   function clearPlanInfo() {

@@ -498,6 +498,7 @@ function _ke_hoach_xep_xe_default_record() {
     'bai_ha_thuc_te' => '',
     'cang_xuat' => '',
     'cut_off' => '',
+    'ngay_gio_ke_hoach' => '',
     'hinh_thuc_van_tai' => '',
     'ke_hoach_cont_ref_nid' => 0,
     'nid_ke_hoach_nguon' => 0,
@@ -1079,6 +1080,7 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['cang_xuat'] = !empty($line['cang_xuat']) ? trim($line['cang_xuat']) : '';
   $record['cut_off'] = !empty($line['cut_off']) ? trim($line['cut_off']) : '';
   $record['ngay_bat_dau'] = !empty($line['ngay_bat_dau']) ? substr(_ke_hoach_xep_xe_filter_date($line['ngay_bat_dau']), 0, 10) : '';
+  $record['ngay_gio_ke_hoach'] = !empty($line['ngay_gio_ke_hoach']) ? _ke_hoach_xep_xe_normalize_datetime($line['ngay_gio_ke_hoach']) : '';
   $record['ngay_ket_thuc'] = !empty($line['ngay_ket_thuc']) ? substr(_ke_hoach_xep_xe_filter_date($line['ngay_ket_thuc']), 0, 10) : '';
   $record['hinh_thuc_van_tai'] = !empty($line['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($line['hinh_thuc_van_tai']) : '';
   $record['ke_hoach_cont_ref_nid'] = !empty($line['ke_hoach_cont_ref_nid']) ? (int) $line['ke_hoach_cont_ref_nid'] : 0;
@@ -1885,6 +1887,29 @@ function _ke_hoach_xep_xe_filter_date($value, $end_of_day = FALSE) {
   return '';
 }
 
+/**
+ * Chuẩn hoá mốc ngày giờ nghiệp vụ về YYYY-MM-DD HH:MM:SS.
+ */
+function _ke_hoach_xep_xe_normalize_datetime($value) {
+  $value = trim((string) $value);
+  if ($value === '') return '';
+  if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/', $value, $m)) {
+    $year = (int) $m[3]; $month = (int) $m[2]; $day = (int) $m[1];
+    $hour = (int) $m[4]; $minute = (int) $m[5]; $second = isset($m[6]) ? (int) $m[6] : 0;
+    if (checkdate($month, $day, $year) && $hour <= 23 && $minute <= 59 && $second <= 59) {
+      return sprintf('%04d-%02d-%02d %02d:%02d:%02d', $year, $month, $day, $hour, $minute, $second);
+    }
+  }
+  if (preg_match('/^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/', $value, $m)) {
+    $year = (int) $m[1]; $month = (int) $m[2]; $day = (int) $m[3];
+    $hour = (int) $m[4]; $minute = (int) $m[5]; $second = isset($m[6]) ? (int) $m[6] : 0;
+    if (checkdate($month, $day, $year) && $hour <= 23 && $minute <= 59 && $second <= 59) {
+      return sprintf('%04d-%02d-%02d %02d:%02d:%02d', $year, $month, $day, $hour, $minute, $second);
+    }
+  }
+  return '';
+}
+
 function _ke_hoach_xep_xe_like_condition($query, $field, $param) {
   if (!empty($_GET[$param])) {
     $query->condition($field, '%' . db_like(trim($_GET[$param])) . '%', 'LIKE');
@@ -2065,6 +2090,7 @@ function _ke_hoach_xep_xe_rest_create() {
         'cang_xuat' => $record['cang_xuat'],
         'cut_off' => $record['cut_off'],
         'ngay_bat_dau' => $record['ngay_bat_dau'],
+        'ngay_gio_ke_hoach' => $record['ngay_gio_ke_hoach'],
         'ngay_ket_thuc' => $record['ngay_ket_thuc'],
         'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
         'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
@@ -2241,6 +2267,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
       'cang_xuat' => $record['cang_xuat'],
       'cut_off' => $record['cut_off'],
       'ngay_bat_dau' => $record['ngay_bat_dau'],
+      'ngay_gio_ke_hoach' => $record['ngay_gio_ke_hoach'],
       'ngay_ket_thuc' => $record['ngay_ket_thuc'],
       'hinh_thuc_van_tai' => $record['hinh_thuc_van_tai'],
       'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
