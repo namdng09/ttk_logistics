@@ -36,6 +36,7 @@
     expenseNames: [],
     expenseCatalogNames: [],
     presetCosts: [],
+    presetAutofillDismissed: false,
     locationNames: [],
     dinhMucRoutes: [],
     dinhMucRows: [],
@@ -92,6 +93,7 @@
     state.rebuildDinhMucFromDraft = !!options.rebuildDinhMucFromDraft;
     state.plan = null;
     state.rows = [];
+    state.presetAutofillDismissed = false;
     state.dinhMucRows = [];
     state.dinhMucRoutes = [];
     state.oilRows = [];
@@ -106,6 +108,11 @@
     var planChain = loadPlanInfo().then(loadCustomerDinhMuc);
     return $.when(loadDanhMuc(), loadPresetCosts(), planChain, loadOilRows(), fetchRows())
       .done(function () {
+        // Danh mục và mẫu tải song song. Nạp lại tên mẫu sau cùng để không bị
+        // loadDanhMuc() ghi đè danh sách Select2, khiến dòng mẫu bị báo sai.
+        $.each(state.presetCosts || [], function (_, preset) {
+          if (preset && preset.ten) addExpenseName(preset.ten);
+        });
         // Nếu cont kéo về/hình thức vừa đổi nhưng chưa lưu kế hoạch, định mức
         // cũ trong DB không còn đúng; luôn dựng lại theo draft của modal.
         rebuildDinhMucRows(!state.rebuildDinhMucFromDraft);
@@ -354,6 +361,9 @@
     if (!name) return true;
     for (var i = 0; i < state.expenseNames.length; i++) {
       if (String(state.expenseNames[i] || '').trim().toLowerCase() === name) return true;
+    }
+    for (var j = 0; j < state.presetCosts.length; j++) {
+      if (String(state.presetCosts[j].ten || '').trim().toLowerCase() === name) return true;
     }
     return false;
   }
@@ -1033,7 +1043,7 @@
       return row.loai_chi_phi !== DRIVER_SALARY_TYPE && row.loai_chi_phi !== REVENUE_TYPE;
     });
     var onlyUnsavedBlankRows = rows.length > 0 && $.grep(rows, function (row) { return !row.nid && isBlankRow(row); }).length === rows.length;
-    if ((rows.length === 0 || onlyUnsavedBlankRows) && state.presetCosts.length) {
+    if (!state.presetAutofillDismissed && (rows.length === 0 || onlyUnsavedBlankRows) && state.presetCosts.length) {
       state.rows = $.grep(state.rows, function (row) {
         return row.loai_chi_phi === DRIVER_SALARY_TYPE || row.loai_chi_phi === REVENUE_TYPE || !(!row.nid && isBlankRow(row));
       });
@@ -1557,6 +1567,9 @@
   function deleteRow(row) {
     if (!row.nid) {
       state.rows = $.grep(state.rows, function (item) { return item.key !== row.key; });
+      if (!$.grep(state.rows, function (item) { return item.loai_chi_phi !== DRIVER_SALARY_TYPE && item.loai_chi_phi !== REVENUE_TYPE; }).length) {
+        state.presetAutofillDismissed = true;
+      }
       renderAll();
       return;
     }
@@ -1565,6 +1578,9 @@
     $.ajax({ url: API_BASE + '/' + row.nid, method: 'DELETE', dataType: 'json' })
       .done(function () {
         state.rows = $.grep(state.rows, function (item) { return item.key !== row.key; });
+        if (!$.grep(state.rows, function (item) { return item.loai_chi_phi !== DRIVER_SALARY_TYPE && item.loai_chi_phi !== REVENUE_TYPE; }).length) {
+          state.presetAutofillDismissed = true;
+        }
         renderAll();
         notify('Đã xoá chi phí.', 'success');
       })
