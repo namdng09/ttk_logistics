@@ -150,20 +150,17 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title mb-0">Chọn phương tiện</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body">
         <div class="row g-2 align-items-center mb-3">
           <div class="col-md-6">
-            <input type="text" class="form-control" id="vehicle-picker-search" placeholder="Tìm theo biển số, loại xe, tài xế...">
+            <input type="text" class="form-control" id="vehicle-picker-search" placeholder="Tìm theo BKS, mã tài sản, lái xe...">
           </div>
           <div class="col-md-6 text-md-end">
-            <div class="d-inline-flex align-items-center gap-2 justify-content-md-end flex-wrap">
-              <div class="text-muted small" id="vehicle-picker-target">Đang chỉnh sửa phương tiện của kế hoạch</div>
-              <button type="button" class="btn btn-sm btn-label-secondary" id="vehicle-picker-clear-btn">
-                <i class="ti tabler-x me-1"></i>Bỏ chọn
-              </button>
-            </div>
+            <button type="button" class="btn btn-sm btn-label-secondary" id="vehicle-picker-clear-btn">
+              <i class="ti tabler-x me-1"></i>Bỏ chọn
+            </button>
           </div>
         </div>
 
@@ -171,16 +168,15 @@
           <table class="table table-bordered table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th style="width:60px" class="text-center">Chọn</th>
+                <th class="text-center">Chọn</th>
                 <th id="vehicle-picker-col-bks">Biển số</th>
                 <th id="vehicle-picker-col-type">Loại xe</th>
                 <th id="vehicle-picker-col-extra">Lái xe hiện tại</th>
-                <th style="width:130px" class="text-center">Thao tác</th>
               </tr>
             </thead>
             <tbody id="vehicle-picker-body">
               <tr>
-                <td colspan="5" class="text-center py-4">
+                <td colspan="4" class="text-center py-4">
                   <div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải phương tiện...
                 </td>
               </tr>

@@ -1922,27 +1922,10 @@ function _ke_hoach_xep_xe_rest_list() {
   $offset = ($page - 1) * $limit;
   $loai_ke_hoach = !empty($_GET['loai_ke_hoach']) && $_GET['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
 
-  // Số lượng cho dải lọc nhanh của hàng cảng. Không phụ thuộc tab đang chọn
-  // để người dùng luôn thấy toàn bộ tiến độ của nhóm kế hoạch này.
   $status_counts = array();
   $status_total = 0;
-  if ($loai_ke_hoach === 'thuong') {
-    $status_query = db_select('ke_hoach_xep_xe', 'kh_status');
-    $status_query->fields('kh_status', array('trang_thai_van_chuyen'));
-    $status_query->addExpression('COUNT(*)', 'total');
-    $status_query->condition('kh_status.hoat_dong', 1);
-    _ke_hoach_xep_xe_query_condition_thuong($status_query, 'kh_status');
-    $status_query->groupBy('kh_status.trang_thai_van_chuyen');
-    foreach ($status_query->execute() as $status_row) {
-      $label = trim((string) $status_row->trang_thai_van_chuyen);
-      $amount = (int) $status_row->total;
-      $status_total += $amount;
-      if ($label !== '') $status_counts[$label] = $amount;
-    }
-  }
 
   $query = db_select('ke_hoach_xep_xe', 'kh');
-  $query->fields('kh');
   $query->condition('kh.hoat_dong', 1);
   _ke_hoach_xep_xe_query_condition_loai($query, $loai_ke_hoach, 'kh');
 
@@ -1957,30 +1940,26 @@ function _ke_hoach_xep_xe_rest_list() {
       ->condition('kh.cang_xuat', $like, 'LIKE');
     $query->condition($or);
   }
-  if (!empty($_GET['trang_thai_van_chuyen'])) {
-    $trang_thai_filter = trim((string) $_GET['trang_thai_van_chuyen']);
-    if ($trang_thai_filter === 'Kéo lên') {
-      $query->condition('kh.hinh_thuc_van_tai', array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), 'IN');
-    }
-    elseif ($trang_thai_filter === 'Kéo về') {
-      $query->condition(db_or()
-        ->condition('kh.ke_hoach_cont_ref_nid', 0, '>')
-        ->condition('kh.hinh_thuc_van_tai', array('dong_hang', 'dong_hang_trong_ngay'), 'IN')
-      );
-    }
-    elseif ($trang_thai_filter === 'Đã cắt mooc') {
-      $query->condition('kh.da_cat_mooc', 1);
-    }
-    else {
-      $query->condition('kh.trang_thai_van_chuyen', $trang_thai_filter);
-    }
-  }
   if (isset($_GET['da_du_hang']) && ($_GET['da_du_hang'] === '0' || $_GET['da_du_hang'] === '1')) {
     $query->condition('kh.da_du_hang', (int) $_GET['da_du_hang']);
   }
   if (!empty($_GET['khach_hang'])) {
-    $query->leftJoin('khach_hang', 'khh_filter', 'khh_filter.nid = kh.nid_khach_hang');
-    $query->condition('khh_filter.ten', '%' . db_like(trim($_GET['khach_hang'])) . '%', 'LIKE');
+    // Hàng cảng gửi mảng nid từ Select2 multiple. Tuyến xa vẫn giữ filter
+    // text cũ để không ảnh hưởng giao diện/logic hiện có.
+    if (is_array($_GET['khach_hang'])) {
+      $customer_ids = array();
+      foreach ($_GET['khach_hang'] as $customer_id) {
+        $customer_id = (int) $customer_id;
+        if ($customer_id > 0) $customer_ids[$customer_id] = $customer_id;
+      }
+      if ($customer_ids) {
+        $query->condition('kh.nid_khach_hang', array_values($customer_ids), 'IN');
+      }
+    }
+    else {
+      $query->leftJoin('khach_hang', 'khh_filter', 'khh_filter.nid = kh.nid_khach_hang');
+      $query->condition('khh_filter.ten', '%' . db_like(trim($_GET['khach_hang'])) . '%', 'LIKE');
+    }
   }
   _ke_hoach_xep_xe_like_condition($query, 'kh.so_bkg', 'so_bkg');
   _ke_hoach_xep_xe_like_condition($query, 'kh.dia_chi_kho', 'dia_chi_kho');
@@ -2029,6 +2008,43 @@ function _ke_hoach_xep_xe_rest_list() {
   if ($date_to) {
     $query->condition('kh.created', $date_to, '<=');
   }
+
+  // Badge trạng thái bám theo toàn bộ bộ lọc phía trên, nhưng không bám theo
+  // tab trạng thái hiện đang chọn. Nhờ vậy vẫn thấy được phân bổ tiến độ của
+  // chính tập kết quả đang tìm.
+  if ($loai_ke_hoach === 'thuong') {
+    $status_query = clone $query;
+    $status_query->fields('kh', array('trang_thai_van_chuyen'));
+    $status_query->addExpression('COUNT(*)', 'total');
+    $status_query->groupBy('kh.trang_thai_van_chuyen');
+    foreach ($status_query->execute() as $status_row) {
+      $label = trim((string) $status_row->trang_thai_van_chuyen);
+      $amount = (int) $status_row->total;
+      $status_total += $amount;
+      if ($label !== '') $status_counts[$label] = $amount;
+    }
+  }
+
+  if (!empty($_GET['trang_thai_van_chuyen'])) {
+    $trang_thai_filter = trim((string) $_GET['trang_thai_van_chuyen']);
+    if ($trang_thai_filter === 'Kéo lên') {
+      $query->condition('kh.hinh_thuc_van_tai', array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), 'IN');
+    }
+    elseif ($trang_thai_filter === 'Kéo về') {
+      $query->condition(db_or()
+        ->condition('kh.ke_hoach_cont_ref_nid', 0, '>')
+        ->condition('kh.hinh_thuc_van_tai', array('dong_hang', 'dong_hang_trong_ngay'), 'IN')
+      );
+    }
+    elseif ($trang_thai_filter === 'Đã cắt mooc') {
+      $query->condition('kh.da_cat_mooc', 1);
+    }
+    else {
+      $query->condition('kh.trang_thai_van_chuyen', $trang_thai_filter);
+    }
+  }
+
+  $query->fields('kh');
 
   $count = clone $query;
   $total = $count->countQuery()->execute()->fetchField();

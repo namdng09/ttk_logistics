@@ -89,6 +89,33 @@
   color: #98a2b3;
 }
 
+/* Hàng cảng: lựa chọn nhanh nằm ở footer của date-range picker. */
+#filter-date-range {
+  cursor: pointer;
+}
+
+.daterangepicker.khxh-port-filter-daterangepicker .drp-buttons {
+  display: flex !important;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.daterangepicker.khxh-port-filter-daterangepicker .drp-selected,
+.daterangepicker.khxh-port-filter-daterangepicker .applyBtn {
+  display: none !important;
+}
+
+.khxh-port-date-picker-shortcuts {
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 auto;
+  gap: 0.3rem;
+}
+
+.khxh-port-date-picker-shortcuts .btn {
+  white-space: nowrap;
+}
+
 /* Nhóm nút thao tác — nằm cùng hàng với các input, neo về phía phải. */
 .khxh-filter-actions {
   display: flex;
@@ -2634,7 +2661,8 @@ button.khxh-cont-ref-number:focus {
   min-width: 0;
   font-size: 0.85rem !important;
   line-height: 1.5;
-  font-weight: inherit !important;
+  font-weight: 500;
+  color: var(--bs-heading-color);
 }
 
 .line-cont-picker-wrap {

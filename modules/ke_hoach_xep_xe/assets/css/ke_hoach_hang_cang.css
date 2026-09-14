@@ -110,28 +110,42 @@
 }
 
 #ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-grid {
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: nowrap;
+  /* Chỉnh trực tiếp sáu biến này để thay đổi độ rộng từng filter. */
+  --khxh-filter-customer: minmax(130px, 1.7fr);
+  --khxh-filter-kho: minmax(150px, 0.9fr);
+  --khxh-filter-keyword: minmax(120px, 0.6fr);
+  --khxh-filter-vehicle: minmax(120px, 0.6fr);
+  --khxh-filter-date: minmax(208px, 0.9fr);
+  --khxh-filter-actions: max-content;
+
+  display: grid;
+  grid-template-columns:
+    var(--khxh-filter-customer)
+    var(--khxh-filter-kho)
+    var(--khxh-filter-keyword)
+    var(--khxh-filter-vehicle)
+    var(--khxh-filter-date)
+    var(--khxh-filter-actions);
   align-items: flex-end;
   gap: 0.75rem;
-}
-
-#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-field {
-  flex: 1 1 0;
   min-width: 0;
 }
 
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-field {
+  min-width: 0;
+  grid-column: auto;
+}
+
 #ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-field-date {
-  flex-grow: 1.15;
+  grid-column: auto;
 }
 
 #ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-actions-row {
   display: flex;
-  flex: 0 0 auto;
   align-items: center;
   gap: 0.5rem;
   margin-left: 0;
+  grid-column: auto;
 }
 
 /* Chỉ nội dung bảng cuộn; header filter ở card phía trên luôn nhìn thấy. */
@@ -176,11 +190,8 @@
 
 @media (max-width: 1199.98px) {
   #ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-grid {
-    flex-wrap: wrap;
-  }
-
-  #ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-field {
-    flex: 1 1 180px;
+    /* Vẫn giữ một dòng; khi thiếu chỗ, các cột co về min-width đã khai báo. */
+    gap: 0.55rem;
   }
 }
 

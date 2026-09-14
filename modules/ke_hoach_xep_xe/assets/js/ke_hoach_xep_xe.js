@@ -1227,14 +1227,24 @@
     var filters = {};
     for (var key in fields) {
       if (!fields.hasOwnProperty(key)) continue;
-      var value = ($(fields[key]).val() || '').trim();
-      if (value) filters[key] = value;
+      var rawValue = $(fields[key]).val();
+      var value;
+      if (Array.isArray(rawValue)) {
+        value = $.grep(rawValue, function (item) { return String(item || '').trim() !== ''; });
+      } else {
+        value = String(rawValue || '').trim();
+      }
+      if (Array.isArray(value) ? value.length : value) filters[key] = value;
     }
     if (currentPlanType() !== 'tuyen_xa') {
-      var rangeInput = document.getElementById('filter-date-range');
-      var dates = rangeInput && rangeInput._flatpickr ? rangeInput._flatpickr.selectedDates : [];
-      if (dates[0]) filters.date_from = rangeInput._flatpickr.formatDate(dates[0], 'd/m/Y');
-      if (dates[1]) filters.date_to = rangeInput._flatpickr.formatDate(dates[1], 'd/m/Y');
+      var $rangeInput = $('#filter-date-range');
+      var rangePicker = $rangeInput.data('daterangepicker');
+      // daterangepicker luôn có ngày mặc định nội bộ. Chỉ đưa vào API khi
+      // người dùng thực sự đã áp dụng một khoảng ngày (input có giá trị).
+      if ($rangeInput.val() && rangePicker) {
+        filters.date_from = rangePicker.startDate.format('DD/MM/YYYY');
+        filters.date_to = rangePicker.endDate.format('DD/MM/YYYY');
+      }
     }
     return filters;
   }
@@ -1243,14 +1253,19 @@
     filters = filters || {};
     if (currentPlanType() !== 'tuyen_xa') {
       var $range = $('#filter-date-range');
-      var rangeDates = [];
-      if (filters.date_from) rangeDates.push(filters.date_from);
-      if (filters.date_to) rangeDates.push(filters.date_to);
-      if ($range[0] && $range[0]._flatpickr) {
-        if (rangeDates.length) {
-          $range[0]._flatpickr.setDate(rangeDates, false, 'd/m/Y');
-          if (rangeDates.length === 2) $range.val(rangeDates[0] + ' đến ' + rangeDates[1]);
-        } else $range[0]._flatpickr.clear();
+      var rangePicker = $range.data('daterangepicker');
+      if (rangePicker) {
+        if (filters.date_from || filters.date_to) {
+          var from = filters.date_from || filters.date_to;
+          var to = filters.date_to || filters.date_from;
+          rangePicker.setStartDate(moment(from, 'DD/MM/YYYY'));
+          rangePicker.setEndDate(moment(to, 'DD/MM/YYYY'));
+          $range.val(from + ' đến ' + to);
+        } else {
+          $range.val('');
+          rangePicker.setStartDate(moment().startOf('day'));
+          rangePicker.setEndDate(moment().endOf('day'));
+        }
       }
     }
     var fields = listFilterFields();
@@ -1262,7 +1277,11 @@
         if (value) $field[0]._flatpickr.setDate(value, false, 'd/m/Y');
         else $field[0]._flatpickr.clear();
       } else {
-        $field.val(value);
+        if ($field.prop('multiple')) {
+          $field.val(Array.isArray(value) ? value : (value ? [value] : []));
+        } else {
+          $field.val(value);
+        }
       }
       if ($field.data('select2')) $field.trigger('change');
     }
@@ -1320,10 +1339,65 @@
           may_phat: 'Máy phát'
         };
         var typeLabel = typeLabels[rawType.toLowerCase()] || rawType || groups[g].label;
-        html += '<option value="' + escHtml(value) + '"' + (value === selectedValue ? ' selected' : '') + '>' + escHtml(bks + ' (' + typeLabel + ')') + '</option>';
+        html += '<option value="' + escHtml(value) + '" data-short-label="' + escHtml(bks) + '"' + (value === selectedValue ? ' selected' : '') + '>' + escHtml(bks + ' (' + typeLabel + ')') + '</option>';
       }
     }
     $select.html(html);
+  }
+
+  function appendCustomerFilterOptions($select, selectedValues) {
+    var selectedMap = {};
+    var values = Array.isArray(selectedValues) ? selectedValues : (selectedValues ? [selectedValues] : []);
+    $.each(values, function (index, value) {
+      selectedMap[String(value)] = true;
+    });
+    var html = '';
+    $.each(listSearchDropdownData.customers || [], function (index, customer) {
+      var nid = parseInt(customer && customer.nid, 10) || 0;
+      if (!nid) return;
+      var label = customerPlanLabel(customer);
+      html += '<option value="' + nid + '"' + (selectedMap[String(nid)] ? ' selected' : '') + '>' + escHtml(label) + '</option>';
+    });
+    $select.html(html);
+  }
+
+  function clearPortCustomerFilterSearch($select) {
+    var select2 = $select.data('select2');
+    var $searches = $();
+    if (select2 && select2.selection && select2.selection.$search) $searches = $searches.add(select2.selection.$search);
+    if (select2 && select2.dropdown && select2.dropdown.$search) $searches = $searches.add(select2.dropdown.$search);
+    if (select2 && select2.$container) $searches = $searches.add(select2.$container.find('.select2-search__field'));
+    // Select2 multiple đặt ô search ngay trong vùng chip; tùy cấu hình nó
+    // cũng có thể tạo thêm ô search ở dropdown đang mở.
+    $searches = $searches.add($('.select2-container--open .select2-search__field'));
+    $searches.each(function () {
+      if (this.value) $(this).val('').trigger('input');
+    });
+    // Trigger input chỉ xóa chữ hiển thị ở Select2 multiple. Gửi thêm query
+    // rỗng để danh sách kết quả bên dưới nạp lại toàn bộ khách hàng.
+    if (select2) select2.trigger('query', { term: '' });
+  }
+
+  function initPortCustomerFilterSelect($select, dropdownParent) {
+    var jq = _jq();
+    if (!jq || !$select.length) return;
+    if ($select.data('select2')) $select.select2('destroy');
+    $select.select2({
+      placeholder: '— Chọn một hoặc nhiều khách hàng —',
+      allowClear: true,
+      closeOnSelect: false,
+      width: '100%',
+      dropdownParent: dropdownParent
+    });
+    $select.off('.portCustomerMultiple')
+      .on('select2:select.portCustomerMultiple', function () {
+        var $current = $(this);
+        // Đợi Select2 hoàn tất thao tác chọn bằng Enter/click, rồi xóa chính
+        // ô search inline đang đứng cạnh các chip đã chọn.
+        window.setTimeout(function () {
+          clearPortCustomerFilterSearch($current);
+        }, 0);
+      });
   }
 
   function formatListDriverResult(data) {
@@ -1341,12 +1415,33 @@
     return data.text;
   }
 
+  // Dropdown vẫn nêu loại phương tiện để dễ tìm; ô đã chọn chỉ giữ biển số.
+  function formatVehicleFilterSelection(data) {
+    if (!data || !data.element) return data ? data.text : '';
+    return String($(data.element).data('short-label') || data.text || '');
+  }
+
+  function formatVehicleFilterResult(data) {
+    if (!data || !data.id || !data.element) return data ? data.text : '';
+    var type = String(data.id).split(':')[0];
+    var label = type === 'mooc' ? 'Mooc' : 'Đầu kéo';
+    var color = type === 'mooc' ? 'bg-label-warning' : 'bg-label-primary';
+    var bks = String($(data.element).data('short-label') || data.text || '');
+    return $('<div class="d-flex align-items-center justify-content-between gap-2"></div>')
+      .append($('<span class="fw-medium text-truncate"></span>').text(bks))
+      .append($('<span class="badge flex-shrink-0 ' + color + '"></span>').text(label));
+  }
+
   function initListSearchSelects() {
     var isTuyenXa = currentPlanType() === 'tuyen_xa';
     var dropdownParent = isTuyenXa ? $('#ke-hoach-tuyen-xa-inline-filter') : $('#ke-hoach-inline-filter');
     var filters = $.extend({}, currentFilters || {});
     dropdownParent.find('input, select, button').prop('disabled', false);
-    appendTextOptions($('#filter-khach-hang'), $.map(listSearchDropdownData.customers, function (item) { return customerPlanLabel(item); }), filters.khach_hang || '');
+    if (isTuyenXa) {
+      appendTextOptions($('#filter-khach-hang'), $.map(listSearchDropdownData.customers, function (item) { return customerPlanLabel(item); }), filters.khach_hang || '');
+    } else {
+      appendCustomerFilterOptions($('#filter-khach-hang'), filters.khach_hang || []);
+    }
     appendTextOptions($('#filter-dia-chi-kho'), listSearchDropdownData.kho, filters.dia_chi_kho || '');
     appendTextOptions($('#filter-bks-dau-keo'), $.map(listSearchDropdownData.vehicles, function (item) { return item.bks || ''; }), filters.bks_dau_keo || '');
     appendTextOptions($('#filter-bks-mooc'), $.map(listSearchDropdownData.moocs, function (item) { return item.bks || ''; }), filters.bks_mooc || '');
@@ -1363,14 +1458,18 @@
     if (!isTuyenXa) appendVehicleFilterOptions($('#filter-phuong-tien'), filters.phuong_tien || '');
     setListFilterInputs(filters);
     $('#status-filter').val(currentStatus || '');
-    initSelect2(document.getElementById('filter-khach-hang'), '— Chọn khách hàng —', { dropdownParent: dropdownParent });
+    if (isTuyenXa) {
+      initSelect2(document.getElementById('filter-khach-hang'), '— Chọn khách hàng —', { dropdownParent: dropdownParent });
+    } else {
+      initPortCustomerFilterSelect($('#filter-khach-hang'), dropdownParent);
+    }
     initSelect2(document.getElementById('filter-bks-dau-keo'), '— Chọn BKS đầu kéo —', { dropdownParent: dropdownParent });
     initSelect2(document.getElementById('filter-bks-mooc'), '— Chọn BKS mooc —', { dropdownParent: dropdownParent });
     initSelect2(document.getElementById('filter-lai-xe'), '— Chọn lái xe —', { dropdownParent: dropdownParent, templateResult: formatListDriverResult, templateSelection: formatListDriverSelection });
     initSelect2(document.getElementById('filter-da-du-hang'), '— Chọn đủ hàng —', { dropdownParent: dropdownParent, allowClear: true });
     initSelect2(document.getElementById('filter-dia-chi-kho'), '— Chọn địa chỉ kho —', { dropdownParent: dropdownParent });
     if (!isTuyenXa) {
-      initSelect2(document.getElementById('filter-phuong-tien'), '— Chọn phương tiện —', { dropdownParent: dropdownParent, allowClear: true });
+      initSelect2(document.getElementById('filter-phuong-tien'), '— Chọn phương tiện —', { dropdownParent: dropdownParent, allowClear: true, templateResult: formatVehicleFilterResult, templateSelection: formatVehicleFilterSelection });
       initSelect2(document.getElementById('status-filter'), '— Chọn trạng thái —', { dropdownParent: dropdownParent, allowClear: true });
     }
   }
@@ -1447,21 +1546,66 @@
   }
 
   function initListDateFilters() {
-    if (typeof flatpickr === 'undefined') return;
     if (currentPlanType() !== 'tuyen_xa') {
-      var rangeInput = document.getElementById('filter-date-range');
-      if (!rangeInput || rangeInput._flatpickr) return;
-      flatpickr(rangeInput, {
-        mode: 'range',
-        dateFormat: 'd/m/Y',
-        allowInput: true,
-        static: true,
+      var $rangeInput = $('#filter-date-range');
+      if (!$rangeInput.length || $rangeInput.data('daterangepicker') || typeof $.fn.daterangepicker !== 'function' || typeof moment === 'undefined') return;
+      $rangeInput.daterangepicker({
+        autoUpdateInput: false,
+        autoApply: true,
+        showDropdowns: true,
+        opens: 'center',
         locale: {
-          rangeSeparator: ' đến '
+          format: 'DD/MM/YYYY',
+          separator: ' đến ',
+          applyLabel: 'Áp dụng',
+          cancelLabel: 'Xóa',
+          customRangeLabel: 'Tùy chọn',
+          daysOfWeek: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
+          monthNames: ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'],
+          firstDay: 1
         }
+      });
+      var portDatePicker = $rangeInput.data('daterangepicker');
+      if (portDatePicker && portDatePicker.container) {
+        portDatePicker.container.addClass('khxh-port-filter-daterangepicker');
+      }
+      $rangeInput.on('apply.daterangepicker', function (event, picker) {
+        $(this).val(picker.startDate.format('DD/MM/YYYY') + ' đến ' + picker.endDate.format('DD/MM/YYYY'));
+        $(this).trigger('change');
+      }).on('cancel.daterangepicker', function () {
+        $(this).val('');
+        $(this).trigger('change');
+      }).on('show.daterangepicker', function (event, picker) {
+        var $footer = picker.container.find('.drp-buttons');
+        if (!$footer.length) return;
+        $footer.find('.khxh-port-date-picker-shortcuts').remove();
+        $footer.find('.drp-selected, .applyBtn').hide();
+        $footer.find('.cancelBtn').show();
+        var $shortcuts = $('<span class="khxh-port-date-picker-shortcuts"></span>')
+          .append('<button type="button" class="btn btn-sm btn-label-secondary" data-port-date-quick="today">Hôm nay</button>')
+          .append('<button type="button" class="btn btn-sm btn-label-secondary" data-port-date-quick="week">Tuần này</button>')
+          .append('<button type="button" class="btn btn-sm btn-label-secondary" data-port-date-quick="month">Tháng này</button>');
+        $footer.prepend($shortcuts);
+        $footer.off('click.portDateQuick', '[data-port-date-quick]').on('click.portDateQuick', '[data-port-date-quick]', function () {
+          var action = $(this).attr('data-port-date-quick');
+          var end = moment().startOf('day');
+          var start = end.clone();
+          if (action === 'week') {
+            start = end.clone().startOf('isoWeek');
+            end = end.clone().endOf('isoWeek').startOf('day');
+          } else if (action === 'month') {
+            start = end.clone().startOf('month');
+            end = end.clone().endOf('month').startOf('day');
+          }
+          picker.setStartDate(start);
+          picker.setEndDate(end);
+          $rangeInput.val(start.format('DD/MM/YYYY') + ' đến ' + end.format('DD/MM/YYYY')).trigger('change');
+          picker.hide();
+        });
       });
       return;
     }
+    if (typeof flatpickr === 'undefined') return;
     $('#filter-date-from, #filter-date-to').each(function () {
       if (this._flatpickr) return;
       flatpickr(this, {
@@ -1942,6 +2086,7 @@
           var planRoleClass = '';
           var listRowJson = row.thong_tin_json || {};
           var returnContText = '';
+          var returnContTitle = '';
           if (currentPlanType() === 'tuyen_xa') {
             if (parseInt(row.nid_ke_hoach_nguon, 10) || listRowJson.ke_hoach_ket_hop_hang) {
               hinhThucStatus = 'Kế hoạch kết hợp';
@@ -1980,6 +2125,8 @@
           // Hiển thị ngay cạnh hình thức vận tải để nhìn nhanh trên danh sách.
           if (currentPlanType() !== 'tuyen_xa' && row.cont_ref) {
             returnContText = row.cont_ref.so_cont || '';
+            var returnContDestination = row.cont_ref.bai_ha_thuc_te || row.cont_ref.bai_ha_cont || '';
+            returnContTitle = 'Số Cont: ' + (returnContText || 'Chưa có') + (returnContDestination ? ' (Về) - ' + returnContDestination : '');
           }
           var hinhThucStatusClass = hinhThucStatus === 'Kéo về'
             ? 'khxh-list-status-keo-ve'
@@ -2005,7 +2152,7 @@
             '<td class="khxh-common-cell">' +
               '<div class="khxh-customer-cell"' + (customerTitle ? ' title="' + escHtml(customerTitle) + '"' : '') + '>' + customerDisplay + '</div>' +
               '<div class="khxh-htvt-cell">' +
-                ((hinhThucBadge || returnContText) ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list" title="Cont kéo về: ' + escHtml(returnContText) + '">' + escHtml(returnContText) + '</span>' : '') + '</div>' : '') +
+                ((hinhThucBadge || returnContText) ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list" title="' + escHtml(returnContTitle || ('Cont kéo về: ' + returnContText)) + '">' + escHtml(returnContText) + '</span>' : '') + '</div>' : '') +
               '</div>' +
             '</td>' +
             '<td class="khxh-container-cell">' +
@@ -3016,8 +3163,9 @@
           appendTo: document.body
         });
       }
-      if (typeof flatpickr !== 'undefined' && $card.find('.line-ngay-gio-input')[0]) {
-        flatpickr($card.find('.line-ngay-gio-input')[0], {
+      var $planDatetime = $card.find('.line-ngay-gio-input');
+      if (typeof flatpickr !== 'undefined' && $planDatetime[0]) {
+        flatpickr($planDatetime[0], {
           enableTime: true,
           dateFormat: 'd/m/Y H:i',
           time_24hr: true,
@@ -3110,14 +3258,14 @@
         '<div class="pc-field-yard"><label class="form-label">Bãi lấy dự kiến</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
         '<div class="pc-field-yard"><label class="form-label">Bãi hạ dự kiến</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
         '<div class="pc-field-port"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
-        '<div class="pc-field-cutoff"><label class="form-label">Cut-off</label><input class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
-        '<div class="pc-field-transport"><label class="form-label">Hình thức vận tải</label><select class="form-select line-hinh-thuc-select">' + portCreateTransportOptions(line.hinh_thuc_van_tai) + '</select></div>' +
         '</div><div class="khxh-port-create-flex-row khxh-port-create-row-2">' +
         '<div class="pc-field-vehicle"><label class="form-label">Phương tiện</label><input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start vehicle-summary btn-open-vehicle-modal"></button></div>' +
         '<div class="pc-field-driver"><label class="form-label">Lái xe</label><select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select></div>' +
         '<div class="pc-field-mooc"><label class="form-label">Số mooc</label><input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal">' + moocSummaryHtml(line) + '</button></div>' +
         '<div class="pc-field-container"><label class="form-label">Số cont</label><input class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
         '<div class="pc-field-seal"><label class="form-label">Seal chính</label><input class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Seal chính"></div>' +
+        '<div class="pc-field-cutoff"><label class="form-label">Cut-off</label><input class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
+        '<div class="pc-field-transport"><label class="form-label">Hình thức vận tải</label><select class="form-select line-hinh-thuc-select">' + portCreateTransportOptions(line.hinh_thuc_van_tai) + '</select></div>' +
         '<div class="pc-field-options khxh-port-create-option-group' + (isDongHang ? ' is-dong-hang' : '') + '"><label class="form-check form-check-inline mb-0 khxh-port-create-option"><input type="checkbox" class="form-check-input line-seal-phu-check"' + (sealPhuChecked ? ' checked' : '') + '><span class="form-check-label">Seal phụ</span></label><span class="khxh-port-create-requirements khxh-port-create-main-requirements' + (isDongHang ? '' : ' d-none') + '">' + portCreateCheck('kiem-dich', 'Kiểm dịch', !!line.kiem_dich) + portCreateCheck('kiem-hoa', 'Kiểm hoá', !!line.kiem_hoa) + portCreateCheck('hun-trung', 'Hun trùng', !!line.hun_trung) + '</span></div>' +
         returnHtml +
         '</div></div></section>';
@@ -3510,7 +3658,9 @@
 
     function openPickerModal(key) {
       state.activeLineKey = key;
-      var isPortCreatePicker = !useTableLayout && currentPlanType() !== 'tuyen_xa' && mode !== 'edit';
+      // Hàng cảng dùng cùng picker dạng nút Chọn ở cả tạo mới và xếp xe.
+      // Tuyến xa vẫn giữ picker radio cũ, độc lập với hàng cảng.
+      var isPortCreatePicker = !useTableLayout && currentPlanType() !== 'tuyen_xa';
       var lineIndex = $form('#ke-hoach-lines-body .ke-hoach-table-row[data-line-key="' + key + '"]').index() + 1;
       if (!useTableLayout) {
         lineIndex = $form('#ke-hoach-lines .ke-hoach-line-card[data-line-key="' + key + '"]').index() + 1;
@@ -3545,7 +3695,31 @@
         var vehicleModalOptions = { backdrop: true, keyboard: true, focus: true };
         vehicleModal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(vehicleModalEl, vehicleModalOptions) : new bootstrap.Modal(vehicleModalEl, vehicleModalOptions);
       }
-      vehicleModal.show();
+      function showVehiclePicker() {
+        var pickerModalEl = vehicleModal._element;
+        var pickerDialog = pickerModalEl.querySelector('.modal-dialog');
+        pickerModalEl.classList.remove('show');
+        if (pickerDialog) {
+          var pickerInitialTransform = getComputedStyle(pickerDialog).transform;
+          pickerDialog.style.transition = 'none';
+          pickerDialog.style.transform = pickerInitialTransform;
+          void pickerModalEl.offsetWidth;
+          pickerDialog.style.transition = '';
+          pickerDialog.style.transform = '';
+        }
+        vehicleModal.show();
+      }
+      if (vehicleModal._isShown || vehicleModal._isTransitioning) {
+        var pickerEl = vehicleModal._element;
+        pickerEl.addEventListener('hidden.bs.modal', function onHidden() {
+          pickerEl.removeEventListener('hidden.bs.modal', onHidden);
+          showVehiclePicker();
+        });
+        if (vehicleModal._isShown) vehicleModal.hide();
+      }
+      else {
+        showVehiclePicker();
+      }
     }
 
     function renderVehicleTable(keyword) {
@@ -3553,7 +3727,7 @@
       var activeLine = findLine(state.activeLineKey);
       var html = '';
       var sourceItems = activePickerType === 'mooc' ? state.moocs : state.vehicles;
-      var isPortCreatePicker = !useTableLayout && currentPlanType() !== 'tuyen_xa' && mode !== 'edit';
+      var isPortCreatePicker = !useTableLayout && currentPlanType() !== 'tuyen_xa';
       if (activePickerType === 'mooc' && (!sourceItems || !sourceItems.length)) {
         sourceItems = $.grep(state.vehicles, function (item) {
           return String(item.loai_phuong_tien || '').toLowerCase().indexOf('mooc') !== -1;
