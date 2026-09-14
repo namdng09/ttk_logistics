@@ -2148,7 +2148,7 @@
             '<td><button type="button" class="khxh-row-actions-trigger" title="Mở chức năng kế hoạch" aria-label="Mở chức năng kế hoạch #' + stt + '">' + stt + '</button></td>' +
             '<td class="khxh-date-cell">' + (currentPlanType() === 'tuyen_xa'
               ? '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + planRoleClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu
-              : '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + hinhThucStatusClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu) + '</td>' +
+              : '<div class="khxh-date-stack">' + (dateOnlyStack(row.ngay_gio_ke_hoach) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + hinhThucStatusClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu) + '</td>' +
             '<td class="khxh-common-cell">' +
               '<div class="khxh-customer-cell"' + (customerTitle ? ' title="' + escHtml(customerTitle) + '"' : '') + '>' + customerDisplay + '</div>' +
               '<div class="khxh-htvt-cell">' +

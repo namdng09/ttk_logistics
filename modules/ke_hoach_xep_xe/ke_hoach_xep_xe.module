@@ -2000,13 +2000,16 @@ function _ke_hoach_xep_xe_rest_list() {
       ->condition('lx_filter.ma_nhan_vien', '%' . db_like(trim($_GET['lai_xe'])) . '%', 'LIKE')
     );
   }
+  // Hàng cảng lọc/sắp xếp theo mốc nghiệp vụ Ngày kế hoạch; tuyến xa giữ
+  // ngày tạo bản ghi để không ảnh hưởng màn hình hiện tại.
+  $plan_date_field = $loai_ke_hoach === 'thuong' ? 'kh.ngay_gio_ke_hoach' : 'kh.created';
   $date_from = !empty($_GET['date_from']) ? _ke_hoach_xep_xe_filter_date($_GET['date_from']) : '';
   if ($date_from) {
-    $query->condition('kh.created', $date_from, '>=');
+    $query->condition($plan_date_field, $date_from, '>=');
   }
   $date_to = !empty($_GET['date_to']) ? _ke_hoach_xep_xe_filter_date($_GET['date_to'], TRUE) : '';
   if ($date_to) {
-    $query->condition('kh.created', $date_to, '<=');
+    $query->condition($plan_date_field, $date_to, '<=');
   }
 
   // Badge trạng thái bám theo toàn bộ bộ lọc phía trên, nhưng không bám theo
@@ -2049,10 +2052,10 @@ function _ke_hoach_xep_xe_rest_list() {
   $count = clone $query;
   $total = $count->countQuery()->execute()->fetchField();
 
-  // Cả hàng cảng và tuyến xa cho phép đảo thứ tự cột Ngày. Chỉ nhận hai giá
-  // trị whitelist để không đưa dữ liệu request trực tiếp vào truy vấn SQL.
+  // Cả hai màn hình đều cho đảo thứ tự cột ngày. Hàng cảng dùng Ngày kế
+  // hoạch, tuyến xa dùng Ngày tạo. Chỉ nhận hai giá trị whitelist.
   $sort_created = !empty($_GET['sort_created']) && strtolower($_GET['sort_created']) === 'asc' ? 'ASC' : 'DESC';
-  $query->orderBy('kh.created', $sort_created);
+  $query->orderBy($plan_date_field, $sort_created);
   $query->orderBy('kh.nid', $sort_created);
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();

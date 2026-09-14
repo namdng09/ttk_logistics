@@ -47,7 +47,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
           <div class="khxh-filter-field"><label class="form-label">Địa chỉ kho</label><select class="form-select" id="filter-dia-chi-kho"><option></option></select></div>
           <div class="khxh-filter-field"><label class="form-label">Từ khóa</label><input type="text" class="form-control" id="filter-bkg-cont-seal" placeholder="BKG, số cont, seal"></div>
           <div class="khxh-filter-field"><label class="form-label">Phương tiện</label><select class="form-select" id="filter-phuong-tien"><option></option></select></div>
-          <div class="khxh-filter-field khxh-filter-field-date"><label class="form-label">Ngày lập KH</label><input type="text" class="form-control" id="filter-date-range" placeholder="Chọn khoảng ngày" autocomplete="off" readonly></div>
+          <div class="khxh-filter-field khxh-filter-field-date"><label class="form-label">Ngày kế hoạch</label><input type="text" class="form-control" id="filter-date-range" placeholder="Chọn khoảng ngày" autocomplete="off" readonly></div>
           <div class="khxh-filter-actions khxh-filter-actions-row">
             <button class="btn btn-primary" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm</button>
             <button type="button" class="btn btn-label-secondary btn-reload waves-effect"><i class="ti tabler-refresh me-1"></i>Reset</button>
@@ -91,7 +91,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
         <thead class="table-light">
           <tr>
             <th>#</th>
-            <th><button type="button" class="khxh-date-sort-btn" id="khxh-date-sort" data-direction="desc" title="Sắp xếp ngày: mới đến cũ" aria-label="Sắp xếp ngày: mới đến cũ"><span>Ngày</span><i class="ti tabler-sort-descending"></i></button></th>
+            <th><button type="button" class="khxh-date-sort-btn" id="khxh-date-sort" data-direction="desc" title="Sắp xếp ngày: mới đến cũ" aria-label="Sắp xếp ngày: mới đến cũ"><span><?php print $is_tuyen_xa ? 'Ngày' : 'Ngày KH'; ?></span><i class="ti tabler-sort-descending"></i></button></th>
             <th>T.T Chung</th>
             <th>Container</th>
             <th>PT / Lái xe</th>
