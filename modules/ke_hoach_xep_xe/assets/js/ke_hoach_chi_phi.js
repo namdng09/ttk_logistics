@@ -715,11 +715,30 @@
       push('Chặng 2', 'h', kho, returnContEnd(related));
     }
     else if (hinhThuc === 'rut_mooc') {
-      // Rút mooc: xe chạy hàng từ kho tới bãi hạ của chính kế hoạch.
-      push('Chặng 1', 'h', kho, end);
+      if (state.loaiKeHoach !== 'tuyen_xa') {
+        // Rút mooc hàng cảng luôn gồm hai chặng: đầu xe chạy trống đến kho,
+        // sau đó kéo hàng đi. Không thể xác định điểm xe bắt đầu ở chặng 1
+        // nên giữ cố định là rỗng, không suy luận từ bãi lấy của kế hoạch.
+        push('Chặng 1', 't', '', kho);
+        push('Chặng 2', 'h', kho, end);
+      }
+      else {
+        push('Chặng 1', 'h', kho, end);
+      }
     }
-    else if (hinhThuc === 'tha_mooc' || hinhThuc === 'roi_cont') {
-      // Thả/rời cont: xe chỉ hoàn thành chặng đưa cont tới kho.
+    else if (hinhThuc === 'tha_mooc') {
+      if (state.loaiKeHoach !== 'tuyen_xa') {
+        // Thả mooc hàng cảng luôn gồm hai chặng: đưa vỏ đến kho, rồi chặng
+        // hàng. Không xác định được điểm xe kết thúc ở chặng 2 nên để trống,
+        // không tự thay bằng bãi hạ của kế hoạch.
+        push('Chặng 1', 'v', start, kho);
+        push('Chặng 2', 'h', kho, '');
+      }
+      else {
+        push('Chặng 1', 'v', start, kho);
+      }
+    }
+    else if (hinhThuc === 'roi_cont') {
       push('Chặng 1', 'v', start, kho);
     }
     else {

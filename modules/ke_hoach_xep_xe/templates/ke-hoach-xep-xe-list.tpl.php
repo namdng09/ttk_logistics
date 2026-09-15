@@ -47,10 +47,17 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
           <div class="khxh-filter-field"><label class="form-label">Địa chỉ kho</label><select class="form-select" id="filter-dia-chi-kho"><option></option></select></div>
           <div class="khxh-filter-field"><label class="form-label">Từ khóa</label><input type="text" class="form-control" id="filter-bkg-cont-seal" placeholder="BKG, số cont, seal"></div>
           <div class="khxh-filter-field"><label class="form-label">Phương tiện</label><select class="form-select" id="filter-phuong-tien"><option></option></select></div>
-          <div class="khxh-filter-field khxh-filter-field-date"><label class="form-label">Ngày kế hoạch</label><input type="text" class="form-control" id="filter-date-range" placeholder="Chọn khoảng ngày" autocomplete="off" readonly></div>
+          <div class="khxh-filter-field khxh-filter-field-date">
+            <label class="form-label">Ngày kế hoạch</label>
+            <input type="text" class="form-control" id="filter-date-range" placeholder="Chọn khoảng ngày" autocomplete="off" readonly>
+            <div class="khxh-port-date-quick-filters" aria-label="Chọn nhanh ngày kế hoạch">
+              <button type="button" class="khxh-port-date-quick" data-date-quick="today">Hôm nay</button>
+              <button type="button" class="khxh-port-date-quick" data-date-quick="tomorrow">Ngày mai</button>
+            </div>
+          </div>
           <div class="khxh-filter-actions khxh-filter-actions-row">
             <button class="btn btn-primary" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm</button>
-            <button type="button" class="btn btn-label-secondary btn-reload waves-effect"><i class="ti tabler-refresh me-1"></i>Reset</button>
+            <button type="button" class="btn btn-label-secondary btn-reload waves-effect khxh-port-filter-reset" title="Reset bộ lọc" aria-label="Reset bộ lọc"><i class="ti tabler-refresh"></i></button>
           </div>
         </div>
       </div>

@@ -1842,6 +1842,19 @@
       currentPage = 1;
       loadList();
     });
+    $('#ke-hoach-hang-cang-screen').on('click', '.khxh-port-date-quick', function () {
+      if (currentPlanType() === 'tuyen_xa' || typeof moment === 'undefined') return;
+      var $rangeInput = $('#filter-date-range');
+      var picker = $rangeInput.data('daterangepicker');
+      if (!picker) return;
+
+      var date = moment().startOf('day');
+      if ($(this).attr('data-date-quick') === 'tomorrow') date.add(1, 'day');
+      picker.setStartDate(date.clone());
+      picker.setEndDate(date.clone());
+      $rangeInput.val(date.format('DD/MM/YYYY') + ' đến ' + date.format('DD/MM/YYYY'));
+      $('#search-btn').trigger('click');
+    });
     $('#ke-hoach-list-app').on('click', '#khxh-port-status-tabs [data-status]', function () {
       if (currentPlanType() === 'tuyen_xa') return;
       var nextStatus = String($(this).attr('data-status') || '');

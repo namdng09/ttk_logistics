@@ -115,7 +115,7 @@
   --khxh-filter-kho: minmax(150px, 0.9fr);
   --khxh-filter-keyword: minmax(120px, 0.6fr);
   --khxh-filter-vehicle: minmax(120px, 0.6fr);
-  --khxh-filter-date: minmax(208px, 0.9fr);
+  --khxh-filter-date: minmax(210px, 0.9fr);
   --khxh-filter-actions: max-content;
 
   display: grid;
@@ -138,6 +138,7 @@
 
 #ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-field-date {
   grid-column: auto;
+  position: relative;
 }
 
 #ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-actions-row {
@@ -146,6 +147,50 @@
   gap: 0.5rem;
   margin-left: 0;
   grid-column: auto;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-date-quick-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  position: absolute;
+  top: calc(100% + 0.32rem);
+  left: 0;
+  min-height: 16px;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-date-quick {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--bs-primary, #696cff);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-date-quick:hover,
+#ke-hoach-hang-cang-screen .khxh-port-date-quick:focus-visible {
+  color: #4f51d8;
+  text-decoration: underline;
+  outline: 0;
+}
+
+/* Giữ Reset bằng đúng chiều cao nút Tìm, dù chỉ còn icon. */
+#ke-hoach-hang-cang-screen .khxh-port-filter-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-filter-reset > i {
+  margin: 0 !important;
+  font-size: 1.05rem;
+  line-height: 1;
 }
 
 /* Chỉ nội dung bảng cuộn; header filter ở card phía trên luôn nhìn thấy. */
