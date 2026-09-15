@@ -2095,6 +2095,7 @@
           var planRoleClass = '';
           var listRowJson = row.thong_tin_json || {};
           var returnContText = '';
+          var returnContDisplayHtml = '';
           var returnContTitle = '';
           if (currentPlanType() === 'tuyen_xa') {
             if (parseInt(row.nid_ke_hoach_nguon, 10) || listRowJson.ke_hoach_ket_hop_hang) {
@@ -2135,6 +2136,9 @@
           if (currentPlanType() !== 'tuyen_xa' && row.cont_ref) {
             var returnContNumber = row.cont_ref.so_cont || '';
             returnContText = returnContNumber ? '- ' + returnContNumber + ' (Về)' : '';
+            returnContDisplayHtml = returnContNumber
+              ? '- <span class="khxh-port-list-cont-number">' + escHtml(returnContNumber) + '</span> (Về)'
+              : '';
             var returnContDestination = row.cont_ref.bai_ha_thuc_te || row.cont_ref.bai_ha_cont || '';
             returnContTitle = 'Số Cont: ' + (returnContNumber || 'Chưa có') + (returnContDestination ? ' (Về) - ' + returnContDestination : '');
           }
@@ -2162,7 +2166,7 @@
             '<td class="khxh-common-cell">' +
               '<div class="khxh-customer-cell"' + (customerTitle ? ' title="' + escHtml(customerTitle) + '"' : '') + '>' + customerDisplay + '</div>' +
               '<div class="khxh-htvt-cell">' +
-                ((hinhThucBadge || returnContText) ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list" title="' + escHtml(returnContTitle || ('Cont kéo về: ' + returnContText)) + '">' + escHtml(returnContText) + '</span>' : '') + '</div>' : '') +
+                ((hinhThucBadge || returnContText) ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list" title="' + escHtml(returnContTitle || ('Cont kéo về: ' + returnContText)) + '">' + (returnContDisplayHtml || escHtml(returnContText)) + '</span>' : '') + '</div>' : '') +
               '</div>' +
             '</td>' +
             '<td class="khxh-container-cell">' +

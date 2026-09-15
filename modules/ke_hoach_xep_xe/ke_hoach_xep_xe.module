@@ -1968,10 +1968,14 @@ function _ke_hoach_xep_xe_rest_list() {
   _ke_hoach_xep_xe_like_condition($query, 'kh.so_seal_tam', 'so_seal_tam');
   if ($loai_ke_hoach === 'thuong' && !empty($_GET['bkg_cont_seal'])) {
     $like = '%' . db_like(trim((string) $_GET['bkg_cont_seal'])) . '%';
+    // Tìm cả kế hoạch đang mang số cont đó và kế hoạch đang chọn cont đó để
+    // kéo về. Nhờ vậy tra một số cont sẽ thấy đủ hai phía của nghiệp vụ.
+    $query->leftJoin('ke_hoach_xep_xe', 'kh_ref_keyword', 'kh_ref_keyword.nid = kh.ke_hoach_cont_ref_nid AND kh_ref_keyword.hoat_dong = 1');
     $query->condition(db_or()
       ->condition('kh.so_bkg', $like, 'LIKE')
       ->condition('kh.so_cont', $like, 'LIKE')
       ->condition('kh.so_seal_chinh', $like, 'LIKE')
+      ->condition('kh_ref_keyword.so_cont', $like, 'LIKE')
     );
   }
   if ($loai_ke_hoach === 'thuong' && !empty($_GET['phuong_tien'])) {

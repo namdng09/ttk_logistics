@@ -1018,6 +1018,47 @@
     initExpenseSelect2('#khcp-cost-table-body');
   }
 
+  // Debug tạm cho tab Chi phí trong modal xếp xe hàng cảng. Ghi lại toàn bộ
+  // kích thước vùng table để xác định phần tử nào làm bảng bị co sau thao tác.
+  function logPortCostTableLayout(reason, afterPaint) {
+    var run = function () {
+      var $mount = $('.khxh-hang-cang-cost-mount:visible').first();
+      if (!$mount.length || !window.console || !console.info) return;
+      var $modal = $mount.closest('.modal');
+      var $body = $modal.find('.modal-body').first();
+      var $card = $mount.find('.khcp-main-card').first();
+      var $wrap = $mount.find('.khcp-table-wrap').first();
+      var $table = $wrap.find('.khcp-table').first();
+      var metrics = function ($el) {
+        if (!$el.length) return null;
+        var el = $el[0];
+        var style = window.getComputedStyle(el);
+        return {
+          height: Math.round(el.getBoundingClientRect().height),
+          clientHeight: el.clientHeight,
+          scrollHeight: el.scrollHeight,
+          display: style.display,
+          flex: style.flex,
+          minHeight: style.minHeight,
+          maxHeight: style.maxHeight,
+          overflowY: style.overflowY
+        };
+      };
+      console.info('[KHCP TABLE LAYOUT] ' + reason, {
+        modal: metrics($modal),
+        modalBody: metrics($body),
+        mount: metrics($mount),
+        row: metrics($mount.children('.row').first()),
+        card: metrics($card),
+        tableWrap: metrics($wrap),
+        table: metrics($table),
+        rows: $table.find('tbody tr').length
+      });
+    };
+    if (afterPaint) window.requestAnimationFrame(run);
+    else run();
+  }
+
   function dinhMucRowTemplate(row, index) {
     return '' +
       '<tr data-dm-key="' + escHtml(row.key) + '">' +
@@ -1613,6 +1654,7 @@
       $('tr[data-row-key="' + row.key + '"] .cost-name').trigger('focus');
     });
     $(document).on('click', '.btn-add-cost-row', function () {
+      logPortCostTableLayout('before-add-cost-row');
       var row = createEmptyRow();
       var current = getRow($(this).closest('tr').data('row-key'));
       var at = current ? state.rows.indexOf(current) + 1 : state.rows.length;
@@ -1620,8 +1662,10 @@
       renderTable();
       updateSummary();
       $('tr[data-row-key="' + row.key + '"] .cost-name').trigger('focus');
+      logPortCostTableLayout('after-add-cost-row', true);
     });
     $(document).on('change', '.khcp-cost-type-check', function () {
+      logPortCostTableLayout('before-cost-type-change');
       var $input = $(this);
       var $tr = $input.closest('tr');
       var row = getRow($tr.data('row-key'));
@@ -1640,6 +1684,7 @@
       });
       validateRow(row, false);
       updateSummary();
+      logPortCostTableLayout('after-cost-type-change', true);
     });
     $(document).on('click', '#khcp-dm-add-row', function () {
       var row = normalizeDinhMucRow({ manual: true }, state.dinhMucRows.length);

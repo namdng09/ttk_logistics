@@ -335,7 +335,11 @@
 }
 
 #ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-table-wrap {
-  max-height: min(52vh, 620px);
+  /* Không dùng vh: zoom làm viewport CSS thay đổi và bảng co đột ngột.
+   * Danh sách chi phí tự cuộn trong vùng cố định; modal vẫn có thể cuộn khi
+   * màn hình thấp. */
+  height: 620px;
+  max-height: none;
 }
 
 @media (max-width: 1199.98px) {
