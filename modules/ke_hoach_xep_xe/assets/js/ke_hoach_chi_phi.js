@@ -669,18 +669,12 @@
     return (state.plan && state.plan.cont_keo_ve_tu) || plan.vi_tri_cont_hien_tai || khoPoint(plan) || '';
   }
 
-  function returnContStatus(plan) {
-    // Trạng thái cont (đủ hàng/chưa đủ hàng) quyết định trạng thái xe
-    // của chặng kéo cont về: Hàng hoặc Vỏ.
-    return plan && (parseInt(plan.da_du_hang, 10) === 1 || plan.da_du_hang === true) ? 'h' : 'v';
-  }
-
   function buildDefaultDinhMucRows() {
     var plan = state.plan || {};
     var start = actualStart();
     var end = actualEnd();
     var kho = khoPoint(plan);
-    var hinhThuc = normalizeHinhThuc(plan.hinh_thuc_van_tai || 'cat_keo');
+    var hinhThuc = normalizeHinhThuc(plan.hinh_thuc_van_tai);
     var related = relatedContPlan();
     var rows = [];
 
@@ -695,6 +689,12 @@
       rows.push(row);
     }
 
+    // Chỉ sinh định mức khi người dùng đã chọn hình thức vận tải. Số chặng và
+    // trạng thái xe là quy ước nghiệp vụ cố định, không phụ thuộc việc cont
+    // kéo về đã có đủ điểm đầu/cuối hay chưa.
+    if (!hinhThuc) {
+      return rows;
+    }
     if (hinhThuc === 'dong_hang') {
       // Xe đi cùng cont của chính kế hoạch đến điểm cuối: Vỏ rồi Hàng.
       push('Chặng 1', 'v', start, kho);
@@ -705,26 +705,18 @@
       // Kho 1 -> Kho 2, sau đó nhận cont kéo về ở Kho 2 để đi bãi hạ.
       push('Chặng 1', 'v', start, kho);
       var returnStart = returnContStart(related);
-      if (related && returnStart) {
-        push('Chặng 2', 't', kho, returnStart);
-        if (returnContEnd(related)) {
-          push('Chặng 3', returnContStatus(related), returnStart, returnContEnd(related));
-        }
-      }
+      push('Chặng 2', 't', kho, returnStart);
+      push('Chặng 3', 'h', returnStart, returnContEnd(related));
     }
-    else if (isReturnContTransport(hinhThuc)) {
-      // Cắt kéo/cắt kéo chéo/rút mooc: công việc chính kết thúc tại kho.
-      // Nếu có cont kéo về, xe tiếp tục đi từ kho đến đúng bãi hạ của cont
-      // đó. Tuyệt đối không lấy kho của cont kéo về làm điểm trung gian.
+    else if (hinhThuc === 'cat_keo') {
+      // Cắt kéo: chặng đưa vỏ lên kho, rồi kéo hàng về. Chặng hàng vẫn hiển
+      // thị khi chưa chọn cont kéo về để người dùng lên định mức trước.
       push('Chặng 1', 'v', start, kho);
-      if (related && returnContEnd(related)) {
-        push('Chặng 2', returnContStatus(related), kho, returnContEnd(related));
-      }
-      else if (hinhThuc === 'rut_mooc' && kho && end && kho !== end) {
-        // Rút mooc nhưng chưa nhận cont khác: đầu kéo di chuyển rỗng
-        // từ kho đến điểm cuối đã khai báo của chính kế hoạch.
-        push('Chặng 2', 't', kho, end);
-      }
+      push('Chặng 2', 'h', kho, returnContEnd(related));
+    }
+    else if (hinhThuc === 'rut_mooc') {
+      // Rút mooc: xe chạy hàng từ kho tới bãi hạ của chính kế hoạch.
+      push('Chặng 1', 'h', kho, end);
     }
     else if (hinhThuc === 'tha_mooc' || hinhThuc === 'roi_cont') {
       // Thả/rời cont: xe chỉ hoàn thành chặng đưa cont tới kho.
@@ -733,46 +725,6 @@
     else {
       push('Chặng 1', 'v', start, kho);
       push('Chặng 2', 'h', kho, end);
-    }
-
-    if (state.loaiKeHoach === 'thuong') {
-      console.log('[KHXH COST DM] build-default', {
-        planId: state.nidKeHoach,
-        hinhThuc: hinhThuc,
-        start: start,
-        kho: kho,
-        end: end,
-        contRef: related ? {
-          nid: related.nid || 0,
-          soCont: related.so_cont || '',
-          kho: khoPoint(related),
-          diemLay: returnContStart(related),
-          baiHa: returnContEnd(related),
-          baiHaCont: related.bai_ha_cont || '',
-          baiHaThucTe: related.bai_ha_thuc_te || '',
-          diemDen: related.diem_den || '',
-          viTri: related.vi_tri_cont_hien_tai || '',
-          daDuHang: related.da_du_hang
-        } : null,
-        rows: $.map(rows, function (row) {
-          return { status: row.trang_thai_xe, from: row.diem_dau, to: row.diem_cuoi };
-        })
-      });
-      if (related) {
-        console.log('[KHXH COST DM] return-cont-fields', JSON.stringify({
-          nid: related.nid || '',
-          bai_lay_cont: related.bai_lay_cont || '',
-          bai_lay_thuc_te: related.bai_lay_thuc_te || '',
-          dia_chi_kho: related.dia_chi_kho || '',
-          bai_ha_cont: related.bai_ha_cont || '',
-          bai_ha_thuc_te: related.bai_ha_thuc_te || '',
-          diem_den: related.diem_den || '',
-          vi_tri_cont_hien_tai: related.vi_tri_cont_hien_tai || '',
-          cont_keo_ve_tu: state.plan && state.plan.cont_keo_ve_tu || '',
-          cont_keo_ve_den: state.plan && state.plan.cont_keo_ve_den || '',
-          thong_tin_json: related.thong_tin_json || null
-        }));
-      }
     }
 
     return rows;
@@ -1071,7 +1023,7 @@
       '<tr data-dm-key="' + escHtml(row.key) + '">' +
         '<td class="khcp-col-index"><span class="khcp-row-number">' + (index + 1) + '</span></td>' +
         '<td><input type="text" class="form-control form-control-sm khcp-dm-field" data-field="ten_chang" value="' + escHtml(row.ten_chang) + '"></td>' +
-        '<td><select class="form-select form-select-sm khcp-dm-field" data-field="trang_thai_xe">' + statusOptions(row.trang_thai_xe) + '</select></td>' +
+        '<td><select class="form-select form-select-sm khcp-dm-field" data-field="trang_thai_xe" disabled title="Trạng thái xe được xác định theo hình thức vận tải">' + statusOptions(row.trang_thai_xe) + '</select></td>' +
         '<td><select class="form-select form-select-sm khcp-dm-field khcp-dm-place-select" data-field="diem_dau">' + locationOptions(row.diem_dau) + '</select></td>' +
         '<td><select class="form-select form-select-sm khcp-dm-field khcp-dm-place-select" data-field="diem_cuoi">' + locationOptions(row.diem_cuoi) + '</select></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-dm-field money-input" data-field="dinh_muc" value="' + formatMoney(row.dinh_muc) + '"></td>' +
@@ -1400,16 +1352,6 @@
     // id của kế hoạch đã có sẵn trong state của tab Chi phí.
     plan = $.extend(true, { nid: state.nidKeHoach }, plan);
     if (Number(plan.nid) !== state.nidKeHoach) return false;
-    console.log('[KHXH COST DM] receive-draft', {
-      planId: state.nidKeHoach,
-      hinhThuc: plan.hinh_thuc_van_tai || '',
-      contRefId: plan.ke_hoach_cont_ref_nid || 0,
-      contRef: plan.cont_ref || null,
-      contKeoVeTu: plan.cont_keo_ve_tu || '',
-      contKeoVeDen: plan.cont_keo_ve_den || '',
-      kho: plan.dia_chi_kho || '',
-      baiHa: plan.bai_ha_thuc_te || plan.bai_ha_cont || ''
-    });
     state.draftPlan = $.extend(true, {}, state.draftPlan || {}, plan);
     state.rebuildDinhMucFromDraft = true;
     fillPlanInfo($.extend(true, {}, state.plan || {}, state.draftPlan));

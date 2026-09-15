@@ -2678,20 +2678,69 @@ button.khxh-cont-ref-number:focus {
   z-index: 200000 !important;
 }
 
+/* Modal chọn đầu kéo/mooc giữ nguyên chiều cao. Filter luôn đứng yên ở phía
+ * trên; chỉ danh sách phương tiện bên dưới tự cuộn khi có nhiều kết quả. */
+#vehicle-picker-modal .modal-dialog {
+  /* Không lấy 100vh làm chiều cao chính: khi zoom nhỏ, viewport theo CSS px
+   * lớn hơn và modal sẽ bị giãn. Giữ chiều cao ổn định, chỉ co lại khi màn
+   * hình thực sự thấp. */
+  height: 680px;
+  max-height: calc(100vh - 2rem);
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+#vehicle-picker-modal .modal-content {
+  height: 100%;
+  overflow: hidden;
+}
+
+#vehicle-picker-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#vehicle-picker-modal .modal-body > .row {
+  flex: 0 0 auto;
+}
+
+#vehicle-picker-modal .modal-body > .table-responsive {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+#vehicle-picker-modal .modal-body > .table-responsive .table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 #cont-ref-picker-modal .modal-dialog,
 #port-cont-ref-picker-modal .modal-dialog {
   pointer-events: none;
 }
 
-/* Modal chọn cont hàng cảng có nhiều cột nghiệp vụ, nên dùng gần hết bề
- * ngang màn hình thay vì giới hạn modal-xl mặc định của Bootstrap. */
+/* Hai modal chọn cont đều có nhiều cột nghiệp vụ, nên dùng gần hết bề ngang
+ * màn hình thay vì giới hạn modal-xl mặc định của Bootstrap. */
+#cont-ref-picker-modal .modal-dialog,
 #port-cont-ref-picker-modal .modal-dialog {
   width: calc(100vw - 2rem);
   max-width: 1400px;
+  height: 680px;
+  max-height: calc(100vh - 2rem);
+  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
 #cont-ref-picker-modal .modal-content,
 #port-cont-ref-picker-modal .modal-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   pointer-events: auto;
   border: 0 !important;
   outline: 0;
@@ -2701,12 +2750,21 @@ button.khxh-cont-ref-number:focus {
 
 #cont-ref-picker-modal .modal-body,
 #port-cont-ref-picker-modal .modal-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   padding: 0;
   background: #f6f8fa;
 }
 
 #cont-ref-picker-modal .line-cont-picker-wrap,
 #port-cont-ref-picker-modal .line-cont-picker-wrap {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
   padding: 0;
 }
 
@@ -2723,6 +2781,14 @@ button.khxh-cont-ref-number:focus {
   overflow-x: hidden;
   overflow-y: auto;
   padding: 0.75rem;
+}
+
+/* Giữ filter và tiêu đề bảng đứng yên; chỉ danh sách cont được cuộn. */
+#cont-ref-picker-modal .line-cont-picker-list,
+#port-cont-ref-picker-modal .line-cont-picker-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
 }
 
 .cont-picker-list-head {

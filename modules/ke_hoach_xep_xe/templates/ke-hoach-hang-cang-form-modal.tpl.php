@@ -45,8 +45,8 @@
   </div>
 
   <div class="modal fade" id="vehicle-picker-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered"><div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title mb-0">Chọn phương tiện</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title mb-0">Chọn phương tiện</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <div class="row g-2 align-items-center mb-3"><div class="col-md-6"><input type="text" class="form-control" id="vehicle-picker-search" placeholder="Tìm theo BKS, mooc, lái xe..."></div><div class="col-md-6 text-md-end"><button type="button" class="btn btn-sm btn-label-secondary" id="vehicle-picker-clear-btn"><i class="ti tabler-x me-1"></i>Bỏ chọn</button></div></div>
         <div class="table-responsive"><table class="table table-bordered table-hover align-middle mb-0"><thead class="table-light"><tr><th class="text-center">Chọn</th><th>Biển số</th><th>Loại xe</th><th>Lái xe hiện tại</th><th class="text-center">Thao tác</th></tr></thead><tbody id="vehicle-picker-body"><tr><td colspan="5" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải phương tiện...</td></tr></tbody></table></div>

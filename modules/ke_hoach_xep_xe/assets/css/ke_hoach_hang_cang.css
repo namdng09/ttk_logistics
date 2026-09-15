@@ -177,6 +177,16 @@
   pointer-events: none;
 }
 
+/* Theme đặt màu icon dropdown bằng !important. Override riêng hàng cảng để
+ * phân biệt thao tác xem chi tiết và nhập chi phí. */
+#ke-hoach-hang-cang-screen .dropdown-menu .dropdown-item.btn-view-ke-hoach-xep-xe > i.tabler-eye {
+  color: var(--bs-info) !important;
+}
+
+#ke-hoach-hang-cang-screen .dropdown-menu .dropdown-item.btn-open-port-cost-tab > i.tabler-receipt-2 {
+  color: var(--bs-success) !important;
+}
+
 #ke-hoach-hang-cang-screen .khxh-port-table-scroll .table-responsive {
   overflow: visible;
 }
@@ -469,4 +479,8 @@
   .khxh-hang-cang-side-sticky { position: static; }
   .khxh-hang-cang-section-head,
   .khxh-hang-cang-card-head { align-items: flex-start; flex-direction: column; }
+}
+#vehicle-picker-modal .modal-header > .btn-close {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
