@@ -688,3 +688,17 @@ function ke_hoach_xep_xe_update_7020() {
   }
   return 'Đã thêm trường ngày giờ nghiệp vụ cho kế hoạch hàng cảng.';
 }
+
+/**
+ * Cut-off hàng cảng hỗ trợ ngày thuần hoặc ngày kèm giờ.
+ */
+function ke_hoach_xep_xe_update_7021() {
+  if (db_field_exists('ke_hoach_xep_xe', 'cut_off')) {
+    db_change_field('ke_hoach_xep_xe', 'cut_off', 'cut_off', array(
+      'type' => 'varchar',
+      'length' => 19,
+      'not null' => FALSE,
+    ));
+  }
+  return 'Đã mở rộng trường Cut-off để lưu ngày kèm giờ khi cần.';
+}

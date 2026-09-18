@@ -1078,7 +1078,7 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['bai_ha_cont'] = !empty($line['bai_ha_cont']) ? trim($line['bai_ha_cont']) : '';
   $record['bai_ha_thuc_te'] = !empty($line['bai_ha_thuc_te']) ? trim($line['bai_ha_thuc_te']) : '';
   $record['cang_xuat'] = !empty($line['cang_xuat']) ? trim($line['cang_xuat']) : '';
-  $record['cut_off'] = !empty($line['cut_off']) ? trim($line['cut_off']) : '';
+  $record['cut_off'] = !empty($line['cut_off']) ? _ke_hoach_xep_xe_normalize_datetime($line['cut_off']) : '';
   $record['ngay_bat_dau'] = !empty($line['ngay_bat_dau']) ? substr(_ke_hoach_xep_xe_filter_date($line['ngay_bat_dau']), 0, 10) : '';
   $record['ngay_gio_ke_hoach'] = !empty($line['ngay_gio_ke_hoach']) ? _ke_hoach_xep_xe_normalize_datetime($line['ngay_gio_ke_hoach']) : '';
   $record['ngay_ket_thuc'] = !empty($line['ngay_ket_thuc']) ? substr(_ke_hoach_xep_xe_filter_date($line['ngay_ket_thuc']), 0, 10) : '';
@@ -1893,6 +1893,14 @@ function _ke_hoach_xep_xe_filter_date($value, $end_of_day = FALSE) {
 function _ke_hoach_xep_xe_normalize_datetime($value) {
   $value = trim((string) $value);
   if ($value === '') return '';
+  if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $value, $m)) {
+    $year = (int) $m[3]; $month = (int) $m[2]; $day = (int) $m[1];
+    return checkdate($month, $day, $year) ? sprintf('%04d-%02d-%02d', $year, $month, $day) : '';
+  }
+  if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m)) {
+    $year = (int) $m[1]; $month = (int) $m[2]; $day = (int) $m[3];
+    return checkdate($month, $day, $year) ? sprintf('%04d-%02d-%02d', $year, $month, $day) : '';
+  }
   if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/', $value, $m)) {
     $year = (int) $m[3]; $month = (int) $m[2]; $day = (int) $m[1];
     $hour = (int) $m[4]; $minute = (int) $m[5]; $second = isset($m[6]) ? (int) $m[6] : 0;
@@ -2008,6 +2016,12 @@ function _ke_hoach_xep_xe_rest_list() {
   // ngày tạo bản ghi để không ảnh hưởng màn hình hiện tại.
   $plan_date_field = $loai_ke_hoach === 'thuong' ? 'kh.ngay_gio_ke_hoach' : 'kh.created';
   $date_from = !empty($_GET['date_from']) ? _ke_hoach_xep_xe_filter_date($_GET['date_from']) : '';
+  // Hàng cảng có thể lưu Ngày kế hoạch dạng ngày thuần (YYYY-MM-DD) hoặc
+  // ngày kèm giờ. Dùng mốc đầu ngày không có phần giờ để cả hai dạng cùng
+  // nằm trong khoảng lọc mà không cần bọc field bằng DATE().
+  if ($loai_ke_hoach === 'thuong' && $date_from) {
+    $date_from = substr($date_from, 0, 10);
+  }
   if ($date_from) {
     $query->condition($plan_date_field, $date_from, '>=');
   }

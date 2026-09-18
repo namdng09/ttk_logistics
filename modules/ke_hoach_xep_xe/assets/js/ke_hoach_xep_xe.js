@@ -410,6 +410,10 @@
       var d = parts[0].split('-');
       if (d.length === 3) return d[2] + '/' + d[1] + '/' + d[0] + ' ' + parts[1].slice(0, 5);
     }
+    if (parts.length === 1) {
+      var dateOnly = parts[0].split('-');
+      if (dateOnly.length === 3) return dateOnly[2] + '/' + dateOnly[1] + '/' + dateOnly[0];
+    }
     return val;
   }
 
@@ -420,7 +424,45 @@
       var d = parts[0].split('/');
       if (d.length === 3) return d[2] + '-' + d[1] + '-' + d[0] + ' ' + parts[1];
     }
+    if (parts.length === 1) {
+      var dateOnly = parts[0].split('/');
+      if (dateOnly.length === 3) return dateOnly[2] + '-' + dateOnly[1] + '-' + dateOnly[0];
+    }
     return val;
+  }
+
+  function splitDateTimeValue(value) {
+    var display = apiToDatetime(value || '');
+    var parts = String(display || '').trim().split(/\s+/);
+    var hour = '';
+    if (parts[1] && /^([01]\d|2[0-3]):\d{2}$/.test(parts[1])) {
+      hour = parts[1].substring(0, 2) + ':00';
+    }
+    return { date: parts[0] || '', hour: hour };
+  }
+
+  function normalizeHourValue(value) {
+    value = String(value || '').trim();
+    return /^([01]\d|2[0-3]):00$/.test(value) ? value : '';
+  }
+
+  function dateAndHourToApi(dateValue, hourValue) {
+    var date = dateToApi(String(dateValue || '').trim());
+    var hour = normalizeHourValue(hourValue);
+    if (!date) return '';
+    // Giờ là tùy chọn: không chọn giờ thì chỉ gửi ngày, tuyệt đối không tự
+    // bổ sung một mốc giờ mặc định.
+    return hour ? (date + ' ' + hour) : date;
+  }
+
+  function hourSelectOptions(selected) {
+    selected = normalizeHourValue(selected);
+    var html = '<option value=""' + (selected ? '' : ' selected') + '>— Giờ —</option>';
+    for (var hour = 0; hour < 24; hour++) {
+      var value = (hour < 10 ? '0' : '') + hour + ':00';
+      html += '<option value="' + value + '"' + (value === selected ? ' selected' : '') + '>' + value + '</option>';
+    }
+    return html;
   }
 
   function toDdMmYyyyHm(val) {
@@ -2063,12 +2105,12 @@
     var tbody = document.getElementById('list-body');
     var listColumnCount = currentPlanType() === 'tuyen_xa' ? 8 : 9;
     tbody.innerHTML = '<tr id="loading-row"><td colspan="' + listColumnCount + '" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>';
-    var params = { page: currentPage, loai_ke_hoach: currentPlanType(), limit: currentPlanType() === 'tuyen_xa' ? 50 : 20 };
+    var params = { page: currentPage, loai_ke_hoach: currentPlanType(), limit: 50 };
     params.sort_created = currentPortDateSort;
     if (currentKeyword) params.keyword = currentKeyword;
     if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
     $.extend(params, currentFilters || {});
-    params.limit = currentPlanType() === 'tuyen_xa' ? 50 : 20;
+    params.limit = 50;
     $.ajax({
       url: '/api/ke-hoach-xep-xe',
       type: 'GET',
@@ -2082,7 +2124,7 @@
         }
         var resp = res.data;
         var items = resp.items || [];
-        var pageSize = resp.limit || 20;
+        var pageSize = resp.limit || 50;
         window._khxhPortStatusCounts = resp.status_counts || {};
         window._khxhPortStatusTotal = Number(resp.status_total) || 0;
         updatePortStatusTabs(window._khxhPortStatusCounts, window._khxhPortStatusTotal);
@@ -3148,6 +3190,7 @@
 	    }
 
     function initCardUi($card, line) {
+      var dropdownParent = formDropdownParent();
       initSelect2($card.find('.line-customer-select')[0], '— Chọn khách hàng —');
       attachCustomerCreateOption($card.find('.line-customer-select'), line);
       initSelect2($card.find('.line-tang-bo-customer-select')[0], '— Chọn khách hàng —');
@@ -3201,6 +3244,24 @@
           appendTo: document.body
         });
       }
+      $card.find('.line-plan-date-input, .line-cut-off-date-input').each(function () {
+        if (typeof flatpickr === 'undefined' || this._flatpickr) return;
+        flatpickr(this, {
+          enableTime: false,
+          dateFormat: 'd/m/Y',
+          allowInput: true,
+          static: true
+        });
+      });
+      $card.find('.line-plan-hour-select, .line-cut-off-hour-select').each(function () {
+        var isPlanHour = $(this).hasClass('line-plan-hour-select');
+        var sourceValue = isPlanHour ? line.ngay_gio_ke_hoach : line.cut_off;
+        // Đặt lại giá trị từ state sau khi Select2 khởi tạo để trình duyệt
+        // không khôi phục lựa chọn cũ của form (ví dụ 12:00) cho kế hoạch mới.
+        $(this).val(splitDateTimeValue(sourceValue || '').hour);
+        initSelect2(this, '— Giờ —', { allowClear: true, dropdownParent: dropdownParent });
+        $(this).trigger('change.select2');
+      });
       $card.find('.line-date-input').each(function () {
         if (typeof flatpickr !== 'undefined') {
           flatpickr(this, {
@@ -3275,25 +3336,31 @@
       var returnHtml = portCreateReturnMarkup(line);
       var sealPhuChecked = !!String(line.so_seal_tam || '').trim();
       var isDongHang = normalizeHinhThuc(line.hinh_thuc_van_tai) === 'dong_hang';
+      var planDateTime = splitDateTimeValue(line.ngay_gio_ke_hoach || '');
+      var cutOffDateTime = splitDateTimeValue(line.cut_off || '');
       return '<section class="ke-hoach-line-card khxh-hang-cang-card khxh-port-create-section" id="khxh-main-plan-' + escHtml(line.key) + '" data-line-key="' + escHtml(line.key) + '">' +
         '<div class="khxh-hang-cang-card-head"><div><div class="khxh-hang-cang-card-title"><span class="khxh-step-badge">' + (index + 1) + '</span><strong>' + escHtml(title) + '</strong></div></div><div class="khxh-section-tools"><button type="button" class="btn btn-sm btn-icon btn-label-secondary btn-copy-row-ke-hoach" title="Nhân bản"><i class="ti tabler-copy"></i></button><button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-row-ke-hoach" title="Xóa kế hoạch"><i class="ti tabler-trash"></i></button></div></div>' +
         '<div class="khxh-hang-cang-section khxh-port-create-body"><div class="khxh-port-create-flex-row khxh-port-create-row-1">' +
         '<div class="pc-field-customer"><label class="form-label">Khách hàng <span class="text-danger">*</span></label><select class="form-select line-customer-select" required title="Không được để trống khách hàng">' + buildCustomerOptions(line.nid_khach_hang || 0) + '</select></div>' +
         '<div class="pc-field-bkg"><label class="form-label">Số BKG <span class="text-danger">*</span></label><input class="form-control line-so-bkg-input" value="' + escHtml(line.so_bkg || '') + '" placeholder="BKG" required title="Không được để trống số BKG"></div>' +
-        '<div class="pc-field-datetime"><label class="form-label">Ngày giờ</label><input class="form-control line-ngay-gio-input" value="' + escHtml(apiToDatetime(line.ngay_gio_ke_hoach || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
+        '<div class="pc-field-plan-date"><label class="form-label">Ngày kế hoạch</label><input class="form-control line-plan-date-input" value="' + escHtml(planDateTime.date) + '" placeholder="dd/mm/yyyy" autocomplete="off"></div>' +
+        '<div class="pc-field-plan-hour"><label class="form-label">Giờ</label><select class="form-select line-plan-hour-select" autocomplete="off">' + hourSelectOptions(planDateTime.hour) + '</select></div>' +
         '<div class="pc-field-kho"><label class="form-label">Địa chỉ kho <span class="text-danger">*</span></label><select class="form-select line-kho-select" required title="Không được để trống địa chỉ kho">' + buildTagOptions(state.cauHinh.diaChiKho, line.dia_chi_kho) + '</select></div>' +
         '<div class="pc-field-cont-type"><label class="form-label">Loại cont</label><select class="form-select line-loai-cont-select">' + buildTagOptions(state.cauHinh.loaiCont, line.loai_cont) + '</select></div>' +
+        '</div><div class="khxh-port-create-flex-row khxh-port-create-row-route">' +
         '<div class="pc-field-yard"><label class="form-label">Bãi lấy dự kiến</label><select class="form-select line-bai-lay-select">' + buildTagOptions(state.diaDiem.bai, line.bai_lay_cont) + '</select></div>' +
         '<div class="pc-field-yard"><label class="form-label">Bãi hạ dự kiến</label><select class="form-select line-bai-ha-select">' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
         '<div class="pc-field-port"><label class="form-label">Cảng xuất</label><select class="form-select line-cang-select">' + buildTagOptions(state.diaDiem.cang, line.cang_xuat) + '</select></div>' +
+        '<div class="pc-field-cargo"><label class="form-label">Tên hàng</label><select class="form-select line-loai-hang-select">' + buildTagOptions(state.cauHinh.loaiHang, line.loai_hang) + '</select></div>' +
+        '<div class="pc-field-cutoff-date"><label class="form-label">Cut-off</label><input class="form-control line-cut-off-date-input" value="' + escHtml(cutOffDateTime.date) + '" placeholder="dd/mm/yyyy" autocomplete="off"></div>' +
+        '<div class="pc-field-cutoff-hour"><label class="form-label">Giờ</label><select class="form-select line-cut-off-hour-select" autocomplete="off">' + hourSelectOptions(cutOffDateTime.hour) + '</select></div>' +
+        '<div class="pc-field-transport"><label class="form-label">Hình thức vận tải</label><select class="form-select line-hinh-thuc-select">' + portCreateTransportOptions(line.hinh_thuc_van_tai) + '</select></div>' +
         '</div><div class="khxh-port-create-flex-row khxh-port-create-row-2">' +
         '<div class="pc-field-vehicle"><label class="form-label">Phương tiện</label><input type="hidden" class="line-vehicle-id" value="' + (line.nid_phuong_tien || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start vehicle-summary btn-open-vehicle-modal"></button></div>' +
         '<div class="pc-field-driver"><label class="form-label">Lái xe</label><select class="form-select line-driver-select">' + buildDriverOptions(line.nid_lai_xe) + '</select></div>' +
         '<div class="pc-field-mooc"><label class="form-label">Số mooc</label><input type="hidden" class="line-mooc-id" value="' + (line.nid_mooc || 0) + '"><button type="button" class="btn btn-outline-secondary w-100 text-start line-mooc-display btn-open-mooc-modal">' + moocSummaryHtml(line) + '</button></div>' +
         '<div class="pc-field-container"><label class="form-label">Số cont</label><input class="form-control line-so-cont-input" value="' + escHtml(line.so_cont || '') + '" placeholder="Số cont"></div>' +
         '<div class="pc-field-seal"><label class="form-label">Seal chính</label><input class="form-control line-seal-chinh-input" value="' + escHtml(line.so_seal_chinh || '') + '" placeholder="Seal chính"></div>' +
-        '<div class="pc-field-cutoff"><label class="form-label">Cut-off</label><input class="form-control line-cut-off-input" value="' + escHtml(apiToDatetime(line.cut_off || '')) + '" placeholder="dd/mm/yyyy HH:mm"></div>' +
-        '<div class="pc-field-transport"><label class="form-label">Hình thức vận tải</label><select class="form-select line-hinh-thuc-select">' + portCreateTransportOptions(line.hinh_thuc_van_tai) + '</select></div>' +
         '<div class="pc-field-options khxh-port-create-option-group' + (isDongHang ? ' is-dong-hang' : '') + '"><label class="form-check form-check-inline mb-0 khxh-port-create-option"><input type="checkbox" class="form-check-input line-seal-phu-check"' + (sealPhuChecked ? ' checked' : '') + '><span class="form-check-label">Seal phụ</span></label><span class="khxh-port-create-requirements khxh-port-create-main-requirements' + (isDongHang ? '' : ' d-none') + '">' + portCreateCheck('kiem-dich', 'Kiểm dịch', !!line.kiem_dich) + portCreateCheck('kiem-hoa', 'Kiểm hoá', !!line.kiem_hoa) + portCreateCheck('hun-trung', 'Hun trùng', !!line.hun_trung) + '</span></div>' +
         returnHtml +
         '</div></div></section>';
@@ -3586,7 +3653,13 @@
           line.bai_ha_thuc_te = '';
         }
         line.cut_off = currentPlanType() === 'tuyen_xa' ? '' : datetimeToApi(($row.find('.line-cut-off-input').val() || '').trim());
+        if ($row.find('.line-cut-off-date-input').length) {
+          line.cut_off = dateAndHourToApi($row.find('.line-cut-off-date-input').val(), $row.find('.line-cut-off-hour-select').val());
+        }
         if ($row.find('.line-ngay-gio-input').length) line.ngay_gio_ke_hoach = datetimeToApi(($row.find('.line-ngay-gio-input').val() || '').trim());
+        if ($row.find('.line-plan-date-input').length) {
+          line.ngay_gio_ke_hoach = dateAndHourToApi($row.find('.line-plan-date-input').val(), $row.find('.line-plan-hour-select').val());
+        }
         if ($row.find('.line-ngay-bat-dau-input').length) line.ngay_bat_dau = dateToApi($row.find('.line-ngay-bat-dau-input').val().trim());
         if ($row.find('.line-ngay-ket-thuc-input').length) line.ngay_ket_thuc = dateToApi($row.find('.line-ngay-ket-thuc-input').val().trim());
         line.ghi_chu = ($row.find('.line-ghi-chu-input').val() || '').trim();
@@ -3644,6 +3717,12 @@
       line.cang_xuat = currentPlanType() === 'tuyen_xa' ? '' : (($row.find('.line-cang-select').val() || '').trim());
       if ($row.find('.line-cut-off-input').length) {
         line.cut_off = datetimeToApi(($row.find('.line-cut-off-input').val() || '').trim());
+      }
+      if ($row.find('.line-cut-off-date-input').length) {
+        line.cut_off = dateAndHourToApi($row.find('.line-cut-off-date-input').val(), $row.find('.line-cut-off-hour-select').val());
+      }
+      if ($row.find('.line-plan-date-input').length) {
+        line.ngay_gio_ke_hoach = dateAndHourToApi($row.find('.line-plan-date-input').val(), $row.find('.line-plan-hour-select').val());
       }
       if ($row.find('.line-ngay-bat-dau-input').length) line.ngay_bat_dau = dateToApi($row.find('.line-ngay-bat-dau-input').val().trim());
       if ($row.find('.line-ngay-ket-thuc-input').length) line.ngay_ket_thuc = dateToApi($row.find('.line-ngay-ket-thuc-input').val().trim());

@@ -213,30 +213,39 @@
   margin-top: 1rem;
 }
 
+.khxh-port-create-row-route {
+  margin-top: 1rem;
+}
+
 .khxh-port-create-flex-row > div {
   min-width: 0;
 }
 
 /* Kích cỡ theo nghiệp vụ: có thể chỉnh từng ô mà không phá bố cục các ô còn lại. */
-.pc-field-customer { flex: 1 1 135px; }
-.pc-field-bkg { flex: 0 0 155px; }
+.pc-field-customer { flex: 2 2 135px; }
+.pc-field-bkg { flex: 1 1 67px; }
 .pc-field-datetime { flex: 0 2 142px; }
-.pc-field-kho { flex: 1 1 140px; }
-.pc-field-cont-type { flex: 0 0 80px; }
+.pc-field-plan-date { flex: 0 1 132px; }
+.pc-field-plan-hour { flex: 0 0 88px; }
+.pc-field-kho { flex: 2 2 135px; }
+.pc-field-cont-type { flex: 1 1 50px; }
 .pc-field-yard { flex: 1 1 134px; }
 .pc-field-port { flex: 1 1 134px; }
+.pc-field-cargo { flex: 1 1 134px; }
 .pc-field-cutoff { flex: 0 2 140px; }
-.pc-field-transport { flex: 0 0 115px; }
+.pc-field-cutoff-date { flex: 0 1 132px; }
+.pc-field-cutoff-hour { flex: 0 0 88px; }
+.pc-field-transport { flex: 1 1 115px; }
 
-.pc-field-vehicle { flex: 0 0 155px; }
-.pc-field-driver { flex: 0 1 200px; }
+.pc-field-vehicle { flex: 1 1 110px; }
+.pc-field-driver { flex: 1 1 110px; }
 .pc-field-cont-label { flex: 0 0 125px; }
-.pc-field-mooc { flex: 0 0 125px; }
-.pc-field-container { flex: 0 0 125px; }
-.pc-field-seal { flex: 0 0 125px; }
-.pc-field-options { flex: 0 0 97px; }
+.pc-field-mooc { flex: 1 1 110px; }
+.pc-field-container { flex: 1 1 110px; }
+.pc-field-seal { flex: 1 1 110px; }
+.pc-field-options { flex: 0 0 100px; }
 .pc-field-note { flex: 2 1 230px; }
-.pc-field-return-cont { flex: 0.4 1 190px; }
+.pc-field-return-cont { flex: 1 1 190px; }
 
 /* Seal phụ đứng riêng; khi Đóng hàng thì bốn checkbox thành cụm 2 x 2. */
 .khxh-port-create-option-group {
@@ -292,7 +301,7 @@
 }
 
 .khxh-port-create-option-group.is-dong-hang {
-  flex: 0 0 230px;
+  flex: 3 0 230px;
   align-items: center;
   column-gap: .45rem;
 }
