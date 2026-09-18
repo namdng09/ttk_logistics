@@ -793,6 +793,10 @@ body .flatpickr-calendar {
   gap: 1rem;
 }
 
+.khxh-span-2 {
+  grid-column: span 2;
+}
+
 .khxh-span-3 {
   grid-column: span 3;
 }
@@ -822,6 +826,7 @@ body .flatpickr-calendar {
 }
 
 @media (max-width: 1199.98px) {
+  .khxh-span-2,
   .khxh-span-3,
   .khxh-span-4,
   .khxh-span-6,
@@ -839,6 +844,7 @@ body .flatpickr-calendar {
 }
 
 @media (max-width: 767.98px) {
+  .khxh-span-2,
   .khxh-span-3,
   .khxh-span-4,
   .khxh-span-6,
