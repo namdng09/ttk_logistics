@@ -4530,7 +4530,8 @@
         if (fBkg && String(item.so_bkg || '').toLowerCase().indexOf(fBkg) === -1) continue;
         if (fCont && String(item.so_cont || '').toLowerCase().indexOf(fCont) === -1) continue;
         var currentLocation = contCurrentLocation(item);
-        if (fKho && String(currentLocation).toLowerCase().indexOf(fKho) === -1) continue;
+        var khoDisplay = currentPlanType() !== 'tuyen_xa' ? item.dia_chi_kho : currentLocation;
+        if (fKho && String(khoDisplay).toLowerCase().indexOf(fKho) === -1) continue;
         if (fDuHang !== '' && parseInt(item.da_du_hang, 10) !== parseInt(fDuHang, 10)) continue;
         var selected = pendingContId === parseInt(item.nid, 10);
 	        var selectedByOtherLine = false;
@@ -4615,7 +4616,9 @@
         rows.push('<div class="cont-picker-row' + (currentPlanType() === 'tuyen_xa' ? ' is-tuyen-xa' : '') + (selected ? ' is-selected' : '') + (canSelect ? '' : ' is-disabled') + '" title="' + escHtml(canSelect ? generalTooltip : candidates[c].disabledReason) + '">' +
           '<div class="cont-picker-radio"><input class="form-check-input line-cont-ref-checkbox" type="radio" name="cont-ref-' + escHtml(line.key) + '" value="' + item.nid + '" data-id="' + item.nid + '" data-so-bkg="' + escHtml(item.so_bkg || '') + '" data-so-cont="' + escHtml(item.so_cont || '') + '"' + (selected ? ' checked' : '') + (canSelect ? '' : ' disabled') + '></div>' +
           '<div class="cont-picker-cell"><div class="cont-picker-primary"><span class="cont-picker-cont mono">' + escHtml(item.so_cont || ('#' + item.nid)) + '</span><span class="badge bg-label-secondary">' + escHtml(item.loai_cont || '—') + '</span></div><div class="text-muted small">' + (currentPlanType() === 'tuyen_xa' ? 'Kế hoạch cont #' + escHtml(item.nid || '') : 'Bkg: ' + escHtml(item.so_bkg || '—')) + '</div></div>' +
-          '<div class="cont-picker-cell"><div class="fw-semibold">' + escHtml(currentLocation || '—') + '</div><div class="text-muted small">Vị trí cont hiện tại</div></div>' +
+          (currentPlanType() === 'tuyen_xa'
+            ? '<div class="cont-picker-cell"><div class="fw-semibold">' + escHtml(currentLocation || '—') + '</div><div class="text-muted small">Vị trí cont hiện tại</div></div>'
+            : '<div class="cont-picker-cell"><div class="fw-semibold">' + escHtml(item.dia_chi_kho || '—') + '</div></div>') +
           (currentPlanType() === 'tuyen_xa'
             ? '<div class="cont-picker-cell">' + (selected ? txRangeHtml : '<div class="fw-semibold">' + escHtml($.map(txPoints.slice(txCurrentIndex), function (point) { return point.value; }).join(' → ') || '—') + '</div><div class="text-muted small">Lộ trình còn lại</div>') + '</div>'
             : '<div class="cont-picker-cell cont-picker-destination-cell">' +
@@ -5032,7 +5035,7 @@
       $btn.removeClass('d-none').attr('data-id', nid);
       var portStatus = status || 'Chờ thực hiện';
       var portStatusColor = hangCangPlanStatusColor(portStatus);
-      $btn.removeClass('btn-success btn-outline-success btn-label-secondary btn-label-info btn-label-primary btn-label-warning btn-label-success btn-label-danger')
+      $btn.removeClass('btn-success btn-outline-success btn-label-secondary btn-label-info btn-label-primary btn-label-warning btn-label-success btn-label-danger bg-label-secondary bg-label-info bg-label-primary bg-label-warning bg-label-success bg-label-danger')
         .addClass(portStatusColor)
         .html('<i class="icon-base ti tabler-arrows-exchange me-1"></i>' + escHtml(portStatus));
     }

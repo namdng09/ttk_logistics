@@ -73,7 +73,7 @@ $create_title = $is_tuyen_xa ? 'Tạo kế hoạch tuyến xa' : 'Tạo kế ho�
           <div class="line-cont-picker-wrap" id="cont-ref-picker-wrap" data-line-key="">
           <div class="row line-cont-filter-row mb-2">
               <div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div>
-              <div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>
+              <div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số Cont"></div>
               <div class="col-md-4"><select class="form-select line-cont-filter-kho"><option></option></select></div>
             <div class="col-md-2"><select class="form-select line-cont-filter-du-hang"><option value="">Trạng thái</option><option value="1">Đã đủ</option><option value="0">Chưa đủ</option></select></div>
           </div>

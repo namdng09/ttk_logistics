@@ -265,6 +265,11 @@ function ke_hoach_xep_xe_theme() {
       'path' => $path,
       'variables' => array(),
     ),
+    'ke_hoach_cont_picker_modal_page' => array(
+      'template' => 'ke-hoach-cont-picker-modal',
+      'path' => $path,
+      'variables' => array('id_prefix' => ''),
+    ),
     'ke_hoach_xep_xe_detail_page' => array(
       'template' => 'ke-hoach-xep-xe-detail',
       'path' => $path,

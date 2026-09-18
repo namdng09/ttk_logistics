@@ -1113,7 +1113,12 @@
     var rows = state.dinhMucRows || [];
     var html = '';
     if (!rows.length) {
-      html = '<tr><td colspan="7" class="text-center text-muted py-3">Chưa có chặng định mức</td></tr>';
+      var emptyColspan = 0;
+      $('#khcp-dm-table-body').closest('table').find('thead th').each(function () {
+        if ($(this).css('display') !== 'none') emptyColspan += 1;
+      });
+      if (!emptyColspan) emptyColspan = 7;
+      html = '<tr><td colspan="' + emptyColspan + '" class="text-center text-muted py-3">Chưa có chặng định mức</td></tr>';
     }
     else {
       for (var i = 0; i < rows.length; i++) {
