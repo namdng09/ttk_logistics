@@ -567,8 +567,7 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
 	        <div class="modal-body">
 	          <div class="line-cont-picker-wrap" id="cont-ref-picker-wrap" data-line-key="">
 	            <div class="row line-cont-filter-row mb-2">
-	            <?php if (!$is_tuyen_xa): ?><div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div><?php endif; ?>
-	            <div class="col-md-<?php print $is_tuyen_xa ? '4' : '3'; ?>"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div>
+	            <?php if (!$is_tuyen_xa): ?><div class="col-md-3"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div><div class="col-md-3"><input type="text" class="form-control line-cont-filter-bkg" placeholder="Tìm theo số BKG"></div><?php else: ?><div class="col-md-4"><input type="text" class="form-control line-cont-filter-cont" placeholder="Tìm theo số cont"></div><?php endif; ?>
 	              <div class="col-md-4"><select class="form-select line-cont-filter-kho"><option></option></select></div>
 	              <div class="col-md-2"><select class="form-select line-cont-filter-du-hang"><option value="">Trạng thái</option><option value="1">Đã đủ</option><option value="0">Chưa đủ</option></select></div>
 	            </div>

@@ -3191,7 +3191,7 @@
 
     function initCardUi($card, line) {
       var dropdownParent = formDropdownParent();
-      initSelect2($card.find('.line-customer-select')[0], '— Chọn khách hàng —');
+      initSelect2($card.find('.line-customer-select')[0], '— Chọn khách hàng —', { dropdownParent: dropdownParent });
       attachCustomerCreateOption($card.find('.line-customer-select'), line);
       initSelect2($card.find('.line-tang-bo-customer-select')[0], '— Chọn khách hàng —');
       attachCustomerCreateOption($card.find('.line-tang-bo-customer-select'), null);
@@ -4737,7 +4737,9 @@
         loaiHang: (state.diaDiem && Array.isArray(state.diaDiem.loaiHang)) ? state.diaDiem.loaiHang.slice() : [],
         loaiCont: ['20RF', '20DC', '40HC', '40RF', '40DC']
       };
-      refreshLineSources();
+      // Chọn khách hàng chỉ thay đổi nid_khach_hang của dòng hiện tại. Không
+      // render lại toàn bộ các card sau khi chọn, vì việc thay DOM làm mất
+      // scroll position của modal khi có nhiều dòng được nhân bản.
       if (callback) callback();
     }
 
@@ -5023,8 +5025,11 @@
         return;
       }
       $btn.removeClass('d-none').attr('data-id', nid);
-      $btn.removeClass('btn-success btn-outline-success').addClass('btn-label-primary')
-        .html('<i class="icon-base ti tabler-arrows-exchange me-1"></i>' + escHtml(status || 'Chờ thực hiện'));
+      var portStatus = status || 'Chờ thực hiện';
+      var portStatusColor = hangCangPlanStatusColor(portStatus);
+      $btn.removeClass('btn-success btn-outline-success btn-label-secondary btn-label-info btn-label-primary btn-label-warning btn-label-success btn-label-danger')
+        .addClass(portStatusColor)
+        .html('<i class="icon-base ti tabler-arrows-exchange me-1"></i>' + escHtml(portStatus));
     }
 
     function populateEdit(row) {
@@ -5518,7 +5523,9 @@
             }
             state.cauHinh.diaChiKho = state.diaDiem.kho.slice();
             state.cauHinh.loaiHang = state.diaDiem.loaiHang.slice();
-            refreshLineSources();
+            // Các option danh mục đã được nạp vào state; không render lại toàn
+            // bộ modal ở đây. Việc đó sẽ làm modal giật và khóa scroll sau khi
+            // người dùng chọn khách hàng trong một dòng đã nhân bản.
           }
         },
         complete: finish
