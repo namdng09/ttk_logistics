@@ -66,7 +66,7 @@
 
   function customerPlanLabel(customer) {
     // Trên screen kế hoạch, mọi nhãn khách hàng dùng mã KH để giữ bố cục gọn.
-    // Tiêu đề modal xếp xe gọi customerFullName() riêng nên vẫn giữ tên đầy đủ.
+    // Tiêu đề modal xếp xe hàng cảng dùng mã KH ngắn; tuyến xa giữ tên đầy đủ.
     return customerDisplayName(customer, true);
   }
 
@@ -513,11 +513,16 @@
     var moocTooltip = 'Mooc: ' + (moocText || 'Chưa có');
     var driverTooltip = 'Lái xe: ' + ((lxName || lxSdt) ? (lxName + (lxSdt ? ' - ' + lxSdt : '')) : 'Chưa có');
     var isHangCang = currentPlanType() !== 'tuyen_xa';
+    var vehicleTitle = [
+      'Đầu kéo: ' + (ptText || 'Chưa có'),
+      'Mooc: ' + (moocText || 'Chưa có'),
+      'Lái xe: ' + ((lxName || lxSdt) ? (lxName + (lxSdt ? ' - ' + lxSdt : '')) : 'Chưa có')
+    ].join('\n');
     return '' +
-      '<div class="khxh-vehicle-info">' +
-      '<div class="khxh-vehicle-bks" title="' + escHtml(ptTooltip) + '">' + (ptDisplay ? escHtml(ptDisplay) : (isHangCang ? '_' : '<span class="text-muted fst-italic small">BKS đầu kéo</span>')) + '</div>' +
-      '<div class="khxh-vehicle-mooc" title="' + escHtml(moocTooltip) + '">' + (moocDisplay ? escHtml(moocDisplay) : (isHangCang ? '_' : '<span class="text-muted fst-italic small">BKS mooc</span>')) + '</div>' +
-      '<div class="khxh-vehicle-driver" title="' + escHtml(driverTooltip) + '">' +
+      '<div class="khxh-vehicle-info"' + (isHangCang ? ' title="' + escHtml(vehicleTitle) + '"' : '') + '>' +
+      '<div class="khxh-vehicle-bks"' + (isHangCang ? '' : ' title="' + escHtml(ptTooltip) + '"') + '>' + (ptDisplay ? escHtml(ptDisplay) : (isHangCang ? '_' : '<span class="text-muted fst-italic small">BKS đầu kéo</span>')) + '</div>' +
+      '<div class="khxh-vehicle-mooc"' + (isHangCang ? '' : ' title="' + escHtml(moocTooltip) + '"') + '>' + (moocDisplay ? escHtml(moocDisplay) : (isHangCang ? '_' : '<span class="text-muted fst-italic small">BKS mooc</span>')) + '</div>' +
+      '<div class="khxh-vehicle-driver"' + (isHangCang ? '' : ' title="' + escHtml(driverTooltip) + '"') + '>' +
         (lxName ? escHtml(lxName) : (isHangCang ? '_' : '<span class="text-muted fst-italic small">lái xe</span>')) +
       '</div>' +
       '</div>';
@@ -2206,12 +2211,14 @@
           var baiHaDisplay = row.bai_ha_thuc_te || row.bai_ha_cont || '';
           var isHangCangList = currentPlanType() !== 'tuyen_xa';
           var customerTitle = isHangCangList
-            ? 'Khách hàng: ' + (khName ? (khName + (khFullName ? ' - ' + khFullName : '')) : 'Chưa có') + (row.so_bkg ? ' | BKG: ' + row.so_bkg : '')
+            ? 'Khách hàng: ' + (khName ? (khName + (khFullName ? ' - ' + khFullName : '')) : 'Chưa có') + (row.so_bkg ? '\nBKG: ' + row.so_bkg : '')
             : khFullName;
           var customerDisplay = khName ? escHtml(khName) : (isHangCangList ? '_' : '<span class="text-muted fst-italic small">khách hàng</span>');
           if (isHangCangList && row.so_bkg) {
             customerDisplay += ' <span class="khxh-customer-bkg">- ' + escHtml(row.so_bkg) + '</span>';
           }
+          var containerTitle = 'Container: ' + (contTextRaw || 'Chưa có') + '\nSeal chính: ' + (row.so_seal_chinh || 'Chưa có') + (row.so_seal_tam ? '\nSeal phụ: Có' : '');
+          var hanhTrinhTitle = 'Bãi lấy: ' + (baiLayDisplay || 'Chưa có') + '\nBãi hạ: ' + (baiHaDisplay || 'Chưa có');
           var rowActionMenu = '<span class="khxh-row-action-menu">' + actions + '</span>';
           html += '<tr>' +
             '<td><button type="button" class="khxh-row-actions-trigger" title="Mở chức năng kế hoạch" aria-label="Mở chức năng kế hoạch #' + stt + '">' + stt + '</button></td>' +
@@ -2224,20 +2231,20 @@
                 ((hinhThucBadge || returnContText) ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list" title="' + escHtml(returnContTitle || ('Cont kéo về: ' + returnContText)) + '">' + (returnContDisplayHtml || escHtml(returnContText)) + '</span>' : '') + '</div>' : '') +
               '</div>' +
             '</td>' +
-            '<td class="khxh-container-cell">' +
+            '<td class="khxh-container-cell"' + (isHangCangList ? ' title="' + escHtml(containerTitle) + '"' : '') + '>' +
               (currentPlanType() === 'tuyen_xa'
                 ? '<div>' + (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '</div>' +
                   '<div>' + (row.so_cont ? escHtml(row.so_cont) : '<span class="text-muted fst-italic small">số cont</span>') + '</div>' +
                   '<div>' + (row.loai_hang ? escHtml(row.loai_hang) : '<span class="text-muted fst-italic small">loại hàng</span>') + '</div>'
-                : '<div title="Container: ' + escHtml(contTextRaw || 'Chưa có') + '">' + (contTextRaw ? (row.loai_cont ? escHtml(row.loai_cont) + (row.so_cont ? ' - ' : '') : '') + (row.so_cont ? '<span class="khxh-port-list-cont-number">' + escHtml(row.so_cont) + '</span>' : '') : '_') + '</div>' +
-                '<div title="Seal chính: ' + escHtml(row.so_seal_chinh || 'Chưa có') + '">' + (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '_') + '</div>' +
-                (row.so_seal_tam ? '<div title="Seal phụ: Có"><span class="fst-italic">Có seal phụ</span></div>' : '')) +
+                : '<div>' + (contTextRaw ? (row.loai_cont ? escHtml(row.loai_cont) + (row.so_cont ? ' - ' : '') : '') + (row.so_cont ? '<span class="khxh-port-list-cont-number">' + escHtml(row.so_cont) + '</span>' : '') : '_') + '</div>' +
+                '<div>' + (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '_') + '</div>' +
+                (row.so_seal_tam ? '<div><span class="fst-italic">Có seal phụ</span></div>' : '')) +
             '</td>' +
             '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(row) + '</td>' +
             '<td class="khxh-kho-cell"' + (isHangCangList ? ' title="Địa chỉ kho: ' + escHtml(row.dia_chi_kho || 'Chưa có') + '"' : '') + '>' + (row.dia_chi_kho ? escHtml(row.dia_chi_kho) : (isHangCangList ? '_' : '')) + '</td>' +
             '<td class="text-nowrap">' +
-              '<div class="khxh-hanh-trinh-cell">' +
-                '<div class="khxh-hanh-trinh-box"' + (isHangCangList ? ' title="Bãi lấy: ' + escHtml(baiLayDisplay || 'Chưa có') + '"' : '') + '>' + (baiLayDisplay ? escHtml(baiLayDisplay) : (isHangCangList ? '_' : '<span class="text-muted fst-italic small">Chưa có</span>')) + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box"' + (isHangCangList ? ' title="Bãi hạ: ' + escHtml(baiHaDisplay || 'Chưa có') + '"' : '') + '>' + (baiHaDisplay ? escHtml(baiHaDisplay) : (isHangCangList ? '_' : '<span class="text-muted fst-italic small">Chưa có</span>')) + '</div>' +
+              '<div class="khxh-hanh-trinh-cell"' + (isHangCangList ? ' title="' + escHtml(hanhTrinhTitle) + '"' : '') + '>' +
+                '<div class="khxh-hanh-trinh-box">' + (baiLayDisplay ? escHtml(baiLayDisplay) : (isHangCangList ? '_' : '<span class="text-muted fst-italic small">Chưa có</span>')) + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + (baiHaDisplay ? escHtml(baiHaDisplay) : (isHangCangList ? '_' : '<span class="text-muted fst-italic small">Chưa có</span>')) + '</div>' +
               '</div>' +
             '</td>' +
             (currentPlanType() === 'tuyen_xa' ? '' : '<td class="khxh-cang-cell" title="Cảng xuất: ' + escHtml(row.cang_xuat || 'Chưa có') + '">' + (row.cang_xuat ? escHtml(row.cang_xuat) : '_') + '</td>') +
@@ -5008,7 +5015,7 @@
 
     function updateEditTitle(row) {
       var parts = [currentPlanType() === 'tuyen_xa' ? 'Xếp xe tuyến xa' : 'Xếp xe'];
-      var khName = customerFullName(row && row.khach_hang);
+      var khName = currentPlanType() !== 'tuyen_xa' ? customerDisplayName(row && row.khach_hang, true) : customerFullName(row && row.khach_hang);
       var soBkg = currentPlanType() === 'tuyen_xa' ? '' : (row && row.so_bkg ? row.so_bkg : '');
       if (khName) parts.push(khName);
       if (soBkg) parts.push(soBkg);
