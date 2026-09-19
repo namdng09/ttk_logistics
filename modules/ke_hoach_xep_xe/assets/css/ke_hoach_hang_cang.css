@@ -551,3 +551,37 @@
 [data-bs-theme=dark] .khxh-status-cho-thuc-hien {
   --khxh-cho-thuc-hien: #a3aec6;
 }
+
+/* Menu chức năng của dòng hàng cảng: rộng theo mục dài nhất, không xuống dòng.
+ * Menu nằm trong ô ngày (căn giữa, hẹp) nên phải đặt lại width/căn lề/nowrap. */
+#ke-hoach-hang-cang-screen .khxh-row-action-menu .dropdown-menu {
+  width: max-content;
+  min-width: 13rem;
+  max-width: calc(100vw - 16px);
+  text-align: left;
+  white-space: nowrap;
+}
+
+#ke-hoach-hang-cang-screen .khxh-row-action-menu .dropdown-menu .dropdown-item {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-align: left;
+}
+
+/* Mục chưa dùng được (VD: Đẩy cho lái xe khi chưa có lái xe). */
+#ke-hoach-hang-cang-screen .khxh-row-action-menu .dropdown-menu .khxh-action-disabled {
+  cursor: not-allowed;
+}
+
+#ke-hoach-hang-cang-screen .khxh-row-action-menu .dropdown-menu .khxh-action-disabled .dropdown-item {
+  opacity: .55;
+  pointer-events: none;
+}
+
+#ke-hoach-hang-cang-screen .khxh-row-action-menu .dropdown-menu .khxh-action-hint {
+  margin-left: .35rem;
+  font-size: .75rem;
+  font-style: italic;
+}
+

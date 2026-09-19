@@ -80,6 +80,13 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/ke-hoach-xep-xe/%/dinh-muc'] = array(
+    'page callback' => 'ke_hoach_xep_xe_dinh_muc_rest',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/ke-hoach-xep-xe/%'] = array(
     'page callback' => 'ke_hoach_xep_xe_rest_item',
     'page arguments' => array(2),
@@ -2303,6 +2310,38 @@ function _ke_hoach_xep_xe_rest_create() {
   }
 }
 
+/**
+ * Định mức khoán lái xe của kế hoạch hàng cảng.
+ * PUT /api/ke-hoach-xep-xe/{id}/dinh-muc  body: { items: [...] }
+ *
+ * Endpoint riêng của hàng cảng, không đi qua /api/quan-ly-cont (màn quản lý cont).
+ */
+function ke_hoach_xep_xe_dinh_muc_rest($id) {
+  if ($_SERVER['REQUEST_METHOD'] !== 'PUT') {
+    return _ke_hoach_xep_xe_method_not_allowed('PUT');
+  }
+  if (!user_access('ke_hoach_xep_xe_create')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật định mức');
+  }
+  $id = (int) $id;
+  $plan = $id ? db_query("SELECT nid, loai_ke_hoach, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch() : FALSE;
+  if (!$plan) {
+    return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
+  }
+  if (!empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach !== 'thuong') {
+    return _ke_hoach_xep_xe_fail('Endpoint này chỉ dành cho kế hoạch hàng cảng');
+  }
+  $input = _ke_hoach_xep_xe_input();
+  $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
+  $json['dinh_muc_khoan_lai_xe'] = _ke_hoach_xep_xe_normalize_dinh_muc_khoan($input);
+  db_update('ke_hoach_xep_xe')
+    ->fields(array('thong_tin_json' => _ke_hoach_xep_xe_json_encode($json), 'changed' => _ke_hoach_xep_xe_now()))
+    ->condition('nid', $id)
+    ->execute();
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+  return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_enrich_row($row));
+}
+
 function ke_hoach_xep_xe_rest_item($id) {
   $id = (int) $id;
   if (!$id) {
@@ -2618,6 +2657,44 @@ function _ke_hoach_cont_rest_list() {
   return _ke_hoach_xep_xe_success(array('items' => $items, 'total' => count($items), 'current_page' => 1, 'total_pages' => 1));
 }
 
+/**
+ * Chuẩn hoá danh sách định mức khoán lái xe (dùng chung cho mọi nơi lưu định mức).
+ */
+function _ke_hoach_xep_xe_normalize_dinh_muc_khoan($dm) {
+  $dm = is_array($dm) ? $dm : array();
+  $items = !empty($dm['items']) && is_array($dm['items']) ? $dm['items'] : array();
+  $clean_items = array();
+  $total = 0;
+  foreach ($items as $index => $item) {
+    if (!is_array($item)) continue;
+    $diem_dau = isset($item['diem_dau']) ? trim((string) $item['diem_dau']) : '';
+    $diem_cuoi = isset($item['diem_cuoi']) ? trim((string) $item['diem_cuoi']) : '';
+    $trang_thai_xe = isset($item['trang_thai_xe']) ? trim((string) $item['trang_thai_xe']) : '';
+    if (!in_array($trang_thai_xe, array('v', 'h', 't'), TRUE)) {
+      $trang_thai_xe = 'v';
+    }
+    $dinh_muc = _ke_hoach_xep_xe_money_value(isset($item['dinh_muc']) ? $item['dinh_muc'] : 0);
+    $total += $dinh_muc;
+    $clean_items[] = array(
+      'ten_chang' => isset($item['ten_chang']) ? trim((string) $item['ten_chang']) : 'Chặng ' . (count($clean_items) + 1),
+      'trang_thai_xe' => $trang_thai_xe,
+      'diem_dau' => $diem_dau,
+      'diem_cuoi' => $diem_cuoi,
+      'dinh_muc' => $dinh_muc,
+      'manual' => !empty($item['manual']) ? 1 : 0,
+    );
+  }
+  return array(
+    'items' => $clean_items,
+    'tong_khoan' => $total,
+    'changed' => _ke_hoach_xep_xe_now(),
+  );
+}
+
+/**
+ * PUT /api/quan-ly-cont/{id}. Hàng cảng và tuyến xa là hai nghiệp vụ khác nhau
+ * nên mỗi loại có hàm cập nhật riêng; hàm này chỉ kiểm tra quyền và điều hướng.
+ */
 function _ke_hoach_cont_rest_update($id) {
   if (!user_access('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật quản lý cont');
@@ -2626,6 +2703,84 @@ function _ke_hoach_cont_rest_update($id) {
   if (!$existing_plan) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch cont không tồn tại');
   }
+  if (!empty($existing_plan->loai_ke_hoach) && $existing_plan->loai_ke_hoach === 'tuyen_xa') {
+    return _ke_hoach_tuyen_xa_cont_rest_update($id, $existing_plan);
+  }
+  return _ke_hoach_port_cont_rest_update($id, $existing_plan);
+}
+
+/**
+ * Trạng thái hàng cảng mà chuyến đã phải có lái xe. Chờ duyệt và Đã huỷ thì không.
+ */
+function _ke_hoach_port_statuses_need_driver() {
+  return array('Chờ thực hiện', 'Đã nhận chuyến', 'Đang kéo lên', 'Đang kéo về', 'Hoàn thành');
+}
+
+/**
+ * Cập nhật cont / trạng thái / chi phí khoán của kế hoạch hàng cảng.
+ */
+function _ke_hoach_port_cont_rest_update($id, $existing_plan) {
+  $input = _ke_hoach_xep_xe_input();
+  $update = array('changed' => _ke_hoach_xep_xe_now());
+  foreach (array('da_du_hang', 'ha_bai_ngoai', 'ha_cang') as $field) {
+    if (array_key_exists($field, $input)) {
+      $update[$field] = !empty($input[$field]) ? 1 : 0;
+    }
+  }
+  if (array_key_exists('trang_thai_van_chuyen', $input)) {
+    $status = trim((string) $input['trang_thai_van_chuyen']);
+    if (!in_array($status, _ke_hoach_xep_xe_statuses('thuong'), TRUE)) {
+      return _ke_hoach_xep_xe_fail('Trạng thái vận chuyển không hợp lệ');
+    }
+    if (in_array($status, _ke_hoach_port_statuses_need_driver(), TRUE) && empty($existing_plan->nid_lai_xe)) {
+      return _ke_hoach_xep_xe_fail('Kế hoạch chưa có lái xe. Hãy chọn lái xe trong Xếp xe và lưu trước khi chuyển sang "' . $status . '"');
+    }
+    $update['trang_thai_van_chuyen'] = $status;
+    if ($status === 'Hoàn thành') {
+      $ngay_ket_thuc = !empty($input['ngay_ket_thuc']) ? trim((string) $input['ngay_ket_thuc']) : '';
+      $ngay_ket_thuc = $ngay_ket_thuc ? substr(_ke_hoach_xep_xe_filter_date($ngay_ket_thuc), 0, 10) : '';
+      $update['ngay_ket_thuc'] = $ngay_ket_thuc ?: date('Y-m-d', REQUEST_TIME);
+    }
+    else {
+      $update['ngay_ket_thuc'] = '';
+    }
+  }
+  if (array_key_exists('bai_lay_thuc_te', $input)) {
+    $bai_lay_thuc_te = trim((string) $input['bai_lay_thuc_te']);
+    $update['bai_lay_thuc_te'] = ($bai_lay_thuc_te && $bai_lay_thuc_te !== $existing_plan->bai_lay_cont) ? $bai_lay_thuc_te : '';
+  }
+  if (array_key_exists('bai_ha_thuc_te', $input)) {
+    $bai_ha_thuc_te = trim((string) $input['bai_ha_thuc_te']);
+    $update['bai_ha_thuc_te'] = ($bai_ha_thuc_te && $bai_ha_thuc_te !== $existing_plan->bai_ha_cont) ? $bai_ha_thuc_te : '';
+  }
+  if (array_key_exists('ghi_chu', $input) || array_key_exists('dinh_muc_khoan_lai_xe', $input)) {
+    $json = _ke_hoach_xep_xe_json_decode($existing_plan->thong_tin_json);
+    if (array_key_exists('ghi_chu', $input)) {
+      $json['ghi_chu'] = trim((string) $input['ghi_chu']);
+    }
+    if (array_key_exists('dinh_muc_khoan_lai_xe', $input)) {
+      $json['dinh_muc_khoan_lai_xe'] = _ke_hoach_xep_xe_normalize_dinh_muc_khoan($input['dinh_muc_khoan_lai_xe']);
+    }
+    $update['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($json);
+  }
+  if (count($update) === 1) {
+    return _ke_hoach_xep_xe_fail('Không có dữ liệu cập nhật');
+  }
+  try {
+    db_update('ke_hoach_xep_xe')->fields($update)->condition('nid', $id)->execute();
+  }
+  catch (Exception $e) {
+    watchdog('ke_hoach_xep_xe', 'Lỗi cập nhật cont/trạng thái hàng cảng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ke_hoach_xep_xe_error('Lỗi hệ thống khi cập nhật kế hoạch');
+  }
+  $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+  return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_enrich_row($row));
+}
+
+/**
+ * Cập nhật chặng / trạng thái / định mức của kế hoạch tuyến xa.
+ */
+function _ke_hoach_tuyen_xa_cont_rest_update($id, $existing_plan) {
   $input = _ke_hoach_xep_xe_input();
   $fields = array('da_du_hang', 'ha_bai_ngoai', 'ha_cang');
   $update = array('changed' => _ke_hoach_xep_xe_now());
@@ -2779,34 +2934,7 @@ function _ke_hoach_cont_rest_update($id) {
   }
   if (array_key_exists('dinh_muc_khoan_lai_xe', $input)) {
     $existing_json = isset($json) ? $json : _ke_hoach_xep_xe_json_decode(db_query("SELECT thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetchField());
-    $dm = is_array($input['dinh_muc_khoan_lai_xe']) ? $input['dinh_muc_khoan_lai_xe'] : array();
-    $items = !empty($dm['items']) && is_array($dm['items']) ? $dm['items'] : array();
-    $clean_items = array();
-    $total = 0;
-    foreach ($items as $index => $item) {
-      if (!is_array($item)) continue;
-      $diem_dau = isset($item['diem_dau']) ? trim((string) $item['diem_dau']) : '';
-      $diem_cuoi = isset($item['diem_cuoi']) ? trim((string) $item['diem_cuoi']) : '';
-      $trang_thai_xe = isset($item['trang_thai_xe']) ? trim((string) $item['trang_thai_xe']) : '';
-      if (!in_array($trang_thai_xe, array('v', 'h', 't'), TRUE)) {
-        $trang_thai_xe = 'v';
-      }
-      $dinh_muc = _ke_hoach_xep_xe_money_value(isset($item['dinh_muc']) ? $item['dinh_muc'] : 0);
-      $total += $dinh_muc;
-      $clean_items[] = array(
-        'ten_chang' => isset($item['ten_chang']) ? trim((string) $item['ten_chang']) : 'Chặng ' . (count($clean_items) + 1),
-        'trang_thai_xe' => $trang_thai_xe,
-        'diem_dau' => $diem_dau,
-        'diem_cuoi' => $diem_cuoi,
-        'dinh_muc' => $dinh_muc,
-        'manual' => !empty($item['manual']) ? 1 : 0,
-      );
-    }
-    $existing_json['dinh_muc_khoan_lai_xe'] = array(
-      'items' => $clean_items,
-      'tong_khoan' => $total,
-      'changed' => _ke_hoach_xep_xe_now(),
-    );
+    $existing_json['dinh_muc_khoan_lai_xe'] = _ke_hoach_xep_xe_normalize_dinh_muc_khoan($input['dinh_muc_khoan_lai_xe']);
     $json = $existing_json;
     $update['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($existing_json);
   }

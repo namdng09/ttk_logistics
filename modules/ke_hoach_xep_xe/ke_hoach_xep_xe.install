@@ -216,6 +216,7 @@ function ke_hoach_xep_xe_schema() {
       'nid_khach_hang' => array('nid_khach_hang'),
       'nid_lai_xe' => array('nid_lai_xe'),
       'ngay_gio_ke_hoach' => array('ngay_gio_ke_hoach'),
+      'created' => array('created'),
     ),
   );
 
@@ -723,4 +724,14 @@ function ke_hoach_xep_xe_update_7022() {
     }
   }
   return 'Đã thêm index cho ke_hoach_cont_ref_nid, nid_khach_hang, nid_lai_xe, ngay_gio_ke_hoach.';
+}
+
+/**
+ * Index cho created: danh sách tuyến xa lọc và sắp xếp theo ngày tạo.
+ */
+function ke_hoach_xep_xe_update_7023() {
+  if (!db_index_exists('ke_hoach_xep_xe', 'created')) {
+    db_add_index('ke_hoach_xep_xe', 'created', array('created'));
+  }
+  return 'Đã thêm index cho created.';
 }

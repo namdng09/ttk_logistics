@@ -59,6 +59,9 @@
   // Tuyến xa dùng mã khách hàng để các bảng/card điều phối luôn gọn. Các dữ
   // liệu cũ chưa có mã vẫn an toàn vì quay về tên đầy đủ.
   function customerDisplayName(customer, useShortCode) {
+    // Kế hoạch có thể mất khách hàng (bản ghi bị xoá): trả rỗng thay vì làm
+    // hỏng cả danh sách.
+    if (!customer) return '';
     var fullName = customerFullName(customer);
     if (useShortCode) return customer.ma_kh || fullName || (customer.nid ? ('#' + customer.nid) : '');
     return fullName || customer.ma_kh || (customer.nid ? ('#' + customer.nid) : '');
@@ -957,6 +960,14 @@
     });
   }
 
+  // Các trạng thái mà chuyến đã phải có lái xe (khớp kiểm tra ở backend).
+  var PORT_STATUSES_NEED_DRIVER = ['Chờ thực hiện', 'Đã nhận chuyến', 'Đang kéo lên', 'Đang kéo về', 'Hoàn thành'];
+  var PORT_NO_DRIVER_HINT = 'Kế hoạch chưa có lái xe. Vào Xếp xe để chọn lái xe rồi lưu.';
+
+  function portPlanHasDriver(row) {
+    return !!(row && ((row.lai_xe && parseInt(row.lai_xe.nid, 10)) || parseInt(row.nid_lai_xe, 10)));
+  }
+
   function hangCangStatusActionHtml(row) {
     row = row || {};
     var nid = parseInt(row.nid, 10) || 0;
@@ -964,8 +975,15 @@
     var status = String(row.trang_thai_van_chuyen || '');
     var ht = normalizeHinhThuc(row.hinh_thuc_van_tai);
     var hasReturnCont = (ht === 'cat_keo' || ht === 'cat_keo_cheo' || ht === 'rut_mooc') && !!parseInt(row.ke_hoach_cont_ref_nid, 10);
+    var hasDriver = portPlanHasDriver(row);
     var items = [];
     var push = function (label, to, icon, color) {
+      // Chuyển sang trạng thái cần lái xe mà kế hoạch chưa có lái xe: hiện mờ,
+      // kèm lý do, không bấm được.
+      if (!hasDriver && PORT_STATUSES_NEED_DRIVER.indexOf(to) !== -1) {
+        items.push('<li class="khxh-action-disabled" title="' + escHtml(PORT_NO_DRIVER_HINT) + '"><span class="dropdown-item disabled" aria-disabled="true"><i class="ti ' + icon + ' me-2 text-muted"></i>' + escHtml(label) + '<span class="khxh-action-hint">(chưa có lái xe)</span></span></li>');
+        return;
+      }
       items.push('<li><button type="button" class="dropdown-item btn-hang-cang-status-action" data-id="' + nid + '" data-to="' + escHtml(to) + '"><i class="ti ' + icon + ' me-2 ' + color + '"></i>' + escHtml(label) + '</button></li>');
     };
     if (status === 'Chờ duyệt') {
@@ -1254,6 +1272,7 @@
       if (modalScrollBody) modalScrollBody.scrollTop = 0;
     }
     $('#' + contentId + ' #form-loading').show();
+    resetHangCangEditDirty();
     var modal = bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl);
     if (!options.keepOpen) modal.show();
     $.ajax({
@@ -2038,6 +2057,7 @@
       persistListSnapshot();
       openEditFullscreenModal(match[1]);
     });
+    bindHangCangEditDirtyTracking();
     $('#ke-hoach-edit-fullscreen-modal, #ke-hoach-tuyen-xa-edit-fullscreen-modal').on('hide.bs.modal', function (e) {
       if (e.target !== this || !nestedContEditContext || !nestedContEditContext.parentId) return;
       e.preventDefault();
@@ -2190,6 +2210,218 @@
     } catch (e) {}
   }
 
+  // Modal xếp xe hàng cảng: theo dõi thay đổi chưa lưu để cảnh báo khi đóng.
+  // Chỉ tính thao tác của người dùng (sự kiện gốc từ trình duyệt, chọn Select2,
+  // chọn xe/mooc/cont); dữ liệu nạp hay gán bằng code không làm modal "bẩn".
+  var hangCangEditDirty = false;
+  var hangCangEditCloseConfirmed = false;
+
+  function markHangCangEditDirty() {
+    hangCangEditDirty = true;
+  }
+
+  function resetHangCangEditDirty() {
+    hangCangEditDirty = false;
+  }
+
+  function isHangCangDirtyIgnoredTarget(target) {
+    var $t = $(target);
+    if ($t.is('[type=file], [type=search], .select2-search__field')) return true;
+    var idAndClass = String($t.attr('id') || '') + ' ' + String($t.attr('class') || '');
+    return /search|filter|plan-file/i.test(idAndClass);
+  }
+
+  function bindHangCangEditDirtyTracking() {
+    var $modal = $('#ke-hoach-edit-fullscreen-modal');
+    if (!$modal.length || $modal.data('khxhDirtyBound')) return;
+    $modal.data('khxhDirtyBound', true);
+    $modal.on('input change', function (e) {
+      if (!e.originalEvent || isHangCangDirtyIgnoredTarget(e.target)) return;
+      markHangCangEditDirty();
+    });
+    $modal.on('select2:select select2:unselect select2:clear', function (e) {
+      if (isHangCangDirtyIgnoredTarget(e.target)) return;
+      markHangCangEditDirty();
+    });
+    $modal.on('click', '.btn-add-row, .btn-add-cost-row, #khcp-dm-add-row, .btn-oil-add-group, .btn-oil-delete-row, #khcp-driver-pay-mode-btn, #khcp-dm-rebuild, .btn-dm-recalc-row, .btn-dm-delete-row, .btn-delete-row, .btn-remove-cont-ref', markHangCangEditDirty);
+    // Chặn đóng modal khi còn thay đổi chưa lưu. Đăng ký trước handler modal lồng
+    // để việc quay lại kế hoạch cha cũng được hỏi.
+    $modal.on('hide.bs.modal', function (e) {
+      if (e.target !== this || !hangCangEditDirty || hangCangEditCloseConfirmed) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      var modalEl = this;
+      var closeAnyway = function () {
+        hangCangEditCloseConfirmed = true;
+        resetHangCangEditDirty();
+        var instance = bootstrap.Modal.getInstance(modalEl);
+        if (instance) instance.hide();
+        hangCangEditCloseConfirmed = false;
+      };
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: 'Thoát mà chưa lưu?',
+          text: 'Các thay đổi trong kế hoạch này sẽ bị mất.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Thoát',
+          cancelButtonText: 'Ở lại',
+          customClass: { confirmButton: 'btn btn-danger', cancelButton: 'btn btn-label-secondary ms-1' },
+          buttonsStyling: false
+        }).then(function (result) {
+          if (result.isConfirmed) closeAnyway();
+        });
+      } else if (window.confirm('Thoát mà chưa lưu? Các thay đổi sẽ bị mất.')) {
+        closeAnyway();
+      }
+    });
+  }
+
+  // ---- Dòng danh sách: mỗi màn một hàm dựng riêng, không dùng chung nhánh. ----
+
+  function rowActionsTriggerHtml(stt) {
+    return '<td><button type="button" class="khxh-row-actions-trigger" title="Mở chức năng kế hoạch" aria-label="Mở chức năng kế hoạch #' + stt + '">' + stt + '</button></td>';
+  }
+
+  function listHinhThucBadgeHtml(row) {
+    return row.hinh_thuc_van_tai ? '<span class="badge ' + hinhThucColor(row.hinh_thuc_van_tai) + '" title="Hình thức vận tải: ' + escHtml(hinhThucLabel(row.hinh_thuc_van_tai)) + '">' + escHtml(hinhThucLabel(row.hinh_thuc_van_tai)) + '</span>' : '';
+  }
+
+  // Hàng cảng (/ke-hoach-xep-xe).
+  function hangCangListRowHtml(row, stt) {
+    var khName = (row.khach_hang && row.khach_hang.ma_kh) || customerPlanLabel(row.khach_hang);
+    var khFullName = customerFullName(row.khach_hang);
+    var hinhThucBadge = listHinhThucBadgeHtml(row);
+    var hinhThucStatus = '';
+    var returnContText = '';
+    var returnContDisplayHtml = '';
+    var returnContTitle = '';
+    if (row.is_cont_keo_ve || normalizeHinhThuc(row.hinh_thuc_van_tai) === 'dong_hang') {
+      hinhThucStatus = 'Kéo về';
+    } else if (row.hinh_thuc_van_tai === 'cat_keo' || row.hinh_thuc_van_tai === 'cat_keo_cheo' || row.hinh_thuc_van_tai === 'tha_mooc') {
+      hinhThucStatus = 'Kéo lên';
+    }
+    // Cont được chọn trong ô "Cont kéo về" nằm ở cont_ref. Hiển thị ngay cạnh
+    // hình thức vận tải để nhìn nhanh trên danh sách.
+    if (row.cont_ref) {
+      var returnContNumber = row.cont_ref.so_cont || '';
+      returnContText = returnContNumber ? '- ' + returnContNumber + ' (Về)' : '';
+      returnContDisplayHtml = returnContNumber
+        ? '- <span class="khxh-port-list-cont-number">' + escHtml(returnContNumber) + '</span> (Về)'
+        : '';
+      var returnContDestination = row.cont_ref.bai_ha_thuc_te || row.cont_ref.bai_ha_cont || '';
+      returnContTitle = 'Số Cont: ' + (returnContNumber || 'Chưa có') + (returnContDestination ? ' (Về) - ' + returnContDestination : '');
+    }
+    var hinhThucStatusClass = hinhThucStatus === 'Kéo về'
+      ? 'khxh-list-status-keo-ve'
+      : (hinhThucStatus === 'Kéo lên' ? 'khxh-list-status-keo-len' : '');
+    var planStatus = String(row.trang_thai_van_chuyen || 'Chờ duyệt');
+    var contTextRaw = [row.loai_cont || '', row.so_cont || ''].filter(Boolean).join(' - ');
+    var baiLayDisplay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
+    var baiHaDisplay = row.bai_ha_thuc_te || row.bai_ha_cont || '';
+    var customerTitle = 'Khách hàng: ' + (khName ? (khName + (khFullName ? ' - ' + khFullName : '')) : 'Chưa có') + (row.so_bkg ? '\nBKG: ' + row.so_bkg : '');
+    var customerDisplay = khName ? escHtml(khName) : '_';
+    if (row.so_bkg) {
+      customerDisplay += ' <span class="khxh-customer-bkg">- ' + escHtml(row.so_bkg) + '</span>';
+    }
+    var containerTitle = 'Container: ' + (contTextRaw || 'Chưa có') + '\nSeal chính: ' + (row.so_seal_chinh || 'Chưa có') + (row.so_seal_tam ? '\nSeal phụ: Có' : '');
+    var hanhTrinhTitle = 'Bãi lấy: ' + (baiLayDisplay || 'Chưa có') + '\nBãi hạ: ' + (baiHaDisplay || 'Chưa có');
+    var rowActionMenu = '<span class="khxh-row-action-menu">' + buildActions(row) + '</span>';
+    return '<tr>' +
+      rowActionsTriggerHtml(stt) +
+      '<td class="khxh-date-cell"><div class="khxh-date-stack">' + (dateOnlyStack(row.ngay_gio_ke_hoach) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + hinhThucStatusClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu + '</td>' +
+      '<td class="khxh-common-cell">' +
+        '<div class="khxh-customer-cell" title="' + escHtml(customerTitle) + '">' + customerDisplay + '</div>' +
+        '<div class="khxh-htvt-cell">' +
+          ((hinhThucBadge || returnContText) ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list" title="' + escHtml(returnContTitle || ('Cont kéo về: ' + returnContText)) + '">' + (returnContDisplayHtml || escHtml(returnContText)) + '</span>' : '') + '</div>' : '') +
+        '</div>' +
+      '</td>' +
+      '<td class="khxh-container-cell" title="' + escHtml(containerTitle) + '">' +
+        '<div>' + (contTextRaw ? (row.loai_cont ? escHtml(row.loai_cont) + (row.so_cont ? ' - ' : '') : '') + (row.so_cont ? '<span class="khxh-port-list-cont-number">' + escHtml(row.so_cont) + '</span>' : '') : '_') + '</div>' +
+        '<div>' + (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '_') + '</div>' +
+        (row.so_seal_tam ? '<div><span class="fst-italic">Có seal phụ</span></div>' : '') +
+      '</td>' +
+      '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(row) + '</td>' +
+      '<td class="khxh-kho-cell" title="Địa chỉ kho: ' + escHtml(row.dia_chi_kho || 'Chưa có') + '">' + (row.dia_chi_kho ? escHtml(row.dia_chi_kho) : '_') + '</td>' +
+      '<td class="text-nowrap">' +
+        '<div class="khxh-hanh-trinh-cell" title="' + escHtml(hanhTrinhTitle) + '">' +
+          '<div class="khxh-hanh-trinh-box">' + (baiLayDisplay ? escHtml(baiLayDisplay) : '_') + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + (baiHaDisplay ? escHtml(baiHaDisplay) : '_') + '</div>' +
+        '</div>' +
+      '</td>' +
+      '<td class="khxh-cang-cell" title="Cảng xuất: ' + escHtml(row.cang_xuat || 'Chưa có') + '">' + (row.cang_xuat ? escHtml(row.cang_xuat) : '_') + '</td>' +
+      '<td class="khxh-status-cell"><span class="badge ' + hangCangPlanStatusColor(planStatus) + '" title="Trạng thái kế hoạch: ' + escHtml(planStatus) + '">' + escHtml(planStatus) + '</span></td>' +
+      '</tr>';
+  }
+
+  // Tuyến xa (/ke-hoach-tuyen-xa).
+  function tuyenXaListRowHtml(row, stt) {
+    var daDuHang = parseInt(row.da_du_hang, 10) === 1;
+    var khName = customerPlanLabel(row.khach_hang);
+    var khFullName = customerFullName(row.khach_hang);
+    var hinhThucBadge = listHinhThucBadgeHtml(row);
+    var hinhThucStatus = '';
+    var planRoleClass = '';
+    var listRowJson = row.thong_tin_json || {};
+    var returnContText = '';
+    if (parseInt(row.nid_ke_hoach_nguon, 10) || listRowJson.ke_hoach_ket_hop_hang) {
+      hinhThucStatus = 'Kế hoạch kết hợp';
+      planRoleClass = 'khxh-plan-role-ket-hop';
+    } else if (listRowJson.vai_tro_ke_hoach === 'thuc_hien_chang' || (!listRowJson.vai_tro_ke_hoach && row.ke_hoach_cont_ref_nid)) {
+      hinhThucStatus = 'Thực hiện chặng';
+      planRoleClass = 'khxh-plan-role-thuc-hien-chang';
+    } else {
+      hinhThucStatus = 'Kế hoạch gốc';
+      planRoleClass = 'khxh-plan-role-goc';
+    }
+    var returnInfo = listRowJson.ket_hop || {};
+    var returnCont = returnInfo.cont_ref || null;
+    if ((parseInt(returnInfo.enabled, 10) === 1 || returnInfo.enabled === true) && returnCont) {
+      var returnDestination = returnInfo.cont_keo_ve_den || '';
+      if (!returnDestination) {
+        var returnJson = returnCont.thong_tin_json || {};
+        var returnPoints = [
+          returnCont.bai_lay_thuc_te || returnCont.bai_lay_cont || '',
+          parseInt(returnJson.bai_ha_tam_1_enabled, 10) === 1 ? (returnJson.bai_ha_tam_1 || '') : '',
+          returnCont.dia_chi_kho || '',
+          parseInt(returnJson.bai_ha_tam_2_enabled, 10) === 1 ? (returnJson.bai_ha_tam_2 || '') : '',
+          returnCont.bai_ha_thuc_te || returnCont.bai_ha_cont || ''
+        ].filter(Boolean);
+        returnDestination = returnPoints[parseInt(returnInfo.cont_thuc_hien_den_index, 10)] || '';
+      }
+      var returnNumber = returnCont.so_cont || '';
+      returnContText = [returnNumber, returnDestination].filter(Boolean).join(' - ');
+    }
+    var baiLayDisplay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
+    var baiHaDisplay = row.bai_ha_thuc_te || row.bai_ha_cont || '';
+    var customerDisplay = khName ? escHtml(khName) : '<span class="text-muted fst-italic small">khách hàng</span>';
+    var rowActionMenu = '<span class="khxh-row-action-menu">' + buildActions(row) + '</span>';
+    return '<tr>' +
+      rowActionsTriggerHtml(stt) +
+      '<td class="khxh-date-cell"><div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + planRoleClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu + '</td>' +
+      '<td class="khxh-common-cell">' +
+        '<div class="khxh-customer-cell"' + (khFullName ? ' title="' + escHtml(khFullName) + '"' : '') + '>' + customerDisplay + '</div>' +
+        '<div class="khxh-htvt-cell">' +
+          ((hinhThucBadge || returnContText) ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list" title="' + escHtml('Cont kéo về: ' + returnContText) + '">' + escHtml(returnContText) + '</span>' : '') + '</div>' : '') +
+        '</div>' +
+      '</td>' +
+      '<td class="khxh-container-cell">' +
+        '<div>' + (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '</div>' +
+        '<div>' + (row.so_cont ? escHtml(row.so_cont) : '<span class="text-muted fst-italic small">số cont</span>') + '</div>' +
+        '<div>' + (row.loai_hang ? escHtml(row.loai_hang) : '<span class="text-muted fst-italic small">loại hàng</span>') + '</div>' +
+      '</td>' +
+      '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(row) + '</td>' +
+      '<td class="khxh-kho-cell">' + (row.dia_chi_kho ? escHtml(row.dia_chi_kho) : '') + '</td>' +
+      '<td class="text-nowrap">' +
+        '<div class="khxh-hanh-trinh-cell">' +
+          '<div class="khxh-hanh-trinh-box">' + (baiLayDisplay ? escHtml(baiLayDisplay) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + (baiHaDisplay ? escHtml(baiHaDisplay) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div>' +
+        '</div>' +
+      '</td>' +
+      '<td class="khxh-status-cell"><span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + ' btn-tuyen-xa-toggle-du-hang" role="button" tabindex="0" aria-pressed="' + (daDuHang ? 'true' : 'false') + '" data-id="' + parseInt(row.nid, 10) + '" data-current="' + (daDuHang ? '1' : '0') + '" data-cont="' + escHtml(row.so_cont || '') + '" title="Trạng thái cont: ' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '. Bấm để thay đổi">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</span></td>' +
+      '</tr>';
+  }
+
+  var listXhr = null;
+
   function loadList() {
     var tbody = document.getElementById('list-body');
     var listColumnCount = currentPlanType() === 'tuyen_xa' ? 8 : 9;
@@ -2200,12 +2432,15 @@
     if (currentStatus) params.trang_thai_van_chuyen = currentStatus;
     $.extend(params, currentFilters || {});
     params.limit = 50;
-    $.ajax({
+    // Huỷ request danh sách trước đó để response đến trễ không ghi đè kết quả mới.
+    if (listXhr && listXhr.readyState !== 4) listXhr.abort();
+    var currentXhr = listXhr = $.ajax({
       url: '/api/ke-hoach-xep-xe',
       type: 'GET',
       dataType: 'json',
       data: params,
       success: function (res) {
+        if (currentXhr !== listXhr) return;
         $('#loading-row').remove();
         if (res.status !== 'success' || !res.data) {
           tbody.innerHTML = '<tr><td colspan="' + listColumnCount + '" class="text-center text-danger py-4">' + escHtml(res.message || 'Lỗi không xác định') + '</td></tr>';
@@ -2222,120 +2457,10 @@
           renderPagination(resp);
           return;
         }
+        var renderRow = currentPlanType() === 'tuyen_xa' ? tuyenXaListRowHtml : hangCangListRowHtml;
         var html = '';
         for (var i = 0; i < items.length; i++) {
-          var row = items[i];
-          var daDuHang = parseInt(row.da_du_hang, 10) === 1;
-          var stt = (resp.current_page - 1) * pageSize + i + 1;
-          var actions = buildActions(row);
-          // Danh sách hàng cảng dùng mã khách hàng để tránh tên dài làm vỡ bố cục;
-          // tuyến xa vẫn dùng customerPlanLabel như trước.
-          var khName = currentPlanType() === 'tuyen_xa'
-            ? customerPlanLabel(row.khach_hang)
-            : ((row.khach_hang && row.khach_hang.ma_kh) || customerPlanLabel(row.khach_hang));
-          var khFullName = customerFullName(row.khach_hang);
-          var hinhThucBadge = row.hinh_thuc_van_tai ? '<span class="badge ' + hinhThucColor(row.hinh_thuc_van_tai) + '" title="Hình thức vận tải: ' + escHtml(hinhThucLabel(row.hinh_thuc_van_tai)) + '">' + escHtml(hinhThucLabel(row.hinh_thuc_van_tai)) + '</span>' : '';
-          var hinhThucStatus = '';
-          var planRoleClass = '';
-          var listRowJson = row.thong_tin_json || {};
-          var returnContText = '';
-          var returnContDisplayHtml = '';
-          var returnContTitle = '';
-          if (currentPlanType() === 'tuyen_xa') {
-            if (parseInt(row.nid_ke_hoach_nguon, 10) || listRowJson.ke_hoach_ket_hop_hang) {
-              hinhThucStatus = 'Kế hoạch kết hợp';
-              planRoleClass = 'khxh-plan-role-ket-hop';
-            } else if (listRowJson.vai_tro_ke_hoach === 'thuc_hien_chang' || (!listRowJson.vai_tro_ke_hoach && row.ke_hoach_cont_ref_nid)) {
-              hinhThucStatus = 'Thực hiện chặng';
-              planRoleClass = 'khxh-plan-role-thuc-hien-chang';
-            } else {
-              hinhThucStatus = 'Kế hoạch gốc';
-              planRoleClass = 'khxh-plan-role-goc';
-            }
-            var returnInfo = listRowJson.ket_hop || {};
-            var returnCont = returnInfo.cont_ref || null;
-            if ((parseInt(returnInfo.enabled, 10) === 1 || returnInfo.enabled === true) && returnCont) {
-              var returnDestination = returnInfo.cont_keo_ve_den || '';
-              if (!returnDestination) {
-                var returnJson = returnCont.thong_tin_json || {};
-                var returnPoints = [
-                  returnCont.bai_lay_thuc_te || returnCont.bai_lay_cont || '',
-                  parseInt(returnJson.bai_ha_tam_1_enabled, 10) === 1 ? (returnJson.bai_ha_tam_1 || '') : '',
-                  returnCont.dia_chi_kho || '',
-                  parseInt(returnJson.bai_ha_tam_2_enabled, 10) === 1 ? (returnJson.bai_ha_tam_2 || '') : '',
-                  returnCont.bai_ha_thuc_te || returnCont.bai_ha_cont || ''
-                ].filter(Boolean);
-                returnDestination = returnPoints[parseInt(returnInfo.cont_thuc_hien_den_index, 10)] || '';
-              }
-              var returnNumber = returnCont.so_cont || '';
-              returnContText = [returnNumber, returnDestination].filter(Boolean).join(' - ');
-            }
-          } else if (row.is_cont_keo_ve || normalizeHinhThuc(row.hinh_thuc_van_tai) === 'dong_hang') {
-            hinhThucStatus = 'Kéo về';
-          } else if (row.hinh_thuc_van_tai === 'cat_keo' || row.hinh_thuc_van_tai === 'cat_keo_cheo' || row.hinh_thuc_van_tai === 'tha_mooc') {
-            hinhThucStatus = 'Kéo lên';
-          }
-          // Với hàng cảng, cont được chọn trong ô "Cont kéo về" nằm ở cont_ref.
-          // Hiển thị ngay cạnh hình thức vận tải để nhìn nhanh trên danh sách.
-          if (currentPlanType() !== 'tuyen_xa' && row.cont_ref) {
-            var returnContNumber = row.cont_ref.so_cont || '';
-            returnContText = returnContNumber ? '- ' + returnContNumber + ' (Về)' : '';
-            returnContDisplayHtml = returnContNumber
-              ? '- <span class="khxh-port-list-cont-number">' + escHtml(returnContNumber) + '</span> (Về)'
-              : '';
-            var returnContDestination = row.cont_ref.bai_ha_thuc_te || row.cont_ref.bai_ha_cont || '';
-            returnContTitle = 'Số Cont: ' + (returnContNumber || 'Chưa có') + (returnContDestination ? ' (Về) - ' + returnContDestination : '');
-          }
-          var hinhThucStatusClass = hinhThucStatus === 'Kéo về'
-            ? 'khxh-list-status-keo-ve'
-            : (hinhThucStatus === 'Kéo lên' ? 'khxh-list-status-keo-len' : '');
-          var hangCangPlanStatus = String(row.trang_thai_van_chuyen || 'Chờ thực hiện');
-          var contTextRaw = [row.loai_cont || '', row.so_cont || ''].filter(Boolean).join(' - ');
-          var baiLayDisplay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
-          var baiHaDisplay = row.bai_ha_thuc_te || row.bai_ha_cont || '';
-          var isHangCangList = currentPlanType() !== 'tuyen_xa';
-          var customerTitle = isHangCangList
-            ? 'Khách hàng: ' + (khName ? (khName + (khFullName ? ' - ' + khFullName : '')) : 'Chưa có') + (row.so_bkg ? '\nBKG: ' + row.so_bkg : '')
-            : khFullName;
-          var customerDisplay = khName ? escHtml(khName) : (isHangCangList ? '_' : '<span class="text-muted fst-italic small">khách hàng</span>');
-          if (isHangCangList && row.so_bkg) {
-            customerDisplay += ' <span class="khxh-customer-bkg">- ' + escHtml(row.so_bkg) + '</span>';
-          }
-          var containerTitle = 'Container: ' + (contTextRaw || 'Chưa có') + '\nSeal chính: ' + (row.so_seal_chinh || 'Chưa có') + (row.so_seal_tam ? '\nSeal phụ: Có' : '');
-          var hanhTrinhTitle = 'Bãi lấy: ' + (baiLayDisplay || 'Chưa có') + '\nBãi hạ: ' + (baiHaDisplay || 'Chưa có');
-          var rowActionMenu = '<span class="khxh-row-action-menu">' + actions + '</span>';
-          html += '<tr>' +
-            '<td><button type="button" class="khxh-row-actions-trigger" title="Mở chức năng kế hoạch" aria-label="Mở chức năng kế hoạch #' + stt + '">' + stt + '</button></td>' +
-            '<td class="khxh-date-cell">' + (currentPlanType() === 'tuyen_xa'
-              ? '<div class="khxh-date-stack">' + (dateOnlyStack(row.created) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + planRoleClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu
-              : '<div class="khxh-date-stack">' + (dateOnlyStack(row.ngay_gio_ke_hoach) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + hinhThucStatusClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu) + '</td>' +
-            '<td class="khxh-common-cell">' +
-              '<div class="khxh-customer-cell"' + (customerTitle ? ' title="' + escHtml(customerTitle) + '"' : '') + '>' + customerDisplay + '</div>' +
-              '<div class="khxh-htvt-cell">' +
-                ((hinhThucBadge || returnContText) ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + (returnContText ? '<span class="khxh-return-cont-list" title="' + escHtml(returnContTitle || ('Cont kéo về: ' + returnContText)) + '">' + (returnContDisplayHtml || escHtml(returnContText)) + '</span>' : '') + '</div>' : '') +
-              '</div>' +
-            '</td>' +
-            '<td class="khxh-container-cell"' + (isHangCangList ? ' title="' + escHtml(containerTitle) + '"' : '') + '>' +
-              (currentPlanType() === 'tuyen_xa'
-                ? '<div>' + (row.loai_cont ? escHtml(row.loai_cont) : '<span class="text-muted fst-italic small">loại cont</span>') + '</div>' +
-                  '<div>' + (row.so_cont ? escHtml(row.so_cont) : '<span class="text-muted fst-italic small">số cont</span>') + '</div>' +
-                  '<div>' + (row.loai_hang ? escHtml(row.loai_hang) : '<span class="text-muted fst-italic small">loại hàng</span>') + '</div>'
-                : '<div>' + (contTextRaw ? (row.loai_cont ? escHtml(row.loai_cont) + (row.so_cont ? ' - ' : '') : '') + (row.so_cont ? '<span class="khxh-port-list-cont-number">' + escHtml(row.so_cont) + '</span>' : '') : '_') + '</div>' +
-                '<div>' + (row.so_seal_chinh ? escHtml(row.so_seal_chinh) : '_') + '</div>' +
-                (row.so_seal_tam ? '<div><span class="fst-italic">Có seal phụ</span></div>' : '')) +
-            '</td>' +
-            '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(row) + '</td>' +
-            '<td class="khxh-kho-cell"' + (isHangCangList ? ' title="Địa chỉ kho: ' + escHtml(row.dia_chi_kho || 'Chưa có') + '"' : '') + '>' + (row.dia_chi_kho ? escHtml(row.dia_chi_kho) : (isHangCangList ? '_' : '')) + '</td>' +
-            '<td class="text-nowrap">' +
-              '<div class="khxh-hanh-trinh-cell"' + (isHangCangList ? ' title="' + escHtml(hanhTrinhTitle) + '"' : '') + '>' +
-                '<div class="khxh-hanh-trinh-box">' + (baiLayDisplay ? escHtml(baiLayDisplay) : (isHangCangList ? '_' : '<span class="text-muted fst-italic small">Chưa có</span>')) + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + (baiHaDisplay ? escHtml(baiHaDisplay) : (isHangCangList ? '_' : '<span class="text-muted fst-italic small">Chưa có</span>')) + '</div>' +
-              '</div>' +
-            '</td>' +
-            (currentPlanType() === 'tuyen_xa' ? '' : '<td class="khxh-cang-cell" title="Cảng xuất: ' + escHtml(row.cang_xuat || 'Chưa có') + '">' + (row.cang_xuat ? escHtml(row.cang_xuat) : '_') + '</td>') +
-            '<td class="khxh-status-cell">' + (currentPlanType() === 'tuyen_xa'
-              ? '<span class="badge ' + (daDuHang ? 'bg-label-success' : 'bg-label-warning') + ' btn-tuyen-xa-toggle-du-hang" role="button" tabindex="0" aria-pressed="' + (daDuHang ? 'true' : 'false') + '" data-id="' + parseInt(row.nid, 10) + '" data-current="' + (daDuHang ? '1' : '0') + '" data-cont="' + escHtml(row.so_cont || '') + '" title="Trạng thái cont: ' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '. Bấm để thay đổi">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</span>'
-              : '<span class="badge ' + hangCangPlanStatusColor(hangCangPlanStatus) + '" title="Trạng thái kế hoạch: ' + escHtml(hangCangPlanStatus) + '">' + escHtml(hangCangPlanStatus) + '</span>') + '</td>' +
-            '</tr>';
+          html += renderRow(items[i], (resp.current_page - 1) * pageSize + i + 1);
         }
         tbody.innerHTML = html;
         renderPagination(resp);
@@ -2352,7 +2477,9 @@
           });
         }
       },
-      error: function (jqXHR) {
+      error: function (jqXHR, textStatus) {
+        // Request bị huỷ do có lần tải mới hơn: bỏ qua, lần tải mới sẽ tự cập nhật bảng.
+        if (textStatus === 'abort' || currentXhr !== listXhr) return;
         $('#loading-row').remove();
         tbody.innerHTML = '<tr><td colspan="' + listColumnCount + '" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
         if (notyf) notyf.error(apiMsg(jqXHR));
@@ -3978,6 +4105,7 @@
     function selectVehicleForLine(vehicleId) {
       var line = findLine(state.activeLineKey);
       if (!line) return;
+      markHangCangEditDirty();
       if (activePickerType === 'mooc') {
         var mooc = findMoocById(vehicleId);
         line.nid_mooc = mooc ? parseInt(mooc.nid, 10) || 0 : 0;
@@ -4028,6 +4156,7 @@
     function clearVehicleForActiveLine() {
       var line = findLine(state.activeLineKey);
       if (!line) return;
+      markHangCangEditDirty();
       if (activePickerType === 'mooc') {
         line.nid_mooc = 0;
         line.mooc = null;
@@ -4869,144 +4998,193 @@
       return false;
     }
 
+    // Xoá trạng thái lỗi cũ của một dòng trước khi kiểm tra lại (dùng chung, chỉ là UI).
+    function clearLineValidationUi($row) {
+      if (useTableLayout) {
+        $row.removeClass('table-danger');
+        $row.find('.line-customer-feedback').hide();
+        setSelect2Invalid($row.find('.line-customer-select'), false);
+        $row.find('.line-so-bkg-input').removeClass('is-invalid');
+        setSelect2Invalid($row.find('.line-kho-select'), false);
+        setSelect2Invalid($row.find('.line-cang-select'), false);
+        $row.find('.btn-open-cont-ref-modal').removeClass('is-invalid');
+      } else {
+        $row.removeClass('line-card-invalid');
+        $form('#so_bkg-input').removeClass('is-invalid');
+        $row.find('.line-so-bkg-input').removeClass('is-invalid');
+        setSelect2Invalid($row.find('.line-driver-select'), false);
+        setSelect2Invalid($row.find('.line-kho-select'), false);
+        setSelect2Invalid($row.find('.line-cang-select'), false);
+        setSelect2Invalid($row.find('.line-bai-ha-tam-1-select'), false);
+        setSelect2Invalid($row.find('.line-bai-ha-tam-2-select'), false);
+        setSelect2Invalid($row.find('.line-bai-lay-select'), false);
+        setSelect2Invalid($row.find('.line-bai-ha-select'), false);
+        $row.find('.line-vehicle-feedback').hide();
+      }
+    }
+
+    function lineValidationRows() {
+      return $form(useTableLayout ? '#ke-hoach-lines-body .ke-hoach-table-row' : '#ke-hoach-lines .ke-hoach-line-card');
+    }
+
     function validateForm() {
-	      var ok = true;
-	      var contRefSeen = {};
-	      if (!useTableLayout) setSelect2Invalid($form('.line-customer-select'), false);
+      return currentPlanType() === 'tuyen_xa' ? validateTuyenXaForm() : validatePortForm();
+    }
+
+    // Hàng cảng.
+    function validatePortForm() {
+      var ok = true;
+      var contRefSeen = {};
+      if (!useTableLayout) setSelect2Invalid($form('.line-customer-select'), false);
       syncAllLines();
       if (!state.lines.length) {
         if (notyf) notyf.error('Cần có ít nhất một dòng xe');
         return false;
       }
-      var selector = useTableLayout ? '#ke-hoach-lines-body .ke-hoach-table-row' : '#ke-hoach-lines .ke-hoach-line-card';
-      $form(selector).each(function () {
+      lineValidationRows().each(function () {
         var $row = $(this);
         var line = syncLine($row);
-        if (useTableLayout) {
-          $row.removeClass('table-danger');
-          $row.find('.line-customer-feedback').hide();
-          setSelect2Invalid($row.find('.line-customer-select'), false);
-          $row.find('.line-so-bkg-input').removeClass('is-invalid');
-	          setSelect2Invalid($row.find('.line-kho-select'), false);
-	          setSelect2Invalid($row.find('.line-cang-select'), false);
-	          $row.find('.btn-open-cont-ref-modal').removeClass('is-invalid');
-        } else {
-          $row.removeClass('line-card-invalid');
-          $form('#so_bkg-input').removeClass('is-invalid');
-          $row.find('.line-so-bkg-input').removeClass('is-invalid');
-          setSelect2Invalid($row.find('.line-driver-select'), false);
-          setSelect2Invalid($row.find('.line-kho-select'), false);
-          setSelect2Invalid($row.find('.line-cang-select'), false);
-          setSelect2Invalid($row.find('.line-bai-ha-tam-1-select'), false);
-          setSelect2Invalid($row.find('.line-bai-ha-tam-2-select'), false);
-          setSelect2Invalid($row.find('.line-bai-lay-select'), false);
-          setSelect2Invalid($row.find('.line-bai-ha-select'), false);
-          $row.find('.line-vehicle-feedback').hide();
-        }
+        clearLineValidationUi($row);
         // Modal tạo hàng cảng mới đặt Số BKG trong từng card, không còn
         // #so_bkg-input dùng chung. Dùng dữ liệu đã sync từ card để tránh
         // gọi trim() trên phần tử không tồn tại.
-        if (currentPlanType() !== 'tuyen_xa' && !line.so_bkg) {
+        if (!line.so_bkg) {
           ok = false;
           $row.find('.line-so-bkg-input').addClass('is-invalid');
         }
-	        if (useTableLayout && !line.nid_khach_hang) {
-	          ok = false;
-	          $row.find('.line-customer-feedback').show();
-	          setSelect2Invalid($row.find('.line-customer-select'), true);
-	        }
-	        if (!useTableLayout && !line.nid_khach_hang && !isExecutionPlan(line)) {
-	          ok = false;
-	          setSelect2Invalid($row.find('.line-customer-select'), true);
-	        }
+        if (useTableLayout && !line.nid_khach_hang) {
+          ok = false;
+          $row.find('.line-customer-feedback').show();
+          setSelect2Invalid($row.find('.line-customer-select'), true);
+        }
+        if (!useTableLayout && !line.nid_khach_hang && !isExecutionPlan(line)) {
+          ok = false;
+          setSelect2Invalid($row.find('.line-customer-select'), true);
+        }
         if (line.ke_hoach_cont_ref_nid) {
-	          var refKey = String(line.ke_hoach_cont_ref_nid);
-	          var startIndex = parseInt(line.cont_thuc_hien_tu_index, 10);
-	          var endIndex = parseInt(line.cont_thuc_hien_den_index, 10);
-	          if (currentPlanType() === 'tuyen_xa' && isExecutionPlan(line)) {
-	            if (isNaN(startIndex) || isNaN(endIndex) || startIndex < 0 || endIndex <= startIndex) {
-	              ok = false;
-	              $row.find('.btn-open-cont-ref-modal').addClass('is-invalid');
-	              if (notyf) notyf.error('Vui lòng chọn đúng dải chặng công việc chính');
-	            }
-              var workLength = endIndex - startIndex;
-              if (!isNaN(startIndex) && !isNaN(endIndex) && (!line.hinh_thuc_van_tai || (workLength === 2 && line.hinh_thuc_van_tai !== 'dong_hang') || (workLength === 1 && line.hinh_thuc_van_tai === 'dong_hang'))) {
+          var refKey = String(line.ke_hoach_cont_ref_nid);
+          if (contRefSeen[refKey]) {
+            ok = false;
+            if (notyf) notyf.error('Cont kéo về bị chọn trùng ở dòng #' + contRefSeen[refKey] + ' và dòng #' + ($row.index() + 1));
+            $row.find('.btn-open-cont-ref-modal').addClass('is-invalid');
+          } else {
+            contRefSeen[refKey] = $row.index() + 1;
+          }
+        }
+        if (!line.dia_chi_kho) {
+          ok = false;
+          if (!useTableLayout) $row.addClass('line-card-invalid');
+          setSelect2Invalid($row.find('.line-kho-select'), true);
+        }
+      });
+      return ok;
+    }
+
+    // Tuyến xa.
+    function validateTuyenXaForm() {
+      var ok = true;
+      var contRefSeen = {};
+      if (!useTableLayout) setSelect2Invalid($form('.line-customer-select'), false);
+      syncAllLines();
+      if (!state.lines.length) {
+        if (notyf) notyf.error('Cần có ít nhất một dòng xe');
+        return false;
+      }
+      lineValidationRows().each(function () {
+        var $row = $(this);
+        var line = syncLine($row);
+        clearLineValidationUi($row);
+        if (useTableLayout && !line.nid_khach_hang) {
+          ok = false;
+          $row.find('.line-customer-feedback').show();
+          setSelect2Invalid($row.find('.line-customer-select'), true);
+        }
+        if (!useTableLayout && !line.nid_khach_hang && !isExecutionPlan(line)) {
+          ok = false;
+          setSelect2Invalid($row.find('.line-customer-select'), true);
+        }
+        if (line.ke_hoach_cont_ref_nid) {
+          var refKey = String(line.ke_hoach_cont_ref_nid);
+          var startIndex = parseInt(line.cont_thuc_hien_tu_index, 10);
+          var endIndex = parseInt(line.cont_thuc_hien_den_index, 10);
+          if (isExecutionPlan(line)) {
+            if (isNaN(startIndex) || isNaN(endIndex) || startIndex < 0 || endIndex <= startIndex) {
+              ok = false;
+              $row.find('.btn-open-cont-ref-modal').addClass('is-invalid');
+              if (notyf) notyf.error('Vui lòng chọn đúng dải chặng công việc chính');
+            }
+            var workLength = endIndex - startIndex;
+            if (!isNaN(startIndex) && !isNaN(endIndex) && (!line.hinh_thuc_van_tai || (workLength === 2 && line.hinh_thuc_van_tai !== 'dong_hang') || (workLength === 1 && line.hinh_thuc_van_tai === 'dong_hang'))) {
+              ok = false;
+              $row.addClass('line-card-invalid');
+              if (notyf) notyf.error('Vui lòng chọn hình thức vận tải phù hợp với công việc chính');
+            }
+            var ranges = contRefSeen[refKey] || [];
+            $.each(ranges, function (_, range) {
+              if (startIndex < range.end && endIndex > range.start) {
                 ok = false;
-                $row.addClass('line-card-invalid');
-                if (notyf) notyf.error('Vui lòng chọn hình thức vận tải phù hợp với công việc chính');
+                $row.find('.btn-open-cont-ref-modal').addClass('is-invalid');
+                if (notyf) notyf.error('Dải chặng cont bị trùng với dòng #' + range.line);
               }
-	            var ranges = contRefSeen[refKey] || [];
-	            $.each(ranges, function (_, range) {
-	              if (startIndex < range.end && endIndex > range.start) {
-	                ok = false;
-	                $row.find('.btn-open-cont-ref-modal').addClass('is-invalid');
-	                if (notyf) notyf.error('Dải chặng cont bị trùng với dòng #' + range.line);
-	              }
-	            });
-	            ranges.push({ start: startIndex, end: endIndex, line: $row.index() + 1 });
-	            contRefSeen[refKey] = ranges;
-	          } else if (contRefSeen[refKey]) {
-	            ok = false;
-	            if (notyf) notyf.error('Cont kéo về bị chọn trùng ở dòng #' + contRefSeen[refKey] + ' và dòng #' + ($row.index() + 1));
-	            $row.find('.btn-open-cont-ref-modal').addClass('is-invalid');
-	          } else {
-	            contRefSeen[refKey] = $row.index() + 1;
-	          }
-	        }
-        if (currentPlanType() === 'tuyen_xa' && isExecutionPlan(line) && !line.ke_hoach_cont_ref_nid) {
+            });
+            ranges.push({ start: startIndex, end: endIndex, line: $row.index() + 1 });
+            contRefSeen[refKey] = ranges;
+          } else if (contRefSeen[refKey]) {
+            ok = false;
+            if (notyf) notyf.error('Cont kéo về bị chọn trùng ở dòng #' + contRefSeen[refKey] + ' và dòng #' + ($row.index() + 1));
+            $row.find('.btn-open-cont-ref-modal').addClass('is-invalid');
+          } else {
+            contRefSeen[refKey] = $row.index() + 1;
+          }
+        }
+        if (isExecutionPlan(line) && !line.ke_hoach_cont_ref_nid) {
           ok = false;
           $row.addClass('line-card-invalid');
           $form('#khxh-return-cont-' + line.key + ' .btn-open-cont-ref-modal').addClass('is-invalid');
           if (notyf) notyf.error('Vui lòng chọn kế hoạch gốc và dải chặng thực hiện');
         }
-        if (currentPlanType() === 'tuyen_xa' && !isExecutionPlan(line) && !line.hinh_thuc_van_tai) {
+        if (!isExecutionPlan(line) && !line.hinh_thuc_van_tai) {
           ok = false;
           $row.addClass('line-card-invalid');
           if (notyf) notyf.error('Vui lòng chọn hình thức vận tải cho kế hoạch gốc');
         }
         if (!line.dia_chi_kho) {
           ok = false;
-          if (useTableLayout) {
-            setSelect2Invalid($row.find('.line-kho-select'), true);
-          } else {
-            $row.addClass('line-card-invalid');
-            setSelect2Invalid($row.find('.line-kho-select'), true);
-          }
+          if (!useTableLayout) $row.addClass('line-card-invalid');
+          setSelect2Invalid($row.find('.line-kho-select'), true);
         }
-        if (currentPlanType() === 'tuyen_xa' && !line.bai_lay_cont) {
+        if (!line.bai_lay_cont) {
           ok = false;
           $row.addClass('line-card-invalid');
           setSelect2Invalid($row.find('.line-bai-lay-select'), true);
         }
-        if (currentPlanType() === 'tuyen_xa' && !line.bai_ha_cont) {
+        if (!line.bai_ha_cont) {
           ok = false;
           $row.addClass('line-card-invalid');
           setSelect2Invalid($row.find('.line-bai-ha-select'), true);
         }
-        if (currentPlanType() === 'tuyen_xa' && isExecutionPlan(line) && line.ke_hoach_cont_ref_nid && (parseInt(line.cont_thuc_hien_tu_index, 10) < 0 || parseInt(line.cont_thuc_hien_den_index, 10) <= parseInt(line.cont_thuc_hien_tu_index, 10))) {
+        if (isExecutionPlan(line) && line.ke_hoach_cont_ref_nid && (parseInt(line.cont_thuc_hien_tu_index, 10) < 0 || parseInt(line.cont_thuc_hien_den_index, 10) <= parseInt(line.cont_thuc_hien_tu_index, 10))) {
           ok = false;
           $row.addClass('line-card-invalid');
           if (notyf) notyf.error('Không xác định được dải chặng công việc chính, vui lòng chọn lại');
         }
-        if (currentPlanType() === 'tuyen_xa') {
-          var ketHop = lineKetHop(line);
-          if (optionEnabled(ketHop.enabled)) {
-            var returnStart = parseInt(ketHop.cont_thuc_hien_tu_index, 10);
-            var returnEnd = parseInt(ketHop.cont_thuc_hien_den_index, 10);
-            var returnPoints = ketHop.cont_ref ? tuyenXaRoutePoints(ketHop.cont_ref) : [];
-            if (!ketHop.ke_hoach_cont_ref_nid || returnStart < 0 || returnEnd <= returnStart || !returnPoints[returnEnd] || !returnPoints[returnStart] || returnPoints[returnStart].value !== mainWorkEndLocation(line)) {
-              ok = false;
-              $row.addClass('line-card-invalid');
-              if (notyf) notyf.error('Cont kéo về không còn khớp điểm kết thúc công việc chính, vui lòng chọn lại');
-            }
+        var ketHop = lineKetHop(line);
+        if (optionEnabled(ketHop.enabled)) {
+          var returnStart = parseInt(ketHop.cont_thuc_hien_tu_index, 10);
+          var returnEnd = parseInt(ketHop.cont_thuc_hien_den_index, 10);
+          var returnPoints = ketHop.cont_ref ? tuyenXaRoutePoints(ketHop.cont_ref) : [];
+          if (!ketHop.ke_hoach_cont_ref_nid || returnStart < 0 || returnEnd <= returnStart || !returnPoints[returnEnd] || !returnPoints[returnStart] || returnPoints[returnStart].value !== mainWorkEndLocation(line)) {
+            ok = false;
+            $row.addClass('line-card-invalid');
+            if (notyf) notyf.error('Cont kéo về không còn khớp điểm kết thúc công việc chính, vui lòng chọn lại');
           }
         }
-        if (currentPlanType() === 'tuyen_xa' && line.bai_ha_tam_1_enabled && !line.bai_ha_tam_1) {
+        if (line.bai_ha_tam_1_enabled && !line.bai_ha_tam_1) {
           ok = false;
           $row.addClass('line-card-invalid');
           setSelect2Invalid($row.find('.line-bai-ha-tam-1-select'), true);
         }
-        if (currentPlanType() === 'tuyen_xa' && line.bai_ha_tam_2_enabled && !line.bai_ha_tam_2) {
+        if (line.bai_ha_tam_2_enabled && !line.bai_ha_tam_2) {
           ok = false;
           $row.addClass('line-card-invalid');
           setSelect2Invalid($row.find('.line-bai-ha-tam-2-select'), true);
@@ -5015,45 +5193,61 @@
       return ok;
     }
 
+    // Payload lưu kế hoạch. Phần chung của một dòng nằm ở linePayloadCommon();
+    // thong_tin_json do hàm riêng của từng màn dựng.
+    function portLineJson(line) {
+      return { kiem_dich: line.kiem_dich || 0, kiem_hoa: line.kiem_hoa || 0, hun_trung: line.hun_trung || 0, cont_keo_ve_seal_phu: line.cont_keo_ve_seal_phu || 0, cont_keo_ve_kiem_dich: line.cont_keo_ve_kiem_dich || 0, cont_keo_ve_kiem_hoa: line.cont_keo_ve_kiem_hoa || 0, cont_keo_ve_hun_trung: line.cont_keo_ve_hun_trung || 0 };
+    }
+
+    function tuyenXaLineJson(line) {
+      return { vai_tro_ke_hoach: planRole(line), cong_viec_chinh_hoan_thanh: line.cong_viec_chinh_hoan_thanh || 0, hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan', ke_hoach_ket_hop_enabled: line.ke_hoach_ket_hop_enabled || 0, bai_ha_tam_1_enabled: line.bai_ha_tam_1_enabled || 0, bai_ha_tam_1: line.bai_ha_tam_1 || '', bai_ha_tam_2_enabled: line.bai_ha_tam_2_enabled || 0, bai_ha_tam_2: line.bai_ha_tam_2 || '', vi_tri_cont_hien_tai: line.vi_tri_cont_hien_tai || '', vi_tri_cont_index_hien_tai: parseInt(line.vi_tri_cont_index_hien_tai, 10) || 0, cont_thuc_hien_tu_index: parseInt(line.cont_thuc_hien_tu_index, 10), cont_thuc_hien_den_index: parseInt(line.cont_thuc_hien_den_index, 10), cont_thuc_hien_chang: line.cont_thuc_hien_chang || [], cont_keo_ve_tu: line.cont_keo_ve_tu || '', cont_keo_ve_den: line.cont_keo_ve_den || '' };
+    }
+
+    function linePayloadCommon(line) {
+      return {
+        nid_phuong_tien: line.nid_phuong_tien || 0,
+        nid_mooc: line.nid_mooc || 0,
+        nid_lai_xe: line.nid_lai_xe || 0,
+        dia_chi_kho: line.dia_chi_kho || '',
+        loai_cont: line.loai_cont || '',
+        loai_hang: line.loai_hang || '',
+        so_cont: line.so_cont || '',
+        so_seal_chinh: line.so_seal_chinh || '',
+        so_seal_tam: line.so_seal_tam || '',
+        bai_lay_cont: line.bai_lay_cont || '',
+        bai_lay_thuc_te: line.bai_lay_thuc_te || '',
+        bai_ha_cont: line.bai_ha_cont || '',
+        bai_ha_thuc_te: line.bai_ha_thuc_te || '',
+        cang_xuat: line.cang_xuat || '',
+        cut_off: line.cut_off || '',
+        ngay_bat_dau: line.ngay_bat_dau || '',
+        ngay_gio_ke_hoach: line.ngay_gio_ke_hoach || '',
+        ngay_ket_thuc: line.ngay_ket_thuc || '',
+        ghi_chu: line.ghi_chu || '',
+        hinh_thuc_van_tai: line.hinh_thuc_van_tai || '',
+        ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
+        da_cat_mooc: line.da_cat_mooc || 0,
+        da_du_hang: line.da_du_hang || 0,
+        ha_bai_ngoai: line.ha_bai_ngoai || 0,
+        ha_cang: line.ha_cang || 0,
+        tang_bo: lineTangBo(line),
+        ket_hop: lineKetHopPayload(line)
+      };
+    }
+
     function gatherCreatePayload() {
       syncAllLines();
       var firstLine = state.lines[0] || {};
+      var lineJson = currentPlanType() === 'tuyen_xa' ? tuyenXaLineJson : portLineJson;
       return {
         nid_khach_hang: firstLine.nid_khach_hang || 0,
         loai_ke_hoach: currentPlanType(),
         items: $.map(state.lines, function (line) {
-          return {
+          return $.extend({
             nid_khach_hang: line.nid_khach_hang || 0,
             so_bkg: line.so_bkg || '',
-            nid_phuong_tien: line.nid_phuong_tien || 0,
-            nid_mooc: line.nid_mooc || 0,
-            nid_lai_xe: line.nid_lai_xe || 0,
-            dia_chi_kho: line.dia_chi_kho || '',
-            loai_cont: line.loai_cont || '',
-            loai_hang: line.loai_hang || '',
-            so_cont: line.so_cont || '',
-            so_seal_chinh: line.so_seal_chinh || '',
-            so_seal_tam: line.so_seal_tam || '',
-            bai_lay_cont: line.bai_lay_cont || '',
-            bai_lay_thuc_te: line.bai_lay_thuc_te || '',
-            bai_ha_cont: line.bai_ha_cont || '',
-            bai_ha_thuc_te: line.bai_ha_thuc_te || '',
-            cang_xuat: line.cang_xuat || '',
-            cut_off: line.cut_off || '',
-            ngay_bat_dau: line.ngay_bat_dau || '',
-            ngay_gio_ke_hoach: line.ngay_gio_ke_hoach || '',
-            ngay_ket_thuc: line.ngay_ket_thuc || '',
-            ghi_chu: line.ghi_chu || '',
-            thong_tin_json: currentPlanType() === 'tuyen_xa' ? { vai_tro_ke_hoach: planRole(line), cong_viec_chinh_hoan_thanh: line.cong_viec_chinh_hoan_thanh || 0, hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan', ke_hoach_ket_hop_enabled: line.ke_hoach_ket_hop_enabled || 0, bai_ha_tam_1_enabled: line.bai_ha_tam_1_enabled || 0, bai_ha_tam_1: line.bai_ha_tam_1 || '', bai_ha_tam_2_enabled: line.bai_ha_tam_2_enabled || 0, bai_ha_tam_2: line.bai_ha_tam_2 || '', vi_tri_cont_hien_tai: line.vi_tri_cont_hien_tai || '', vi_tri_cont_index_hien_tai: parseInt(line.vi_tri_cont_index_hien_tai, 10) || 0, cont_thuc_hien_tu_index: parseInt(line.cont_thuc_hien_tu_index, 10), cont_thuc_hien_den_index: parseInt(line.cont_thuc_hien_den_index, 10), cont_thuc_hien_chang: line.cont_thuc_hien_chang || [], cont_keo_ve_tu: line.cont_keo_ve_tu || '', cont_keo_ve_den: line.cont_keo_ve_den || '' } : { kiem_dich: line.kiem_dich || 0, kiem_hoa: line.kiem_hoa || 0, hun_trung: line.hun_trung || 0, cont_keo_ve_seal_phu: line.cont_keo_ve_seal_phu || 0, cont_keo_ve_kiem_dich: line.cont_keo_ve_kiem_dich || 0, cont_keo_ve_kiem_hoa: line.cont_keo_ve_kiem_hoa || 0, cont_keo_ve_hun_trung: line.cont_keo_ve_hun_trung || 0 },
-            hinh_thuc_van_tai: line.hinh_thuc_van_tai || '',
-            ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
-            da_cat_mooc: line.da_cat_mooc || 0,
-            da_du_hang: line.da_du_hang || 0,
-            ha_bai_ngoai: line.ha_bai_ngoai || 0,
-            ha_cang: line.ha_cang || 0,
-            tang_bo: lineTangBo(line),
-            ket_hop: lineKetHopPayload(line)
-          };
+            thong_tin_json: lineJson(line)
+          }, linePayloadCommon(line));
         })
       };
     }
@@ -5061,39 +5255,13 @@
     function gatherEditPayload() {
       syncAllLines();
       var line = state.lines[0] || {};
+      var lineJson = currentPlanType() === 'tuyen_xa' ? tuyenXaLineJson : portLineJson;
       return {
         nid_khach_hang: line.nid_khach_hang || 0,
-        item: {
+        item: $.extend({
           so_bkg: useTableLayout || currentPlanType() === 'tuyen_xa' ? (line.so_bkg || '') : $form('#so_bkg-input').val().trim(),
-          nid_phuong_tien: line.nid_phuong_tien || 0,
-          nid_mooc: line.nid_mooc || 0,
-          nid_lai_xe: line.nid_lai_xe || 0,
-          dia_chi_kho: line.dia_chi_kho || '',
-          loai_cont: line.loai_cont || '',
-          loai_hang: line.loai_hang || '',
-          so_cont: line.so_cont || '',
-          so_seal_chinh: line.so_seal_chinh || '',
-          so_seal_tam: line.so_seal_tam || '',
-          bai_lay_cont: line.bai_lay_cont || '',
-          bai_lay_thuc_te: line.bai_lay_thuc_te || '',
-          bai_ha_cont: line.bai_ha_cont || '',
-          bai_ha_thuc_te: line.bai_ha_thuc_te || '',
-          cang_xuat: line.cang_xuat || '',
-          cut_off: line.cut_off || '',
-          ngay_bat_dau: line.ngay_bat_dau || '',
-          ngay_gio_ke_hoach: line.ngay_gio_ke_hoach || '',
-          ngay_ket_thuc: line.ngay_ket_thuc || '',
-          ghi_chu: line.ghi_chu || '',
-          thong_tin_json: currentPlanType() === 'tuyen_xa' ? { vai_tro_ke_hoach: planRole(line), cong_viec_chinh_hoan_thanh: line.cong_viec_chinh_hoan_thanh || 0, hinh_thuc_tinh_luong_lai_xe: line.hinh_thuc_tinh_luong_lai_xe || 'khoan', ke_hoach_ket_hop_enabled: line.ke_hoach_ket_hop_enabled || 0, bai_ha_tam_1_enabled: line.bai_ha_tam_1_enabled || 0, bai_ha_tam_1: line.bai_ha_tam_1 || '', bai_ha_tam_2_enabled: line.bai_ha_tam_2_enabled || 0, bai_ha_tam_2: line.bai_ha_tam_2 || '', vi_tri_cont_hien_tai: line.vi_tri_cont_hien_tai || '', vi_tri_cont_index_hien_tai: parseInt(line.vi_tri_cont_index_hien_tai, 10) || 0, cont_thuc_hien_tu_index: parseInt(line.cont_thuc_hien_tu_index, 10), cont_thuc_hien_den_index: parseInt(line.cont_thuc_hien_den_index, 10), cont_thuc_hien_chang: line.cont_thuc_hien_chang || [], cont_keo_ve_tu: line.cont_keo_ve_tu || '', cont_keo_ve_den: line.cont_keo_ve_den || '' } : { kiem_dich: line.kiem_dich || 0, kiem_hoa: line.kiem_hoa || 0, hun_trung: line.hun_trung || 0, cont_keo_ve_seal_phu: line.cont_keo_ve_seal_phu || 0, cont_keo_ve_kiem_dich: line.cont_keo_ve_kiem_dich || 0, cont_keo_ve_kiem_hoa: line.cont_keo_ve_kiem_hoa || 0, cont_keo_ve_hun_trung: line.cont_keo_ve_hun_trung || 0 },
-          hinh_thuc_van_tai: line.hinh_thuc_van_tai || '',
-          ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
-          da_cat_mooc: line.da_cat_mooc || 0,
-          da_du_hang: line.da_du_hang || 0,
-          ha_bai_ngoai: line.ha_bai_ngoai || 0,
-          ha_cang: line.ha_cang || 0,
-          tang_bo: lineTangBo(line),
-          ket_hop: lineKetHopPayload(line)
-        }
+          thong_tin_json: lineJson(line)
+        }, linePayloadCommon(line))
       };
     }
 
@@ -5107,31 +5275,45 @@
     }
 
     function updateCompleteButton(row) {
-      var $btn = currentPlanType() === 'tuyen_xa' ? $form('#khxh-status-btn') : $form('#complete-plan-btn');
+      if (currentPlanType() === 'tuyen_xa') updateTuyenXaStatusButton(row);
+      else updatePortStatusButton(row);
+    }
+
+    // Nút trạng thái hàng cảng (#complete-plan-btn): màu theo hangCangPlanStatusColor().
+    function updatePortStatusButton(row) {
+      var $btn = $form('#complete-plan-btn');
       if (!$btn.length) return;
       var nid = row && row.nid ? parseInt(row.nid, 10) : parseInt($form('#nid-input').val(), 10);
-      var status = row && row.trang_thai_van_chuyen ? String(row.trang_thai_van_chuyen) : '';
       if (!nid) {
         $btn.addClass('d-none').removeAttr('data-id');
         return;
       }
-      if (currentPlanType() === 'tuyen_xa') {
-        var json = (row && row.thong_tin_json) || {};
-        var displayStatus = status || 'Chưa xếp xe';
-        $btn.removeClass('d-none btn-success btn-outline-success').addClass('btn-label-primary')
-          .attr('data-id', nid)
-          .html('<i class="icon-base ti tabler-arrows-exchange me-1"></i>' + escHtml(displayStatus));
-        return;
-      }
+      var status = row && row.trang_thai_van_chuyen ? String(row.trang_thai_van_chuyen) : '';
+      var portStatus = status || 'Chờ duyệt';
       $btn.removeClass('d-none').attr('data-id', nid);
-      var portStatus = status || 'Chờ thực hiện';
-      var portStatusColor = hangCangPlanStatusColor(portStatus);
       $btn.removeClass('btn-success btn-outline-success btn-label-secondary btn-label-info btn-label-primary btn-label-warning btn-label-success btn-label-danger bg-label-secondary khxh-status-cho-thuc-hien bg-label-info bg-label-primary bg-label-warning bg-label-success bg-label-danger')
-        .addClass(portStatusColor)
+        .addClass(hangCangPlanStatusColor(portStatus))
         .html('<i class="icon-base ti tabler-arrows-exchange me-1"></i>' + escHtml(portStatus));
     }
 
+    // Nút trạng thái tuyến xa (#khxh-status-btn).
+    function updateTuyenXaStatusButton(row) {
+      var $btn = $form('#khxh-status-btn');
+      if (!$btn.length) return;
+      var nid = row && row.nid ? parseInt(row.nid, 10) : parseInt($form('#nid-input').val(), 10);
+      if (!nid) {
+        $btn.addClass('d-none').removeAttr('data-id');
+        return;
+      }
+      var status = row && row.trang_thai_van_chuyen ? String(row.trang_thai_van_chuyen) : '';
+      var displayStatus = status || 'Chưa xếp xe';
+      $btn.removeClass('d-none btn-success btn-outline-success').addClass('btn-label-primary')
+        .attr('data-id', nid)
+        .html('<i class="icon-base ti tabler-arrows-exchange me-1"></i>' + escHtml(displayStatus));
+    }
+
     function populateEdit(row) {
+      resetHangCangEditDirty();
       editData = row || editData;
       resetPortCostSummary();
       var khachHangId = (row.khach_hang && row.khach_hang.nid) || 0;
@@ -5990,8 +6172,16 @@
       var id = parseInt($btn.attr('data-id') || $form('#nid-input').val(), 10) || 0;
       if (!id) return;
       if (currentPlanType() !== 'tuyen_xa') {
-        var currentPortStatus = String((editData && editData.trang_thai_van_chuyen) || 'Chờ thực hiện');
+        var currentPortStatus = String((editData && editData.trang_thai_van_chuyen) || 'Chờ duyệt');
         $('#khxh-hang-cang-status-select').html(planStatusOptions(currentPortStatus));
+        if (!portPlanHasDriver(editData)) {
+          $('#khxh-hang-cang-status-select option').each(function () {
+            if (PORT_STATUSES_NEED_DRIVER.indexOf(this.value) !== -1 && this.value !== currentPortStatus) {
+              this.disabled = true;
+              this.text = this.value + ' (chưa có lái xe)';
+            }
+          });
+        }
         var portStatusModal = hangCangStatusModalInstance();
         if (portStatusModal) portStatusModal.show();
         return;
@@ -6056,12 +6246,27 @@
         }
       });
     });
-    $form('#ke-hoach-form').on('keydown', function (e) {
-      if (e.which === 13 && !$(e.target).is('textarea')) {
+    if (planType === 'tuyen_xa') {
+      // Tuyến xa giữ nguyên hành vi cũ.
+      $form('#ke-hoach-form').on('keydown', function (e) {
+        if (e.which === 13 && !$(e.target).is('textarea')) {
+          e.preventDefault();
+          $form('#save-btn').trigger('click');
+        }
+      });
+    } else {
+      // Hàng cảng: Enter chỉ lưu khi đang ở ô nhập thường. Trong ô tìm của
+      // Select2, ô chọn ngày, nút bấm hay danh sách chọn thì Enter dành cho
+      // thao tác của chính ô đó, tránh lưu nhầm cả kế hoạch.
+      $form('#ke-hoach-form').on('keydown', function (e) {
+        if (e.which !== 13) return;
+        var $target = $(e.target);
+        if ($target.is('textarea, button, a, select, [type=button], [type=submit], [type=file], .select2-search__field, .flatpickr-input, .flatpickr-date')) return;
+        if ($target.closest('.select2-container, .flatpickr-calendar').length) return;
         e.preventDefault();
         $form('#save-btn').trigger('click');
-      }
-    });
+      });
+    }
     $form('#save-btn').on('click', function () {
       if (!reportPortCreateRequiredValidity()) return;
       if (!validateForm()) return;
@@ -6481,6 +6686,7 @@
         if (notyf) notyf.success('Đã chọn cont kéo về: ' + (selectedItem.so_cont || ('#' + selectedId)));
         return;
       }
+      markHangCangEditDirty();
       line.ke_hoach_cont_ref_nid = selectedId;
       // Selecting a source is the unambiguous signal that this plan is
       // performing a leg of another plan. The role is therefore derived from

@@ -1454,25 +1454,45 @@
     };
   }
 
-  function persistDinhMucRows() {
-    if (!state.nidKeHoach) return $.Deferred().resolve({ skipped: true }).promise();
-    var payload = {
-      dinh_muc_khoan_lai_xe: dinhMucPayload()
-    };
-    if (state.loaiKeHoach === 'tuyen_xa') {
-      payload.hinh_thuc_tinh_luong_lai_xe = state.driverPayMode;
+  function resolvedNoop() {
+    return $.Deferred().resolve({ skipped: true }).promise();
+  }
+
+  function applyPlanResponse(response) {
+    if (response && response.status === 'success' && response.data) {
+      fillPlanInfo(response.data);
     }
+  }
+
+  // Hàng cảng: endpoint riêng của kế hoạch hàng cảng.
+  function persistPortDinhMucRows() {
+    if (!state.nidKeHoach) return resolvedNoop();
+    return $.ajax({
+      url: '/api/ke-hoach-xep-xe/' + state.nidKeHoach + '/dinh-muc',
+      method: 'PUT',
+      contentType: 'application/json; charset=utf-8',
+      dataType: 'json',
+      data: JSON.stringify(dinhMucPayload())
+    }).done(applyPlanResponse);
+  }
+
+  // Tuyến xa: giữ nguyên đường lưu hiện có (kèm hình thức tính lương lái xe).
+  function persistTuyenXaDinhMucRows() {
+    if (!state.nidKeHoach) return resolvedNoop();
     return $.ajax({
       url: '/api/quan-ly-cont/' + state.nidKeHoach,
       method: 'PUT',
       contentType: 'application/json; charset=utf-8',
       dataType: 'json',
-      data: JSON.stringify(payload)
-    }).done(function (response) {
-      if (response && response.status === 'success' && response.data) {
-        fillPlanInfo(response.data);
-      }
-    });
+      data: JSON.stringify({
+        dinh_muc_khoan_lai_xe: dinhMucPayload(),
+        hinh_thuc_tinh_luong_lai_xe: state.driverPayMode
+      })
+    }).done(applyPlanResponse);
+  }
+
+  function persistDinhMucRows() {
+    return state.loaiKeHoach === 'tuyen_xa' ? persistTuyenXaDinhMucRows() : persistPortDinhMucRows();
   }
 
   function oilPayload() {
@@ -1494,8 +1514,9 @@
     };
   }
 
+  // Nhật ký dầu chỉ có ở tuyến xa; hàng cảng không gọi hàm này.
   function persistOilRows() {
-    if (!state.nidKeHoach || state.loaiKeHoach !== 'tuyen_xa') return $.Deferred().resolve({ skipped: true }).promise();
+    if (!state.nidKeHoach) return resolvedNoop();
     return $.ajax({
       url: '/api/ke-hoach-tuyen-xa-dau',
       method: 'POST',
@@ -1565,10 +1586,11 @@
       return options.allowEmpty ? $.Deferred().resolve().promise() : $.Deferred().reject({ message: 'Chưa có dữ liệu cần lưu.' }).promise();
     }
     setBusy(true);
+    var persistExtras = state.loaiKeHoach === 'tuyen_xa' ? persistOilRows : resolvedNoop;
     var chain = persistDinhMucRows().then(function () {
       return saveRowsBulk(rows);
     }).then(function () {
-      return persistOilRows();
+      return persistExtras();
     });
     chain.done(function () {
       if (!options.silent) notify('Đã lưu toàn bộ dữ liệu chi phí.', 'success');
@@ -1581,32 +1603,40 @@
     return chain;
   }
 
+  function removeRowFromState(row) {
+    state.rows = $.grep(state.rows, function (item) { return item.key !== row.key; });
+    if (!$.grep(state.rows, function (item) { return item.loai_chi_phi !== DRIVER_SALARY_TYPE && item.loai_chi_phi !== REVENUE_TYPE; }).length) {
+      state.presetAutofillDismissed = true;
+    }
+  }
+
   function deleteRow(row) {
     if (!row.nid) {
-      state.rows = $.grep(state.rows, function (item) { return item.key !== row.key; });
-      if (!$.grep(state.rows, function (item) { return item.loai_chi_phi !== DRIVER_SALARY_TYPE && item.loai_chi_phi !== REVENUE_TYPE; }).length) {
-        state.presetAutofillDismissed = true;
-      }
+      removeRowFromState(row);
       renderAll();
       return;
     }
-    if (!window.confirm('Xoá dòng chi phí này?')) return;
-    setBusy(true);
-    $.ajax({ url: API_BASE + '/' + row.nid, method: 'DELETE', dataType: 'json' })
-      .done(function () {
-        state.rows = $.grep(state.rows, function (item) { return item.key !== row.key; });
-        if (!$.grep(state.rows, function (item) { return item.loai_chi_phi !== DRIVER_SALARY_TYPE && item.loai_chi_phi !== REVENUE_TYPE; }).length) {
-          state.presetAutofillDismissed = true;
-        }
-        renderAll();
-        notify('Đã xoá chi phí.', 'success');
-      })
-      .fail(function (jqXHR) {
-        notify(apiMsg(jqXHR), 'error');
-      })
-      .always(function () {
-        setBusy(false);
-      });
+    confirmAction({
+      title: 'Xoá dòng chi phí?',
+      text: 'Dòng chi phí này sẽ bị xoá khỏi kế hoạch.',
+      icon: 'warning',
+      confirmButtonText: 'Xoá',
+      confirmButtonClass: 'btn btn-danger'
+    }, function () {
+      setBusy(true);
+      $.ajax({ url: API_BASE + '/' + row.nid, method: 'DELETE', dataType: 'json' })
+        .done(function () {
+          removeRowFromState(row);
+          renderAll();
+          notify('Đã xoá chi phí.', 'success');
+        })
+        .fail(function (jqXHR) {
+          notify(apiMsg(jqXHR), 'error');
+        })
+        .always(function () {
+          setBusy(false);
+        });
+    });
   }
 
   function openModal($button) {

@@ -64,6 +64,13 @@ Lý do: ban đầu tưởng kế hoạch chỉ là một kiểu nên gom chung, 
 - Tên mới đặt theo màn: hàng cảng dùng `hang_cang` / `hangCang` / `khxh-port-*`, tuyến xa dùng `tuyen_xa` / `tuyenXa` / `khxh-tuyen-xa-*`.
 - Màu trạng thái, danh sách trạng thái, luồng chuyển trạng thái của 2 màn không dùng chung.
 
+**Đã tách riêng (dùng làm mẫu khi tách tiếp):**
+- Dòng danh sách: `hangCangListRowHtml()` / `tuyenXaListRowHtml()` (`ke_hoach_xep_xe.js`); `loadList()` chỉ giữ phần gọi API, phân trang, snapshot.
+- Kiểm tra form: `validatePortForm()` / `validateTuyenXaForm()`; nút trạng thái trong modal: `updatePortStatusButton()` / `updateTuyenXaStatusButton()`; payload `thong_tin_json`: `portLineJson()` / `tuyenXaLineJson()`.
+- Cập nhật cont/trạng thái (`PUT /api/quan-ly-cont/{id}`): `_ke_hoach_port_cont_rest_update()` / `_ke_hoach_tuyen_xa_cont_rest_update()`.
+- Định mức khoán hàng cảng: `PUT /api/ke-hoach-xep-xe/{id}/dinh-muc` (không đi qua `/api/quan-ly-cont`).
+- Cảnh báo thay đổi chưa lưu chỉ áp dụng cho modal xếp xe hàng cảng (`#ke-hoach-edit-fullscreen-modal`).
+
 ## Module pattern mới
 
 ### Schema thuần (không Entity API)
