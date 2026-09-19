@@ -45,6 +45,25 @@
 └── api/                         # (cũ) Module cũ dùng content type — sẽ migrate dần
 ```
 
+## Hàng cảng và Tuyến xa — 2 nghiệp vụ độc lập (module `ke_hoach_xep_xe`)
+
+Module `ke_hoach_xep_xe` chứa 2 màn hình **khác nhau hoàn toàn về nghiệp vụ**, dù đang dùng chung bảng `ke_hoach_xep_xe`, chung file `.module` / `.js` / `.css`:
+
+| | Hàng cảng | Tuyến xa |
+|---|---|---|
+| Route | `/ke-hoach-xep-xe` | `/ke-hoach-tuyen-xa` |
+| `loai_ke_hoach` | `thuong` | `tuyen_xa` |
+| Trạng thái | Chờ duyệt → Chờ thực hiện → Đã nhận chuyến → Đang kéo lên → Đang kéo về → Hoàn thành / Đã huỷ | Chưa xếp xe → Đang vận chuyển → … → Hoàn thành |
+
+Lý do: ban đầu tưởng kế hoạch chỉ là một kiểu nên gom chung, sau đó logic của 2 bên thay đổi độc lập nên giờ chúng là 2 chức năng riêng.
+
+**Quy tắc khi code:**
+- Mỗi task chỉ thuộc **một** màn. Xác định rõ màn nào trước khi sửa, sửa xong không được làm đổi hành vi của màn còn lại.
+- **Không** thêm nhánh `if (loai_ke_hoach === 'tuyen_xa')` / `currentPlanType() === 'tuyen_xa'` để xử lý logic mới. Viết hàm, hằng số, CSS class, template riêng cho từng màn (VD: `hangCangPlanStatusColor()` chỉ dành cho hàng cảng).
+- Code cũ còn nhiều chỗ dùng chung có rẽ nhánh theo loại. Khi phải sửa đúng chỗ đó thì tách phần cần đổi ra hàm riêng của màn đang làm, không thêm nhánh mới vào chỗ rẽ nhánh cũ.
+- Tên mới đặt theo màn: hàng cảng dùng `hang_cang` / `hangCang` / `khxh-port-*`, tuyến xa dùng `tuyen_xa` / `tuyenXa` / `khxh-tuyen-xa-*`.
+- Màu trạng thái, danh sách trạng thái, luồng chuyển trạng thái của 2 màn không dùng chung.
+
 ## Module pattern mới
 
 ### Schema thuần (không Entity API)

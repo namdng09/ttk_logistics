@@ -396,7 +396,7 @@ function ke_hoach_xep_xe_mobile_my_trips() {
   if (!is_array($identity) || empty($identity['driver'])) return $identity;
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
   $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
-  $query = db_select('ke_hoach_xep_xe', 'kh')->fields('kh')->condition('kh.hoat_dong', 1)->condition('kh.nid_lai_xe', (int) $identity['driver']->nid);
+  $query = db_select('ke_hoach_xep_xe', 'kh')->fields('kh')->condition('kh.hoat_dong', 1)->condition('kh.nid_lai_xe', (int) $identity['driver']->nid)->condition('kh.trang_thai_van_chuyen', 'Chờ duyệt', '<>');
   if (!empty($_GET['trang_thai_van_chuyen'])) {
     $status = trim((string) $_GET['trang_thai_van_chuyen']);
     if (!in_array($status, _ke_hoach_xep_xe_statuses(), TRUE)) return _ke_hoach_xep_xe_fail('Trạng thái vận chuyển không hợp lệ');
@@ -1077,7 +1077,7 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['so_seal_chinh'] = !empty($line['so_seal_chinh']) ? trim($line['so_seal_chinh']) : '';
   $record['so_seal_tam'] = !empty($line['so_seal_tam']) ? trim($line['so_seal_tam']) : '';
   $is_tuyen_xa = !empty($common['loai_ke_hoach']) && $common['loai_ke_hoach'] === 'tuyen_xa';
-  $record['trang_thai_van_chuyen'] = !empty($line['trang_thai_van_chuyen']) ? trim($line['trang_thai_van_chuyen']) : ($is_tuyen_xa ? 'Chưa xếp xe' : 'Chờ thực hiện');
+  $record['trang_thai_van_chuyen'] = !empty($line['trang_thai_van_chuyen']) ? trim($line['trang_thai_van_chuyen']) : ($is_tuyen_xa ? 'Chưa xếp xe' : 'Chờ duyệt');
   $record['bai_lay_cont'] = !empty($line['bai_lay_cont']) ? trim($line['bai_lay_cont']) : '';
   $record['bai_lay_thuc_te'] = !empty($line['bai_lay_thuc_te']) ? trim($line['bai_lay_thuc_te']) : '';
   $record['bai_ha_cont'] = !empty($line['bai_ha_cont']) ? trim($line['bai_ha_cont']) : '';
@@ -1545,6 +1545,79 @@ function _ke_hoach_xep_xe_related_summary($row) {
   );
 }
 
+/**
+ * Nạp sẵn dữ liệu liên quan cho cả trang danh sách bằng vài truy vấn IN (...)
+ * thay vì 4-6 truy vấn cho mỗi dòng. Kết quả truyền vào
+ * _ke_hoach_xep_xe_enrich_row() qua $options['cache'].
+ *
+ * Chỉ dùng cho related_mode = 'full' (mặc định) — cùng tập cột mà nhánh không
+ * cache đang trả về.
+ */
+function _ke_hoach_xep_xe_enrich_cache(array $rows) {
+  $cache = array('khach_hang' => array(), 'lai_xe' => array(), 'phuong_tien' => array(), 'cont_ref' => array(), 'keo_ve' => array(), 'referenced' => array());
+  if (!$rows) {
+    return $cache;
+  }
+  $plan_ids = array();
+  $ref_ids = array();
+  foreach ($rows as $row) {
+    $plan_ids[(int) $row->nid] = (int) $row->nid;
+    if (!empty($row->ke_hoach_cont_ref_nid)) {
+      $ref_ids[(int) $row->ke_hoach_cont_ref_nid] = (int) $row->ke_hoach_cont_ref_nid;
+    }
+  }
+
+  // Kế hoạch được chọn làm cont kéo về (cont_ref) và kế hoạch kéo cont này về.
+  $related_rows = array();
+  if ($ref_ids) {
+    foreach (db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid IN (:ids) AND hoat_dong = 1", array(':ids' => array_values($ref_ids))) as $ref) {
+      $cache['cont_ref'][(int) $ref->nid] = $ref;
+      $related_rows[] = $ref;
+    }
+  }
+  foreach (db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid IN (:ids) AND hoat_dong = 1 ORDER BY nid DESC", array(':ids' => array_values($plan_ids))) as $keo_ve) {
+    $key = (int) $keo_ve->ke_hoach_cont_ref_nid;
+    if (!isset($cache['keo_ve'][$key])) {
+      $cache['keo_ve'][$key] = $keo_ve;
+      $related_rows[] = $keo_ve;
+    }
+  }
+
+  // Các dòng lồng nhau được enrich với with_related = FALSE, cần biết cont của
+  // chúng có đang được kế hoạch khác chọn hay không.
+  $all_rows = array_merge($rows, $related_rows);
+  $all_ids = array();
+  $customer_ids = array();
+  $driver_ids = array();
+  $vehicle_ids = array();
+  foreach ($all_rows as $row) {
+    $all_ids[(int) $row->nid] = (int) $row->nid;
+    if (!empty($row->nid_khach_hang)) $customer_ids[(int) $row->nid_khach_hang] = (int) $row->nid_khach_hang;
+    if (!empty($row->nid_lai_xe)) $driver_ids[(int) $row->nid_lai_xe] = (int) $row->nid_lai_xe;
+    if (!empty($row->nid_phuong_tien)) $vehicle_ids[(int) $row->nid_phuong_tien] = (int) $row->nid_phuong_tien;
+    if (!empty($row->nid_mooc)) $vehicle_ids[(int) $row->nid_mooc] = (int) $row->nid_mooc;
+  }
+  foreach (db_query("SELECT DISTINCT ke_hoach_cont_ref_nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid IN (:ids) AND hoat_dong = 1", array(':ids' => array_values($all_ids))) as $referenced) {
+    $cache['referenced'][(int) $referenced->ke_hoach_cont_ref_nid] = TRUE;
+  }
+  if ($customer_ids) {
+    foreach (db_query("SELECT nid, ten, ma_kh, phan_loai, cccd_mst, sdt, dia_chi, dob, ghi_chu FROM {khach_hang} WHERE nid IN (:ids)", array(':ids' => array_values($customer_ids))) as $kh) {
+      $cache['khach_hang'][(int) $kh->nid] = (array) $kh;
+    }
+  }
+  if ($driver_ids) {
+    foreach (db_query("SELECT nid, ten, ma_nhan_vien, sdt, cccd, so_bang_lai, loai_bang_lai, han_bang_lai FROM {lai_xe} WHERE nid IN (:ids)", array(':ids' => array_values($driver_ids))) as $lx) {
+      $cache['lai_xe'][(int) $lx->nid] = (array) $lx;
+    }
+  }
+  if ($vehicle_ids) {
+    foreach (db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE nid IN (:ids)", array(':ids' => array_values($vehicle_ids))) as $pt) {
+      $cache['phuong_tien'][(int) $pt->nid] = (array) $pt;
+    }
+  }
+  return $cache;
+}
+
 function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options = array()) {
   $related_mode = !empty($options['related_mode']) ? $options['related_mode'] : 'full';
   $result = (array) $row;
@@ -1553,57 +1626,93 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
   $nid_lai_xe = !empty($result['nid_lai_xe']) ? (int) $result['nid_lai_xe'] : 0;
   $nid_phuong_tien = !empty($result['nid_phuong_tien']) ? (int) $result['nid_phuong_tien'] : 0;
   $nid_mooc = !empty($result['nid_mooc']) ? (int) $result['nid_mooc'] : 0;
+  // Danh sách truyền sẵn cache (xem _ke_hoach_xep_xe_enrich_cache) để không
+  // phải truy vấn từng dòng. Không có cache thì hành vi giữ nguyên như cũ.
+  $cache = !empty($options['cache']) ? $options['cache'] : NULL;
+  $child_options = $cache ? array('cache' => $cache) : array();
 
   if ($nid_khach_hang) {
-    $kh = db_query("SELECT nid, ten, ma_kh, phan_loai, cccd_mst, sdt, dia_chi, dob, ghi_chu FROM {khach_hang} WHERE nid = :nid", array(':nid' => $nid_khach_hang))->fetch();
-    $result['khach_hang'] = $kh ? (array) $kh : NULL;
+    if ($cache) {
+      $result['khach_hang'] = isset($cache['khach_hang'][$nid_khach_hang]) ? $cache['khach_hang'][$nid_khach_hang] : NULL;
+    }
+    else {
+      $kh = db_query("SELECT nid, ten, ma_kh, phan_loai, cccd_mst, sdt, dia_chi, dob, ghi_chu FROM {khach_hang} WHERE nid = :nid", array(':nid' => $nid_khach_hang))->fetch();
+      $result['khach_hang'] = $kh ? (array) $kh : NULL;
+    }
   }
   else {
     $result['khach_hang'] = NULL;
   }
 
   if ($nid_lai_xe) {
-    $lx = db_query("SELECT nid, ten, ma_nhan_vien, sdt, cccd, so_bang_lai, loai_bang_lai, han_bang_lai FROM {lai_xe} WHERE nid = :nid", array(':nid' => $nid_lai_xe))->fetch();
-    $result['lai_xe'] = $lx ? (array) $lx : NULL;
+    if ($cache) {
+      $result['lai_xe'] = isset($cache['lai_xe'][$nid_lai_xe]) ? $cache['lai_xe'][$nid_lai_xe] : NULL;
+    }
+    else {
+      $lx = db_query("SELECT nid, ten, ma_nhan_vien, sdt, cccd, so_bang_lai, loai_bang_lai, han_bang_lai FROM {lai_xe} WHERE nid = :nid", array(':nid' => $nid_lai_xe))->fetch();
+      $result['lai_xe'] = $lx ? (array) $lx : NULL;
+    }
   }
   else {
     $result['lai_xe'] = NULL;
   }
 
   if ($nid_phuong_tien) {
-    $pt = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $nid_phuong_tien))->fetch();
-    $result['phuong_tien'] = $pt ? (array) $pt : NULL;
+    if ($cache) {
+      $result['phuong_tien'] = isset($cache['phuong_tien'][$nid_phuong_tien]) ? $cache['phuong_tien'][$nid_phuong_tien] : NULL;
+    }
+    else {
+      $pt = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $nid_phuong_tien))->fetch();
+      $result['phuong_tien'] = $pt ? (array) $pt : NULL;
+    }
   }
   else {
     $result['phuong_tien'] = NULL;
   }
 
   if ($nid_mooc) {
-    $mooc = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $nid_mooc))->fetch();
-    $result['mooc'] = $mooc ? (array) $mooc : NULL;
+    if ($cache) {
+      $result['mooc'] = isset($cache['phuong_tien'][$nid_mooc]) ? $cache['phuong_tien'][$nid_mooc] : NULL;
+    }
+    else {
+      $mooc = db_query("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE nid = :nid", array(':nid' => $nid_mooc))->fetch();
+      $result['mooc'] = $mooc ? (array) $mooc : NULL;
+    }
   }
   else {
     $result['mooc'] = NULL;
   }
 
   if ($with_related && !empty($result['ke_hoach_cont_ref_nid'])) {
-    $ref_fields = $related_mode === 'summary' ? 'nid, so_bkg, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te' : '*';
-    $ref = db_query("SELECT $ref_fields FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $result['ke_hoach_cont_ref_nid']))->fetch();
-    $result['cont_ref'] = $ref ? ($related_mode === 'summary' ? _ke_hoach_xep_xe_related_summary($ref) : _ke_hoach_xep_xe_enrich_row($ref, FALSE)) : NULL;
+    if ($cache) {
+      $ref = isset($cache['cont_ref'][(int) $result['ke_hoach_cont_ref_nid']]) ? $cache['cont_ref'][(int) $result['ke_hoach_cont_ref_nid']] : NULL;
+    }
+    else {
+      $ref_fields = $related_mode === 'summary' ? 'nid, so_bkg, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te' : '*';
+      $ref = db_query("SELECT $ref_fields FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $result['ke_hoach_cont_ref_nid']))->fetch();
+    }
+    $result['cont_ref'] = $ref ? ($related_mode === 'summary' ? _ke_hoach_xep_xe_related_summary($ref) : _ke_hoach_xep_xe_enrich_row($ref, FALSE, $child_options)) : NULL;
   }
   else {
     $result['cont_ref'] = NULL;
   }
 
   if ($with_related) {
-    $keo_ve_fields = $related_mode === 'summary' ? 'nid, so_bkg, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te' : '*';
-    $keo_ve = db_query("SELECT $keo_ve_fields FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1 ORDER BY nid DESC", array(':nid' => $result['nid']))->fetch();
-    $result['cont_keo_ve_by'] = $keo_ve ? ($related_mode === 'summary' ? _ke_hoach_xep_xe_related_summary($keo_ve) : _ke_hoach_xep_xe_enrich_row($keo_ve, FALSE)) : NULL;
+    if ($cache) {
+      $keo_ve = isset($cache['keo_ve'][(int) $result['nid']]) ? $cache['keo_ve'][(int) $result['nid']] : NULL;
+    }
+    else {
+      $keo_ve_fields = $related_mode === 'summary' ? 'nid, so_bkg, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te' : '*';
+      $keo_ve = db_query("SELECT $keo_ve_fields FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1 ORDER BY nid DESC", array(':nid' => $result['nid']))->fetch();
+    }
+    $result['cont_keo_ve_by'] = $keo_ve ? ($related_mode === 'summary' ? _ke_hoach_xep_xe_related_summary($keo_ve) : _ke_hoach_xep_xe_enrich_row($keo_ve, FALSE, $child_options)) : NULL;
     $result['is_cont_keo_ve'] = !empty($result['cont_keo_ve_by']);
   }
   else {
     $result['cont_keo_ve_by'] = NULL;
-    $result['is_cont_keo_ve'] = (bool) db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1", array(':nid' => $result['nid']))->fetchField();
+    $result['is_cont_keo_ve'] = $cache
+      ? !empty($cache['referenced'][(int) $result['nid']])
+      : (bool) db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1", array(':nid' => $result['nid']))->fetchField();
   }
   $json = _ke_hoach_xep_xe_json_decode(isset($result['thong_tin_json']) ? $result['thong_tin_json'] : '');
   $json = _ke_hoach_xep_xe_normalize_files($json);
@@ -1649,6 +1758,7 @@ function _ke_hoach_xep_xe_hinh_thuc_status_text($row) {
 
 function _ke_hoach_xep_xe_statuses($loai_ke_hoach = '') {
   $hang_cang = array(
+    'Chờ duyệt',
     'Chờ thực hiện',
     'Đã nhận chuyến',
     'Đang kéo lên',
@@ -2084,8 +2194,9 @@ function _ke_hoach_xep_xe_rest_list() {
   $rows = $query->execute()->fetchAll();
 
   $items = array();
+  $enrich_options = array('cache' => _ke_hoach_xep_xe_enrich_cache($rows));
   foreach ($rows as $row) {
-    $items[] = _ke_hoach_xep_xe_enrich_row($row, TRUE);
+    $items[] = _ke_hoach_xep_xe_enrich_row($row, TRUE, $enrich_options);
   }
 
   $total_pages = (int) ceil($total / $limit);

@@ -156,7 +156,8 @@
 
   function hangCangPlanStatusColor(status) {
     var colors = {
-      'Chờ thực hiện': 'bg-label-secondary',
+      'Chờ duyệt': 'bg-label-secondary',
+      'Chờ thực hiện': 'khxh-status-cho-thuc-hien',
       'Đã nhận chuyến': 'bg-label-info',
       'Đang kéo lên': 'bg-label-primary',
       'Đang kéo về': 'bg-label-warning',
@@ -956,6 +957,38 @@
     });
   }
 
+  function hangCangStatusActionHtml(row) {
+    row = row || {};
+    var nid = parseInt(row.nid, 10) || 0;
+    if (!nid) return '';
+    var status = String(row.trang_thai_van_chuyen || '');
+    var ht = normalizeHinhThuc(row.hinh_thuc_van_tai);
+    var hasReturnCont = (ht === 'cat_keo' || ht === 'cat_keo_cheo' || ht === 'rut_mooc') && !!parseInt(row.ke_hoach_cont_ref_nid, 10);
+    var items = [];
+    var push = function (label, to, icon, color) {
+      items.push('<li><button type="button" class="dropdown-item btn-hang-cang-status-action" data-id="' + nid + '" data-to="' + escHtml(to) + '"><i class="ti ' + icon + ' me-2 ' + color + '"></i>' + escHtml(label) + '</button></li>');
+    };
+    if (status === 'Chờ duyệt') {
+      push('Đẩy cho lái xe', 'Chờ thực hiện', 'tabler-send', 'text-info');
+      push('Huỷ chuyến', 'Đã huỷ', 'tabler-x', 'text-danger');
+    } else if (status === 'Chờ thực hiện') {
+      push('Nhận chuyến', 'Đã nhận chuyến', 'tabler-user-check', 'text-info');
+      push('Huỷ chuyến', 'Đã huỷ', 'tabler-x', 'text-danger');
+    } else if (status === 'Đã nhận chuyến') {
+      push('Thực hiện kéo lên', 'Đang kéo lên', 'tabler-truck', 'text-primary');
+      push('Huỷ chuyến', 'Đã huỷ', 'tabler-x', 'text-danger');
+    } else if (status === 'Đang kéo lên') {
+      if (hasReturnCont) {
+        push('Thực hiện kéo về', 'Đang kéo về', 'tabler-arrow-back', 'text-warning');
+      } else {
+        push('Hoàn thành', 'Hoàn thành', 'tabler-check', 'text-success');
+      }
+    } else if (status === 'Đang kéo về') {
+      push('Hoàn thành', 'Hoàn thành', 'tabler-check', 'text-success');
+    }
+    return items.join('');
+  }
+
   function buildActions(row) {
     var nid = typeof row === 'object' ? row.nid : row;
     var nidLaiXe = typeof row === 'object' ? (row.nid_lai_xe || 0) : 0;
@@ -964,6 +997,7 @@
     var costAction = isHangCang
       ? '<li><button type="button" class="dropdown-item btn-open-port-cost-tab" data-id="' + nid + '"><i class="ti tabler-receipt-2 me-2 text-success"></i>Nhập chi phí</button></li>'
       : '<li><button type="button" class="dropdown-item btn-open-ke-hoach-chi-phi" data-id="' + nid + '" data-nid-lai-xe="' + nidLaiXe + '" data-loai-ke-hoach="' + escHtml(loaiKeHoach) + '"><i class="ti tabler-receipt-2 me-2 text-success"></i>Chi phí</button></li>';
+    var statusActions = isHangCang ? hangCangStatusActionHtml(row) : '';
     return '<div class="dropdown">' +
       '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill"><i class="ti tabler-dots-vertical"></i></button>' +
       '<ul class="dropdown-menu">' +
@@ -971,6 +1005,7 @@
       '<li><button type="button" class="dropdown-item btn-edit-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-truck-delivery me-2 text-primary"></i>Xếp xe</button></li>' +
       costAction +
       '<li><hr class="dropdown-divider"></li>' +
+      statusActions +
       '<li><button type="button" class="dropdown-item text-danger btn-delete-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-trash me-2"></i>Xoá</button></li>' +
       '</ul></div>';
   }
@@ -1929,6 +1964,55 @@
       }
     });
 
+    $(document).on('click', '.btn-hang-cang-status-action', function (e) {
+      e.preventDefault();
+      var $btn = $(this);
+      var id = parseInt($btn.attr('data-id'), 10) || 0;
+      var nextStatus = String($btn.attr('data-to') || '');
+      if (!id || !nextStatus) return;
+      var label = String($btn.text().trim() || nextStatus);
+      var title = 'Xác nhận chuyển trạng thái';
+      var text = 'Chuyển kế hoạch sang trạng thái "' + nextStatus + '"?';
+      if (nextStatus === 'Hoàn thành') {
+        title = 'Hoàn thành kế hoạch?';
+        text = 'Kế hoạch hoàn thành sẽ được đưa vào kỳ tính lương lái xe.';
+      } else if (nextStatus === 'Đã huỷ') {
+        title = 'Huỷ kế hoạch?';
+        text = 'Kế hoạch sẽ chuyển sang trạng thái Đã huỷ.';
+      }
+      var runUpdate = function () {
+        setPlanStatus(id, nextStatus, {
+          skipConfirm: true,
+          onSuccess: function () {
+            window.keHoachXepXeContCandidateVersion = (parseInt(window.keHoachXepXeContCandidateVersion, 10) || 0) + 1;
+            markForceReloadList();
+            if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
+          }
+        });
+      };
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: title,
+          text: text,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: label,
+          cancelButtonText: 'Huỷ',
+          customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-label-secondary ms-1' },
+          buttonsStyling: false,
+          didOpen: function (popup) {
+            if (nextStatus === 'Đã huỷ') {
+              var confirmEl = popup.querySelector('.swal2-confirm');
+              if (confirmEl) confirmEl.classList.add('btn-danger');
+            }
+          }
+        }).then(function (result) {
+          if (result.isConfirmed) runUpdate();
+        });
+      } else if (confirm(text)) {
+        runUpdate();
+      }
+    });
     $(document).on('click', '.btn-view-ke-hoach-xep-xe', function (e) {
       e.preventDefault();
       openDetailModal($(this).data('id'));
@@ -5042,7 +5126,7 @@
       $btn.removeClass('d-none').attr('data-id', nid);
       var portStatus = status || 'Chờ thực hiện';
       var portStatusColor = hangCangPlanStatusColor(portStatus);
-      $btn.removeClass('btn-success btn-outline-success btn-label-secondary btn-label-info btn-label-primary btn-label-warning btn-label-success btn-label-danger bg-label-secondary bg-label-info bg-label-primary bg-label-warning bg-label-success bg-label-danger')
+      $btn.removeClass('btn-success btn-outline-success btn-label-secondary btn-label-info btn-label-primary btn-label-warning btn-label-success btn-label-danger bg-label-secondary khxh-status-cho-thuc-hien bg-label-info bg-label-primary bg-label-warning bg-label-success bg-label-danger')
         .addClass(portStatusColor)
         .html('<i class="icon-base ti tabler-arrows-exchange me-1"></i>' + escHtml(portStatus));
     }

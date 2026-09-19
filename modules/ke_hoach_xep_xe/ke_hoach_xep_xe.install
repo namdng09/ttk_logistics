@@ -212,6 +212,10 @@ function ke_hoach_xep_xe_schema() {
       'so_bkg' => array('so_bkg'),
       'trang_thai_van_chuyen' => array('trang_thai_van_chuyen'),
       'nid_ke_hoach_nguon' => array('nid_ke_hoach_nguon'),
+      'ke_hoach_cont_ref_nid' => array('ke_hoach_cont_ref_nid'),
+      'nid_khach_hang' => array('nid_khach_hang'),
+      'nid_lai_xe' => array('nid_lai_xe'),
+      'ngay_gio_ke_hoach' => array('ngay_gio_ke_hoach'),
     ),
   );
 
@@ -701,4 +705,22 @@ function ke_hoach_xep_xe_update_7021() {
     ));
   }
   return 'Đã mở rộng trường Cut-off để lưu ngày kèm giờ khi cần.';
+}
+
+/**
+ * Index cho các cột lọc/sắp xếp/join nhiều nhất của danh sách kế hoạch.
+ */
+function ke_hoach_xep_xe_update_7022() {
+  $indexes = array(
+    'ke_hoach_cont_ref_nid' => array('ke_hoach_cont_ref_nid'),
+    'nid_khach_hang' => array('nid_khach_hang'),
+    'nid_lai_xe' => array('nid_lai_xe'),
+    'ngay_gio_ke_hoach' => array('ngay_gio_ke_hoach'),
+  );
+  foreach ($indexes as $name => $fields) {
+    if (!db_index_exists('ke_hoach_xep_xe', $name)) {
+      db_add_index('ke_hoach_xep_xe', $name, $fields);
+    }
+  }
+  return 'Đã thêm index cho ke_hoach_cont_ref_nid, nid_khach_hang, nid_lai_xe, ngay_gio_ke_hoach.';
 }

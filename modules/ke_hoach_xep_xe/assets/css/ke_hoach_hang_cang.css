@@ -15,9 +15,9 @@
 #ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-container { width: 95px; }
 #ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-vehicle { width: 90px; }
 #ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-kho { width: 90px; }
-#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-route { width: 90px; }
-#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-cang { width: 90px; }
-#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-status { width: 66px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-route { width: 80px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-cang { width: 80px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-status { width: 52px; }
 
 /* Ba cột có text biến động: luôn ngắt trong chính ô, không lấn sang cột kế. */
 #ke-hoach-hang-cang-screen .khxh-list-table td.khxh-date-cell,
@@ -540,4 +540,14 @@
 #ke-hoach-edit-fullscreen-modal #complete-plan-btn:hover,
 #ke-hoach-edit-fullscreen-modal #complete-plan-btn:focus-visible {
   filter: brightness(.96);
+}
+
+/* Màu trạng thái "Chờ thực hiện" (badge cột T.Thái + nút trạng thái trong modal xếp xe hàng cảng). */
+.khxh-status-cho-thuc-hien {
+  --khxh-cho-thuc-hien: #6c7a96;
+  background-color: color-mix(in sRGB, var(--bs-paper-bg) var(--bs-bg-label-tint-amount), var(--khxh-cho-thuc-hien)) !important;
+  color: var(--khxh-cho-thuc-hien) !important;
+}
+[data-bs-theme=dark] .khxh-status-cho-thuc-hien {
+  --khxh-cho-thuc-hien: #a3aec6;
 }
