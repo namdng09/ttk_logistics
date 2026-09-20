@@ -1462,7 +1462,82 @@ function _ke_hoach_xep_xe_validate_tuyen_xa_json($items) {
   return NULL;
 }
 
-function _ke_hoach_xep_xe_validate_cont_refs($items, $exclude_id = 0, $is_tuyen_xa = FALSE) {
+/**
+ * Điều kiện SQL loại kế hoạch hàng cảng đã huỷ (dùng khi xác định ai đang kéo một cont).
+ */
+function _ke_hoach_port_not_cancelled_sql() {
+  return " AND COALESCE(trang_thai_van_chuyen, '') <> 'Đã huỷ'";
+}
+
+/**
+ * Kế hoạch A bị huỷ hoặc xoá thì cont kéo về B được giải phóng: nếu B đang "Đang kéo về"
+ * vì A thì trả B về trạng thái ở kho (Đủ hàng nếu đã đánh dấu đủ hàng, không thì Đã cắt mooc).
+ * Không đụng tới B khi còn kế hoạch khác đang kéo B.
+ */
+function _ke_hoach_port_release_ref_cont($plan) {
+  $plan = (object) $plan;
+  if (!_ke_hoach_xep_xe_has_cont_status_field() || empty($plan->ke_hoach_cont_ref_nid)) {
+    return;
+  }
+  $ref = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => (int) $plan->ke_hoach_cont_ref_nid))->fetch();
+  if (!$ref || (string) $ref->trang_thai_cont !== 'Đang kéo về') {
+    return;
+  }
+  $other = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :ref AND hoat_dong = 1 AND nid <> :self" . _ke_hoach_port_not_cancelled_sql(), array(':ref' => (int) $ref->nid, ':self' => (int) $plan->nid))->fetchField();
+  if ($other) {
+    return;
+  }
+  db_update('ke_hoach_xep_xe')->fields(array(
+    'trang_thai_cont' => !empty($ref->da_du_hang) ? 'Đủ hàng' : 'Đã cắt mooc',
+    'changed' => _ke_hoach_xep_xe_now(),
+  ))->condition('nid', (int) $ref->nid)->execute();
+}
+
+/**
+ * Kiểm tra cont kéo về được chọn cho một kế hoạch hàng cảng (chỉ khi chọn cont mới hoặc đổi cont).
+ *
+ * - Cont phải là kế hoạch hàng cảng còn hoạt động, chưa huỷ, có cont ở kho.
+ * - Cont phải đang ở kho: Đã cắt mooc hoặc Đủ hàng.
+ * - Cắt kéo: cùng kho với cont. Cắt kéo chéo: khác kho với cont. Rút mooc: không ràng buộc kho.
+ *
+ * @return array|null
+ *   Phản hồi lỗi, hoặc NULL nếu hợp lệ.
+ */
+function _ke_hoach_port_validate_return_cont($item, $line_no, $current_ref_id = 0) {
+  $ref_id = !empty($item['ke_hoach_cont_ref_nid']) ? (int) $item['ke_hoach_cont_ref_nid'] : 0;
+  if (!$ref_id || $ref_id === (int) $current_ref_id) {
+    return NULL;
+  }
+  $prefix = 'Dòng #' . $line_no . ': ';
+  $ref = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $ref_id))->fetch();
+  if (!$ref || (!empty($ref->loai_ke_hoach) && $ref->loai_ke_hoach !== 'thuong')) {
+    return _ke_hoach_xep_xe_fail($prefix . 'cont kéo về không tồn tại hoặc không phải kế hoạch hàng cảng');
+  }
+  if (empty($ref->da_cat_mooc)) {
+    return _ke_hoach_xep_xe_fail($prefix . 'kế hoạch được chọn không có cont ở kho');
+  }
+  if ((string) $ref->trang_thai_van_chuyen === 'Đã huỷ') {
+    return _ke_hoach_xep_xe_fail($prefix . 'kế hoạch của cont kéo về đã huỷ');
+  }
+  if (_ke_hoach_xep_xe_has_cont_status_field() && !in_array((string) $ref->trang_thai_cont, array('Đã cắt mooc', 'Đủ hàng'), TRUE)) {
+    $status = (string) $ref->trang_thai_cont;
+    return _ke_hoach_xep_xe_fail($prefix . 'cont đang ở trạng thái "' . ($status !== '' ? $status : 'chưa xác định') . '", chỉ chọn được cont đã cắt mooc hoặc đủ hàng');
+  }
+  $hinh_thuc = !empty($item['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($item['hinh_thuc_van_tai']) : '';
+  $item_kho = !empty($item['dia_chi_kho']) ? trim((string) $item['dia_chi_kho']) : '';
+  $ref_kho = trim((string) $ref->dia_chi_kho);
+  if ($item_kho !== '') {
+    if ($hinh_thuc === 'cat_keo' && $item_kho !== $ref_kho) {
+      return _ke_hoach_xep_xe_fail($prefix . 'cắt kéo phải cùng kho với cont kéo về (kho của cont: ' . $ref_kho . ')');
+    }
+    if ($hinh_thuc === 'cat_keo_cheo' && $item_kho === $ref_kho) {
+      return _ke_hoach_xep_xe_fail($prefix . 'cắt kéo chéo phải khác kho với cont kéo về (kho của cont: ' . $ref_kho . ')');
+    }
+  }
+  return NULL;
+}
+
+function _ke_hoach_xep_xe_validate_cont_refs($items, $exclude_id = 0, $is_tuyen_xa = FALSE, $current_ref_id = 0) {
   if (empty($items) || !is_array($items)) {
     return NULL;
   }
@@ -1602,6 +1677,10 @@ function _ke_hoach_xep_xe_validate_cont_refs($items, $exclude_id = 0, $is_tuyen_
       continue;
     }
 
+    if (!$is_tuyen_xa && ($return_error = _ke_hoach_port_validate_return_cont($item, $line_no, $current_ref_id))) {
+      return $return_error;
+    }
+
     $query = db_select('ke_hoach_xep_xe', 'kh')
       ->fields('kh', array('nid', 'so_bkg', 'so_cont'))
       ->condition('kh.ke_hoach_cont_ref_nid', $ref_id)
@@ -1675,7 +1754,7 @@ function _ke_hoach_xep_xe_enrich_cache(array $rows) {
       $related_rows[] = $ref;
     }
   }
-  foreach (db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid IN (:ids) AND hoat_dong = 1 ORDER BY nid DESC", array(':ids' => array_values($plan_ids))) as $keo_ve) {
+  foreach (db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid IN (:ids) AND hoat_dong = 1" . _ke_hoach_port_not_cancelled_sql() . " ORDER BY nid DESC", array(':ids' => array_values($plan_ids))) as $keo_ve) {
     $key = (int) $keo_ve->ke_hoach_cont_ref_nid;
     if (!isset($cache['keo_ve'][$key])) {
       $cache['keo_ve'][$key] = $keo_ve;
@@ -1697,7 +1776,7 @@ function _ke_hoach_xep_xe_enrich_cache(array $rows) {
     if (!empty($row->nid_phuong_tien)) $vehicle_ids[(int) $row->nid_phuong_tien] = (int) $row->nid_phuong_tien;
     if (!empty($row->nid_mooc)) $vehicle_ids[(int) $row->nid_mooc] = (int) $row->nid_mooc;
   }
-  foreach (db_query("SELECT DISTINCT ke_hoach_cont_ref_nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid IN (:ids) AND hoat_dong = 1", array(':ids' => array_values($all_ids))) as $referenced) {
+  foreach (db_query("SELECT DISTINCT ke_hoach_cont_ref_nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid IN (:ids) AND hoat_dong = 1" . _ke_hoach_port_not_cancelled_sql(), array(':ids' => array_values($all_ids))) as $referenced) {
     $cache['referenced'][(int) $referenced->ke_hoach_cont_ref_nid] = TRUE;
   }
   if ($customer_ids) {
@@ -1805,7 +1884,7 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
     }
     else {
       $keo_ve_fields = $related_mode === 'summary' ? 'nid, so_bkg, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te' : '*';
-      $keo_ve = db_query("SELECT $keo_ve_fields FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1 ORDER BY nid DESC", array(':nid' => $result['nid']))->fetch();
+      $keo_ve = db_query("SELECT $keo_ve_fields FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1" . _ke_hoach_port_not_cancelled_sql() . " ORDER BY nid DESC", array(':nid' => $result['nid']))->fetch();
     }
     $result['cont_keo_ve_by'] = $keo_ve ? ($related_mode === 'summary' ? _ke_hoach_xep_xe_related_summary($keo_ve) : _ke_hoach_xep_xe_enrich_row($keo_ve, FALSE, $child_options)) : NULL;
     $result['is_cont_keo_ve'] = !empty($result['cont_keo_ve_by']);
@@ -1814,7 +1893,7 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
     $result['cont_keo_ve_by'] = NULL;
     $result['is_cont_keo_ve'] = $cache
       ? !empty($cache['referenced'][(int) $result['nid']])
-      : (bool) db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1", array(':nid' => $result['nid']))->fetchField();
+      : (bool) db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1" . _ke_hoach_port_not_cancelled_sql(), array(':nid' => $result['nid']))->fetchField();
   }
   $json = _ke_hoach_xep_xe_json_decode(isset($result['thong_tin_json']) ? $result['thong_tin_json'] : '');
   $json = _ke_hoach_xep_xe_normalize_files($json);
@@ -2102,6 +2181,10 @@ function _ke_hoach_port_trip_change($id, $to, $ngay_ket_thuc = '', array $audit 
       }
       elseif ($to === 'Hoàn thành' && (string) $ref->trang_thai_cont === 'Đang kéo về') {
         $ref_cont_status = 'Hoàn thành';
+      }
+      elseif ($to === 'Đã huỷ') {
+        // Huỷ chuyến: cont kéo về được giải phóng cho kế hoạch khác.
+        _ke_hoach_port_release_ref_cont($plan);
       }
       if ($ref_cont_status !== '') {
         db_update('ke_hoach_xep_xe')->fields(array(
@@ -2830,7 +2913,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
   if (!empty($existing->loai_ke_hoach) && $existing->loai_ke_hoach === 'tuyen_xa' && ($json_validation = _ke_hoach_xep_xe_validate_tuyen_xa_json(array($line)))) {
     return $json_validation;
   }
-  $cont_ref_validation = _ke_hoach_xep_xe_validate_cont_refs(array($line), $id, !empty($existing->loai_ke_hoach) && $existing->loai_ke_hoach === 'tuyen_xa');
+  $cont_ref_validation = _ke_hoach_xep_xe_validate_cont_refs(array($line), $id, !empty($existing->loai_ke_hoach) && $existing->loai_ke_hoach === 'tuyen_xa', (int) $existing->ke_hoach_cont_ref_nid);
   if ($cont_ref_validation) {
     return $cont_ref_validation;
   }
@@ -2931,7 +3014,7 @@ function _ke_hoach_xep_xe_rest_delete($id) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá kế hoạch');
   }
 
-  $existing = db_query("SELECT nid, so_bkg FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  $existing = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
@@ -2941,6 +3024,10 @@ function _ke_hoach_xep_xe_rest_delete($id) {
       ->fields(array('hoat_dong' => 0, 'changed' => _ke_hoach_xep_xe_now()))
       ->condition('nid', $id)
       ->execute();
+    // Kế hoạch hàng cảng bị xoá: giải phóng cont kéo về nó đang giữ.
+    if (empty($existing->loai_ke_hoach) || $existing->loai_ke_hoach === 'thuong') {
+      _ke_hoach_port_release_ref_cont($existing);
+    }
     if (db_table_exists('ke_hoach_chi_phi')) {
       db_update('ke_hoach_chi_phi')
         ->fields(array('hoat_dong' => 0, 'changed' => _ke_hoach_xep_xe_now()))
@@ -3468,6 +3555,7 @@ function _ke_hoach_tuyen_xa_cont_rest_update($id, $existing_plan) {
 function _ke_hoach_cat_mooc_groups() {
   return array(
     'o_kho' => array('Đã cắt mooc', 'Đủ hàng'),
+    'du_hang' => array('Đủ hàng'),
     'dang_keo_ve' => array('Đang kéo về'),
     'chua_cat_mooc' => array('Chưa cắt mooc'),
     'hoan_thanh' => array('Hoàn thành'),
@@ -3478,14 +3566,16 @@ function _ke_hoach_cat_mooc_groups() {
  * Thao tác trên cont mà server cho phép ở trạng thái cont hiện tại.
  * Đây là nguồn duy nhất cho menu và nút bấm ở màn cat-mooc.
  */
-function _ke_hoach_port_cont_actions($cont_status) {
+function _ke_hoach_port_cont_actions($cont_status, $has_puller = FALSE) {
+  // Cont đang ở kho mà chưa có kế hoạch kéo về đang hoạt động thì cho tạo kế hoạch kéo về.
+  $create = $has_puller ? array() : array(array('action' => 'tao_ke_hoach_keo_ve', 'label' => 'Tạo kế hoạch kéo về'));
   switch ((string) $cont_status) {
     case 'Chưa cắt mooc':
       return array(array('action' => 'xac_nhan_cat_mooc', 'label' => 'Xác nhận đã cắt mooc'));
     case 'Đã cắt mooc':
-      return array(array('action' => 'danh_dau_du_hang', 'label' => 'Đánh dấu đủ hàng'));
+      return array_merge(array(array('action' => 'danh_dau_du_hang', 'label' => 'Đánh dấu đủ hàng')), $create);
     case 'Đủ hàng':
-      return array(array('action' => 'bo_du_hang', 'label' => 'Bỏ đánh dấu đủ hàng'));
+      return array_merge(array(array('action' => 'bo_du_hang', 'label' => 'Bỏ đánh dấu đủ hàng')), $create);
     case 'Đang kéo về':
       return array(array('action' => 'xac_nhan_cont_ve', 'label' => 'Xác nhận cont đã về'));
   }
@@ -3553,9 +3643,6 @@ function _ke_hoach_cat_mooc_apply_filters($query) {
   }
   if (!empty($_GET['dia_chi_kho'])) {
     $query->condition('kh.dia_chi_kho', trim((string) $_GET['dia_chi_kho']));
-  }
-  if (isset($_GET['da_du_hang']) && ($_GET['da_du_hang'] === '0' || $_GET['da_du_hang'] === '1')) {
-    $query->condition('kh.da_du_hang', (int) $_GET['da_du_hang']);
   }
 }
 
@@ -3655,7 +3742,7 @@ function _ke_hoach_cat_mooc_rest_list() {
         'phuong_tien' => $puller['phuong_tien'],
         'mooc' => $puller['mooc'],
       ) : NULL,
-      'hanh_dong_cont' => $can_edit ? _ke_hoach_port_cont_actions($plan['trang_thai_cont']) : array(),
+      'hanh_dong_cont' => $can_edit ? _ke_hoach_port_cont_actions($plan['trang_thai_cont'], (bool) $puller) : array(),
     );
   }
 

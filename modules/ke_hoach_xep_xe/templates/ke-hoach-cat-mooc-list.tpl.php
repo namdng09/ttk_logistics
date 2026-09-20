@@ -21,7 +21,6 @@
           <div class="cm-filter-field"><label class="form-label">Khách hàng</label><select class="select2 form-select cm-customer-filter-multiple" id="cm-filter-khach-hang" multiple></select></div>
           <div class="cm-filter-field"><label class="form-label">Địa chỉ kho</label><select class="form-select" id="cm-filter-dia-chi-kho"><option></option></select></div>
           <div class="cm-filter-field"><label class="form-label">Từ khóa</label><input type="text" class="form-control" id="cm-filter-keyword" placeholder="BKG, số cont, seal, bãi, cảng"></div>
-          <div class="cm-filter-field"><label class="form-label">Đủ hàng</label><select class="form-select" id="cm-filter-du-hang"><option></option><option value="1">Đã đủ hàng</option><option value="0">Chưa đủ hàng</option></select></div>
           <div class="cm-filter-actions cm-filter-actions-row">
             <button class="btn btn-primary" type="button" id="cm-search-btn"><i class="ti tabler-search me-1"></i>Tìm</button>
             <button type="button" class="btn btn-label-secondary btn-reload waves-effect cm-port-filter-reset" title="Reset bộ lọc" aria-label="Reset bộ lọc"><i class="ti tabler-refresh"></i></button>
@@ -36,6 +35,7 @@
         <ul class="nav nav-pills cm-port-status-tabs" id="cm-port-status-tabs" role="tablist">
           <li class="nav-item"><button type="button" class="nav-link active waves-effect waves-light" data-group="all" role="tab">Tất cả <span class="badge bg-label-primary ms-1" data-group-count="all">0</span></button></li>
           <li class="nav-item"><button type="button" class="nav-link waves-effect waves-light" data-group="o_kho" role="tab">Ở kho <span class="badge bg-label-primary ms-1" data-group-count="o_kho">0</span></button></li>
+          <li class="nav-item"><button type="button" class="nav-link waves-effect waves-light" data-group="du_hang" role="tab">Đủ hàng <span class="badge bg-label-primary ms-1" data-group-count="du_hang">0</span></button></li>
           <li class="nav-item"><button type="button" class="nav-link waves-effect waves-light" data-group="dang_keo_ve" role="tab">Đang kéo về <span class="badge bg-label-primary ms-1" data-group-count="dang_keo_ve">0</span></button></li>
           <li class="nav-item"><button type="button" class="nav-link waves-effect waves-light" data-group="chua_cat_mooc" role="tab">Chưa cắt mooc <span class="badge bg-label-primary ms-1" data-group-count="chua_cat_mooc">0</span></button></li>
           <li class="nav-item"><button type="button" class="nav-link waves-effect waves-light" data-group="hoan_thanh" role="tab">Hoàn thành <span class="badge bg-label-primary ms-1" data-group-count="hoan_thanh">0</span></button></li>

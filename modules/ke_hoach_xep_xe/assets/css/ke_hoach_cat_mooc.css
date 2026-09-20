@@ -597,13 +597,12 @@
 /* ==== Phần riêng của cat-mooc ==== */
 
 
-/* Thanh lọc chỉ có 4 ô + nút: khách hàng, kho, từ khóa, đủ hàng. */
+/* Thanh lọc chỉ có 3 ô + nút: khách hàng, kho, từ khóa. */
 #ke-hoach-cat-mooc-screen .cm-port-controls-card .cm-filter-grid {
   grid-template-columns:
     minmax(150px, 1.6fr)
     minmax(150px, 1fr)
     minmax(150px, 1fr)
-    minmax(110px, 0.6fr)
     max-content;
 }
 

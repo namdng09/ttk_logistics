@@ -98,20 +98,22 @@
     return '<span class="badge ' + (HINH_THUC_COLOR[value] || 'bg-label-secondary') + '" title="Hình thức vận tải: ' + escHtml(label) + '">' + escHtml(label) + '</span>';
   }
 
-  // Khối xe: đầu kéo / mooc / lái xe. titlePrefix (nếu có) là các dòng thêm vào đầu tooltip.
-  function vehicleInfoHtml(row, titlePrefix) {
+  // Khối xe của một chuyến. Cột "Xe kéo lên" hiện đầu kéo / mooc / lái xe; cột "Xe kéo về"
+  // (options.hideMooc) chỉ hiện đầu kéo / lái xe. titlePrefix là các dòng thêm vào đầu tooltip.
+  function vehicleInfoHtml(row, titlePrefix, options) {
+    options = options || {};
     var lxName = (row.lai_xe && row.lai_xe.ten) || '';
     var lxSdt = (row.lai_xe && row.lai_xe.sdt) || '';
     var pt = row.phuong_tien || {};
     var mooc = row.mooc || {};
-    var title = (titlePrefix ? [titlePrefix] : []).concat([
-      'Đầu kéo: ' + (pt.bks ? pt.bks + (pt.ma_tai_san ? ' - ' + pt.ma_tai_san : '') : 'Chưa có'),
-      'Mooc: ' + (mooc.bks ? mooc.bks + (mooc.ma_tai_san ? ' - ' + mooc.ma_tai_san : '') : 'Chưa có'),
-      'Lái xe: ' + ((lxName || lxSdt) ? (lxName + (lxSdt ? ' - ' + lxSdt : '')) : 'Chưa có')
-    ]).join('\n');
-    return '<div class="cm-vehicle-info" title="' + escHtml(title) + '">' +
+    var lines = [];
+    if (titlePrefix) lines.push(titlePrefix);
+    lines.push('Đầu kéo: ' + (pt.bks ? pt.bks + (pt.ma_tai_san ? ' - ' + pt.ma_tai_san : '') : 'Chưa có'));
+    if (!options.hideMooc) lines.push('Mooc: ' + (mooc.bks ? mooc.bks + (mooc.ma_tai_san ? ' - ' + mooc.ma_tai_san : '') : 'Chưa có'));
+    lines.push('Lái xe: ' + ((lxName || lxSdt) ? (lxName + (lxSdt ? ' - ' + lxSdt : '')) : 'Chưa có'));
+    return '<div class="cm-vehicle-info" title="' + escHtml(lines.join('\n')) + '">' +
       '<div class="cm-vehicle-bks">' + (pt.bks ? escHtml(pt.bks) : '_') + '</div>' +
-      '<div class="cm-vehicle-mooc">' + (mooc.bks ? escHtml(mooc.bks) : '_') + '</div>' +
+      (options.hideMooc ? '' : '<div class="cm-vehicle-mooc">' + (mooc.bks ? escHtml(mooc.bks) : '_') + '</div>') +
       '<div class="cm-vehicle-driver">' + (lxName ? escHtml(lxName) : '_') + '</div>' +
       '</div>';
   }
@@ -131,7 +133,7 @@
     var header = 'Kế hoạch kéo về #' + plan.nid + (plan.so_bkg ? ' - ' + plan.so_bkg : '') +
       (label ? '\nHình thức: ' + label : '') +
       (plan.trang_thai_van_chuyen ? '\nTrạng thái chuyến: ' + plan.trang_thai_van_chuyen : '');
-    return vehicleInfoHtml(plan, header);
+    return vehicleInfoHtml(plan, header, { hideMooc: true });
   }
 
   // Trạng thái cont. Đã cắt mooc / Đủ hàng bấm được để đổi qua lại.
@@ -197,8 +199,7 @@
     return {
       khach_hang: customers.join(','),
       dia_chi_kho: $('#cm-filter-dia-chi-kho').val() || '',
-      keyword: String($('#cm-filter-keyword').val() || '').trim(),
-      da_du_hang: $('#cm-filter-du-hang').val() || ''
+      keyword: String($('#cm-filter-keyword').val() || '').trim()
     };
   }
 
@@ -395,7 +396,6 @@
     $('.cm-port-filter-reset').on('click', function () {
       $('#cm-filter-keyword').val('');
       $('#cm-filter-dia-chi-kho').val(null).trigger('change');
-      $('#cm-filter-du-hang').val(null).trigger('change');
       $('#cm-filter-khach-hang').val(null).trigger('change');
       state.page = 1;
       loadList();
@@ -522,7 +522,6 @@
   function initFilters() {
     loadCustomerFilter();
     loadKhoFilter();
-    initFilterSelect2($('#cm-filter-du-hang'), { placeholder: '— Chọn đủ hàng —', minimumResultsForSearch: Infinity });
   }
 
   Drupal.behaviors.keHoachCatMooc = {
