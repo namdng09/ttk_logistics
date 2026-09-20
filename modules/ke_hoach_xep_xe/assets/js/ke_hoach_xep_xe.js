@@ -14,7 +14,7 @@
   // Dùng cho cả hai danh sách; mặc định giữ đúng thứ tự hiện tại là mới → cũ.
   var currentPortDateSort = 'desc';
   var FORM_DROPDOWN_CACHE_KEY = 'ke_hoach_xep_xe_form_dropdowns_v3';
-  var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v2';
+  var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v3';
   var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
   var formDropdownCacheMemory = null;
   var detachedCreateFormApp = null;
@@ -960,49 +960,59 @@
     });
   }
 
-  // Các trạng thái mà chuyến đã phải có lái xe (khớp kiểm tra ở backend).
-  var PORT_STATUSES_NEED_DRIVER = ['Chờ thực hiện', 'Đã nhận chuyến', 'Đang kéo lên', 'Đang kéo về', 'Hoàn thành'];
-  var PORT_NO_DRIVER_HINT = 'Kế hoạch chưa có lái xe. Vào Xếp xe để chọn lái xe rồi lưu.';
+  // Trạng thái chuyến (lái xe) và trạng thái cont là hai thứ khác nhau; màu của cont
+  // dùng tông riêng để không lẫn với badge chuyến.
+  var PORT_CONT_STATUS_COLOR = {
+    'Chưa cắt mooc': 'bg-label-secondary',
+    'Đã cắt mooc': 'bg-label-info',
+    'Đủ hàng': 'bg-label-primary',
+    'Đang kéo về': 'bg-label-warning',
+    'Hoàn thành': 'bg-label-success'
+  };
 
-  function portPlanHasDriver(row) {
-    return !!(row && ((row.lai_xe && parseInt(row.lai_xe.nid, 10)) || parseInt(row.nid_lai_xe, 10)));
+  // Icon/màu của từng bước chuyến hàng cảng, theo trạng thái đích.
+  var PORT_TRIP_ACTION_STYLE = {
+    'Chờ thực hiện': { icon: 'tabler-send', color: 'text-info' },
+    'Đã nhận chuyến': { icon: 'tabler-user-check', color: 'text-info' },
+    'Đang kéo lên': { icon: 'tabler-truck', color: 'text-primary' },
+    'Đang kéo về': { icon: 'tabler-arrow-back', color: 'text-warning' },
+    'Hoàn thành': { icon: 'tabler-check', color: 'text-success' },
+    'Đã huỷ': { icon: 'tabler-x', color: 'text-danger' }
+  };
+
+  function portContStatusBadgeHtml(row) {
+    var contStatus = String((row && row.trang_thai_cont) || '');
+    if (!contStatus) return '';
+    return '<span class="badge rounded-pill ' + (PORT_CONT_STATUS_COLOR[contStatus] || 'bg-label-secondary') + '" title="Trạng thái cont: ' + escHtml(contStatus) + '"><i class="ti tabler-package me-1"></i>' + escHtml(contStatus) + '</span>';
   }
 
+  // Lý do bị khoá, rút gọn để hiện cạnh tên mục (đầy đủ nằm trong tooltip).
+  function portActionShortReason(reason) {
+    reason = String(reason || '');
+    if (reason.indexOf('lái xe') !== -1) return '(chưa có lái xe)';
+    if (reason.indexOf('Chưa chọn cont') !== -1) return '(chưa chọn cont)';
+    return '(chưa thể)';
+  }
+
+  // Các bước tiếp theo do server tính (hanh_dong_tiep_theo) theo hình thức vận tải,
+  // lái xe và trạng thái cont; JS chỉ hiển thị.
   function hangCangStatusActionHtml(row) {
     row = row || {};
     var nid = parseInt(row.nid, 10) || 0;
     if (!nid) return '';
-    var status = String(row.trang_thai_van_chuyen || '');
-    var ht = normalizeHinhThuc(row.hinh_thuc_van_tai);
-    var hasReturnCont = (ht === 'cat_keo' || ht === 'cat_keo_cheo' || ht === 'rut_mooc') && !!parseInt(row.ke_hoach_cont_ref_nid, 10);
-    var hasDriver = portPlanHasDriver(row);
     var items = [];
-    var push = function (label, to, icon, color) {
-      // Chuyển sang trạng thái cần lái xe mà kế hoạch chưa có lái xe: hiện mờ,
-      // kèm lý do, không bấm được.
-      if (!hasDriver && PORT_STATUSES_NEED_DRIVER.indexOf(to) !== -1) {
-        items.push('<li class="khxh-action-disabled" title="' + escHtml(PORT_NO_DRIVER_HINT) + '"><span class="dropdown-item disabled" aria-disabled="true"><i class="ti ' + icon + ' me-2 text-muted"></i>' + escHtml(label) + '<span class="khxh-action-hint">(chưa có lái xe)</span></span></li>');
+    var contNumber = (row.cont_ref && row.cont_ref.so_cont) || '';
+    $.each(row.hanh_dong_tiep_theo || [], function (_, action) {
+      var style = PORT_TRIP_ACTION_STYLE[action.to] || { icon: 'tabler-arrows-exchange', color: 'text-secondary' };
+      if (action.ly_do) {
+        items.push('<li class="khxh-action-disabled" title="' + escHtml(action.ly_do) + '"><span class="dropdown-item disabled" aria-disabled="true"><i class="ti ' + style.icon + ' me-2 text-muted"></i>' + escHtml(action.label) + '<span class="khxh-action-hint">' + escHtml(portActionShortReason(action.ly_do)) + '</span></span></li>');
         return;
       }
-      items.push('<li><button type="button" class="dropdown-item btn-hang-cang-status-action" data-id="' + nid + '" data-to="' + escHtml(to) + '"><i class="ti ' + icon + ' me-2 ' + color + '"></i>' + escHtml(label) + '</button></li>');
-    };
-    if (status === 'Chờ duyệt') {
-      push('Đẩy cho lái xe', 'Chờ thực hiện', 'tabler-send', 'text-info');
-      push('Huỷ chuyến', 'Đã huỷ', 'tabler-x', 'text-danger');
-    } else if (status === 'Chờ thực hiện') {
-      push('Nhận chuyến', 'Đã nhận chuyến', 'tabler-user-check', 'text-info');
-      push('Huỷ chuyến', 'Đã huỷ', 'tabler-x', 'text-danger');
-    } else if (status === 'Đã nhận chuyến') {
-      push('Thực hiện kéo lên', 'Đang kéo lên', 'tabler-truck', 'text-primary');
-      push('Huỷ chuyến', 'Đã huỷ', 'tabler-x', 'text-danger');
-    } else if (status === 'Đang kéo lên') {
-      if (hasReturnCont) {
-        push('Thực hiện kéo về', 'Đang kéo về', 'tabler-arrow-back', 'text-warning');
-      } else {
-        push('Hoàn thành', 'Hoàn thành', 'tabler-check', 'text-success');
-      }
-    } else if (status === 'Đang kéo về') {
-      push('Hoàn thành', 'Hoàn thành', 'tabler-check', 'text-success');
+      items.push('<li><button type="button" class="dropdown-item btn-hang-cang-status-action" data-id="' + nid + '" data-to="' + escHtml(action.to) + '" data-cont="' + escHtml(contNumber) + '"><i class="ti ' + style.icon + ' me-2 ' + style.color + '"></i>' + escHtml(action.label) + '</button></li>');
+    });
+    // Cont đang được kéo về: admin có thể xác nhận cont đã về ngay trên web.
+    if (String(row.trang_thai_cont || '') === 'Đang kéo về') {
+      items.push('<li><button type="button" class="dropdown-item btn-hang-cang-cont-confirm" data-id="' + nid + '" data-cont="' + escHtml(row.so_cont || '') + '"><i class="ti tabler-package-import me-2 text-success"></i>Xác nhận cont đã về</button></li>');
     }
     return items.join('');
   }
@@ -1992,9 +2002,13 @@
       var label = String($btn.text().trim() || nextStatus);
       var title = 'Xác nhận chuyển trạng thái';
       var text = 'Chuyển kế hoạch sang trạng thái "' + nextStatus + '"?';
+      var contNumber = String($btn.attr('data-cont') || '');
       if (nextStatus === 'Hoàn thành') {
         title = 'Hoàn thành kế hoạch?';
-        text = 'Kế hoạch hoàn thành sẽ được đưa vào kỳ tính lương lái xe.';
+        text = 'Kế hoạch hoàn thành sẽ được đưa vào kỳ tính lương lái xe.' + (contNumber ? ' Cont ' + contNumber + ' đang được kéo về sẽ chuyển sang Hoàn thành.' : '');
+      } else if (nextStatus === 'Đang kéo về') {
+        title = 'Thực hiện kéo về?';
+        text = contNumber ? 'Cont ' + contNumber + ' sẽ chuyển sang trạng thái cont "Đang kéo về".' : 'Chuyến sẽ chuyển sang "Đang kéo về".';
       } else if (nextStatus === 'Đã huỷ') {
         title = 'Huỷ kế hoạch?';
         text = 'Kế hoạch sẽ chuyển sang trạng thái Đã huỷ.';
@@ -2031,6 +2045,48 @@
       } else if (confirm(text)) {
         runUpdate();
       }
+    });
+    $(document).on('click', '.btn-hang-cang-cont-confirm', function (e) {
+      e.preventDefault();
+      var $btn = $(this);
+      var id = parseInt($btn.attr('data-id'), 10) || 0;
+      if (!id) return;
+      var contNumber = String($btn.attr('data-cont') || '');
+      var confirmContArrived = function () {
+        $.ajax({
+          url: '/api/quan-ly-cont/' + id,
+          type: 'PUT',
+          contentType: 'application/json; charset=utf-8',
+          dataType: 'json',
+          data: JSON.stringify({ trang_thai_cont: 'Hoàn thành' })
+        }).done(function (res) {
+          if (res.status !== 'success') {
+            if (notyf) notyf.error(res.message || 'Xác nhận cont thất bại');
+            return;
+          }
+          if (notyf) notyf.success('Đã xác nhận cont về');
+          markForceReloadList();
+          if ($('#ke-hoach-list-app').length) loadList();
+        }).fail(function (jqXHR) {
+          if (notyf) notyf.error(apiMsg(jqXHR));
+        });
+      };
+      if (typeof Swal === 'undefined') {
+        if (window.confirm('Xác nhận cont đã về?')) confirmContArrived();
+        return;
+      }
+      Swal.fire({
+        title: 'Xác nhận cont đã về?',
+        text: (contNumber ? 'Cont ' + contNumber + ' ' : 'Cont ') + 'sẽ chuyển sang trạng thái cont "Hoàn thành".',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Xác nhận',
+        cancelButtonText: 'Huỷ',
+        customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-label-secondary ms-1' },
+        buttonsStyling: false
+      }).then(function (result) {
+        if (result.isConfirmed) confirmContArrived();
+      });
     });
     $(document).on('click', '.btn-view-ke-hoach-xep-xe', function (e) {
       e.preventDefault();
@@ -2296,7 +2352,8 @@
     var returnContText = '';
     var returnContDisplayHtml = '';
     var returnContTitle = '';
-    if (row.is_cont_keo_ve || normalizeHinhThuc(row.hinh_thuc_van_tai) === 'dong_hang') {
+    // Đóng hàng chạy khép kín nên không có nhãn kéo lên/kéo về.
+    if (row.is_cont_keo_ve) {
       hinhThucStatus = 'Kéo về';
     } else if (row.hinh_thuc_van_tai === 'cat_keo' || row.hinh_thuc_van_tai === 'cat_keo_cheo' || row.hinh_thuc_van_tai === 'tha_mooc') {
       hinhThucStatus = 'Kéo lên';
@@ -2349,7 +2406,7 @@
         '</div>' +
       '</td>' +
       '<td class="khxh-cang-cell" title="Cảng xuất: ' + escHtml(row.cang_xuat || 'Chưa có') + '">' + (row.cang_xuat ? escHtml(row.cang_xuat) : '_') + '</td>' +
-      '<td class="khxh-status-cell"><span class="badge ' + hangCangPlanStatusColor(planStatus) + '" title="Trạng thái kế hoạch: ' + escHtml(planStatus) + '">' + escHtml(planStatus) + '</span></td>' +
+      '<td class="khxh-status-cell"><div class="khxh-status-stack"><span class="badge ' + hangCangPlanStatusColor(planStatus) + '" title="Trạng thái chuyến (lái xe): ' + escHtml(planStatus) + '">' + escHtml(planStatus) + '</span>' + portContStatusBadgeHtml(row) + '</div></td>' +
       '</tr>';
   }
 
@@ -2997,8 +3054,10 @@
       return !!(line && (line.bai_lay_thuc_te || line.bai_ha_thuc_te));
     }
 
-    function hinhThucOptionsForForm() {
+    function hinhThucOptionsForForm(selected) {
       var options = $.extend({}, HINH_THUC_MAP);
+      // "Rời cont" không còn được chọn khi tạo/xếp xe; chỉ giữ lại nếu kế hoạch cũ đang dùng nó.
+      if (normalizeHinhThuc(selected || '') !== 'roi_cont') delete options.roi_cont;
       // "Kết hợp" chỉ được tạo tự động từ chuyến chính, không phải lựa chọn
       // vận tải để người dùng chọn trong form xếp xe thông thường.
       delete options.ket_hop;
@@ -3012,7 +3071,7 @@
     function buildHinhThucRadios(line) {
       var html = '';
       var selected = normalizeHinhThuc(line.hinh_thuc_van_tai || '');
-      $.each(hinhThucOptionsForForm(), function (key, label) {
+      $.each(hinhThucOptionsForForm(selected), function (key, label) {
         var checked = key === selected ? ' checked' : '';
         html += '<label class="form-check form-check-inline line-hinh-thuc-option' + (checked ? ' is-active' : '') + '">' +
           '<input class="form-check-input line-hinh-thuc-radio" type="radio" name="line-hinh-thuc-' + escHtml(line.key) + '" value="' + key + '" data-current="' + (checked ? '1' : '0') + '"' + checked + '>' +
@@ -3500,7 +3559,7 @@
 
     function portCreateTransportOptions(selected) {
       var html = '<option value="">Chọn hình thức vận tải</option>';
-      $.each(hinhThucOptionsForForm(), function (key, label) {
+      $.each(hinhThucOptionsForForm(selected), function (key, label) {
         if (key === 'ket_hop') return;
         html += '<option value="' + escHtml(key) + '"' + (normalizeHinhThuc(selected) === key ? ' selected' : '') + '>' + escHtml(label) + '</option>';
       });
@@ -3742,7 +3801,7 @@
       var actionRemove = mode === 'edit' ? '<span class="text-muted">-</span>' : '<button type="button" class="btn btn-sm btn-icon btn-label-danger btn-remove-row-ke-hoach" title="Xoá dòng"><i class="ti tabler-trash"></i></button>';
       var hinhThucOptions = '<option value="">H.Thức VT</option>';
       var selectedHinhThuc = normalizeHinhThuc(line.hinh_thuc_van_tai || '');
-      $.each(hinhThucOptionsForForm(), function (key, label) {
+      $.each(hinhThucOptionsForForm(selectedHinhThuc), function (key, label) {
         hinhThucOptions += '<option value="' + key + '"' + (selectedHinhThuc === key ? ' selected' : '') + '>' + escHtml(label) + '</option>';
       });
       var dateInputsHtml = mode === 'edit'
@@ -5294,6 +5353,8 @@
       $btn.removeClass('btn-success btn-outline-success btn-label-secondary btn-label-info btn-label-primary btn-label-warning btn-label-success btn-label-danger bg-label-secondary khxh-status-cho-thuc-hien bg-label-info bg-label-primary bg-label-warning bg-label-success bg-label-danger')
         .addClass(hangCangPlanStatusColor(portStatus))
         .html('<i class="icon-base ti tabler-arrows-exchange me-1"></i>' + escHtml(portStatus));
+      // Trạng thái cont hiện riêng cạnh nút trạng thái chuyến.
+      $form('#khxh-cont-status-badge').replaceWith(portContStatusBadgeHtml(row) ? $(portContStatusBadgeHtml(row)).attr('id', 'khxh-cont-status-badge') : '<span id="khxh-cont-status-badge" class="d-none"></span>');
     }
 
     // Nút trạng thái tuyến xa (#khxh-status-btn).
@@ -6152,6 +6213,11 @@
       var id = parseInt($form('#nid-input').val(), 10) || 0;
       var nextStatus = String($('#khxh-hang-cang-status-select').val() || '');
       if (!id || !nextStatus) return;
+      if (editData && nextStatus === String(editData.trang_thai_van_chuyen || '')) {
+        var sameModal = hangCangStatusModalInstance();
+        if (sameModal) sameModal.hide();
+        return;
+      }
       setPlanStatus(id, nextStatus, {
         $button: $save,
         silentSuccess: true,
@@ -6173,15 +6239,12 @@
       if (!id) return;
       if (currentPlanType() !== 'tuyen_xa') {
         var currentPortStatus = String((editData && editData.trang_thai_van_chuyen) || 'Chờ duyệt');
-        $('#khxh-hang-cang-status-select').html(planStatusOptions(currentPortStatus));
-        if (!portPlanHasDriver(editData)) {
-          $('#khxh-hang-cang-status-select option').each(function () {
-            if (PORT_STATUSES_NEED_DRIVER.indexOf(this.value) !== -1 && this.value !== currentPortStatus) {
-              this.disabled = true;
-              this.text = this.value + ' (chưa có lái xe)';
-            }
-          });
-        }
+        // Chỉ hiện trạng thái hiện tại và các bước tiếp theo hợp lệ do server tính.
+        var portOptionsHtml = '<option value="' + escHtml(currentPortStatus) + '" selected>' + escHtml(currentPortStatus) + '</option>';
+        $.each((editData && editData.hanh_dong_tiep_theo) || [], function (_, action) {
+          portOptionsHtml += '<option value="' + escHtml(action.to) + '"' + (action.ly_do ? ' disabled' : '') + '>' + escHtml(action.label) + ' → ' + escHtml(action.to) + (action.ly_do ? ' ' + escHtml(portActionShortReason(action.ly_do)) : '') + '</option>';
+        });
+        $('#khxh-hang-cang-status-select').html(portOptionsHtml);
         var portStatusModal = hangCangStatusModalInstance();
         if (portStatusModal) portStatusModal.show();
         return;

@@ -71,6 +71,15 @@ Lý do: ban đầu tưởng kế hoạch chỉ là một kiểu nên gom chung, 
 - Định mức khoán hàng cảng: `PUT /api/ke-hoach-xep-xe/{id}/dinh-muc` (không đi qua `/api/quan-ly-cont`).
 - Cảnh báo thay đổi chưa lưu chỉ áp dụng cho modal xếp xe hàng cảng (`#ke-hoach-edit-fullscreen-modal`).
 
+### Hàng cảng: 2 trạng thái tách riêng (chuyến lái xe và cont)
+
+- **Trạng thái chuyến** (`trang_thai_van_chuyen`): thuộc từng kế hoạch, theo việc lái xe của kế hoạch đó làm. Hiện ở cột T.Thái và app lái xe.
+- **Trạng thái cont** (`trang_thai_cont`): thuộc cont, theo hành trình cont: Chưa cắt mooc → Đã cắt mooc → Đủ hàng → Đang kéo về → Hoàn thành. Chỉ kế hoạch có cont ở kho (cắt kéo, cắt kéo chéo, thả mooc) mới có.
+- Kế hoạch A chọn cont kéo về = kế hoạch B (`A.ke_hoach_cont_ref_nid = B.nid`). A "Thực hiện kéo về" ⇒ chuyến A: Đang kéo về, **cont B**: Đang kéo về (chuyến của B không đổi). A hoàn thành ⇒ cont B hoàn thành. Admin cũng có thể "Xác nhận cont đã về" trên web.
+- Chặng theo hình thức: đóng hàng không có chặng nào (Đã nhận → Hoàn thành); thả mooc chỉ kéo lên; rút mooc chỉ kéo về (bắt buộc chọn cont); cắt kéo / cắt kéo chéo có cả kéo lên và kéo về. Cả ba hình thức có kéo về được lưu khi chưa chọn cont (lập kế hoạch trước), nhưng chuyến bị khoá ở bước "Thực hiện kéo về" (và không hoàn thành được) cho tới khi chọn cont. "Rời cont" đã ẩn khỏi form.
+- Chưa làm (để sau): cont B phải Đủ hàng mới được kéo về; bước "Hoàn thành, không kéo về" (có lý do) cho trường hợp không kéo về được nữa.
+- **Một nguồn duy nhất** cho các bước hợp lệ: `_ke_hoach_port_trip_options()`; đổi trạng thái qua `_ke_hoach_port_trip_change()` (transaction, cập nhật cả cont). Web (menu, modal), `PUT /api/quan-ly-cont/{id}` và app (`api/mobile/chuyen-xe/{id}/nhan|keo-len|keo-ve|hoan-thanh`) đều dùng chung; JS chỉ hiển thị `hanh_dong_tiep_theo` do server trả về.
+
 ## Module pattern mới
 
 ### Schema thuần (không Entity API)

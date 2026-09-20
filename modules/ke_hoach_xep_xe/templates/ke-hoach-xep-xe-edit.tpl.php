@@ -21,6 +21,7 @@
       <button type="button" class="btn btn-success waves-effect d-none" id="complete-plan-btn">
         <i class="icon-base ti tabler-circle-check me-1"></i>Hoàn thành
       </button>
+      <span id="khxh-cont-status-badge" class="d-none"></span>
       <button type="button" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu xếp xe</button>
     </div>
   </div>

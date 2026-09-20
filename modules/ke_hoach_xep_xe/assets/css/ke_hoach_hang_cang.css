@@ -585,3 +585,11 @@
   font-style: italic;
 }
 
+/* Cột T.Thái hàng cảng: trạng thái chuyến (lái xe) và trạng thái cont xếp chồng. */
+#ke-hoach-hang-cang-screen .khxh-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .25rem;
+}
+

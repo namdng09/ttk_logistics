@@ -45,6 +45,20 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/mobile/chuyen-xe/%/keo-len'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_keo_len_trip',
+    'page arguments' => array(3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/mobile/chuyen-xe/%/keo-ve'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_keo_ve_trip',
+    'page arguments' => array(3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/mobile/chuyen-xe/%/hoan-thanh'] = array(
     'page callback' => 'ke_hoach_xep_xe_mobile_complete_trip',
     'page arguments' => array(3),
@@ -435,6 +449,68 @@ function ke_hoach_xep_xe_mobile_trip_detail($id) {
   return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_mobile_enrich_plan($plan));
 }
 
+/**
+ * Một bước của chuyến hàng cảng trên app lái xe (nhận chuyến, kéo lên, kéo về,
+ * hoàn thành). Thứ tự bước và trạng thái cont do _ke_hoach_port_trip_change() quyết định.
+ */
+function _ke_hoach_xep_xe_mobile_port_response($plan, array $identity, array $input, $to, $action, array $extra = array()) {
+  $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
+  $uid = (int) $identity['account']->uid;
+  $accepted_uid = !empty($json['uid_nhan_chuyen']) ? (int) $json['uid_nhan_chuyen'] : 0;
+  $note = !empty($input['ghi_chu']) ? $input['ghi_chu'] : '';
+  $extra['buoc'] = $to;
+
+  if ($to === 'Đã nhận chuyến') {
+    if ($accepted_uid && $accepted_uid !== $uid) return _ke_hoach_xep_xe_fail('Chuyến xe đã được một tài khoản khác nhận');
+    // Nhận lại, hoặc admin đã nhận chuyến thay lái xe trên web: không đổi gì.
+    if ($accepted_uid || in_array($plan->trang_thai_van_chuyen, array('Đã nhận chuyến', 'Đang kéo lên', 'Đang kéo về', 'Hoàn thành'), TRUE)) {
+      $extra['ke_hoach'] = _ke_hoach_xep_xe_mobile_enrich_plan($plan);
+      return _ke_hoach_xep_xe_success($extra);
+    }
+  }
+  elseif ($accepted_uid && $accepted_uid !== $uid) {
+    return _ke_hoach_xep_xe_unauthorized('Chỉ lái xe đã nhận chuyến mới có thể thực hiện bước này');
+  }
+
+  $history = $json;
+  _ke_hoach_xep_xe_mobile_audit($history, $action, $identity['account'], $identity['driver'], $note);
+  $audit = array('lich_su_mobile' => $history['lich_su_mobile']);
+  $now = _ke_hoach_xep_xe_now();
+  if ($to === 'Đã nhận chuyến') {
+    $audit['uid_nhan_chuyen'] = $uid;
+    $audit['nid_lai_xe_nhan_chuyen'] = (int) $identity['driver']->nid;
+    $audit['thoi_gian_nhan_chuyen'] = $now;
+  }
+  elseif ($to === 'Hoàn thành') {
+    $audit['uid_hoan_thanh_chuyen'] = $uid;
+    $audit['nid_lai_xe_hoan_thanh'] = (int) $identity['driver']->nid;
+    $audit['thoi_gian_hoan_thanh_chuyen'] = $now;
+  }
+  $result = _ke_hoach_port_trip_change($plan->nid, $to, '', $audit);
+  if (empty($result['ok'])) return _ke_hoach_xep_xe_fail($result['message']);
+  $extra['ke_hoach'] = _ke_hoach_xep_xe_mobile_enrich_plan($result['row']);
+  return _ke_hoach_xep_xe_success($extra);
+}
+
+function _ke_hoach_xep_xe_mobile_port_step_endpoint($id, $to, $action) {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _ke_hoach_xep_xe_method_not_allowed('POST');
+  $input = _ke_hoach_xep_xe_input();
+  $identity = _ke_hoach_xep_xe_mobile_driver($input);
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+  if (!empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach === 'tuyen_xa') return _ke_hoach_xep_xe_fail('Bước này chỉ dành cho chuyến hàng cảng');
+  return _ke_hoach_xep_xe_mobile_port_response($plan, $identity, $input, $to, $action);
+}
+
+function ke_hoach_xep_xe_mobile_keo_len_trip($id) {
+  return _ke_hoach_xep_xe_mobile_port_step_endpoint($id, 'Đang kéo lên', 'keo_len');
+}
+
+function ke_hoach_xep_xe_mobile_keo_ve_trip($id) {
+  return _ke_hoach_xep_xe_mobile_port_step_endpoint($id, 'Đang kéo về', 'keo_ve');
+}
+
 function ke_hoach_xep_xe_mobile_accept_trip($id) {
   if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _ke_hoach_xep_xe_method_not_allowed('POST');
   $input = _ke_hoach_xep_xe_input();
@@ -442,6 +518,9 @@ function ke_hoach_xep_xe_mobile_accept_trip($id) {
   if (!is_array($identity) || empty($identity['driver'])) return $identity;
   $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
   if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+  if (empty($plan->loai_ke_hoach) || $plan->loai_ke_hoach !== 'tuyen_xa') {
+    return _ke_hoach_xep_xe_mobile_port_response($plan, $identity, $input, 'Đã nhận chuyến', 'nhan_chuyen', array('da_nhan_chuyen' => TRUE));
+  }
   if ($plan->trang_thai_van_chuyen === 'Hoàn thành') return _ke_hoach_xep_xe_fail('Chuyến xe đã hoàn thành, không thể nhận lại');
   $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
   $accepted_uid = !empty($json['uid_nhan_chuyen']) ? (int) $json['uid_nhan_chuyen'] : 0;
@@ -466,6 +545,9 @@ function ke_hoach_xep_xe_mobile_complete_trip($id) {
   if (!is_array($identity) || empty($identity['driver'])) return $identity;
   $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
   if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+  if (empty($plan->loai_ke_hoach) || $plan->loai_ke_hoach !== 'tuyen_xa') {
+    return _ke_hoach_xep_xe_mobile_port_response($plan, $identity, $input, 'Hoàn thành', 'hoan_thanh_chuyen', array('da_hoan_thanh' => TRUE));
+  }
   if ($plan->trang_thai_van_chuyen === 'Hoàn thành') return _ke_hoach_xep_xe_fail('Chuyến xe đã hoàn thành');
   $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
   if (empty($json['uid_nhan_chuyen'])) return _ke_hoach_xep_xe_fail('Bạn cần nhận chuyến trước khi báo hoàn thành');
@@ -1384,6 +1466,8 @@ function _ke_hoach_xep_xe_validate_cont_refs($items, $exclude_id = 0, $is_tuyen_
     $line_no = $index + 1;
     $ref_id = !empty($item['ke_hoach_cont_ref_nid']) ? (int) $item['ke_hoach_cont_ref_nid'] : 0;
     if (!$ref_id && !$is_tuyen_xa) {
+      // Rút mooc, cắt kéo và cắt kéo chéo có thể lưu khi chưa chọn cont (lập kế hoạch
+      // trước). Chuyến chỉ bị khoá ở bước "Thực hiện kéo về" cho tới khi chọn cont.
       continue;
     }
     $hinh_thuc = !empty($item['hinh_thuc_van_tai']) ? trim((string) $item['hinh_thuc_van_tai']) : '';
@@ -1690,6 +1774,7 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
     $result['mooc'] = NULL;
   }
 
+  $port_ref = NULL;
   if ($with_related && !empty($result['ke_hoach_cont_ref_nid'])) {
     if ($cache) {
       $ref = isset($cache['cont_ref'][(int) $result['ke_hoach_cont_ref_nid']]) ? $cache['cont_ref'][(int) $result['ke_hoach_cont_ref_nid']] : NULL;
@@ -1698,6 +1783,7 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
       $ref_fields = $related_mode === 'summary' ? 'nid, so_bkg, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te' : '*';
       $ref = db_query("SELECT $ref_fields FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $result['ke_hoach_cont_ref_nid']))->fetch();
     }
+    $port_ref = $ref ? $ref : NULL;
     $result['cont_ref'] = $ref ? ($related_mode === 'summary' ? _ke_hoach_xep_xe_related_summary($ref) : _ke_hoach_xep_xe_enrich_row($ref, FALSE, $child_options)) : NULL;
   }
   else {
@@ -1739,6 +1825,12 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
   $result['ghi_chu'] = !empty($json['ghi_chu']) ? $json['ghi_chu'] : '';
   $result['hinh_thuc_tinh_luong_lai_xe'] = !empty($json['hinh_thuc_tinh_luong_lai_xe']) ? $json['hinh_thuc_tinh_luong_lai_xe'] : 'khoan';
   $result['hinh_thuc_status_text'] = _ke_hoach_xep_xe_hinh_thuc_status_text($result);
+  // Hàng cảng: các bước tiếp theo của chuyến (một nguồn cho web và app) và
+  // trạng thái cont, tách khỏi trạng thái chuyến.
+  if ($with_related && $related_mode !== 'summary' && (empty($result['loai_ke_hoach']) || $result['loai_ke_hoach'] !== 'tuyen_xa')) {
+    $result['trang_thai_cont'] = isset($result['trang_thai_cont']) ? (string) $result['trang_thai_cont'] : '';
+    $result['hanh_dong_tiep_theo'] = _ke_hoach_port_trip_options($row, $port_ref);
+  }
   unset($result['nid_khach_hang'], $result['nid_lai_xe'], $result['nid_phuong_tien'], $result['nid_mooc']);
 
   return $result;
@@ -1754,7 +1846,7 @@ function _ke_hoach_xep_xe_apply_cont_logic(&$record, $auto_full_on_dong_hang = T
 
 function _ke_hoach_xep_xe_hinh_thuc_status_text($row) {
   $hinh_thuc_van_tai = !empty($row['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($row['hinh_thuc_van_tai']) : '';
-  if (!empty($row['is_cont_keo_ve']) || $hinh_thuc_van_tai === 'dong_hang') {
+  if (!empty($row['is_cont_keo_ve'])) {
     return 'Kéo về';
   }
   if ($hinh_thuc_van_tai && in_array($hinh_thuc_van_tai, array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), TRUE)) {
@@ -1762,6 +1854,267 @@ function _ke_hoach_xep_xe_hinh_thuc_status_text($row) {
   }
   return '';
 }
+
+// ---------------------------------------------------------------------------
+// Hàng cảng: trạng thái chuyến (lái xe) và trạng thái cont là hai thứ khác nhau.
+//
+// - Trạng thái chuyến (trang_thai_van_chuyen) thuộc từng kế hoạch, theo việc lái
+//   xe của kế hoạch đó làm.
+// - Trạng thái cont (trang_thai_cont) thuộc cont, theo hành trình của cont.
+//
+// Kế hoạch A chọn cont kéo về = kế hoạch B (A.ke_hoach_cont_ref_nid = B.nid).
+// Lái xe A "Thực hiện kéo về" => chuyến A: Đang kéo về; cont B: Đang kéo về.
+// Lái xe A hoàn thành => chuyến A: Hoàn thành; cont B: Hoàn thành.
+// Chuyến của B (lái xe của B) không bị đổi.
+// ---------------------------------------------------------------------------
+
+function _ke_hoach_xep_xe_has_cont_status_field() {
+  $exists = &drupal_static(__FUNCTION__);
+  if (!isset($exists)) {
+    $exists = db_field_exists('ke_hoach_xep_xe', 'trang_thai_cont');
+  }
+  return $exists;
+}
+
+function _ke_hoach_port_cont_statuses() {
+  return array('Chưa cắt mooc', 'Đã cắt mooc', 'Đủ hàng', 'Đang kéo về', 'Hoàn thành');
+}
+
+/**
+ * Các chặng của một hình thức vận tải hàng cảng.
+ *
+ * keo_len: có chặng kéo lên hay không.
+ * keo_ve: '' (không có) hoặc 'bat_buoc'. Rút mooc, cắt kéo và cắt kéo chéo đều có
+ * chặng kéo về: được lưu khi chưa chọn cont, nhưng phải chọn cont trước khi
+ * thực hiện kéo về (và không thể hoàn thành chuyến nếu bỏ qua chặng này).
+ */
+function _ke_hoach_port_legs($hinh_thuc) {
+  $hinh_thuc = _ke_hoach_xep_xe_normalize_hinh_thuc($hinh_thuc);
+  switch ($hinh_thuc) {
+    case 'dong_hang':
+      return array('keo_len' => FALSE, 'keo_ve' => '');
+    case 'rut_mooc':
+      return array('keo_len' => FALSE, 'keo_ve' => 'bat_buoc');
+    case 'cat_keo':
+    case 'cat_keo_cheo':
+      return array('keo_len' => TRUE, 'keo_ve' => 'bat_buoc');
+    default:
+      // Thả mooc và dữ liệu cũ (Rời cont...): chỉ kéo lên.
+      return array('keo_len' => TRUE, 'keo_ve' => '');
+  }
+}
+
+/**
+ * Trạng thái chuyến mà chuyến đã phải có lái xe. Chờ duyệt và Đã huỷ thì không.
+ */
+function _ke_hoach_port_statuses_need_driver() {
+  return array('Chờ thực hiện', 'Đã nhận chuyến', 'Đang kéo lên', 'Đang kéo về', 'Hoàn thành');
+}
+
+/**
+ * Lý do chưa thể thực hiện kéo về (chuỗi rỗng nếu được).
+ */
+function _ke_hoach_port_keo_ve_blocker($plan, $ref) {
+  if (empty($plan->ke_hoach_cont_ref_nid)) {
+    return 'Chưa chọn cont kéo về';
+  }
+  if (!$ref) {
+    return 'Cont kéo về không còn tồn tại';
+  }
+  if (property_exists($ref, 'trang_thai_cont') && $ref->trang_thai_cont !== NULL) {
+    $cont_status = (string) $ref->trang_thai_cont;
+    if (!in_array($cont_status, array('Đã cắt mooc', 'Đủ hàng'), TRUE)) {
+      $label = trim((string) (isset($ref->so_cont) ? $ref->so_cont : ''));
+      return 'Cont ' . ($label !== '' ? $label . ' ' : '') . 'đang ở trạng thái "' . ($cont_status !== '' ? $cont_status : 'chưa xác định') . '", chưa thể kéo về';
+    }
+  }
+  return '';
+}
+
+/**
+ * Các bước tiếp theo hợp lệ của chuyến hàng cảng.
+ *
+ * Trả về mảng {to, label, ly_do}. ly_do khác rỗng nghĩa là bước này đang bị khoá.
+ * Đây là nguồn duy nhất cho menu web, modal xếp xe và app lái xe.
+ */
+function _ke_hoach_port_trip_options($plan, $ref = NULL) {
+  $plan = (object) $plan;
+  $status = trim((string) (isset($plan->trang_thai_van_chuyen) ? $plan->trang_thai_van_chuyen : ''));
+  if ($status === '') {
+    $status = 'Chờ duyệt';
+  }
+  $legs = _ke_hoach_port_legs(isset($plan->hinh_thuc_van_tai) ? $plan->hinh_thuc_van_tai : '');
+  $has_driver = !empty($plan->nid_lai_xe);
+  $need_driver = _ke_hoach_port_statuses_need_driver();
+  $options = array();
+  $add = function ($to, $label, $blocker = '') use (&$options, $has_driver, $need_driver) {
+    if ($blocker === '' && !$has_driver && in_array($to, $need_driver, TRUE)) {
+      $blocker = 'Kế hoạch chưa có lái xe. Vào Xếp xe để chọn lái xe rồi lưu.';
+    }
+    $options[] = array('to' => $to, 'label' => $label, 'ly_do' => $blocker);
+  };
+  $has_keo_ve = $legs['keo_ve'] === 'bat_buoc';
+  $keo_ve_blocker = $has_keo_ve ? _ke_hoach_port_keo_ve_blocker($plan, $ref) : '';
+
+  switch ($status) {
+    case 'Chờ duyệt':
+      $add('Chờ thực hiện', 'Đẩy cho lái xe');
+      $add('Đã huỷ', 'Huỷ chuyến');
+      break;
+
+    case 'Chờ thực hiện':
+      $add('Đã nhận chuyến', 'Nhận chuyến');
+      $add('Đã huỷ', 'Huỷ chuyến');
+      break;
+
+    case 'Đã nhận chuyến':
+      if ($legs['keo_len']) {
+        $add('Đang kéo lên', 'Thực hiện kéo lên');
+      }
+      elseif ($has_keo_ve) {
+        $add('Đang kéo về', 'Thực hiện kéo về', $keo_ve_blocker);
+      }
+      else {
+        $add('Hoàn thành', 'Hoàn thành');
+      }
+      $add('Đã huỷ', 'Huỷ chuyến');
+      break;
+
+    case 'Đang kéo lên':
+      if ($has_keo_ve) {
+        $add('Đang kéo về', 'Thực hiện kéo về', $keo_ve_blocker);
+      }
+      else {
+        $add('Hoàn thành', 'Hoàn thành');
+      }
+      break;
+
+    case 'Đang kéo về':
+      $add('Hoàn thành', 'Hoàn thành');
+      break;
+  }
+  return $options;
+}
+
+function _ke_hoach_port_load_ref($plan) {
+  $plan = (object) $plan;
+  if (empty($plan->ke_hoach_cont_ref_nid)) {
+    return NULL;
+  }
+  $ref = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => (int) $plan->ke_hoach_cont_ref_nid))->fetch();
+  return $ref ? $ref : NULL;
+}
+
+/**
+ * Chuyển trạng thái chuyến hàng cảng, đồng thời cập nhật trạng thái cont liên quan
+ * trong cùng một transaction. Dùng chung cho web và app lái xe.
+ *
+ * @return array
+ *   array('ok' => TRUE, 'row' => object) hoặc array('ok' => FALSE, 'message' => string).
+ */
+function _ke_hoach_port_trip_change($id, $to, $ngay_ket_thuc = '', array $audit = array()) {
+  $plan = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => (int) $id))->fetch();
+  if (!$plan) {
+    return array('ok' => FALSE, 'message' => 'Kế hoạch không tồn tại');
+  }
+  if (!empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach !== 'thuong') {
+    return array('ok' => FALSE, 'message' => 'Chỉ dùng cho kế hoạch hàng cảng');
+  }
+  $ref = _ke_hoach_port_load_ref($plan);
+  $chosen = NULL;
+  foreach (_ke_hoach_port_trip_options($plan, $ref) as $option) {
+    if ($option['to'] === $to) {
+      $chosen = $option;
+      break;
+    }
+  }
+  if (!$chosen) {
+    $from = trim((string) $plan->trang_thai_van_chuyen);
+    return array('ok' => FALSE, 'message' => 'Không thể chuyển từ "' . ($from !== '' ? $from : 'Chờ duyệt') . '" sang "' . $to . '"');
+  }
+  if ($chosen['ly_do'] !== '') {
+    return array('ok' => FALSE, 'message' => $chosen['ly_do']);
+  }
+
+  $now = _ke_hoach_xep_xe_now();
+  $from = trim((string) $plan->trang_thai_van_chuyen);
+  $has_cont_field = _ke_hoach_xep_xe_has_cont_status_field();
+  $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
+  if (empty($json['moc_trang_thai']) || !is_array($json['moc_trang_thai'])) {
+    $json['moc_trang_thai'] = array();
+  }
+  $json['moc_trang_thai'][$to] = $now;
+  if ($audit) {
+    $json = array_merge($json, $audit);
+  }
+  $update = array(
+    'trang_thai_van_chuyen' => $to,
+    'ngay_ket_thuc' => '',
+    'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json),
+    'changed' => $now,
+  );
+  if ($to === 'Hoàn thành') {
+    $ngay = $ngay_ket_thuc ? substr(_ke_hoach_xep_xe_filter_date($ngay_ket_thuc), 0, 10) : '';
+    $update['ngay_ket_thuc'] = $ngay ? $ngay : date('Y-m-d', REQUEST_TIME);
+  }
+  // Rời chặng kéo lên: cont của chính kế hoạch này đã được cắt mooc.
+  if ($has_cont_field && $from === 'Đang kéo lên' && in_array($to, array('Đang kéo về', 'Hoàn thành'), TRUE) && !empty($plan->da_cat_mooc) && in_array((string) $plan->trang_thai_cont, array('', 'Chưa cắt mooc'), TRUE)) {
+    $update['trang_thai_cont'] = 'Đã cắt mooc';
+  }
+
+  $transaction = db_transaction();
+  try {
+    db_update('ke_hoach_xep_xe')->fields($update)->condition('nid', (int) $id)->execute();
+    if ($has_cont_field && $ref) {
+      if ($to === 'Đang kéo về') {
+        db_update('ke_hoach_xep_xe')->fields(array('trang_thai_cont' => 'Đang kéo về', 'changed' => $now))->condition('nid', (int) $ref->nid)->execute();
+      }
+      elseif ($to === 'Hoàn thành' && (string) $ref->trang_thai_cont === 'Đang kéo về') {
+        db_update('ke_hoach_xep_xe')->fields(array('trang_thai_cont' => 'Hoàn thành', 'changed' => $now))->condition('nid', (int) $ref->nid)->execute();
+      }
+    }
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('ke_hoach_xep_xe', 'Lỗi chuyển trạng thái chuyến hàng cảng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return array('ok' => FALSE, 'message' => 'Lỗi hệ thống khi cập nhật trạng thái');
+  }
+  return array('ok' => TRUE, 'row' => db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => (int) $id))->fetch());
+}
+
+/**
+ * Admin xác nhận cont đã về (Đang kéo về -> Hoàn thành) ngay trên web.
+ */
+function _ke_hoach_port_cont_confirm($id) {
+  if (!_ke_hoach_xep_xe_has_cont_status_field()) {
+    return array('ok' => FALSE, 'message' => 'Chưa chạy update database cho trạng thái cont');
+  }
+  $plan = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => (int) $id))->fetch();
+  if (!$plan) {
+    return array('ok' => FALSE, 'message' => 'Kế hoạch không tồn tại');
+  }
+  if ((string) $plan->trang_thai_cont !== 'Đang kéo về') {
+    return array('ok' => FALSE, 'message' => 'Cont không ở trạng thái "Đang kéo về"');
+  }
+  db_update('ke_hoach_xep_xe')->fields(array('trang_thai_cont' => 'Hoàn thành', 'changed' => _ke_hoach_xep_xe_now()))->condition('nid', (int) $id)->execute();
+  return array('ok' => TRUE, 'row' => db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => (int) $id))->fetch());
+}
+
+/**
+ * Trạng thái cont ban đầu khi lưu kế hoạch hàng cảng.
+ *
+ * $current là giá trị hiện có (NULL khi tạo mới). Chỉ hình thức có cont ở kho
+ * (da_cat_mooc = 1) mới có trạng thái cont; các trạng thái sau "Đủ hàng" do luồng
+ * chuyến quản lý nên không bị ghi đè ở đây.
+ */
+function _ke_hoach_port_cont_status_on_save($record, $current = NULL) {
+  $current = $current === NULL ? '' : (string) $current;
+  if (empty($record['da_cat_mooc'])) {
+    return in_array($current, array('Đang kéo về', 'Hoàn thành'), TRUE) ? $current : '';
+  }
+  return $current !== '' ? $current : 'Chưa cắt mooc';
+}
+
 
 function _ke_hoach_xep_xe_statuses($loai_ke_hoach = '') {
   $hang_cang = array(
@@ -2174,10 +2527,7 @@ function _ke_hoach_xep_xe_rest_list() {
       $query->condition('kh.hinh_thuc_van_tai', array('cat_keo', 'cat_keo_cheo', 'tha_mooc'), 'IN');
     }
     elseif ($trang_thai_filter === 'Kéo về') {
-      $query->condition(db_or()
-        ->condition('kh.ke_hoach_cont_ref_nid', 0, '>')
-        ->condition('kh.hinh_thuc_van_tai', array('dong_hang', 'dong_hang_trong_ngay'), 'IN')
-      );
+      $query->condition('kh.ke_hoach_cont_ref_nid', 0, '>');
     }
     elseif ($trang_thai_filter === 'Đã cắt mooc') {
       $query->condition('kh.da_cat_mooc', 1);
@@ -2287,6 +2637,9 @@ function _ke_hoach_xep_xe_rest_create() {
       );
       if (_ke_hoach_xep_xe_has_loai_hang_field()) {
         $fields['loai_hang'] = $record['loai_hang'];
+      }
+      if ($loai_ke_hoach !== 'tuyen_xa' && _ke_hoach_xep_xe_has_cont_status_field()) {
+        $fields['trang_thai_cont'] = _ke_hoach_port_cont_status_on_save($record);
       }
       $nid = db_insert('ke_hoach_xep_xe')
         ->fields($fields)
@@ -2494,6 +2847,9 @@ function _ke_hoach_xep_xe_rest_update($id) {
     if (_ke_hoach_xep_xe_has_loai_hang_field()) {
       $fields['loai_hang'] = $record['loai_hang'];
     }
+    if ((empty($existing->loai_ke_hoach) || $existing->loai_ke_hoach !== 'tuyen_xa') && _ke_hoach_xep_xe_has_cont_status_field()) {
+      $fields['trang_thai_cont'] = _ke_hoach_port_cont_status_on_save($record, isset($existing->trang_thai_cont) ? $existing->trang_thai_cont : '');
+    }
     db_update('ke_hoach_xep_xe')
       ->fields($fields)
       ->condition('nid', $id)
@@ -2607,7 +2963,7 @@ function _ke_hoach_cont_rest_list() {
   }
   if (!empty($_GET['available_keo_ve_for']) && $loai_ke_hoach !== 'tuyen_xa') {
     $current_ref_nid = (int) $_GET['available_keo_ve_for'];
-    $join_condition = 'kh_ref.ke_hoach_cont_ref_nid = kh.nid AND kh_ref.hoat_dong = 1 AND kh_ref.nid <> :current_ref_nid';
+    $join_condition = 'kh_ref.ke_hoach_cont_ref_nid = kh.nid AND kh_ref.hoat_dong = 1 AND kh_ref.nid <> :current_ref_nid AND COALESCE(kh_ref.trang_thai_van_chuyen, \'\') <> \'Đã huỷ\'';
     $query->leftJoin('ke_hoach_xep_xe', 'kh_ref', $join_condition, array(':current_ref_nid' => $current_ref_nid));
     $query->isNull('kh_ref.nid');
   }
@@ -2651,7 +3007,8 @@ function _ke_hoach_cont_rest_list() {
         );
       }
     }
-    $enriched['trang_thai_cont'] = !empty($enriched['ha_cang']) ? 'Hạ cảng' : (!empty($enriched['ha_bai_ngoai']) ? 'Hạ bãi ngoài' : (!empty($enriched['da_du_hang']) ? 'Đủ hàng' : (!empty($enriched['ke_hoach_cont_ref_nid']) ? 'Kéo về' : (!empty($enriched['da_cat_mooc']) ? 'Đã cắt mooc' : 'Chưa cắt mooc'))));
+    // Kế hoạch hàng cảng đã có trạng thái cont lưu riêng thì dùng nó; còn lại suy ra từ các cờ như trước.
+    if (empty($enriched['trang_thai_cont'])) $enriched['trang_thai_cont'] = !empty($enriched['ha_cang']) ? 'Hạ cảng' : (!empty($enriched['ha_bai_ngoai']) ? 'Hạ bãi ngoài' : (!empty($enriched['da_du_hang']) ? 'Đủ hàng' : (!empty($enriched['ke_hoach_cont_ref_nid']) ? 'Kéo về' : (!empty($enriched['da_cat_mooc']) ? 'Đã cắt mooc' : 'Chưa cắt mooc'))));
     $items[] = $enriched;
   }
   return _ke_hoach_xep_xe_success(array('items' => $items, 'total' => count($items), 'current_page' => 1, 'total_pages' => 1));
@@ -2710,40 +3067,61 @@ function _ke_hoach_cont_rest_update($id) {
 }
 
 /**
- * Trạng thái hàng cảng mà chuyến đã phải có lái xe. Chờ duyệt và Đã huỷ thì không.
- */
-function _ke_hoach_port_statuses_need_driver() {
-  return array('Chờ thực hiện', 'Đã nhận chuyến', 'Đang kéo lên', 'Đang kéo về', 'Hoàn thành');
-}
-
-/**
  * Cập nhật cont / trạng thái / chi phí khoán của kế hoạch hàng cảng.
  */
 function _ke_hoach_port_cont_rest_update($id, $existing_plan) {
   $input = _ke_hoach_xep_xe_input();
+  $did_action = FALSE;
   $update = array('changed' => _ke_hoach_xep_xe_now());
   foreach (array('da_du_hang', 'ha_bai_ngoai', 'ha_cang') as $field) {
     if (array_key_exists($field, $input)) {
       $update[$field] = !empty($input[$field]) ? 1 : 0;
     }
   }
+  // Đồng bộ trạng thái cont khi admin bật/tắt các cờ thủ công.
+  if (_ke_hoach_xep_xe_has_cont_status_field() && (array_key_exists('da_du_hang', $input) || array_key_exists('ha_bai_ngoai', $input) || array_key_exists('ha_cang', $input))) {
+    $cont_status = (string) $existing_plan->trang_thai_cont;
+    if (array_key_exists('da_du_hang', $input)) {
+      if (!empty($input['da_du_hang']) && in_array($cont_status, array('Chưa cắt mooc', 'Đã cắt mooc'), TRUE)) {
+        $cont_status = 'Đủ hàng';
+      }
+      elseif (empty($input['da_du_hang']) && $cont_status === 'Đủ hàng') {
+        $cont_status = 'Đã cắt mooc';
+      }
+    }
+    if ((!empty($input['ha_cang']) || !empty($input['ha_bai_ngoai'])) && in_array($cont_status, array('Đã cắt mooc', 'Đủ hàng', 'Đang kéo về'), TRUE)) {
+      $cont_status = 'Hoàn thành';
+    }
+    if ($cont_status !== (string) $existing_plan->trang_thai_cont) {
+      $update['trang_thai_cont'] = $cont_status;
+    }
+  }
+  // Admin xác nhận cont đã về (Đang kéo về -> Hoàn thành).
+  if (array_key_exists('trang_thai_cont', $input)) {
+    if (trim((string) $input['trang_thai_cont']) !== 'Hoàn thành') {
+      return _ke_hoach_xep_xe_fail('Chỉ hỗ trợ xác nhận cont về (Hoàn thành)');
+    }
+    $confirm = _ke_hoach_port_cont_confirm($id);
+    if (empty($confirm['ok'])) {
+      return _ke_hoach_xep_xe_fail($confirm['message']);
+    }
+    unset($update['trang_thai_cont']);
+    $existing_plan = $confirm['row'];
+    $did_action = TRUE;
+  }
+  // Chuyển trạng thái chuyến: đi qua engine để kiểm tra thứ tự bước và cập nhật
+  // trạng thái cont liên quan trong cùng một transaction.
   if (array_key_exists('trang_thai_van_chuyen', $input)) {
-    $status = trim((string) $input['trang_thai_van_chuyen']);
-    if (!in_array($status, _ke_hoach_xep_xe_statuses('thuong'), TRUE)) {
+    $to = trim((string) $input['trang_thai_van_chuyen']);
+    if (!in_array($to, _ke_hoach_xep_xe_statuses('thuong'), TRUE)) {
       return _ke_hoach_xep_xe_fail('Trạng thái vận chuyển không hợp lệ');
     }
-    if (in_array($status, _ke_hoach_port_statuses_need_driver(), TRUE) && empty($existing_plan->nid_lai_xe)) {
-      return _ke_hoach_xep_xe_fail('Kế hoạch chưa có lái xe. Hãy chọn lái xe trong Xếp xe và lưu trước khi chuyển sang "' . $status . '"');
+    $changed = _ke_hoach_port_trip_change($id, $to, !empty($input['ngay_ket_thuc']) ? trim((string) $input['ngay_ket_thuc']) : '');
+    if (empty($changed['ok'])) {
+      return _ke_hoach_xep_xe_fail($changed['message']);
     }
-    $update['trang_thai_van_chuyen'] = $status;
-    if ($status === 'Hoàn thành') {
-      $ngay_ket_thuc = !empty($input['ngay_ket_thuc']) ? trim((string) $input['ngay_ket_thuc']) : '';
-      $ngay_ket_thuc = $ngay_ket_thuc ? substr(_ke_hoach_xep_xe_filter_date($ngay_ket_thuc), 0, 10) : '';
-      $update['ngay_ket_thuc'] = $ngay_ket_thuc ?: date('Y-m-d', REQUEST_TIME);
-    }
-    else {
-      $update['ngay_ket_thuc'] = '';
-    }
+    $existing_plan = $changed['row'];
+    $did_action = TRUE;
   }
   if (array_key_exists('bai_lay_thuc_te', $input)) {
     $bai_lay_thuc_te = trim((string) $input['bai_lay_thuc_te']);
@@ -2763,11 +3141,14 @@ function _ke_hoach_port_cont_rest_update($id, $existing_plan) {
     }
     $update['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($json);
   }
-  if (count($update) === 1) {
+  if (count($update) === 1 && !$did_action) {
     return _ke_hoach_xep_xe_fail('Không có dữ liệu cập nhật');
   }
   try {
-    db_update('ke_hoach_xep_xe')->fields($update)->condition('nid', $id)->execute();
+    // Chỉ còn 'changed' nghĩa là mọi thay đổi đã được engine ghi xong.
+    if (count($update) > 1) {
+      db_update('ke_hoach_xep_xe')->fields($update)->condition('nid', $id)->execute();
+    }
   }
   catch (Exception $e) {
     watchdog('ke_hoach_xep_xe', 'Lỗi cập nhật cont/trạng thái hàng cảng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
