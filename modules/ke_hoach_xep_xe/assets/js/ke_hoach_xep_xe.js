@@ -6996,7 +6996,6 @@
   function initContList() {
     if (initContList._bound) return;
     initContList._bound = true;
-    var contMode = (Drupal.settings.ke_hoach_cont && Drupal.settings.ke_hoach_cont.mode) || ($('#ke-hoach-cont-app').data('mode')) || 'overall';
 
     function loadCustomers() {
       $.getJSON('/api/khach-hang', { limit: 500 }, function (res) {
@@ -7016,13 +7015,10 @@
         nid_khach_hang: $('#cont-filter-khach-hang').val() || '',
         da_du_hang: $('#cont-filter-du-hang').val() || ''
       };
-      if (contMode === 'cat_mooc') {
-        params.da_cat_mooc = 1;
-      }
-      $('#cont-list-body').html('<tr><td colspan="11" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải dữ liệu...</td></tr>');
+      $('#cont-list-body').html('<tr><td colspan="10" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Đang tải dữ liệu...</td></tr>');
       $.getJSON('/api/quan-ly-cont', params, function (res) {
         if (res.status !== 'success' || !res.data) {
-          $('#cont-list-body').html('<tr><td colspan="11" class="text-center text-danger">Không tải được dữ liệu</td></tr>');
+          $('#cont-list-body').html('<tr><td colspan="10" class="text-center text-danger">Không tải được dữ liệu</td></tr>');
           return;
         }
         var items = res.data.items || [];
@@ -7030,37 +7026,6 @@
         for (var i = 0; i < items.length; i++) {
           var item = items[i];
           var daDuHang = parseInt(item.da_du_hang, 10) === 1;
-          if (contMode === 'cat_mooc') {
-            var hinhThucBadge = item.hinh_thuc_van_tai ? '<span class="badge ' + hinhThucColor(item.hinh_thuc_van_tai) + '">' + escHtml(hinhThucLabel(item.hinh_thuc_van_tai)) + '</span>' : '';
-            var khName = item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : '';
-            var contHtml = item.loai_cont ? escHtml(item.loai_cont) : '';
-            if (item.so_cont) {
-              contHtml += (contHtml ? ' - ' : '') + escHtml(item.so_cont);
-            }
-            html += '<tr data-id="' + item.nid + '">' +
-              '<td>' + (i + 1) + '</td>' +
-              '<td class="khxh-date-cell">' + formatDateBadge(item.created) + '</td>' +
-              '<td class="khxh-common-cell">' +
-                '<div class="khxh-customer-cell">' + (khName ? escHtml(khName) : '<span class="text-muted fst-italic small">khách hàng</span>') + '</div>' +
-                '<div class="khxh-htvt-cell">' +
-                  (item.hinh_thuc_status_text ? '<div class="khxh-htvt-status">' + escHtml(item.hinh_thuc_status_text) + '</div>' : '') +
-                  (hinhThucBadge ? '<div class="khxh-htvt-badge-wrap">' + hinhThucBadge + '</div>' : '') +
-                '</div>' +
-              '</td>' +
-              '<td class="khxh-bkg-cell">' + escHtml(item.so_bkg || '') + '</td>' +
-              '<td class="khxh-container-cell">' +
-                '<div>' + (contHtml || '<span class="text-muted fst-italic small">container</span>') + '</div>' +
-                '<div>' + (item.so_seal_tam ? escHtml(item.so_seal_tam) : '<span class="text-muted fst-italic small">seal tạm</span>') + '</div>' +
-                '<div>' + (item.so_seal_chinh ? escHtml(item.so_seal_chinh) : '<span class="text-muted fst-italic small">seal chính</span>') + '</div>' +
-              '</td>' +
-              '<td class="khxh-vehicle-cell">' + vehicleListInfoHtml(item) + '</td>' +
-              '<td class="khxh-kho-cell">' + escHtml(item.dia_chi_kho || '') + '</td>' +
-              '<td class="text-nowrap"><div class="khxh-hanh-trinh-cell"><div class="khxh-hanh-trinh-box">' + ((item.bai_lay_thuc_te || item.bai_lay_cont) ? escHtml(item.bai_lay_thuc_te || item.bai_lay_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div><div class="khxh-hanh-trinh-separator"></div><div class="khxh-hanh-trinh-box">' + ((item.bai_ha_thuc_te || item.bai_ha_cont) ? escHtml(item.bai_ha_thuc_te || item.bai_ha_cont) : '<span class="text-muted fst-italic small">Chưa có</span>') + '</div></div></td>' +
-              '<td class="khxh-cang-cell">' + escHtml(item.cang_xuat || '') + '</td>' +
-              '<td class="khxh-date-cell">' + cutOffBadge(item.cut_off) + '</td>' +
-              '<td class="khxh-status-cell text-center"><button type="button" class="btn btn-sm ' + (daDuHang ? 'btn-success' : 'btn-label-secondary') + ' cont-toggle-btn" data-field="da_du_hang">' + (daDuHang ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</button></td>' +
-              '</tr>';
-          } else {
             html += '<tr data-id="' + item.nid + '">' +
               '<td>' + (i + 1) + '</td>' +
               '<td>' + escHtml(item.khach_hang && item.khach_hang.ten ? item.khach_hang.ten : '') + '</td>' +
@@ -7073,11 +7038,10 @@
               '<td>' + escHtml(item.hinh_thuc_status_text || '') + '</td>' +
               '<td>' + escHtml(item.trang_thai_cont || '') + '</td>' +
               '</tr>';
-          }
         }
-        $('#cont-list-body').html(html || '<tr><td colspan="' + (contMode === 'cat_mooc' ? '11' : '10') + '" class="text-center">Không có dữ liệu</td></tr>');
+        $('#cont-list-body').html(html || '<tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>');
       }).fail(function () {
-        $('#cont-list-body').html('<tr><td colspan="' + (contMode === 'cat_mooc' ? '11' : '10') + '" class="text-center text-danger">Không tải được dữ liệu</td></tr>');
+        $('#cont-list-body').html('<tr><td colspan="10" class="text-center text-danger">Không tải được dữ liệu</td></tr>');
       });
     }
 

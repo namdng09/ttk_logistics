@@ -241,10 +241,15 @@ function ke_hoach_xep_xe_menu() {
   );
   $items['cat-mooc'] = array(
     'title' => 'Cắt mooc',
-    'page callback' => 'ke_hoach_cont_page_list',
-    'page arguments' => array('cat_mooc'),
+    'page callback' => 'ke_hoach_cat_mooc_page_list',
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
+  );
+  $items['api/ke-hoach-cat-mooc'] = array(
+    'page callback' => 'ke_hoach_cat_mooc_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
   );
 
   return $items;
@@ -296,10 +301,10 @@ function ke_hoach_xep_xe_theme() {
       'path' => $path,
       'variables' => array('mode' => 'detail', 'data' => NULL),
     ),
-    'ke_hoach_cont_list_page' => array(
-      'template' => 'ke-hoach-cont-list',
+    'ke_hoach_cat_mooc_list_page' => array(
+      'template' => 'ke-hoach-cat-mooc-list',
       'path' => $path,
-      'variables' => array('mode' => 'overall'),
+      'variables' => array(),
     ),
     'ke_hoach_cont_overall_page' => array(
       'template' => 'ke-hoach-cont-overall-list',
@@ -1607,6 +1612,10 @@ function _ke_hoach_xep_xe_validate_cont_refs($items, $exclude_id = 0, $is_tuyen_
     if ($is_tuyen_xa) {
       $query->condition('kh.trang_thai_van_chuyen', 'Hoàn thành', '<>');
     }
+    else {
+      // Kế hoạch hàng cảng đã huỷ không còn giữ chỗ cont (khớp với danh sách chọn cont).
+      $query->condition(db_or()->isNull('kh.trang_thai_van_chuyen')->condition('kh.trang_thai_van_chuyen', 'Đã huỷ', '<>'));
+    }
     $used = $query->execute()->fetch();
     if ($used) {
       $label = !empty($used->so_bkg) ? $used->so_bkg : ('#' . $used->nid);
@@ -1996,6 +2005,24 @@ function _ke_hoach_port_trip_options($plan, $ref = NULL) {
   return $options;
 }
 
+/**
+ * Ghi mốc thời gian (và người thao tác) khi trạng thái cont đổi vào thong_tin_json.
+ * Dùng để biết cont ở kho từ bao giờ; mỗi trạng thái chỉ ghi mốc lần đầu. Trả về json đã mã hoá.
+ */
+function _ke_hoach_port_json_with_cont_moc($json_text, $status) {
+  $json = _ke_hoach_xep_xe_json_decode($json_text);
+  if (empty($json['moc_trang_thai_cont']) || !is_array($json['moc_trang_thai_cont'])) {
+    $json['moc_trang_thai_cont'] = array();
+  }
+  // Chỉ ghi lần đầu cont vào trạng thái này: bật/tắt đủ hàng qua lại không được làm đổi
+  // thời điểm cont đã ở kho.
+  if (empty($json['moc_trang_thai_cont'][$status]['thoi_gian'])) {
+    $uid = !empty($GLOBALS['user']) && isset($GLOBALS['user']->uid) ? (int) $GLOBALS['user']->uid : 0;
+    $json['moc_trang_thai_cont'][$status] = array('thoi_gian' => _ke_hoach_xep_xe_now(), 'uid' => $uid);
+  }
+  return _ke_hoach_xep_xe_json_encode($json);
+}
+
 function _ke_hoach_port_load_ref($plan) {
   $plan = (object) $plan;
   if (empty($plan->ke_hoach_cont_ref_nid)) {
@@ -2050,7 +2077,6 @@ function _ke_hoach_port_trip_change($id, $to, $ngay_ket_thuc = '', array $audit 
   $update = array(
     'trang_thai_van_chuyen' => $to,
     'ngay_ket_thuc' => '',
-    'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json),
     'changed' => $now,
   );
   if ($to === 'Hoàn thành') {
@@ -2058,19 +2084,31 @@ function _ke_hoach_port_trip_change($id, $to, $ngay_ket_thuc = '', array $audit 
     $update['ngay_ket_thuc'] = $ngay ? $ngay : date('Y-m-d', REQUEST_TIME);
   }
   // Rời chặng kéo lên: cont của chính kế hoạch này đã được cắt mooc.
+  $json_text = _ke_hoach_xep_xe_json_encode($json);
   if ($has_cont_field && $from === 'Đang kéo lên' && in_array($to, array('Đang kéo về', 'Hoàn thành'), TRUE) && !empty($plan->da_cat_mooc) && in_array((string) $plan->trang_thai_cont, array('', 'Chưa cắt mooc'), TRUE)) {
-    $update['trang_thai_cont'] = 'Đã cắt mooc';
+    // Cont đã được đánh dấu đủ hàng từ trước thì vào thẳng "Đủ hàng".
+    $update['trang_thai_cont'] = !empty($plan->da_du_hang) ? 'Đủ hàng' : 'Đã cắt mooc';
+    $json_text = _ke_hoach_port_json_with_cont_moc($json_text, $update['trang_thai_cont']);
   }
+  $update['thong_tin_json'] = $json_text;
 
   $transaction = db_transaction();
   try {
     db_update('ke_hoach_xep_xe')->fields($update)->condition('nid', (int) $id)->execute();
     if ($has_cont_field && $ref) {
+      $ref_cont_status = '';
       if ($to === 'Đang kéo về') {
-        db_update('ke_hoach_xep_xe')->fields(array('trang_thai_cont' => 'Đang kéo về', 'changed' => $now))->condition('nid', (int) $ref->nid)->execute();
+        $ref_cont_status = 'Đang kéo về';
       }
       elseif ($to === 'Hoàn thành' && (string) $ref->trang_thai_cont === 'Đang kéo về') {
-        db_update('ke_hoach_xep_xe')->fields(array('trang_thai_cont' => 'Hoàn thành', 'changed' => $now))->condition('nid', (int) $ref->nid)->execute();
+        $ref_cont_status = 'Hoàn thành';
+      }
+      if ($ref_cont_status !== '') {
+        db_update('ke_hoach_xep_xe')->fields(array(
+          'trang_thai_cont' => $ref_cont_status,
+          'thong_tin_json' => _ke_hoach_port_json_with_cont_moc($ref->thong_tin_json, $ref_cont_status),
+          'changed' => $now,
+        ))->condition('nid', (int) $ref->nid)->execute();
       }
     }
   }
@@ -2083,20 +2121,35 @@ function _ke_hoach_port_trip_change($id, $to, $ngay_ket_thuc = '', array $audit 
 }
 
 /**
- * Admin xác nhận cont đã về (Đang kéo về -> Hoàn thành) ngay trên web.
+ * Admin xác nhận trạng thái cont ngay trên web (phòng khi lái xe quên thao tác):
+ * - "Đã cắt mooc": từ "Chưa cắt mooc" (vào thẳng "Đủ hàng" nếu đã đánh dấu đủ hàng).
+ * - "Hoàn thành": từ "Đang kéo về" (cont đã về).
+ * Chỉ đổi trạng thái cont, không đổi trạng thái chuyến của lái xe.
  */
-function _ke_hoach_port_cont_confirm($id) {
+function _ke_hoach_port_cont_confirm($id, $to = 'Hoàn thành') {
   if (!_ke_hoach_xep_xe_has_cont_status_field()) {
     return array('ok' => FALSE, 'message' => 'Chưa chạy update database cho trạng thái cont');
+  }
+  $required_from = array('Hoàn thành' => 'Đang kéo về', 'Đã cắt mooc' => 'Chưa cắt mooc');
+  if (!isset($required_from[$to])) {
+    return array('ok' => FALSE, 'message' => 'Chỉ hỗ trợ xác nhận "Đã cắt mooc" hoặc "Hoàn thành"');
   }
   $plan = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => (int) $id))->fetch();
   if (!$plan) {
     return array('ok' => FALSE, 'message' => 'Kế hoạch không tồn tại');
   }
-  if ((string) $plan->trang_thai_cont !== 'Đang kéo về') {
-    return array('ok' => FALSE, 'message' => 'Cont không ở trạng thái "Đang kéo về"');
+  if (!empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach !== 'thuong') {
+    return array('ok' => FALSE, 'message' => 'Chỉ dùng cho kế hoạch hàng cảng');
   }
-  db_update('ke_hoach_xep_xe')->fields(array('trang_thai_cont' => 'Hoàn thành', 'changed' => _ke_hoach_xep_xe_now()))->condition('nid', (int) $id)->execute();
+  if ((string) $plan->trang_thai_cont !== $required_from[$to]) {
+    return array('ok' => FALSE, 'message' => 'Cont không ở trạng thái "' . $required_from[$to] . '"');
+  }
+  $new_status = ($to === 'Đã cắt mooc' && !empty($plan->da_du_hang)) ? 'Đủ hàng' : $to;
+  db_update('ke_hoach_xep_xe')->fields(array(
+    'trang_thai_cont' => $new_status,
+    'thong_tin_json' => _ke_hoach_port_json_with_cont_moc($plan->thong_tin_json, $new_status),
+    'changed' => _ke_hoach_xep_xe_now(),
+  ))->condition('nid', (int) $id)->execute();
   return array('ok' => TRUE, 'row' => db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => (int) $id))->fetch());
 }
 
@@ -2934,6 +2987,20 @@ function ke_hoach_cont_rest_item($id) {
 
 function _ke_hoach_cont_rest_list() {
   $loai_ke_hoach = !empty($_GET['loai_ke_hoach']) && $_GET['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
+  // Lọc theo trạng thái cont (vd "Đã cắt mooc,Đủ hàng"): trạng thái cont chỉ có ở hàng
+  // cảng nên luôn ép về hàng cảng, bất kể loai_ke_hoach được gửi lên.
+  $cont_statuses = array();
+  if (!empty($_GET['trang_thai_cont']) && _ke_hoach_xep_xe_has_cont_status_field()) {
+    foreach (explode(',', (string) $_GET['trang_thai_cont']) as $status) {
+      $status = trim($status);
+      if (in_array($status, _ke_hoach_port_cont_statuses(), TRUE)) {
+        $cont_statuses[$status] = $status;
+      }
+    }
+    if ($cont_statuses) {
+      $loai_ke_hoach = 'thuong';
+    }
+  }
   $query = db_select('ke_hoach_xep_xe', 'kh')->fields('kh')->condition('kh.hoat_dong', 1)->orderBy('kh.nid', 'DESC');
   _ke_hoach_xep_xe_query_condition_loai($query, $loai_ke_hoach, 'kh');
   if (!empty($_GET['keyword'])) {
@@ -2960,6 +3027,11 @@ function _ke_hoach_cont_rest_list() {
   }
   if (!empty($_GET['exclude_nid'])) {
     $query->condition('kh.nid', (int) $_GET['exclude_nid'], '<>');
+  }
+  if ($cont_statuses) {
+    $query->condition('kh.trang_thai_cont', array_values($cont_statuses), 'IN');
+    // Kế hoạch đã huỷ không còn cont nào để theo dõi.
+    $query->condition(db_or()->isNull('kh.trang_thai_van_chuyen')->condition('kh.trang_thai_van_chuyen', 'Đã huỷ', '<>'));
   }
   if (!empty($_GET['available_keo_ve_for']) && $loai_ke_hoach !== 'tuyen_xa') {
     $current_ref_nid = (int) $_GET['available_keo_ve_for'];
@@ -3082,7 +3154,9 @@ function _ke_hoach_port_cont_rest_update($id, $existing_plan) {
   if (_ke_hoach_xep_xe_has_cont_status_field() && (array_key_exists('da_du_hang', $input) || array_key_exists('ha_bai_ngoai', $input) || array_key_exists('ha_cang', $input))) {
     $cont_status = (string) $existing_plan->trang_thai_cont;
     if (array_key_exists('da_du_hang', $input)) {
-      if (!empty($input['da_du_hang']) && in_array($cont_status, array('Chưa cắt mooc', 'Đã cắt mooc'), TRUE)) {
+      // "Đủ hàng" nghĩa là cont đã nằm ở kho và đủ hàng: chỉ chuyển từ "Đã cắt mooc".
+      // Cont chưa cắt mooc vẫn lưu được cờ đủ hàng; khi cont được cắt mooc sẽ vào thẳng "Đủ hàng".
+      if (!empty($input['da_du_hang']) && $cont_status === 'Đã cắt mooc') {
         $cont_status = 'Đủ hàng';
       }
       elseif (empty($input['da_du_hang']) && $cont_status === 'Đủ hàng') {
@@ -3098,10 +3172,7 @@ function _ke_hoach_port_cont_rest_update($id, $existing_plan) {
   }
   // Admin xác nhận cont đã về (Đang kéo về -> Hoàn thành).
   if (array_key_exists('trang_thai_cont', $input)) {
-    if (trim((string) $input['trang_thai_cont']) !== 'Hoàn thành') {
-      return _ke_hoach_xep_xe_fail('Chỉ hỗ trợ xác nhận cont về (Hoàn thành)');
-    }
-    $confirm = _ke_hoach_port_cont_confirm($id);
+    $confirm = _ke_hoach_port_cont_confirm($id, trim((string) $input['trang_thai_cont']));
     if (empty($confirm['ok'])) {
       return _ke_hoach_xep_xe_fail($confirm['message']);
     }
@@ -3140,6 +3211,11 @@ function _ke_hoach_port_cont_rest_update($id, $existing_plan) {
       $json['dinh_muc_khoan_lai_xe'] = _ke_hoach_xep_xe_normalize_dinh_muc_khoan($input['dinh_muc_khoan_lai_xe']);
     }
     $update['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($json);
+  }
+  // Bật/tắt đủ hàng làm đổi trạng thái cont: ghi mốc thời gian.
+  if (isset($update['trang_thai_cont'])) {
+    $moc_base = isset($update['thong_tin_json']) ? $update['thong_tin_json'] : $existing_plan->thong_tin_json;
+    $update['thong_tin_json'] = _ke_hoach_port_json_with_cont_moc($moc_base, $update['trang_thai_cont']);
   }
   if (count($update) === 1 && !$did_action) {
     return _ke_hoach_xep_xe_fail('Không có dữ liệu cập nhật');
@@ -3382,6 +3458,220 @@ function _ke_hoach_tuyen_xa_cont_rest_update($id, $existing_plan) {
   return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_enrich_row($row));
 }
 
+// ---------------------------------------------------------------------------
+// /cat-mooc: cont đang ở kho (hàng cảng), theo trạng thái cont.
+// ---------------------------------------------------------------------------
+
+/**
+ * Các tab của màn cat-mooc và trạng thái cont tương ứng.
+ */
+function _ke_hoach_cat_mooc_groups() {
+  return array(
+    'o_kho' => array('Đã cắt mooc', 'Đủ hàng'),
+    'dang_keo_ve' => array('Đang kéo về'),
+    'chua_cat_mooc' => array('Chưa cắt mooc'),
+    'hoan_thanh' => array('Hoàn thành'),
+  );
+}
+
+/**
+ * Thao tác trên cont mà server cho phép ở trạng thái cont hiện tại.
+ * Đây là nguồn duy nhất cho menu và nút bấm ở màn cat-mooc.
+ */
+function _ke_hoach_port_cont_actions($cont_status) {
+  switch ((string) $cont_status) {
+    case 'Chưa cắt mooc':
+      return array(array('action' => 'xac_nhan_cat_mooc', 'label' => 'Xác nhận đã cắt mooc'));
+    case 'Đã cắt mooc':
+      return array(array('action' => 'danh_dau_du_hang', 'label' => 'Đánh dấu đủ hàng'));
+    case 'Đủ hàng':
+      return array(array('action' => 'bo_du_hang', 'label' => 'Bỏ đánh dấu đủ hàng'));
+    case 'Đang kéo về':
+      return array(array('action' => 'xac_nhan_cont_ve', 'label' => 'Xác nhận cont đã về'));
+  }
+  return array();
+}
+
+/**
+ * Mốc cont bắt đầu ở kho (ISO) hoặc '' nếu chưa rõ.
+ * Ưu tiên mốc cont; dữ liệu cũ dùng mốc chuyến rời chặng kéo lên.
+ */
+function _ke_hoach_cat_mooc_at_kho_since($json) {
+  foreach (array('Đã cắt mooc', 'Đủ hàng') as $status) {
+    if (!empty($json['moc_trang_thai_cont'][$status]['thoi_gian'])) {
+      return (string) $json['moc_trang_thai_cont'][$status]['thoi_gian'];
+    }
+  }
+  foreach (array('Đang kéo về', 'Hoàn thành') as $status) {
+    if (!empty($json['moc_trang_thai'][$status])) {
+      return (string) $json['moc_trang_thai'][$status];
+    }
+  }
+  return '';
+}
+
+function ke_hoach_cat_mooc_rest_collection() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    return _ke_hoach_xep_xe_method_not_allowed('GET');
+  }
+  return _ke_hoach_cat_mooc_rest_list();
+}
+
+/**
+ * Câu truy vấn nền: kế hoạch hàng cảng đang hoạt động có cont ở kho, chưa huỷ.
+ */
+function _ke_hoach_cat_mooc_base_query() {
+  $query = db_select('ke_hoach_xep_xe', 'kh');
+  $query->condition('kh.hoat_dong', 1);
+  _ke_hoach_xep_xe_query_condition_loai($query, 'thuong', 'kh');
+  $query->condition('kh.da_cat_mooc', 1);
+  $all_statuses = _ke_hoach_port_cont_statuses();
+  $query->condition('kh.trang_thai_cont', $all_statuses, 'IN');
+  $query->condition(db_or()->isNull('kh.trang_thai_van_chuyen')->condition('kh.trang_thai_van_chuyen', 'Đã huỷ', '<>'));
+  return $query;
+}
+
+function _ke_hoach_cat_mooc_apply_filters($query) {
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like(trim((string) $_GET['keyword'])) . '%';
+    $or = db_or();
+    foreach (array('so_bkg', 'so_cont', 'so_seal_chinh', 'so_seal_tam', 'dia_chi_kho', 'bai_lay_cont', 'bai_lay_thuc_te', 'bai_ha_cont', 'bai_ha_thuc_te', 'cang_xuat') as $field) {
+      $or->condition('kh.' . $field, $like, 'LIKE');
+    }
+    $query->condition($or);
+  }
+  if (!empty($_GET['khach_hang'])) {
+    $raw = is_array($_GET['khach_hang']) ? $_GET['khach_hang'] : explode(',', (string) $_GET['khach_hang']);
+    $ids = array();
+    foreach ($raw as $id) {
+      $id = (int) $id;
+      if ($id > 0) $ids[$id] = $id;
+    }
+    if ($ids) {
+      $query->condition('kh.nid_khach_hang', array_values($ids), 'IN');
+    }
+  }
+  if (!empty($_GET['dia_chi_kho'])) {
+    $query->condition('kh.dia_chi_kho', trim((string) $_GET['dia_chi_kho']));
+  }
+  if (isset($_GET['da_du_hang']) && ($_GET['da_du_hang'] === '0' || $_GET['da_du_hang'] === '1')) {
+    $query->condition('kh.da_du_hang', (int) $_GET['da_du_hang']);
+  }
+}
+
+function _ke_hoach_cat_mooc_rest_list() {
+  if (!user_access('ke_hoach_xep_xe_view')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem danh sách cont');
+  }
+  if (!_ke_hoach_xep_xe_has_cont_status_field()) {
+    return _ke_hoach_xep_xe_error('Chưa chạy update database cho trạng thái cont. Hãy chạy update.php.');
+  }
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
+  $groups = _ke_hoach_cat_mooc_groups();
+  $group = !empty($_GET['nhom']) ? (string) $_GET['nhom'] : 'o_kho';
+
+  // Số đếm từng tab: bám theo các bộ lọc nhưng không bám theo tab đang chọn.
+  $count_query = _ke_hoach_cat_mooc_base_query();
+  _ke_hoach_cat_mooc_apply_filters($count_query);
+  $count_query->fields('kh', array('trang_thai_cont'));
+  $count_query->addExpression('COUNT(*)', 'total');
+  $count_query->groupBy('kh.trang_thai_cont');
+  $by_status = array();
+  foreach ($count_query->execute() as $count_row) {
+    $by_status[(string) $count_row->trang_thai_cont] = (int) $count_row->total;
+  }
+  $group_counts = array();
+  $all_total = 0;
+  foreach ($groups as $key => $statuses) {
+    $group_counts[$key] = 0;
+    foreach ($statuses as $status) {
+      $group_counts[$key] += isset($by_status[$status]) ? $by_status[$status] : 0;
+    }
+    $all_total += $group_counts[$key];
+  }
+
+  $query = _ke_hoach_cat_mooc_base_query();
+  _ke_hoach_cat_mooc_apply_filters($query);
+  if (isset($groups[$group])) {
+    $query->condition('kh.trang_thai_cont', $groups[$group], 'IN');
+  }
+  $query->fields('kh');
+  $total_query = clone $query;
+  $total = (int) $total_query->countQuery()->execute()->fetchField();
+
+  $direction = !empty($_GET['sort']) && strtolower($_GET['sort']) === 'asc' ? 'ASC' : 'DESC';
+  $query->orderBy('kh.ngay_gio_ke_hoach', $direction);
+  $query->orderBy('kh.nid', $direction);
+  $query->range(($page - 1) * $limit, $limit);
+  $rows = $query->execute()->fetchAll();
+
+  $cache = _ke_hoach_xep_xe_enrich_cache($rows);
+  // Chỉ người có quyền tạo/sửa mới nhận được thao tác đổi trạng thái cont; JS không tự kiểm tra quyền.
+  $can_edit = user_access('ke_hoach_xep_xe_create');
+  $items = array();
+  foreach ($rows as $row) {
+    $plan = _ke_hoach_xep_xe_enrich_row($row, TRUE, array('cache' => $cache));
+    $json = is_array($plan['thong_tin_json']) ? $plan['thong_tin_json'] : array();
+    $since = _ke_hoach_cat_mooc_at_kho_since($json);
+    $in_kho = in_array($plan['trang_thai_cont'], array('Đã cắt mooc', 'Đủ hàng'), TRUE);
+    $days = NULL;
+    if ($in_kho && $since && ($since_ts = strtotime($since))) {
+      $days = max(0, (int) floor((REQUEST_TIME - $since_ts) / 86400));
+    }
+    // Kế hoạch kéo về đã huỷ thì coi như chưa có kế hoạch kéo về.
+    $puller = !empty($plan['cont_keo_ve_by']) && $plan['cont_keo_ve_by']['trang_thai_van_chuyen'] !== 'Đã huỷ' ? $plan['cont_keo_ve_by'] : NULL;
+    $items[] = array(
+      'nid' => (int) $plan['nid'],
+      'so_bkg' => $plan['so_bkg'],
+      'so_cont' => $plan['so_cont'],
+      'loai_cont' => $plan['loai_cont'],
+      'so_seal_chinh' => $plan['so_seal_chinh'],
+      'so_seal_tam' => $plan['so_seal_tam'],
+      'dia_chi_kho' => $plan['dia_chi_kho'],
+      'bai_lay_cont' => $plan['bai_lay_cont'],
+      'bai_lay_thuc_te' => $plan['bai_lay_thuc_te'],
+      'bai_ha_cont' => $plan['bai_ha_cont'],
+      'bai_ha_thuc_te' => $plan['bai_ha_thuc_te'],
+      'cang_xuat' => $plan['cang_xuat'],
+      'hinh_thuc_van_tai' => $plan['hinh_thuc_van_tai'],
+      'ngay_gio_ke_hoach' => $plan['ngay_gio_ke_hoach'],
+      'trang_thai_van_chuyen' => $plan['trang_thai_van_chuyen'],
+      'trang_thai_cont' => $plan['trang_thai_cont'],
+      'da_du_hang' => (int) $plan['da_du_hang'],
+      'khach_hang' => $plan['khach_hang'],
+      'lai_xe' => $plan['lai_xe'],
+      'phuong_tien' => $plan['phuong_tien'],
+      'mooc' => $plan['mooc'],
+      'o_kho_tu' => $since,
+      'so_ngay_o_kho' => $days,
+      'keo_ve' => $puller ? array(
+        'nid' => (int) $puller['nid'],
+        'so_bkg' => $puller['so_bkg'],
+        'hinh_thuc_van_tai' => $puller['hinh_thuc_van_tai'],
+        'trang_thai_van_chuyen' => $puller['trang_thai_van_chuyen'],
+        'ngay_gio_ke_hoach' => $puller['ngay_gio_ke_hoach'],
+        'lai_xe' => $puller['lai_xe'],
+        'phuong_tien' => $puller['phuong_tien'],
+        'mooc' => $puller['mooc'],
+      ) : NULL,
+      'hanh_dong_cont' => $can_edit ? _ke_hoach_port_cont_actions($plan['trang_thai_cont']) : array(),
+    );
+  }
+
+  $total_pages = (int) ceil($total / $limit);
+  return _ke_hoach_xep_xe_success(array(
+    'items' => $items,
+    'total' => $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+    'group_counts' => $group_counts,
+    'group_total' => $all_total,
+    'co_quyen_sua' => (bool) $can_edit,
+  ));
+}
+
 function ke_hoach_xep_xe_page_list() {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_hang_cang.css');
@@ -3412,7 +3702,8 @@ function ke_hoach_xep_xe_page_list() {
   return theme('ke_hoach_hang_cang_list_page');
 }
 
-function ke_hoach_cont_page_list($mode = 'overall') {
+function ke_hoach_cont_page_list() {
+  $mode = 'overall';
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
 
@@ -3423,11 +3714,19 @@ function ke_hoach_cont_page_list($mode = 'overall') {
     khach_hang_add_modal_assets();
   }
 
-  drupal_add_js(array('ke_hoach_cont' => array('mode' => $mode)), 'setting');
-  if ($mode === 'cat_mooc') {
-    return theme('ke_hoach_cont_list_page', array('mode' => $mode));
-  }
-  return theme('ke_hoach_cont_overall_page', array('mode' => $mode));
+  drupal_add_js(array('ke_hoach_cont' => array('mode' => 'overall')), 'setting');
+  return theme('ke_hoach_cont_overall_page', array('mode' => 'overall'));
+}
+
+/**
+ * Màn /cat-mooc: cont đang ở kho theo trạng thái cont. Có template, CSS, JS riêng
+ * (giao diện sao chép từ hàng cảng, không dùng chung selector).
+ */
+function ke_hoach_cat_mooc_page_list() {
+  $module_path = drupal_get_path('module', 'ke_hoach_xep_xe');
+  drupal_add_css($module_path . '/assets/css/ke_hoach_cat_mooc.css');
+  drupal_add_js($module_path . '/assets/js/ke_hoach_cat_mooc.js', array('group' => JS_THEME, 'weight' => 2));
+  return theme('ke_hoach_cat_mooc_list_page');
 }
 
 function ke_hoach_xep_xe_page_form($id = NULL) {
