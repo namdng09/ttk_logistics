@@ -55,6 +55,28 @@ Nếu chỉ cần sửa một input filter riêng, scope trực tiếp vào sele
 }
 ```
 
+## Dropdown dài và min-width
+
+Danh sách nhiều mục phải cuộn được thay vì kéo dài cả trang/modal, và dropdown không được hẹp hơn ô chứa nó (cột hẹp như ô `Giờ`). Áp dụng cho phạm vi đang làm; dropdown phải nằm trong phạm vi đó (dùng `dropdownParent`, xem phần JS init bên dưới), nếu không selector sẽ không khớp:
+
+```css
+#your-scope .select2-container--default .select2-results > .select2-results__options {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#your-scope .select2-container--open .select2-dropdown--below,
+#your-scope .select2-container--open .select2-dropdown--above {
+  min-width: 200px !important;
+  max-width: calc(100vw - 1rem);
+}
+```
+
+- `max-height: 320px` + `overflow-y: auto`: danh sách dài (khách hàng, kho, xe...) cuộn bên trong dropdown.
+- `min-width: 200px !important`: dropdown không bị co theo ô hẹp; `!important` vì Select2 đặt độ rộng theo ô bằng style trực tiếp.
+- `max-width: calc(100vw - 1rem)`: không tràn khỏi màn hình nhỏ.
+- Đang dùng ở: thanh lọc và modal xếp xe hàng cảng (`ke_hoach_hang_cang.css`), thanh lọc và modal `Tạo kế hoạch kéo về` của `/cat-mooc` (`ke_hoach_cat_mooc.css`).
+
 ## JS init cơ bản
 
 ```javascript
@@ -93,6 +115,7 @@ function initSelect2(el, placeholder, options) {
 
 Quy tắc dùng:
 
+- Mỗi scope dùng Select2 cần đủ **hai** khối CSS: `CSS chuẩn` (chiều cao, vị trí `x`/mũi tên) và `Dropdown dài và min-width`.
 - Populate `<option>` trước, init Select2 sau.
 - Nếu re-init, luôn `destroy()` instance cũ trước.
 - Trong modal, truyền `dropdownParent` hoặc để helper tự lấy `.closest('.modal')`.

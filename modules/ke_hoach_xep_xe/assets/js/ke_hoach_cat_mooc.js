@@ -18,6 +18,7 @@
     sort: 'desc'
   };
   var listXhr = null;
+  var rowsById = {};
 
   var HINH_THUC_LABEL = {
     cat_keo: 'Cắt kéo',
@@ -124,16 +125,18 @@
     return '<span class="cm-o-kho-days" title="Cont ở kho từ: ' + escHtml(row.o_kho_tu || '') + '">' + (days === 0 ? 'Mới về kho' : 'Ở kho ' + days + ' ngày') + '</span>';
   }
 
-  // Xe kéo về: xe của kế hoạch đang kéo cont này về, cùng dạng với cột "Xe kéo lên".
+  // Xe kéo về: hình thức vận tải + xe của kế hoạch đang kéo cont này về (cùng dạng với cột "Xe kéo lên").
   // Thông tin kế hoạch (BKG, hình thức, trạng thái chuyến) nằm trong tooltip.
   function keoVeHtml(row) {
     var plan = row.keo_ve;
-    if (!plan) return '<span class="text-muted fst-italic small">Chưa có</span>';
+    if (!plan) return '_';
     var label = HINH_THUC_LABEL[plan.hinh_thuc_van_tai] || plan.hinh_thuc_van_tai || '';
     var header = 'Kế hoạch kéo về #' + plan.nid + (plan.so_bkg ? ' - ' + plan.so_bkg : '') +
       (label ? '\nHình thức: ' + label : '') +
       (plan.trang_thai_van_chuyen ? '\nTrạng thái chuyến: ' + plan.trang_thai_van_chuyen : '');
-    return vehicleInfoHtml(plan, header, { hideMooc: true });
+    // Thẻ hình thức vận tải cho biết nhiệm vụ của xe kéo cont này về (rút mooc, cắt kéo...).
+    var badge = hinhThucBadge(plan.hinh_thuc_van_tai);
+    return (badge ? '<div class="cm-keo-ve-htvt">' + badge + '</div>' : '') + vehicleInfoHtml(plan, header, { hideMooc: true });
   }
 
   // Trạng thái cont. Đã cắt mooc / Đủ hàng bấm được để đổi qua lại.
@@ -154,7 +157,8 @@
   function rowMenuHtml(row) {
     var items = '';
     $.each(row.hanh_dong_cont || [], function (_, action) {
-      items += '<li><button type="button" class="dropdown-item cm-cont-action" data-id="' + row.nid + '" data-cont="' + escHtml(row.so_cont || '') + '" data-action=""' + escHtml(action.action) + '"><i class="ti tabler-package me-2 text-primary"></i>' + escHtml(action.label) + '</button></li>';
+      var icon = action.action === 'tao_ke_hoach_keo_ve' ? 'tabler-plus text-success' : 'tabler-package text-primary';
+      items += '<li><button type="button" class="dropdown-item cm-cont-action" data-id="' + row.nid + '" data-cont="' + escHtml(row.so_cont || '') + '" data-action="' + escHtml(action.action) + '"><i class="ti ' + icon + ' me-2"></i>' + escHtml(action.label) + '</button></li>';
     });
     if (!items) {
       items = '<li class="cm-action-disabled"><span class="dropdown-item disabled" aria-disabled="true"><i class="ti tabler-package me-2 text-muted"></i>Không có thao tác<span class="cm-action-hint"></span></span></li>';
@@ -258,6 +262,8 @@
         var resp = res.data;
         updateTabs(resp.group_counts, resp.group_total);
         var items = resp.items || [];
+        rowsById = {};
+        $.each(items, function (_, item) { rowsById[item.nid] = item; });
         if (!items.length) {
           $body.html('<tr><td colspan="9" class="text-center py-4">Không có dữ liệu</td></tr>');
           renderPagination(resp);
@@ -315,6 +321,10 @@
   }
 
   function requestContAction(id, action, contNumber) {
+    if (action === 'tao_ke_hoach_keo_ve') {
+      openCreateModal(id);
+      return;
+    }
     var confirmText = CONFIRM_TEXT[action];
     if (!confirmText) {
       runContAction(id, action);
@@ -336,6 +346,329 @@
     }).then(function (result) {
       if (result.isConfirmed) runContAction(id, action);
     });
+  }
+
+  // ---- Tạo kế hoạch kéo về từ cont ----
+  // Kế hoạch mới lấy đúng cont của dòng đang chọn làm cont kéo về (không chọn lại cont).
+  // Chỉ có 3 hình thức có chặng kéo về: rút mooc, cắt kéo, cắt kéo chéo.
+
+  var create = {
+    row: null,
+    loaded: false,
+    loading: false,
+    customers: [],
+    kho: [],
+    bai: [],
+    vehicles: [],
+    moocs: [],
+    drivers: [],
+    autoCustomer: false,
+    autoBkg: false
+  };
+
+  function createModalInstance() {
+    var el = document.getElementById('cm-create-modal');
+    if (!el || typeof bootstrap === 'undefined') return null;
+    // focus:false: lịch chọn ngày gắn ngoài modal (appendTo body) nên modal không được giữ focus.
+    return bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(el, { focus: false }) : new bootstrap.Modal(el, { focus: false });
+  }
+
+  function showCreateLoading(show) {
+    $('#cm-create-loading').toggle(!!show);
+    $('#cm-create-submit').prop('disabled', !!show);
+  }
+
+  function initCreateSelect($select, placeholder) {
+    if (typeof $.fn.select2 !== 'function') return;
+    if ($select.data('select2')) $select.select2('destroy');
+    $select.select2({ placeholder: placeholder, allowClear: true, width: '100%', dropdownParent: $('#cm-create-modal') });
+    // Mở dropdown thì đưa con trỏ vào ô tìm (theo SELECT2_PATTERN.md).
+    $select.off('select2:open.cmFocus').on('select2:open.cmFocus', function () {
+      window.setTimeout(function () {
+        var search = document.querySelector('.select2-container--open .select2-search__field');
+        if (search) search.focus();
+      }, 0);
+    });
+  }
+
+  function vehicleLabel(v) {
+    return (v.bks || '') + (v.ma_tai_san ? ' - ' + v.ma_tai_san : '');
+  }
+
+  function fillCreateSelects() {
+    var opt = function (value, text) { return '<option value="' + escHtml(value) + '">' + escHtml(text) + '</option>'; };
+    var html = '<option></option>';
+    $.each(create.customers, function (_, c) { if (c && c.nid) html += opt(c.nid, customerLabel(c)); });
+    $('#cm-create-khach-hang').html(html);
+    html = '<option></option>';
+    $.each(create.kho, function (_, name) { html += opt(name, name); });
+    $('#cm-create-kho').html(html);
+    html = '<option></option>';
+    $.each(create.bai, function (_, name) { html += opt(name, name); });
+    $('#cm-create-bai-lay').html(html);
+    $('#cm-create-bai-ha').html(html);
+    html = '<option></option>';
+    $.each(create.vehicles, function (_, v) { html += opt(v.nid, vehicleLabel(v)); });
+    $('#cm-create-dau-keo').html(html);
+    html = '<option></option>';
+    $.each(create.moocs, function (_, v) { html += opt(v.nid, vehicleLabel(v)); });
+    $('#cm-create-mooc').html(html);
+    html = '<option></option>';
+    $.each(create.drivers, function (_, d) { html += opt(d.nid, (d.ten || '') + (d.ma_nhan_vien ? ' - ' + d.ma_nhan_vien : '')); });
+    $('#cm-create-lai-xe').html(html);
+    initCreateSelect($('#cm-create-khach-hang'), '— Chọn khách hàng —');
+    initCreateSelect($('#cm-create-gio'), '— Giờ —');
+    initCreateSelect($('#cm-create-kho'), '— Chọn địa chỉ kho —');
+    initCreateSelect($('#cm-create-bai-lay'), '— Chọn bãi lấy —');
+    initCreateSelect($('#cm-create-bai-ha'), '— Chọn bãi hạ —');
+    initCreateSelect($('#cm-create-dau-keo'), '— Chọn đầu kéo —');
+    initCreateSelect($('#cm-create-mooc'), '— Chọn mooc —');
+    initCreateSelect($('#cm-create-lai-xe'), '— Chọn lái xe —');
+  }
+
+  // Nạp một lần danh sách khách hàng, kho, xe, lái xe cho form.
+  function ensureCreateData(done) {
+    if (create.loaded) { done(); return; }
+    if (create.loading) return;
+    create.loading = true;
+    var pending = 5;
+    var finish = function () {
+      pending -= 1;
+      if (pending > 0) return;
+      create.loading = false;
+      create.loaded = true;
+      fillCreateSelects();
+      done();
+    };
+    $.getJSON('/api/khach-hang', { limit: 500 }, function (res) {
+      if (res.status === 'success' && res.data && res.data.items) create.customers = res.data.items;
+    }).always(finish);
+    $.getJSON('/api/danh-muc', { phan_loai: 'Kho', limit: 500 }, function (res) {
+      var seen = {};
+      create.kho = [];
+      if (res.status === 'success' && res.data && res.data.items) {
+        $.each(res.data.items, function (_, item) {
+          var name = String((item && item.ten) || '').trim();
+          if (name && !seen[name]) { seen[name] = true; create.kho.push(name); }
+        });
+      }
+    }).always(finish);
+    $.getJSON('/api/danh-muc', { phan_loai: 'Bãi', limit: 500 }, function (res) {
+      var seen = {};
+      create.bai = [];
+      if (res.status === 'success' && res.data && res.data.items) {
+        $.each(res.data.items, function (_, item) {
+          var name = String((item && item.ten) || '').trim();
+          if (name && !seen[name]) { seen[name] = true; create.bai.push(name); }
+        });
+      }
+    }).always(finish);
+    $.getJSON('/api/phuong-tien', { limit: 500 }, function (res) {
+      create.vehicles = [];
+      create.moocs = [];
+      if (res.status === 'success' && res.data && res.data.items) {
+        $.each(res.data.items, function (_, item) {
+          if (String(item.loai_phuong_tien || '').toLowerCase().indexOf('mooc') !== -1) create.moocs.push(item);
+          else create.vehicles.push(item);
+        });
+      }
+    }).always(finish);
+    $.getJSON('/api/lai-xe', { limit: 500 }, function (res) {
+      if (res.status === 'success' && res.data && res.data.items) create.drivers = res.data.items;
+    }).always(finish);
+  }
+
+  function setSelectValue($select, value) {
+    $select.val(value === '' || value === null || typeof value === 'undefined' ? null : String(value)).trigger('change.select2');
+  }
+
+  // Điền sẵn / khoá theo hình thức:
+  // - Rút mooc: khách hàng, BKG, kho lấy theo cont; khách hàng và kho bị khoá.
+  // - Cắt kéo: kho trùng kho của cont (khoá); khách hàng, BKG do người dùng nhập.
+  // - Cắt kéo chéo: kho phải khác kho của cont; khách hàng, BKG do người dùng nhập.
+  function applyCreateHinhThuc() {
+    var row = create.row;
+    if (!row) return;
+    var value = $('#cm-create-hinh-thuc').val();
+    var refKho = row.dia_chi_kho || '';
+    var prefCustomer = row.khach_hang && row.khach_hang.nid ? String(row.khach_hang.nid) : '';
+    var prefBkg = row.so_bkg || '';
+    var $customer = $('#cm-create-khach-hang');
+    var $bkg = $('#cm-create-bkg');
+    var $kho = $('#cm-create-kho');
+
+    if (value === 'rut_mooc') {
+      // Rút mooc kéo chính cont này nên khách hàng là khách hàng của cont: điền sẵn và khoá
+      // (nếu cont không có khách hàng thì để mở cho người dùng chọn).
+      if (prefCustomer) {
+        setSelectValue($customer, prefCustomer);
+        create.autoCustomer = true;
+        $customer.prop('disabled', true);
+      } else {
+        $customer.prop('disabled', false);
+      }
+      if (!$bkg.val() || create.autoBkg) { $bkg.val(prefBkg); create.autoBkg = true; }
+    } else {
+      $customer.prop('disabled', false);
+      if (create.autoCustomer) { setSelectValue($customer, ''); create.autoCustomer = false; }
+      if (create.autoBkg) { $bkg.val(''); create.autoBkg = false; }
+    }
+    if ($customer.data('select2')) $customer.trigger('change.select2');
+
+    $kho.find('option').prop('disabled', false);
+    if (value === 'cat_keo_cheo') {
+      // Cắt kéo chéo: kho luôn để trống cho người dùng chọn (không mang kho của cont), và
+      // không chọn được kho của cont. Xoá trước rồi mới khoá option, vì jQuery .val() bỏ qua
+      // option đang bị khoá nên không thể dựa vào nó để biết ô đang hiện kho nào.
+      $kho.prop('disabled', false);
+      setSelectValue($kho, '');
+      $kho.find('option').each(function () { if (refKho && this.value === refKho) this.disabled = true; });
+    } else {
+      var hasRefKho = false;
+      $kho.find('option').each(function () { if (this.value === refKho) hasRefKho = true; });
+      if (refKho && !hasRefKho) $kho.append($('<option></option>').attr('value', refKho).text(refKho));
+      setSelectValue($kho, refKho);
+      $kho.prop('disabled', true);
+    }
+    if ($kho.data('select2')) $kho.trigger('change.select2');
+  }
+
+  function openCreateModal(id) {
+    var row = rowsById[id];
+    if (!row) return;
+    var modal = createModalInstance();
+    if (!modal) return;
+    create.row = row;
+    create.autoCustomer = false;
+    create.autoBkg = false;
+    var parts = ['Cont kéo về: <b>' + escHtml(row.so_cont || '_') + '</b>'];
+    if (row.so_bkg) parts.push(escHtml(row.so_bkg));
+    if (row.dia_chi_kho) parts.push(escHtml(row.dia_chi_kho));
+    if (row.khach_hang) parts.push('KH ' + escHtml(customerLabel(row.khach_hang)));
+    if (row.trang_thai_cont) parts.push(escHtml(row.trang_thai_cont));
+    $('#cm-create-cont').html(parts.join(' &middot; '));
+    $('#cm-create-ref').val(row.nid);
+    $('#cm-create-hinh-thuc').val('rut_mooc');
+    $('#cm-create-bkg, #cm-create-ngay, #cm-create-ghi-chu').val('');
+    $('#cm-create-gio').val('').trigger('change.select2');
+    $('#cm-create-modal .is-invalid').removeClass('is-invalid');
+    var dateEl = document.getElementById('cm-create-ngay');
+    if (typeof flatpickr === 'function' && dateEl && !dateEl._flatpickr) {
+      // appendTo body: lịch nằm ngoài modal nên không làm modal có thanh cuộn, và tự lật lên/xuống theo chỗ trống.
+      flatpickr(dateEl, { enableTime: false, dateFormat: 'd/m/Y', allowInput: true, appendTo: document.body, disableMobile: true });
+    } else if (dateEl && dateEl._flatpickr) {
+      dateEl._flatpickr.clear();
+    }
+    modal.show();
+    showCreateLoading(true);
+    ensureCreateData(function () {
+      $.each(['#cm-create-khach-hang', '#cm-create-bai-lay', '#cm-create-bai-ha', '#cm-create-dau-keo', '#cm-create-mooc', '#cm-create-lai-xe'], function (_, sel) { setSelectValue($(sel), ''); });
+      $('#cm-create-kho, #cm-create-khach-hang').prop('disabled', false);
+      applyCreateHinhThuc();
+      showCreateLoading(false);
+    });
+  }
+
+  // "dd/mm/yyyy" hợp lệ -> "yyyy-mm-dd"; sai định dạng hoặc ngày không tồn tại -> ''.
+  function dateToApi(text) {
+    var m = String(text || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return '';
+    var d = new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+    if (d.getFullYear() !== parseInt(m[3], 10) || d.getMonth() !== parseInt(m[2], 10) - 1 || d.getDate() !== parseInt(m[1], 10)) return '';
+    return m[3] + '-' + m[2] + '-' + m[1];
+  }
+
+  // Ngày và giờ là hai ô nhưng lưu vào một trường: "yyyy-mm-dd" hoặc "yyyy-mm-dd HH:00" (giờ tuỳ chọn).
+  function planDateTimeToApi() {
+    var date = dateToApi($('#cm-create-ngay').val());
+    var hour = String($('#cm-create-gio').val() || '');
+    if (!date) return '';
+    return hour ? date + ' ' + hour : date;
+  }
+
+  function collectCreatePayload() {
+    var num = function (sel) { return parseInt($(sel).val(), 10) || 0; };
+    var item = {
+      nid_khach_hang: num('#cm-create-khach-hang'),
+      so_bkg: String($('#cm-create-bkg').val() || '').trim(),
+      dia_chi_kho: String($('#cm-create-kho').val() || '').trim(),
+      hinh_thuc_van_tai: $('#cm-create-hinh-thuc').val(),
+      ke_hoach_cont_ref_nid: parseInt($('#cm-create-ref').val(), 10) || 0,
+      nid_phuong_tien: num('#cm-create-dau-keo'),
+      nid_mooc: num('#cm-create-mooc'),
+      nid_lai_xe: num('#cm-create-lai-xe'),
+      ngay_gio_ke_hoach: planDateTimeToApi(),
+      bai_lay_cont: String($('#cm-create-bai-lay').val() || '').trim(),
+      bai_ha_cont: String($('#cm-create-bai-ha').val() || '').trim(),
+      ghi_chu: String($('#cm-create-ghi-chu').val() || '').trim()
+    };
+    return { item: item, body: { nid_khach_hang: item.nid_khach_hang, loai_ke_hoach: 'thuong', items: [item] } };
+  }
+
+  // Trả về thông báo lỗi đầu tiên (và đánh dấu các ô lỗi) hoặc chuỗi rỗng.
+  function validateCreate(item) {
+    var refKho = String(create.row.dia_chi_kho || '').trim();
+    $('#cm-create-modal .is-invalid').removeClass('is-invalid');
+    var problems = [];
+    if (!item.hinh_thuc_van_tai) problems.push(['#cm-create-hinh-thuc', 'Vui lòng chọn hình thức vận tải']);
+    if (!item.nid_khach_hang) problems.push(['#cm-create-khach-hang', 'Vui lòng chọn khách hàng']);
+    if (!item.so_bkg) problems.push(['#cm-create-bkg', 'Vui lòng nhập số booking / bill']);
+    if (!item.dia_chi_kho) problems.push(['#cm-create-kho', 'Vui lòng chọn địa chỉ kho']);
+    else if (item.hinh_thuc_van_tai === 'cat_keo_cheo' && item.dia_chi_kho === refKho) problems.push(['#cm-create-kho', 'Cắt kéo chéo phải chọn kho khác kho của cont (' + refKho + ')']);
+    else if (item.hinh_thuc_van_tai === 'cat_keo' && item.dia_chi_kho !== refKho) problems.push(['#cm-create-kho', 'Cắt kéo phải cùng kho với cont (' + refKho + ')']);
+    var dateText = String($('#cm-create-ngay').val() || '').trim();
+    if (dateText && !dateToApi(dateText)) problems.push(['#cm-create-ngay', 'Ngày kế hoạch không hợp lệ (dd/mm/yyyy)']);
+    else if (!dateText && $('#cm-create-gio').val()) problems.push(['#cm-create-ngay', 'Vui lòng nhập ngày kế hoạch khi đã chọn giờ']);
+    $.each(problems, function (_, p) { $(p[0]).addClass('is-invalid'); });
+    return problems.length ? problems[0][1] : '';
+  }
+
+  function submitCreate() {
+    if (!create.row) return;
+    var payload = collectCreatePayload();
+    var error = validateCreate(payload.item);
+    if (error) {
+      if (notyf) notyf.error(error);
+      return;
+    }
+    showCreateLoading(true);
+    $.ajax({
+      url: '/api/ke-hoach-xep-xe',
+      type: 'POST',
+      contentType: 'application/json; charset=utf-8',
+      dataType: 'json',
+      data: JSON.stringify(payload.body)
+    }).done(function (res) {
+      showCreateLoading(false);
+      if (res.status !== 'success') {
+        if (notyf) notyf.error(res.message || 'Tạo kế hoạch thất bại');
+        return;
+      }
+      if (notyf) notyf.success('Đã tạo kế hoạch kéo về');
+      var modal = createModalInstance();
+      if (modal) modal.hide();
+      loadList();
+    }).fail(function (jqXHR) {
+      showCreateLoading(false);
+      if (notyf) notyf.error(apiMsg(jqXHR));
+    });
+  }
+
+  function bindCreateEvents() {
+    $('#cm-create-hinh-thuc').on('change', applyCreateHinhThuc);
+    // Người dùng tự sửa khách hàng / BKG thì không tự ghi đè khi đổi hình thức.
+    $('#cm-create-khach-hang').on('select2:select select2:clear', function () { create.autoCustomer = false; });
+    $('#cm-create-bkg').on('input', function () { create.autoBkg = false; });
+    // Chọn đầu kéo thì gợi ý lái xe đang gán cho xe đó.
+    $('#cm-create-dau-keo').on('select2:select', function () {
+      var id = parseInt($(this).val(), 10) || 0;
+      var vehicle = null;
+      $.each(create.vehicles, function (_, v) { if (parseInt(v.nid, 10) === id) vehicle = v; });
+      if (vehicle && vehicle.lai_xe && vehicle.lai_xe.nid && !$('#cm-create-lai-xe').val()) {
+        setSelectValue($('#cm-create-lai-xe'), vehicle.lai_xe.nid);
+      }
+    });
+    $('#cm-create-submit').on('click', submitCreate);
   }
 
   // ---- Menu chức năng của dòng (cùng cách dùng với screen hàng cảng) ----
@@ -530,6 +863,7 @@
       Drupal.keHoachCatMoocBound = true;
       if (typeof Notyf !== 'undefined') notyf = new Notyf();
       bindEvents();
+      bindCreateEvents();
       initFilters();
       loadList();
     }

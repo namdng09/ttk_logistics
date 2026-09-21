@@ -91,3 +91,86 @@
   </div>
 </div>
 </div>
+
+<div class="modal fade" id="cm-create-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tạo kế hoạch kéo về</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body position-relative">
+        <div class="cm-loading-overlay" id="cm-create-loading" style="display:none;"><div class="spinner-border text-primary" role="status"></div></div>
+        <div class="cm-create-cont" id="cm-create-cont"></div>
+        <input type="hidden" id="cm-create-ref">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Hình thức vận tải <span class="text-danger">*</span></label>
+            <select class="form-select" id="cm-create-hinh-thuc">
+              <option value="rut_mooc">Rút mooc</option>
+              <option value="cat_keo">Cắt kéo</option>
+              <option value="cat_keo_cheo">Cắt kéo chéo</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <div class="row g-2">
+              <div class="col-7">
+                <label class="form-label">Ngày kế hoạch</label>
+                <input type="text" class="form-control" id="cm-create-ngay" placeholder="dd/mm/yyyy" autocomplete="off">
+              </div>
+              <div class="col-5">
+                <label class="form-label">Giờ</label>
+                <select class="form-select" id="cm-create-gio">
+                  <option value="">— Giờ —</option>
+                  <?php for ($hour = 0; $hour < 24; $hour++): ?>
+                    <option value="<?php print sprintf('%02d:00', $hour); ?>"><?php print sprintf('%02d:00', $hour); ?></option>
+                  <?php endfor; ?>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Khách hàng <span class="text-danger">*</span></label>
+            <select class="form-select" id="cm-create-khach-hang"><option></option></select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Số booking / bill <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="cm-create-bkg" placeholder="BKG" autocomplete="off">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Bãi lấy</label>
+            <select class="form-select" id="cm-create-bai-lay"><option></option></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Địa chỉ đóng/ trả hàng (Kho) <span class="text-danger">*</span></label>
+            <select class="form-select" id="cm-create-kho"><option></option></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Bãi hạ</label>
+            <select class="form-select" id="cm-create-bai-ha"><option></option></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Đầu kéo</label>
+            <select class="form-select" id="cm-create-dau-keo"><option></option></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Lái xe</label>
+            <select class="form-select" id="cm-create-lai-xe"><option></option></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Mooc</label>
+            <select class="form-select" id="cm-create-mooc"><option></option></select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Ghi chú</label>
+            <input type="text" class="form-control" id="cm-create-ghi-chu" autocomplete="off">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Huỷ</button>
+        <button type="button" class="btn btn-primary" id="cm-create-submit"><i class="ti tabler-device-floppy me-1"></i>Tạo kế hoạch</button>
+      </div>
+    </div>
+  </div>
+</div>
