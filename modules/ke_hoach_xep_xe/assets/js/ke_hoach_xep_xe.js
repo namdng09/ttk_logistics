@@ -495,6 +495,15 @@
     return escHtml(d[2] + '/' + d[1] + '/' + d[0].slice(-2));
   }
 
+  // Giờ kế hoạch hàng cảng dưới ngày: 0h–11h màu xanh mát (buổi sáng), từ 12h màu cam. Không có giờ thì không hiện gì.
+  function hangCangPlanTimeHtml(val) {
+    var m = /^\d{4}-\d{2}-\d{2}[ T](\d{1,2}):(\d{2})/.exec(String(val || ''));
+    if (!m) return '';
+    var hour = parseInt(m[1], 10);
+    var cls = hour < 12 ? 'khxh-port-time-sang' : 'khxh-port-time-chieu';
+    return '<br><span class="khxh-port-time ' + cls + '">' + escHtml((hour < 10 ? '0' : '') + hour + ':' + m[2]) + '</span>';
+  }
+
   function cutOffBadge(val) {
     if (!val) return '';
     var normalized = apiToDatetime(val);
@@ -661,6 +670,36 @@
 
   function markForceReloadList() {
     try { sessionStorage.setItem(listForceReloadKey(), '1'); } catch (e) {}
+  }
+
+  // Kế hoạch hàng cảng vừa thao tác trong modal (lưu, đổi trạng thái, đẩy cho lái xe): khi modal đóng
+  // và danh sách đã tải lại thì cuộn tới dòng đó và làm nổi bật ~10 giây rồi mờ dần.
+  var touchedPlanId = 0;
+  var touchedPlanTimer = null;
+
+  function markPlanTouched(id) {
+    touchedPlanId = parseInt(id, 10) || 0;
+  }
+
+  function hangCangApplyTouchedRow() {
+    if (!touchedPlanId) return;
+    // Modal còn mở hoặc danh sách đang tải: đợi lần gọi sau (modal đóng / tải xong).
+    if ($('.modal.show').length || $('#loading-row').length) return;
+    var id = touchedPlanId;
+    touchedPlanId = 0;
+    var $row = $('#list-body tr[data-plan-id="' + id + '"]');
+    if (!$row.length) return; // kế hoạch không nằm ở trang/bộ lọc đang xem
+    clearTimeout(touchedPlanTimer);
+    $('#list-body tr.khxh-row-touched').removeClass('khxh-row-touched khxh-row-touched-out');
+    $row.addClass('khxh-row-touched');
+    var rect = $row[0].getBoundingClientRect();
+    if (rect.top < 120 || rect.bottom > window.innerHeight - 20) {
+      $row[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+    touchedPlanTimer = setTimeout(function () {
+      $row.addClass('khxh-row-touched-out');
+      setTimeout(function () { $row.removeClass('khxh-row-touched khxh-row-touched-out'); }, 900);
+    }, 10000);
   }
 
   function clearForceReloadList() {
@@ -2195,6 +2234,10 @@
       nestedContEditContext = null;
       openEditFullscreenModal(nestedToRestore.parentId, { preserveListSettings: true, keepOpen: true, planType: nestedToRestore.parentPlanType });
     });
+    $(document).off('hidden.bs.modal.khxhTouched').on('hidden.bs.modal.khxhTouched', '#ke-hoach-edit-fullscreen-modal, #ke-hoach-fullscreen-modal', function (e) {
+      if (e.target !== this) return;
+      setTimeout(hangCangApplyTouchedRow, 50);
+    });
     $('#ke-hoach-edit-fullscreen-modal, #ke-hoach-tuyen-xa-edit-fullscreen-modal').on('hidden.bs.modal', function (e) {
       if (e.target !== this) return;
       if (this.id === 'ke-hoach-edit-fullscreen-modal' && Drupal.keHoachChiPhi && typeof Drupal.keHoachChiPhi.unmountPortTab === 'function') {
@@ -2420,16 +2463,9 @@
     var khName = (row.khach_hang && row.khach_hang.ma_kh) || customerPlanLabel(row.khach_hang);
     var khFullName = customerFullName(row.khach_hang);
     var hinhThucBadge = listHinhThucBadgeHtml(row);
-    var hinhThucStatus = '';
     var returnContText = '';
     var returnContDisplayHtml = '';
     var returnContTitle = '';
-    // Đóng hàng chạy khép kín nên không có nhãn kéo lên/kéo về.
-    if (row.is_cont_keo_ve) {
-      hinhThucStatus = 'Kéo về';
-    } else if (row.hinh_thuc_van_tai === 'cat_keo' || row.hinh_thuc_van_tai === 'cat_keo_cheo' || row.hinh_thuc_van_tai === 'tha_mooc') {
-      hinhThucStatus = 'Kéo lên';
-    }
     // Cont được chọn trong ô "Cont kéo về" nằm ở cont_ref. Hiển thị ngay cạnh
     // hình thức vận tải để nhìn nhanh trên danh sách.
     if (row.cont_ref) {
@@ -2441,9 +2477,6 @@
       var returnContDestination = row.cont_ref.bai_ha_ngoai || row.cont_ref.bai_ha_cont || '';
       returnContTitle = 'Số Cont: ' + (returnContNumber || 'Chưa có') + (returnContDestination ? ' (Về) - ' + returnContDestination : '');
     }
-    var hinhThucStatusClass = hinhThucStatus === 'Kéo về'
-      ? 'khxh-list-status-keo-ve'
-      : (hinhThucStatus === 'Kéo lên' ? 'khxh-list-status-keo-len' : '');
     var planStatus = String(row.trang_thai_van_chuyen || 'Chờ duyệt');
     var contTextRaw = [row.loai_cont || '', row.so_cont || ''].filter(Boolean).join(' - ');
     var baiLayDisplay = row.bai_lay_cont || '';
@@ -2456,9 +2489,9 @@
     var containerTitle = 'Container: ' + (contTextRaw || 'Chưa có') + '\nSeal chính: ' + (row.so_seal_chinh || 'Chưa có') + (row.so_seal_tam ? '\nSeal phụ: Có' : '');
     var hanhTrinhTitle = 'Bãi lấy: ' + (baiLayDisplay || 'Chưa có') + '\nBãi hạ: ' + (baiHaDisplay || 'Chưa có');
     var rowActionMenu = '<span class="khxh-row-action-menu">' + buildActions(row) + '</span>';
-    return '<tr>' +
+    return '<tr data-plan-id="' + escHtml(row.nid) + '">' +
       rowActionsTriggerHtml(stt) +
-      '<td class="khxh-date-cell"><div class="khxh-date-stack">' + (dateOnlyStack(row.ngay_gio_ke_hoach) || '<span class="text-muted">—</span>') + (hinhThucStatus ? '<br><span class="khxh-htvt-status ' + hinhThucStatusClass + '">' + escHtml(hinhThucStatus) + '</span>' : '') + '</div>' + rowActionMenu + '</td>' +
+      '<td class="khxh-date-cell"><div class="khxh-date-stack">' + (dateOnlyStack(row.ngay_gio_ke_hoach) || '<span class="text-muted">—</span>') + hangCangPlanTimeHtml(row.ngay_gio_ke_hoach) + '</div>' + rowActionMenu + '</td>' +
       '<td class="khxh-common-cell">' +
         '<div class="khxh-customer-cell" title="' + escHtml(customerTitle) + '">' + customerDisplay + '</div>' +
         '<div class="khxh-htvt-cell">' +
@@ -2605,6 +2638,7 @@
             paginationWrapHtml: document.getElementById('pagination-wrap') ? document.getElementById('pagination-wrap').outerHTML : ''
           });
         }
+        hangCangApplyTouchedRow();
       },
       error: function (jqXHR, textStatus) {
         // Request bị huỷ do có lần tải mới hơn: bỏ qua, lần tải mới sẽ tự cập nhật bảng.
@@ -2686,6 +2720,7 @@
       contCandidateCache: {},
       contCandidatePending: {},
       pendingContDestinationUpdates: {},
+      afterSave: null,
       lines: [],
       activeLineKey: null,
       costSummary: { total: 0, customer: 0, company: 0, driver_self: 0 }
@@ -2804,7 +2839,7 @@
       var $loading = $form('#form-loading');
       $loading.toggle(show);
       $loading.closest('.modal-body').toggleClass('khxh-form-loading-active', show);
-      $form('#save-btn, #add-line-btn, #reset-lines-btn, #complete-plan-btn, #khxh-status-btn').prop('disabled', show);
+      $form('#save-btn, #add-line-btn, #reset-lines-btn, #complete-plan-btn, #khxh-status-btn, #khxh-push-driver-btn').prop('disabled', show);
       if (useTableLayout) {
         $form('#ke-hoach-fullscreen-modal').find('input, select, button').not('.btn-close').prop('disabled', show);
       }
@@ -5474,10 +5509,13 @@
       var nid = row && row.nid ? parseInt(row.nid, 10) : parseInt($form('#nid-input').val(), 10);
       if (!nid) {
         $btn.addClass('d-none').removeAttr('data-id');
+        $form('#khxh-push-driver-btn').addClass('d-none');
         return;
       }
       var status = row && row.trang_thai_van_chuyen ? String(row.trang_thai_van_chuyen) : '';
       var portStatus = status || 'Chờ duyệt';
+      // Nút "Đẩy cho lái xe": chỉ khi chuyến đang Chờ duyệt; đẩy xong (Chờ thực hiện) thì ẩn.
+      $form('#khxh-push-driver-btn').toggleClass('d-none', portStatus !== 'Chờ duyệt');
       $btn.removeClass('d-none').attr('data-id', nid);
       $btn.removeClass('btn-success btn-outline-success btn-label-secondary btn-label-info btn-label-primary btn-label-warning btn-label-success btn-label-danger bg-label-secondary khxh-status-cho-thuc-hien bg-label-info bg-label-primary bg-label-warning bg-label-success bg-label-danger')
         .addClass(hangCangPlanStatusColor(portStatus))
@@ -6364,10 +6402,91 @@
           markForceReloadList();
           editData = $.extend({}, editData || {}, updated, { nid: id, trang_thai_van_chuyen: nextStatus });
           updateCompleteButton(editData);
+          markPlanTouched(id);
           if (notyf) notyf.success('Đã cập nhật trạng thái kế hoạch.');
         }
       });
     });
+    // Nút "Đẩy cho lái xe" trong modal xếp xe hàng cảng: chuyển thẳng Chờ duyệt → Chờ thực hiện,
+    // không cần bấm Lưu. Nếu form có thay đổi chưa lưu thì lưu trước rồi mới đẩy (server chỉ
+    // thấy dữ liệu đã lưu, vd. lái xe vừa chọn).
+    function portPushDriverAction() {
+      var found = null;
+      $.each((editData && editData.hanh_dong_tiep_theo) || [], function (_, action) {
+        if (action && action.to === 'Chờ thực hiện') found = action;
+      });
+      return found;
+    }
+
+    function portPushDriverNotify(icon, title, text) {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: icon, title: title, text: text, confirmButtonText: 'Đã hiểu',
+          customClass: { confirmButton: 'btn btn-primary' }, buttonsStyling: false
+        });
+      } else if (notyf) {
+        notyf.error(text || title);
+      }
+    }
+
+    function portPushDriverRun() {
+      var id = parseInt($form('#nid-input').val(), 10) || 0;
+      var action = portPushDriverAction();
+      if (!id || !action) {
+        portPushDriverNotify('info', 'Không đẩy được', 'Chuyến này không còn ở trạng thái Chờ duyệt.');
+        return;
+      }
+      if (action.ly_do) {
+        portPushDriverNotify('warning', 'Chưa thể đẩy cho lái xe', action.ly_do);
+        return;
+      }
+      setPlanStatus(id, 'Chờ thực hiện', {
+        $button: $form('#khxh-push-driver-btn'),
+        silentSuccess: true,
+        skipConfirm: true,
+        onSuccess: function (res) {
+          var updated = res && res.data ? res.data : {};
+          markForceReloadList();
+          editData = $.extend({}, editData || {}, updated, { nid: id, trang_thai_van_chuyen: 'Chờ thực hiện' });
+          updateCompleteButton(editData);
+          markPlanTouched(id);
+          if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
+          if (notyf) notyf.success('Đã đẩy cho lái xe. Trạng thái chuyến: Chờ thực hiện.');
+        }
+      });
+    }
+
+    $form('#khxh-push-driver-btn').on('click', function () {
+      if (!parseInt($form('#nid-input').val(), 10) || !portPushDriverAction()) return;
+      var dirty = hangCangEditDirty;
+      var doPush = function () { portPushDriverRun(); };
+      if (typeof Swal === 'undefined') {
+        if (!confirm('Đẩy chuyến này cho lái xe?')) return;
+        if (dirty) { state.afterSave = doPush; $form('#save-btn').trigger('click'); } else { doPush(); }
+        return;
+      }
+      Swal.fire({
+        icon: 'question',
+        title: 'Đẩy cho lái xe?',
+        html: dirty
+          ? 'Kế hoạch có thay đổi chưa lưu. Hệ thống sẽ <b>lưu kế hoạch trước</b>, rồi chuyển chuyến sang <b>Chờ thực hiện</b> để lái xe nhận chuyến.'
+          : 'Chuyến sẽ chuyển sang <b>Chờ thực hiện</b> để lái xe nhận chuyến. Bạn không cần bấm Lưu.',
+        showCancelButton: true,
+        confirmButtonText: dirty ? 'Lưu và đẩy' : 'Đẩy cho lái xe',
+        cancelButtonText: 'Huỷ',
+        customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-label-secondary ms-1' },
+        buttonsStyling: false
+      }).then(function (result) {
+        if (!result.isConfirmed) return;
+        if (dirty) {
+          state.afterSave = doPush;
+          $form('#save-btn').trigger('click');
+        } else {
+          doPush();
+        }
+      });
+    });
+
     $form('#complete-plan-btn').on('click', function () {
       var $btn = $(this);
       var id = parseInt($btn.attr('data-id') || $form('#nid-input').val(), 10) || 0;
@@ -6466,6 +6585,9 @@
       });
     }
     $form('#save-btn').on('click', function () {
+      // Việc cần làm sau khi lưu thành công (vd. "Lưu và đẩy cho lái xe"); mỗi lần bấm chỉ dùng một lần.
+      var afterSave = state.afterSave;
+      state.afterSave = null;
       if (!reportPortCreateRequiredValidity()) return;
       if (!validateForm()) return;
       if (planType !== 'tuyen_xa' && Drupal.keHoachChiPhi && typeof Drupal.keHoachChiPhi.validatePortTab === 'function' && !Drupal.keHoachChiPhi.validatePortTab()) return;
@@ -6484,6 +6606,7 @@
           }
 
           invalidateContCandidateCache();
+          markPlanTouched(nid || (res.data && res.data.nid));
           flushPendingContDestinationUpdates().done(function () {
             var hasEmbeddedCost = planType !== 'tuyen_xa' && Drupal.keHoachChiPhi && typeof Drupal.keHoachChiPhi.hasPortTab === 'function' && Drupal.keHoachChiPhi.hasPortTab();
             var costSave = hasEmbeddedCost && typeof Drupal.keHoachChiPhi.savePortTab === 'function'
@@ -6502,6 +6625,7 @@
                 if (res.data) {
                   populateEdit(res.data);
                 }
+                if (typeof afterSave === 'function') afterSave();
               } else {
                 if (formModal) formModal.hide();
                 var formEl = $form('#ke-hoach-form')[0];

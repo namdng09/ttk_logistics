@@ -505,7 +505,7 @@
 }
 
 #ke-hoach-cat-mooc-screen .cm-port-status-tabs-wrap {
-  padding: .75rem 1rem;
+  padding: .5rem 1rem;
   border-bottom: 1px solid #eef0f4;
   background: #fff;
 }
@@ -518,6 +518,8 @@
 #ke-hoach-cat-mooc-screen .cm-port-status-tabs .nav-link {
   border: 0;
   cursor: pointer;
+  padding-left: 7px;
+  padding-right: 7px;
 }
 
 #ke-hoach-cat-mooc-screen .cm-port-status-tabs .nav-link .badge {

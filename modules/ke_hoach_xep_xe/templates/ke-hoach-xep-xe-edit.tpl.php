@@ -22,6 +22,7 @@
         <i class="icon-base ti tabler-circle-check me-1"></i>Hoàn thành
       </button>
       <span id="khxh-cont-status-badge" class="d-none"></span>
+      <button type="button" class="btn btn-label-primary waves-effect d-none" id="khxh-push-driver-btn"><i class="icon-base ti tabler-send me-1"></i>Đẩy cho lái xe</button>
       <button type="button" class="btn btn-primary waves-effect" id="save-btn"><i class="icon-base ti tabler-device-floppy me-1"></i> Lưu xếp xe</button>
     </div>
   </div>

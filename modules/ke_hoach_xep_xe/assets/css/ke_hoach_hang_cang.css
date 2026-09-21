@@ -40,6 +40,61 @@
   word-break: break-word;
 }
 
+/* Dòng kế hoạch vừa thao tác trong modal: nền tím nhạt + vạch trái, nháy 2 lần khi hiện, mờ dần khi hết. */
+#ke-hoach-hang-cang-screen .khxh-list-table tr[data-plan-id] {
+  scroll-margin-top: 140px;
+}
+
+#ke-hoach-hang-cang-screen .khxh-list-table tr.khxh-row-touched > td {
+  background-color: rgba(var(--bs-primary-rgb, 115, 103, 240), .10);
+  box-shadow: inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10);
+  animation: khxh-row-touched-flash 1.1s ease-in-out 2;
+}
+
+#ke-hoach-hang-cang-screen .khxh-list-table tr.khxh-row-touched > td:first-child {
+  box-shadow: inset 4px 0 0 var(--bs-primary, #7367f0), inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10);
+  animation-name: khxh-row-touched-flash-first;
+}
+
+/* Hết thời gian nổi bật: mờ dần về nền thường. */
+#ke-hoach-hang-cang-screen .khxh-list-table tr.khxh-row-touched.khxh-row-touched-out > td {
+  background-color: transparent;
+  box-shadow: none;
+  animation: none;
+  transition: background-color .9s ease, box-shadow .9s ease;
+}
+
+@keyframes khxh-row-touched-flash {
+  0%, 100% { box-shadow: inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10); }
+  50% { box-shadow: inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .30); }
+}
+
+@keyframes khxh-row-touched-flash-first {
+  0%, 100% { box-shadow: inset 4px 0 0 var(--bs-primary, #7367f0), inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10); }
+  50% { box-shadow: inset 4px 0 0 var(--bs-primary, #7367f0), inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .30); }
+}
+
+/* Giờ kế hoạch dưới ngày: sáng (0h–11h) xanh mát, từ 12h cam. */
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-time {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-time-sang {
+  color: #0e8fa6;
+  background: rgba(0, 207, 232, .16);
+}
+
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-time-chieu {
+  color: #d9730d;
+  background: rgba(255, 159, 67, .18);
+}
+
 /* Cột Bãi lấy/hạ vốn có text-nowrap từ markup chung. */
 #ke-hoach-hang-cang-screen .khxh-list-table td:nth-child(7) {
   white-space: normal !important;
@@ -202,7 +257,7 @@
 
 /* Lọc nhanh theo trạng thái: nằm trong card bảng để vẫn thấy khi cuộn bảng. */
 #ke-hoach-hang-cang-screen .khxh-port-status-tabs-wrap {
-  padding: .75rem 1rem;
+  padding: .5rem 1rem;
   border-bottom: 1px solid #eef0f4;
   background: #fff;
 }
@@ -215,6 +270,8 @@
 #ke-hoach-hang-cang-screen .khxh-port-status-tabs .nav-link {
   border: 0;
   cursor: pointer;
+  padding-left: 7px;
+  padding-right: 7px;
 }
 
 #ke-hoach-hang-cang-screen .khxh-port-status-tabs .nav-link .badge {
