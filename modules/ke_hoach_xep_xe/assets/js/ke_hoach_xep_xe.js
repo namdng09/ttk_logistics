@@ -14,7 +14,7 @@
   // Dùng cho cả hai danh sách; mặc định giữ đúng thứ tự hiện tại là mới → cũ.
   var currentPortDateSort = 'desc';
   var FORM_DROPDOWN_CACHE_KEY = 'ke_hoach_xep_xe_form_dropdowns_v3';
-  var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v3';
+  var LIST_SNAPSHOT_CACHE_KEY = 'ke_hoach_xep_xe_list_snapshot_v4';
   var LIST_FORCE_RELOAD_KEY = 'ke_hoach_xep_xe_list_force_reload_v1';
   var formDropdownCacheMemory = null;
   var detachedCreateFormApp = null;
@@ -980,10 +980,75 @@
     'Đã huỷ': { icon: 'tabler-x', color: 'text-danger' }
   };
 
+  // Thao tác đổi Đã cắt mooc <-> Đủ hàng do server trả về (hanh_dong_cont) cho người có quyền sửa.
+  var PORT_CONT_TOGGLE_CONFIRM = {
+    danh_dau_du_hang: { title: 'Xác nhận cont đã đủ hàng?', text: 'Cont sẽ chuyển từ "Đã cắt mooc" sang "Đủ hàng".', payload: { da_du_hang: 1 } },
+    bo_du_hang: { title: 'Bỏ đánh dấu đủ hàng?', text: 'Cont sẽ quay về trạng thái "Đã cắt mooc".', payload: { da_du_hang: 0 } }
+  };
+
+  function portContToggleAction(row) {
+    var found = null;
+    $.each((row && row.hanh_dong_cont) || [], function (_, action) {
+      if (PORT_CONT_TOGGLE_CONFIRM[action.action]) found = action;
+    });
+    return found;
+  }
+
+  // Thẻ trạng thái cont. Đã cắt mooc / Đủ hàng bấm được (có hộp xác nhận) khi server cho phép.
   function portContStatusBadgeHtml(row) {
     var contStatus = String((row && row.trang_thai_cont) || '');
     if (!contStatus) return '';
-    return '<span class="badge rounded-pill ' + (PORT_CONT_STATUS_COLOR[contStatus] || 'bg-label-secondary') + '" title="Trạng thái cont: ' + escHtml(contStatus) + '"><i class="ti tabler-package me-1"></i>' + escHtml(contStatus) + '</span>';
+    var color = PORT_CONT_STATUS_COLOR[contStatus] || 'bg-label-secondary';
+    var toggle = portContToggleAction(row);
+    if (toggle) {
+      return '<span class="badge rounded-pill khxh-cont-toggle btn-hang-cang-cont-toggle ' + color + '" role="button" tabindex="0" data-id="' + (parseInt(row.nid, 10) || 0) + '" data-cont="' + escHtml(row.so_cont || '') + '" data-action="' + escHtml(toggle.action) + '" title="Trạng thái cont: ' + escHtml(contStatus) + '. Bấm để ' + escHtml(String(toggle.label || '').toLowerCase()) + '"><i class="ti tabler-package me-1"></i>' + escHtml(contStatus) + '</span>';
+    }
+    return '<span class="badge rounded-pill ' + color + '" title="Trạng thái cont: ' + escHtml(contStatus) + '"><i class="ti tabler-package me-1"></i>' + escHtml(contStatus) + '</span>';
+  }
+
+  // Bấm thẻ trạng thái cont: hỏi xác nhận rồi đổi Đã cắt mooc <-> Đủ hàng và tải lại danh sách.
+  function requestPortContToggle(id, action, contNumber, $badge) {
+    var config = PORT_CONT_TOGGLE_CONFIRM[action];
+    if (!id || !config) return;
+    var run = function () {
+      if ($badge && $badge.length) $badge.addClass('khxh-cont-toggle-busy');
+      $.ajax({
+        url: '/api/quan-ly-cont/' + id,
+        type: 'PUT',
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'json',
+        data: JSON.stringify(config.payload)
+      }).done(function (res) {
+        if (res.status !== 'success') {
+          if ($badge && $badge.length) $badge.removeClass('khxh-cont-toggle-busy');
+          if (notyf) notyf.error(res.message || 'Cập nhật trạng thái cont thất bại');
+          return;
+        }
+        if (notyf) notyf.success('Đã cập nhật trạng thái cont');
+        markForceReloadList();
+        if ($('#ke-hoach-list-app').length) loadList();
+      }).fail(function (jqXHR) {
+        if ($badge && $badge.length) $badge.removeClass('khxh-cont-toggle-busy');
+        if (notyf) notyf.error(apiMsg(jqXHR));
+      });
+    };
+    var text = (contNumber ? 'Cont ' + contNumber + ': ' : '') + config.text;
+    if (typeof Swal === 'undefined') {
+      if (window.confirm(config.title)) run();
+      return;
+    }
+    Swal.fire({
+      title: config.title,
+      text: text,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Xác nhận',
+      cancelButtonText: 'Huỷ',
+      customClass: { confirmButton: 'btn btn-primary', cancelButton: 'btn btn-label-secondary ms-1' },
+      buttonsStyling: false
+    }).then(function (result) {
+      if (result.isConfirmed) run();
+    });
   }
 
   // Lý do bị khoá, rút gọn để hiện cạnh tên mục (đầy đủ nằm trong tooltip).
@@ -1071,7 +1136,7 @@
     var mooc = row.mooc || {};
     var routeFrom = row.bai_lay_thuc_te || row.bai_lay_cont || row.diem_di || '';
     var routeMid = row.dia_chi_kho || row.cua_khau || '';
-    var routeTo = row.bai_ha_thuc_te || row.bai_ha_cont || row.diem_den || '';
+    var routeTo = row.bai_ha_ngoai || row.bai_ha_thuc_te || row.bai_ha_cont || row.diem_den || '';
     var html = '<div class="detail-transport-card">' +
       '<div class="detail-transport-title"><span>' + escHtml(title) + '</span>' + (currentPlanType() === 'tuyen_xa' || !row.so_bkg ? '' : '<small>' + escHtml(row.so_bkg) + '</small>') + '</div>' +
       '<div class="detail-route-inline">' +
@@ -1094,7 +1159,7 @@
     var khName = customerDisplayName(d.khach_hang, true);
     var hinhThuc = d.hinh_thuc_van_tai ? hinhThucLabel(d.hinh_thuc_van_tai) : '';
     var hinhThucBadgeColor = d.hinh_thuc_van_tai ? hinhThucColor(d.hinh_thuc_van_tai) : 'bg-label-secondary';
-    var diemDen = d.bai_ha_thuc_te || d.bai_ha_cont || '';
+    var diemDen = d.bai_ha_ngoai || d.bai_ha_thuc_te || d.bai_ha_cont || '';
     var contText = [d.loai_cont || '', d.so_cont || ''].filter(Boolean).join(' - ');
     var statusColor = d.trang_thai_van_chuyen === 'Hoàn thành' ? 'bg-label-success' : 'bg-label-primary';
     var commonHtml = '' +
@@ -1129,7 +1194,7 @@
       '<div class="detail-route-grid">' +
         detailRoutePoint('Bãi lấy', d.bai_lay_thuc_te || d.bai_lay_cont || '') +
         detailRoutePoint('Địa chỉ đóng/ trả hàng (Kho)', d.dia_chi_kho || '') +
-        detailRoutePoint('Bãi hạ', d.bai_ha_thuc_te || d.bai_ha_cont || '') +
+        detailRoutePoint('Bãi hạ', d.bai_ha_ngoai || d.bai_ha_thuc_te || d.bai_ha_cont || '') +
         detailRoutePoint('Cảng xuất', d.cang_xuat || '') +
       '</div>';
     var transportHtml = '<div class="detail-transport-grid">' +
@@ -2046,6 +2111,13 @@
         runUpdate();
       }
     });
+    $(document).on('click keydown', '.btn-hang-cang-cont-toggle', function (e) {
+      if (e.type === 'keydown' && e.which !== 13 && e.which !== 32) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var $badge = $(this);
+      requestPortContToggle(parseInt($badge.attr('data-id'), 10) || 0, String($badge.attr('data-action') || ''), String($badge.attr('data-cont') || ''), $badge);
+    });
     $(document).on('click', '.btn-hang-cang-cont-confirm', function (e) {
       e.preventDefault();
       var $btn = $(this);
@@ -2366,7 +2438,7 @@
       returnContDisplayHtml = returnContNumber
         ? '- <span class="khxh-port-list-cont-number">' + escHtml(returnContNumber) + '</span> (Về)'
         : '';
-      var returnContDestination = row.cont_ref.bai_ha_thuc_te || row.cont_ref.bai_ha_cont || '';
+      var returnContDestination = row.cont_ref.bai_ha_ngoai || row.cont_ref.bai_ha_cont || '';
       returnContTitle = 'Số Cont: ' + (returnContNumber || 'Chưa có') + (returnContDestination ? ' (Về) - ' + returnContDestination : '');
     }
     var hinhThucStatusClass = hinhThucStatus === 'Kéo về'
@@ -2374,8 +2446,8 @@
       : (hinhThucStatus === 'Kéo lên' ? 'khxh-list-status-keo-len' : '');
     var planStatus = String(row.trang_thai_van_chuyen || 'Chờ duyệt');
     var contTextRaw = [row.loai_cont || '', row.so_cont || ''].filter(Boolean).join(' - ');
-    var baiLayDisplay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
-    var baiHaDisplay = row.bai_ha_thuc_te || row.bai_ha_cont || '';
+    var baiLayDisplay = row.bai_lay_cont || '';
+    var baiHaDisplay = row.bai_ha_ngoai || row.bai_ha_cont || '';
     var customerTitle = 'Khách hàng: ' + (khName ? (khName + (khFullName ? ' - ' + khFullName : '')) : 'Chưa có') + (row.so_bkg ? '\nBKG: ' + row.so_bkg : '');
     var customerDisplay = khName ? escHtml(khName) : '_';
     if (row.so_bkg) {
@@ -2675,6 +2747,7 @@
       .off('click', '.cont-picker-row')
       .off('change', '.line-chuyen-xa-toggle')
       .off('change', '.line-bai-thuc-te-toggle')
+      .off('change', '.line-bai-ha-ngoai-toggle')
       .off('change', '.line-bai-ha-tam-1-toggle, .line-bai-ha-tam-2-toggle')
       .off('change', '.line-tang-bo-toggle')
       .off('change', '.line-ket-hop-toggle')
@@ -2687,7 +2760,7 @@
       .off('click', '.khxh-section-nav-item')
       .off('input change', '#ke-hoach-form input, #ke-hoach-form select, #ke-hoach-form textarea')
       .off('change', '.line-bai-ha-theo-ke-hoach-checkbox')
-      .off('change', '.line-cont-picker-wrap .line-bai-ha-thuc-te-select')
+      .off('change', '.line-cont-picker-wrap .line-cont-bai-ha-ngoai-select')
       .off('change blur', '.cont-inline-note')
       .off('click', '#cont-ref-picker-confirm-btn, #port-cont-ref-picker-confirm-btn')
       .off('click', '#vehicle-picker-clear-btn')
@@ -2808,7 +2881,7 @@
 	        cont_ref: null,
 	        da_cat_mooc: 0,
         da_du_hang: 0,
-        ha_bai_ngoai: 0,
+        bai_ha_ngoai: '',
         ha_cang: 0,
         tang_bo: {
           enabled: 0,
@@ -3491,6 +3564,8 @@
       attachCreateOption($card.find('.line-bai-lay-select'), 'Bãi', line, 'bai_lay_cont');
       initSelect2($card.find('.line-bai-ha-select')[0], '— Chọn bãi hạ —');
       attachCreateOption($card.find('.line-bai-ha-select'), 'Bãi', line, 'bai_ha_cont');
+      initSelect2($card.find('.line-bai-ha-ngoai-select')[0], '— Chọn bãi hạ ngoài —');
+      attachCreateOption($card.find('.line-bai-ha-ngoai-select'), 'Bãi', line, 'bai_ha_ngoai');
       initSelect2($card.find('.line-bai-ha-tam-1-select')[0], '— Chọn bãi hạ tạm 1 —', { tags: true });
       attachCreateOption($card.find('.line-bai-ha-tam-1-select'), 'Bãi', line, 'bai_ha_tam_1');
       initSelect2($card.find('.line-bai-ha-tam-2-select')[0], '— Chọn bãi hạ tạm 2 —', { tags: true });
@@ -3555,6 +3630,43 @@
         $(this).val(moneyText($(this).val()));
       });
       renderSelectedContRef($card, line);
+    }
+
+    // Bãi hạ ngoài (hàng cảng): cont hạ ở bãi ngoài thay vì bãi hạ theo booking (vd. kiểm dịch).
+    // Lưu vào bai_ha_ngoai (varchar; chặng định mức lái xe nhận theo bãi này). Không có cờ bật/tắt riêng trong DB:
+    // có giá trị = kế hoạch có hạ bãi ngoài. Tắt công tắc rồi LƯU thì giá trị bị xoá; chưa lưu thì bật/tắt chỉ ẩn/hiện
+    // ô và giữ nguyên giá trị đang chọn. Trạng thái chưa lưu nằm ở line.bai_ha_ngoai_enabled / line.bai_ha_ngoai_value.
+    function portBaiHaNgoaiEnabled(line) {
+      if (line && typeof line.bai_ha_ngoai_enabled !== 'undefined') return !!parseInt(line.bai_ha_ngoai_enabled, 10);
+      return !!String((line && line.bai_ha_ngoai) || '').trim();
+    }
+
+    function portBaiHaNgoaiShownValue(line) {
+      if (line && typeof line.bai_ha_ngoai_value !== 'undefined') return line.bai_ha_ngoai_value;
+      return (line && line.bai_ha_ngoai) || '';
+    }
+
+    function portBaiHaNgoaiSwitchHtml(line) {
+      return '<div class="khxh-hang-cang-switches"><label class="form-check form-switch mb-0"><input class="form-check-input line-bai-ha-ngoai-toggle" type="checkbox"' + (portBaiHaNgoaiEnabled(line) ? ' checked' : '') + '><span class="form-check-label">Bãi hạ ngoài</span></label></div>';
+    }
+
+    // Nút tuyến vận chuyển "Bãi hạ ngoài" nằm giữa Địa chỉ kho và Bãi hạ (theo booking).
+    function portBaiHaNgoaiNodeHtml(line) {
+      var hidden = portBaiHaNgoaiEnabled(line) ? '' : ' d-none';
+      return '<div class="khxh-route-node line-bai-ha-ngoai-fields' + hidden + '"><label class="form-label">Bãi hạ ngoài</label><select class="form-select line-bai-ha-ngoai-select">' + buildTagOptions(state.diaDiem.bai, portBaiHaNgoaiShownValue(line)) + '</select></div>' +
+        '<div class="khxh-route-arrow line-bai-ha-ngoai-fields' + hidden + '"><i class="ti tabler-arrow-right"></i></div>';
+    }
+
+    // Đọc Bãi hạ ngoài từ card vào line.
+    // - bai_ha_ngoai_value: giá trị đang chọn, giữ cả khi công tắc tắt (chưa lưu) để bật lại không mất.
+    // - bai_ha_ngoai: giá trị SẼ LƯU = giá trị đang chọn nếu công tắc bật, rỗng nếu tắt (lưu là xoá).
+    // Bỏ giá trị trùng bãi hạ theo booking.
+    function syncPortBaiHaNgoai($row, line) {
+      var enabled = $row.find('.line-bai-ha-ngoai-toggle').is(':checked');
+      var value = normalizeBaiHaThucTe(($row.find('.line-bai-ha-ngoai-select').val() || '').trim(), line.bai_ha_cont);
+      line.bai_ha_ngoai_enabled = enabled ? 1 : 0;
+      line.bai_ha_ngoai_value = value;
+      line.bai_ha_ngoai = enabled ? value : '';
     }
 
     function portCreateTransportOptions(selected) {
@@ -3695,7 +3807,7 @@
                 '<label class="form-check form-switch mb-0"><input class="form-check-input line-bai-ha-tam-2-toggle" type="checkbox"' + (baiHaTam2Checked ? ' checked' : '') + (executionPlan || mainWorkDone ? ' disabled' : '') + '><span class="form-check-label">Bãi hạ tạm 2</span></label>' +
                 '<label class="form-check form-switch mb-0"><input class="form-check-input line-tang-bo-toggle" type="checkbox"' + (optionEnabled(tangBo.enabled) ? ' checked' : '') + (executionPlan ? ' disabled' : '') + '><span class="form-check-label">Tăng bo</span></label>' +
                 '<label class="form-check form-switch mb-0"><input class="form-check-input line-ke-hoach-ket-hop-toggle" type="checkbox"' + (combinedPlanChecked ? ' checked' : '') + (executionPlan ? ' disabled' : '') + '><span class="form-check-label">Kết hợp</span></label>' +
-              '</div>' : '') +
+              '</div>' : portBaiHaNgoaiSwitchHtml(line)) +
             '</div>' +
             '<div class="' + modalClassPrefix + '-section">' +
               (isTuyenXa ? '<div class="' + modalClassPrefix + '-section-head"><div class="' + modalClassPrefix + '-section-title">Hàng & lệnh</div></div>' : '') +
@@ -3727,7 +3839,8 @@
                 '<div class="khxh-route-arrow"><i class="ti tabler-arrow-right"></i></div>' +
                 '<div class="khxh-route-node line-bai-ha-tam-2-fields' + (baiHaTam2Checked ? '' : ' d-none') + '"><label class="form-label">Bãi hạ tạm 2</label><select class="form-select line-bai-ha-tam-2-select"' + (executionPlan || mainWorkDone ? ' disabled' : '') + '>' + buildTagOptions(state.diaDiem.bai, line.bai_ha_tam_2) + '</select></div>' +
                 '<div class="khxh-route-arrow line-bai-ha-tam-2-fields' + (baiHaTam2Checked ? '' : ' d-none') + '"><i class="ti tabler-arrow-right"></i></div>' +
-                '<div class="khxh-route-node"><label class="form-label">Bãi hạ' + (isTuyenXa ? ' <span class="text-danger">*</span>' : '') + '</label><select class="form-select line-bai-ha-select"' + (executionPlan || mainWorkDone ? ' disabled' : '') + '>' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
+                (isTuyenXa ? '' : portBaiHaNgoaiNodeHtml(line)) +
+                '<div class="khxh-route-node"><label class="form-label">Bãi hạ' + (isTuyenXa ? ' <span class="text-danger">*</span>' : ' (theo booking)') + '</label><select class="form-select line-bai-ha-select"' + (executionPlan || mainWorkDone ? ' disabled' : '') + '>' + buildTagOptions(state.diaDiem.bai, line.bai_ha_cont) + '</select></div>' +
                 (isTuyenXa ? '' : '<div class="khxh-route-arrow"><i class="ti tabler-arrow-right"></i></div>' + portCangRouteHtml) +
               '</div>' +
               (isTuyenXa && !executionPlan ? '<div class="ke-hoach-edit-grid khxh-current-location-grid mt-3"><div class="khxh-span-6"><label class="form-label">Vị trí cont hiện tại</label><select class="form-select line-vi-tri-cont-select">' + routePointOptions(tuyenXaRoutePoints(line), line.vi_tri_cont_index_hien_tai, 0) + '</select></div><div class="khxh-span-6"><label class="form-label">Trạng thái cont</label><div class="khxh-location-state"><span class="badge btn-line-toggle-du-hang ' + (parseInt(line.da_du_hang, 10) === 1 ? 'bg-label-success' : 'bg-label-warning') + '" role="button" tabindex="0">' + (parseInt(line.da_du_hang, 10) === 1 ? 'Đã đủ hàng' : 'Chưa đủ hàng') + '</span></div></div></div>' : '') +
@@ -3930,6 +4043,10 @@
         if ($row.find('.line-bai-thuc-te-toggle').is(':checked')) {
           line.bai_lay_thuc_te = ($row.find('.line-bai-lay-thuc-te-select').val() || '').trim();
           line.bai_ha_thuc_te = ($row.find('.line-bai-ha-thuc-te-select').val() || '').trim();
+        } else if ($row.find('.line-bai-ha-ngoai-toggle').length) {
+          // Hàng cảng: Bãi hạ ngoài theo công tắc riêng; tắt thì xoá giá trị khi lưu.
+          // Bãi lấy thực tế giữ nguyên (không bị xoá theo).
+          syncPortBaiHaNgoai($row, line);
         } else {
           line.bai_lay_thuc_te = '';
           line.bai_ha_thuc_te = '';
@@ -4261,7 +4378,7 @@
       if (currentPlanType() !== 'tuyen_xa') {
         var item = line.cont_ref || {};
         var soCont = item.so_cont || line.cont_ref_label || ('Cont #' + line.ke_hoach_cont_ref_nid);
-        var baiHa = item.bai_ha_thuc_te || item.bai_ha_cont || item.bai_ha || '';
+        var baiHa = item.bai_ha_ngoai || item.bai_ha_cont || item.bai_ha || '';
         return soCont + (baiHa ? ' (Về) - ' + baiHa : '');
       }
       return line.cont_ref_label || ('Cont #' + line.ke_hoach_cont_ref_nid);
@@ -4278,7 +4395,7 @@
     function normalContReturnRouteText(item) {
       if (!item) return '';
       var plannedDestination = item.bai_ha_cont || '';
-      var actualDestination = normalizeBaiHaThucTe(item.bai_ha_thuc_te || '', plannedDestination);
+      var actualDestination = normalizeBaiHaThucTe(item.bai_ha_ngoai || '', plannedDestination);
       var destination = actualDestination || plannedDestination;
       return [item.dia_chi_kho || '', destination].filter(Boolean).join(' → ');
     }
@@ -4850,7 +4967,7 @@
         var selected = candidates[c].selected;
         var canSelect = candidates[c].canSelect || selected;
         var plannedBaiHa = item.bai_ha_cont || '';
-        var actualBaiHa = normalizeBaiHaThucTe(item.bai_ha_thuc_te || '', plannedBaiHa);
+        var actualBaiHa = normalizeBaiHaThucTe(item.bai_ha_ngoai || '', plannedBaiHa);
         var destinationValue = actualBaiHa || plannedBaiHa;
         var theoKeHoach = !actualBaiHa;
         var duHang = parseInt(item.da_du_hang, 10) === 1;
@@ -4905,7 +5022,7 @@
                   '<input class="form-check-input line-bai-ha-theo-ke-hoach-checkbox" type="checkbox" data-id="' + item.nid + '"' + (theoKeHoach ? ' checked' : '') + '>' +
                   '<span class="form-check-label small">Hạ theo booking</span>' +
                 '</label>' +
-                '<select class="form-select form-select-sm line-bai-ha-thuc-te-select" data-id="' + item.nid + '" data-planned="' + escHtml(plannedBaiHa) + '">' + buildTagOptions(state.diaDiem.bai, destinationValue) + '</select>' +
+                '<select class="form-select form-select-sm line-cont-bai-ha-ngoai-select" data-id="' + item.nid + '" data-planned="' + escHtml(plannedBaiHa) + '">' + buildTagOptions(state.diaDiem.bai, destinationValue) + '</select>' +
               '</div>') +
           (currentPlanType() === 'tuyen_xa' ? '' : '<div class="cont-picker-cell"><div class="fw-semibold mb-1">' + escHtml(item.so_seal_chinh || '—') + '</div><label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input line-cont-return-seal-phu" data-id="' + item.nid + '"' + (selected && $picker.data('pending-cont-seal-phu') ? ' checked' : '') + (canSelect ? '' : ' disabled') + '><span class="form-check-label small">Seal phụ</span></label></div>') +
           portRequirementsHtml +
@@ -4915,7 +5032,7 @@
       }
       $body.html(rows.length ? rows.join('') : '<div class="text-center text-muted py-4">Không có cont phù hợp</div>');
 	      var pickerDropdownParent = $picker.closest('.modal').length ? $picker.closest('.modal') : formDropdownParent();
-	      $body.find('.line-bai-ha-thuc-te-select').each(function () {
+	      $body.find('.line-cont-bai-ha-ngoai-select').each(function () {
 	        initSelect2(this, '— Chọn bãi hạ —', { tags: true, allowClear: false, dropdownParent: pickerDropdownParent });
 	      });
       $picker.find('.line-cont-filter-kho').each(function () {
@@ -4975,13 +5092,14 @@
       $select.val(value).trigger('change.select2');
     }
 
-    function stageContBaiHaThucTe($card, contId, value) {
+    // Modal chọn cont kéo về: "Hạ theo booking" = rỗng, chọn bãi khác = bãi hạ ngoài (bai_ha_ngoai).
+    function stageContBaiHaNgoai($card, contId, value) {
       contId = parseInt(contId, 10) || 0;
       if (!contId) return;
       state.pendingContDestinationUpdates[String(contId)] = value || '';
-      updateContCandidateItem($card, contId, { bai_ha_thuc_te: value || '' });
+      updateContCandidateItem($card, contId, { bai_ha_ngoai: value || '' });
       var $picker = getContPicker($card);
-      var $select = $picker.find('.line-bai-ha-thuc-te-select[data-id="' + contId + '"]');
+      var $select = $picker.find('.line-cont-bai-ha-ngoai-select[data-id="' + contId + '"]');
       var planned = ($select.attr('data-planned') || '').trim();
       var actual = normalizeBaiHaThucTe(value || '', planned);
       setContDestinationSelectValue($select, actual || planned);
@@ -4999,13 +5117,13 @@
           url: '/api/quan-ly-cont/' + id,
           type: 'PUT',
           contentType: 'application/json',
-          data: JSON.stringify({ bai_ha_thuc_te: updates[id] || '' }),
+          data: JSON.stringify({ bai_ha_ngoai: updates[id] || '' }),
           dataType: 'json'
         }).done(function (res) {
           if (res && res.status === 'success') {
             deferred.resolve(res);
           } else {
-            deferred.reject({ responseText: JSON.stringify(res || { message: 'Không cập nhật được bãi hạ thực tế' }) });
+            deferred.reject({ responseText: JSON.stringify(res || { message: 'Không cập nhật được bãi hạ ngoài' }) });
           }
         }).fail(function (jqXHR) {
           deferred.reject(jqXHR);
@@ -5287,17 +5405,27 @@
         ke_hoach_cont_ref_nid: line.ke_hoach_cont_ref_nid || 0,
         da_cat_mooc: line.da_cat_mooc || 0,
         da_du_hang: line.da_du_hang || 0,
-        ha_bai_ngoai: line.ha_bai_ngoai || 0,
+        bai_ha_ngoai: line.bai_ha_ngoai || '',
         ha_cang: line.ha_cang || 0,
         tang_bo: lineTangBo(line),
         ket_hop: lineKetHopPayload(line)
       };
     }
 
+    // Hàng cảng không dùng bãi lấy/hạ thực tế (bai_lay_thuc_te, bai_ha_thuc_te): không gửi lên,
+    // bãi hạ ngoài đi bằng bai_ha_ngoai. Tuyến xa giữ nguyên phần chung.
+    function portLinePayloadCommon(line) {
+      var payload = linePayloadCommon(line);
+      delete payload.bai_lay_thuc_te;
+      delete payload.bai_ha_thuc_te;
+      return payload;
+    }
+
     function gatherCreatePayload() {
       syncAllLines();
       var firstLine = state.lines[0] || {};
       var lineJson = currentPlanType() === 'tuyen_xa' ? tuyenXaLineJson : portLineJson;
+      var linePayload = currentPlanType() === 'tuyen_xa' ? linePayloadCommon : portLinePayloadCommon;
       return {
         nid_khach_hang: firstLine.nid_khach_hang || 0,
         loai_ke_hoach: currentPlanType(),
@@ -5306,7 +5434,7 @@
             nid_khach_hang: line.nid_khach_hang || 0,
             so_bkg: line.so_bkg || '',
             thong_tin_json: lineJson(line)
-          }, linePayloadCommon(line));
+          }, linePayload(line));
         })
       };
     }
@@ -5315,12 +5443,13 @@
       syncAllLines();
       var line = state.lines[0] || {};
       var lineJson = currentPlanType() === 'tuyen_xa' ? tuyenXaLineJson : portLineJson;
+      var linePayload = currentPlanType() === 'tuyen_xa' ? linePayloadCommon : portLinePayloadCommon;
       return {
         nid_khach_hang: line.nid_khach_hang || 0,
         item: $.extend({
           so_bkg: useTableLayout || currentPlanType() === 'tuyen_xa' ? (line.so_bkg || '') : $form('#so_bkg-input').val().trim(),
           thong_tin_json: lineJson(line)
-        }, linePayloadCommon(line))
+        }, linePayload(line))
       };
     }
 
@@ -5437,7 +5566,7 @@
 	        cont_ref: row.cont_ref || null,
 	        da_cat_mooc: row.da_cat_mooc || 0,
         da_du_hang: row.da_du_hang || 0,
-        ha_bai_ngoai: row.ha_bai_ngoai || 0,
+        bai_ha_ngoai: row.bai_ha_ngoai || '',
         ha_cang: row.ha_cang || 0,
         tang_bo: rowJson.tang_bo || {},
         ket_hop: rowJson.ket_hop || {}
@@ -5887,6 +6016,12 @@
       var line = syncLine($(this).closest('.ke-hoach-line-card'));
       if (line) line.hinh_thuc_tinh_luong_lai_xe = this.checked ? 'theo_chuyen' : 'khoan';
       updateTuyenXaSidebar();
+    });
+    // Công tắc Bãi hạ ngoài (hàng cảng): chỉ ẩn/hiện ô, KHÔNG xoá giá trị (chỉ xoá khi lưu với công tắc tắt).
+    $(document).on('change', '.line-bai-ha-ngoai-toggle', function () {
+      var $card = $(this).closest('.ke-hoach-line-card');
+      $card.find('.line-bai-ha-ngoai-fields').toggleClass('d-none', !this.checked);
+      syncLine($card);
     });
     $(document).on('change', '.line-bai-thuc-te-toggle', function () {
       var $card = $(this).closest('.ke-hoach-line-card');
@@ -6828,14 +6963,14 @@
       var contId = parseInt($checkbox.data('id'), 10) || 0;
       if (!contId) return;
       if ($checkbox.is(':checked')) {
-        stageContBaiHaThucTe($card, contId, '');
+        stageContBaiHaNgoai($card, contId, '');
         return;
       }
-      var $select = $checkbox.closest('.cont-picker-destination-cell').find('.line-bai-ha-thuc-te-select');
+      var $select = $checkbox.closest('.cont-picker-destination-cell').find('.line-cont-bai-ha-ngoai-select');
       if ($select.data('select2')) $select.select2('open');
       else $select.focus();
     });
-    $(document).on('change', '.line-cont-picker-wrap .line-bai-ha-thuc-te-select', function () {
+    $(document).on('change', '.line-cont-picker-wrap .line-cont-bai-ha-ngoai-select', function () {
 	      var $select = $(this);
 	      var $picker = $select.closest('.line-cont-picker-wrap');
 	      var key = $picker.data('line-key');
@@ -6844,7 +6979,7 @@
       var planned = ($select.attr('data-planned') || '').trim();
       var value = ($select.val() || '').trim();
       if (!contId) return;
-      stageContBaiHaThucTe($card, contId, normalizeBaiHaThucTe(value, planned));
+      stageContBaiHaNgoai($card, contId, normalizeBaiHaThucTe(value, planned));
     });
     $(document).on('change blur', '.cont-inline-note', function () {
       var $input = $(this);
@@ -7032,7 +7167,7 @@
               '<td>' + escHtml(item.so_bkg || '') + '</td>' +
               '<td>' + escHtml(item.so_cont || '') + '</td>' +
               '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="da_du_hang"' + (daDuHang ? ' checked' : '') + '></td>' +
-              '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="ha_bai_ngoai"' + (parseInt(item.ha_bai_ngoai, 10) === 1 ? ' checked' : '') + '></td>' +
+              '<td>' + escHtml(item.bai_ha_ngoai || '') + '</td>' +
               '<td class="text-center"><input type="checkbox" class="cont-toggle" data-field="ha_cang"' + (parseInt(item.ha_cang, 10) === 1 ? ' checked' : '') + '></td>' +
               '<td>' + escHtml(item.dia_chi_kho || '') + '</td>' +
               '<td>' + escHtml(item.hinh_thuc_status_text || '') + '</td>' +

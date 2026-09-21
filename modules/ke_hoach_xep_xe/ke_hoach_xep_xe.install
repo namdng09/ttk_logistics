@@ -135,11 +135,13 @@ function ke_hoach_xep_xe_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
-      'ha_bai_ngoai' => array(
-        'type' => 'int',
-        'size' => 'tiny',
+      // Bãi hạ ngoài của kế hoạch hàng cảng (tên bãi). Có giá trị = kế hoạch có hạ bãi ngoài.
+      // Trước đây là cờ 0/1 `ha_bai_ngoai` (xem ke_hoach_xep_xe_update_7025).
+      'bai_ha_ngoai' => array(
+        'type' => 'varchar',
+        'length' => 255,
         'not null' => TRUE,
-        'default' => 0,
+        'default' => '',
       ),
       'ha_cang' => array(
         'type' => 'int',
@@ -790,3 +792,45 @@ function ke_hoach_xep_xe_update_7024() {
   }
   return 'Đã thêm trang_thai_cont và gán trạng thái cho ' . $updated . ' kế hoạch hàng cảng có cont ở kho.';
 }
+
+/**
+ * Cờ ha_bai_ngoai (0/1) -> bai_ha_ngoai (varchar): lưu tên bãi hạ ngoài của kế hoạch hàng cảng.
+ *
+ * - Đổi tên và kiểu cột. Giá trị cờ cũ ('0'/'1') không có tên bãi nên chuyển thành rỗng.
+ * - Kế hoạch hàng cảng: chép bãi hạ thực tế (bai_ha_thuc_te) sang bai_ha_ngoai để không mất bãi đã chọn,
+ *   rồi xoá bai_lay_thuc_te / bai_ha_thuc_te của hàng cảng (hàng cảng không dùng hai trường này nữa;
+ *   tuyến xa giữ nguyên). Hai cột này vẫn còn trong bảng.
+ */
+function ke_hoach_xep_xe_update_7025() {
+  if (db_field_exists('ke_hoach_xep_xe', 'ha_bai_ngoai') && !db_field_exists('ke_hoach_xep_xe', 'bai_ha_ngoai')) {
+    db_change_field('ke_hoach_xep_xe', 'ha_bai_ngoai', 'bai_ha_ngoai', array(
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ));
+  }
+  elseif (!db_field_exists('ke_hoach_xep_xe', 'bai_ha_ngoai')) {
+    db_add_field('ke_hoach_xep_xe', 'bai_ha_ngoai', array(
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ));
+  }
+
+  db_query("UPDATE {ke_hoach_xep_xe} SET bai_ha_ngoai = '' WHERE bai_ha_ngoai IN ('0', '1') OR bai_ha_ngoai IS NULL");
+
+  $port_only = "(loai_ke_hoach IS NULL OR loai_ke_hoach = '' OR loai_ke_hoach = 'thuong')";
+  $copied = 0;
+  if (db_field_exists('ke_hoach_xep_xe', 'bai_ha_thuc_te')) {
+    $copied = (int) db_query("SELECT COUNT(*) FROM {ke_hoach_xep_xe} WHERE " . $port_only . " AND bai_ha_thuc_te IS NOT NULL AND bai_ha_thuc_te <> '' AND bai_ha_thuc_te <> bai_ha_cont AND bai_ha_ngoai = ''")->fetchField();
+    db_query("UPDATE {ke_hoach_xep_xe} SET bai_ha_ngoai = bai_ha_thuc_te WHERE " . $port_only . " AND bai_ha_thuc_te IS NOT NULL AND bai_ha_thuc_te <> '' AND bai_ha_thuc_te <> bai_ha_cont AND bai_ha_ngoai = ''");
+    db_query("UPDATE {ke_hoach_xep_xe} SET bai_ha_thuc_te = '' WHERE " . $port_only);
+  }
+  if (db_field_exists('ke_hoach_xep_xe', 'bai_lay_thuc_te')) {
+    db_query("UPDATE {ke_hoach_xep_xe} SET bai_lay_thuc_te = '' WHERE " . $port_only);
+  }
+  return 'Đã đổi ha_bai_ngoai thành bai_ha_ngoai (varchar 255); chép ' . $copied . ' bãi hạ thực tế của hàng cảng sang bãi hạ ngoài.';
+}
+

@@ -593,3 +593,48 @@
   gap: .25rem;
 }
 
+/* Thẻ trạng thái cont bấm được (Đã cắt mooc <-> Đủ hàng): báo hiệu bằng con trỏ, nổi nhẹ, viền và bóng. */
+#ke-hoach-hang-cang-screen .khxh-cont-toggle {
+  cursor: pointer;
+  user-select: none;
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+
+#ke-hoach-hang-cang-screen .khxh-cont-toggle:hover,
+#ke-hoach-hang-cang-screen .khxh-cont-toggle:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px currentColor, 0 3px 8px rgba(47, 51, 73, .18);
+  filter: brightness(.92) saturate(1.15);
+  outline: none;
+}
+
+#ke-hoach-hang-cang-screen .khxh-cont-toggle:active {
+  transform: translateY(0);
+  box-shadow: 0 0 0 2px currentColor;
+}
+
+#ke-hoach-hang-cang-screen .khxh-cont-toggle-busy {
+  opacity: .55;
+  pointer-events: none;
+}
+
+/* Công tắc Bãi hạ ngoài ở đầu card Thông tin xếp xe. */
+.khxh-hang-cang-switches {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.khxh-hang-cang-switches .form-check-label {
+  font-size: 0.86rem;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+/* Khi hiện thêm nút Bãi hạ ngoài, các nút trong tuyến co lại để vẫn vừa một hàng. */
+.khxh-hang-cang-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual):has(.line-bai-ha-ngoai-fields:not(.d-none)) .khxh-route-node {
+  flex: 1 0 150px;
+}
+

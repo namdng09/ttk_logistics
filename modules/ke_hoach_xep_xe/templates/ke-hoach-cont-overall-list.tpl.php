@@ -23,7 +23,7 @@
             <th>Số BKG</th>
             <th>Số cont</th>
             <th class="text-center">Đủ hàng</th>
-            <th class="text-center">Hạ bãi ngoài</th>
+            <th>Bãi hạ ngoài</th>
             <th class="text-center">Hạ cảng</th>
             <th>Kho</th>
             <th>H.Thức vận tải</th>

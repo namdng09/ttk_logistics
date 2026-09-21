@@ -293,7 +293,7 @@
     pushRoutePoint(points, plan.bai_lay_thuc_te || plan.bai_lay_cont);
     pushRoutePoint(points, plan.dia_chi_kho || plan.diem_den);
     if (hinhThuc === 'dong_hang') {
-      pushRoutePoint(points, plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den);
+      pushRoutePoint(points, plan.bai_ha_ngoai || plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den);
     }
     else if (related) {
       // Xe chỉ nhận cont tại điểm kết thúc công việc chính rồi kéo thẳng
@@ -302,7 +302,7 @@
       if (hinhThuc === 'cat_keo_cheo') {
         pushRoutePoint(points, returnContStart(related));
       }
-      pushRoutePoint(points, returnContEnd(related) || plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den);
+      pushRoutePoint(points, returnContEnd(related) || plan.bai_ha_ngoai || plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den);
     }
     return points.join(' - ');
   }
@@ -636,7 +636,7 @@
   }
 
   function actualEnd() {
-    return (state.plan && (state.plan.bai_ha_thuc_te || state.plan.bai_ha_cont || state.plan.diem_den)) || '';
+    return (state.plan && (state.plan.bai_ha_ngoai || state.plan.bai_ha_thuc_te || state.plan.bai_ha_cont || state.plan.diem_den)) || '';
   }
 
   function khoPoint(plan) {
@@ -661,7 +661,7 @@
     // cont_keo_ve_den là điểm modal chọn cont đã xác định cho chính xe này.
     // Danh sách candidate có thể không trả về đủ bai_ha_* nên không dùng nó
     // làm nguồn duy nhất.
-    return (state.plan && state.plan.cont_keo_ve_den) || plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den || '';
+    return (state.plan && state.plan.cont_keo_ve_den) || plan.bai_ha_ngoai || plan.bai_ha_thuc_te || plan.bai_ha_cont || plan.diem_den || '';
   }
 
   function returnContStart(plan) {

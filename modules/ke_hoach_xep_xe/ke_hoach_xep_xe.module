@@ -603,7 +603,7 @@ function _ke_hoach_xep_xe_default_record() {
     'nid_ke_hoach_nguon' => 0,
     'da_cat_mooc' => 0,
     'da_du_hang' => 0,
-    'ha_bai_ngoai' => 0,
+    'bai_ha_ngoai' => '',
     'ha_cang' => 0,
     'thong_tin_json' => '',
   );
@@ -1186,7 +1186,8 @@ function _ke_hoach_xep_xe_build_record($common, $line) {
   $record['nid_ke_hoach_nguon'] = !empty($line['nid_ke_hoach_nguon']) ? (int) $line['nid_ke_hoach_nguon'] : 0;
   $record['da_cat_mooc'] = !empty($line['da_cat_mooc']) ? 1 : 0;
   $record['da_du_hang'] = !empty($line['da_du_hang']) ? 1 : 0;
-  $record['ha_bai_ngoai'] = !empty($line['ha_bai_ngoai']) ? 1 : 0;
+  // Bãi hạ ngoài (hàng cảng): tên bãi; rỗng = không hạ bãi ngoài.
+  $record['bai_ha_ngoai'] = !empty($line['bai_ha_ngoai']) ? trim((string) $line['bai_ha_ngoai']) : '';
   $record['ha_cang'] = !empty($line['ha_cang']) ? 1 : 0;
   $json = !empty($line['thong_tin_json']) && is_array($line['thong_tin_json']) ? $line['thong_tin_json'] : array();
   if (isset($line['ghi_chu'])) {
@@ -1519,10 +1520,8 @@ function _ke_hoach_port_validate_return_cont($item, $line_no, $current_ref_id = 
   if ((string) $ref->trang_thai_van_chuyen === 'Đã huỷ') {
     return _ke_hoach_xep_xe_fail($prefix . 'kế hoạch của cont kéo về đã huỷ');
   }
-  if (_ke_hoach_xep_xe_has_cont_status_field() && !in_array((string) $ref->trang_thai_cont, array('Đã cắt mooc', 'Đủ hàng'), TRUE)) {
-    $status = (string) $ref->trang_thai_cont;
-    return _ke_hoach_xep_xe_fail($prefix . 'cont đang ở trạng thái "' . ($status !== '' ? $status : 'chưa xác định') . '", chỉ chọn được cont đã cắt mooc hoặc đủ hàng');
-  }
+  // Trạng thái cont (phải Đã cắt mooc/Đủ hàng) KHÔNG chặn lúc lưu: lưu chỉ là lập kế hoạch trước.
+  // Chỉ chặn khi chạy xe, ở bước "Thực hiện kéo về" (_ke_hoach_port_keo_ve_blocker).
   $hinh_thuc = !empty($item['hinh_thuc_van_tai']) ? _ke_hoach_xep_xe_normalize_hinh_thuc($item['hinh_thuc_van_tai']) : '';
   $item_kho = !empty($item['dia_chi_kho']) ? trim((string) $item['dia_chi_kho']) : '';
   $ref_kho = trim((string) $ref->dia_chi_kho);
@@ -1721,6 +1720,7 @@ function _ke_hoach_xep_xe_related_summary($row) {
     'bai_lay_thuc_te' => !empty($item['bai_lay_thuc_te']) ? $item['bai_lay_thuc_te'] : '',
     'bai_ha_cont' => !empty($item['bai_ha_cont']) ? $item['bai_ha_cont'] : '',
     'bai_ha_thuc_te' => !empty($item['bai_ha_thuc_te']) ? $item['bai_ha_thuc_te'] : '',
+    'bai_ha_ngoai' => !empty($item['bai_ha_ngoai']) ? $item['bai_ha_ngoai'] : '',
   );
 }
 
@@ -1868,7 +1868,7 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
       $ref = isset($cache['cont_ref'][(int) $result['ke_hoach_cont_ref_nid']]) ? $cache['cont_ref'][(int) $result['ke_hoach_cont_ref_nid']] : NULL;
     }
     else {
-      $ref_fields = $related_mode === 'summary' ? 'nid, so_bkg, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te' : '*';
+      $ref_fields = $related_mode === 'summary' ? 'nid, so_bkg, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te, bai_ha_ngoai' : '*';
       $ref = db_query("SELECT $ref_fields FROM {ke_hoach_xep_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $result['ke_hoach_cont_ref_nid']))->fetch();
     }
     $port_ref = $ref ? $ref : NULL;
@@ -1883,7 +1883,7 @@ function _ke_hoach_xep_xe_enrich_row($row, $with_related = TRUE, array $options 
       $keo_ve = isset($cache['keo_ve'][(int) $result['nid']]) ? $cache['keo_ve'][(int) $result['nid']] : NULL;
     }
     else {
-      $keo_ve_fields = $related_mode === 'summary' ? 'nid, so_bkg, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te' : '*';
+      $keo_ve_fields = $related_mode === 'summary' ? 'nid, so_bkg, so_cont, dia_chi_kho, bai_lay_cont, bai_lay_thuc_te, bai_ha_cont, bai_ha_thuc_te, bai_ha_ngoai' : '*';
       $keo_ve = db_query("SELECT $keo_ve_fields FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1" . _ke_hoach_port_not_cancelled_sql() . " ORDER BY nid DESC", array(':nid' => $result['nid']))->fetch();
     }
     $result['cont_keo_ve_by'] = $keo_ve ? ($related_mode === 'summary' ? _ke_hoach_xep_xe_related_summary($keo_ve) : _ke_hoach_xep_xe_enrich_row($keo_ve, FALSE, $child_options)) : NULL;
@@ -2688,8 +2688,15 @@ function _ke_hoach_xep_xe_rest_list() {
 
   $items = array();
   $enrich_options = array('cache' => _ke_hoach_xep_xe_enrich_cache($rows));
+  // Hàng cảng: người có quyền tạo/sửa nhận thêm thao tác đổi Đã cắt mooc <-> Đủ hàng để thẻ
+  // trạng thái cont bấm được. Server quyết định, JS không tự kiểm tra quyền.
+  $can_toggle_cont = $loai_ke_hoach === 'thuong' && user_access('ke_hoach_xep_xe_create');
   foreach ($rows as $row) {
-    $items[] = _ke_hoach_xep_xe_enrich_row($row, TRUE, $enrich_options);
+    $item = _ke_hoach_xep_xe_enrich_row($row, TRUE, $enrich_options);
+    if ($can_toggle_cont) {
+      $item['hanh_dong_cont'] = _ke_hoach_port_cont_toggle_actions(isset($item['trang_thai_cont']) ? $item['trang_thai_cont'] : '');
+    }
+    $items[] = $item;
   }
 
   $total_pages = (int) ceil($total / $limit);
@@ -2763,7 +2770,7 @@ function _ke_hoach_xep_xe_rest_create() {
         'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
         'da_cat_mooc' => $record['da_cat_mooc'],
         'da_du_hang' => $record['da_du_hang'],
-        'ha_bai_ngoai' => $record['ha_bai_ngoai'],
+        'bai_ha_ngoai' => $record['bai_ha_ngoai'],
         'ha_cang' => $record['ha_cang'],
         'thong_tin_json' => $record['thong_tin_json'],
         'loai_ke_hoach' => $loai_ke_hoach,
@@ -2975,7 +2982,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
       'ke_hoach_cont_ref_nid' => $record['ke_hoach_cont_ref_nid'],
       'da_cat_mooc' => $record['da_cat_mooc'],
       'da_du_hang' => $record['da_du_hang'],
-      'ha_bai_ngoai' => $record['ha_bai_ngoai'],
+      'bai_ha_ngoai' => $record['bai_ha_ngoai'],
       'ha_cang' => $record['ha_cang'],
       'thong_tin_json' => $record['thong_tin_json'],
       'changed' => _ke_hoach_xep_xe_now(),
@@ -3167,7 +3174,7 @@ function _ke_hoach_cont_rest_list() {
       }
     }
     // Kế hoạch hàng cảng đã có trạng thái cont lưu riêng thì dùng nó; còn lại suy ra từ các cờ như trước.
-    if (empty($enriched['trang_thai_cont'])) $enriched['trang_thai_cont'] = !empty($enriched['ha_cang']) ? 'Hạ cảng' : (!empty($enriched['ha_bai_ngoai']) ? 'Hạ bãi ngoài' : (!empty($enriched['da_du_hang']) ? 'Đủ hàng' : (!empty($enriched['ke_hoach_cont_ref_nid']) ? 'Kéo về' : (!empty($enriched['da_cat_mooc']) ? 'Đã cắt mooc' : 'Chưa cắt mooc'))));
+    if (empty($enriched['trang_thai_cont'])) $enriched['trang_thai_cont'] = !empty($enriched['ha_cang']) ? 'Hạ cảng' : ((!empty($enriched['da_du_hang']) ? 'Đủ hàng' : (!empty($enriched['ke_hoach_cont_ref_nid']) ? 'Kéo về' : (!empty($enriched['da_cat_mooc']) ? 'Đã cắt mooc' : 'Chưa cắt mooc'))));
     $items[] = $enriched;
   }
   return _ke_hoach_xep_xe_success(array('items' => $items, 'total' => count($items), 'current_page' => 1, 'total_pages' => 1));
@@ -3232,13 +3239,13 @@ function _ke_hoach_port_cont_rest_update($id, $existing_plan) {
   $input = _ke_hoach_xep_xe_input();
   $did_action = FALSE;
   $update = array('changed' => _ke_hoach_xep_xe_now());
-  foreach (array('da_du_hang', 'ha_bai_ngoai', 'ha_cang') as $field) {
+  foreach (array('da_du_hang', 'ha_cang') as $field) {
     if (array_key_exists($field, $input)) {
       $update[$field] = !empty($input[$field]) ? 1 : 0;
     }
   }
   // Đồng bộ trạng thái cont khi admin bật/tắt các cờ thủ công.
-  if (_ke_hoach_xep_xe_has_cont_status_field() && (array_key_exists('da_du_hang', $input) || array_key_exists('ha_bai_ngoai', $input) || array_key_exists('ha_cang', $input))) {
+  if (_ke_hoach_xep_xe_has_cont_status_field() && (array_key_exists('da_du_hang', $input) || array_key_exists('ha_cang', $input))) {
     $cont_status = (string) $existing_plan->trang_thai_cont;
     if (array_key_exists('da_du_hang', $input)) {
       // "Đủ hàng" nghĩa là cont đã nằm ở kho và đủ hàng: chỉ chuyển từ "Đã cắt mooc".
@@ -3250,7 +3257,7 @@ function _ke_hoach_port_cont_rest_update($id, $existing_plan) {
         $cont_status = 'Đã cắt mooc';
       }
     }
-    if ((!empty($input['ha_cang']) || !empty($input['ha_bai_ngoai'])) && in_array($cont_status, array('Đã cắt mooc', 'Đủ hàng', 'Đang kéo về'), TRUE)) {
+    if (!empty($input['ha_cang']) && in_array($cont_status, array('Đã cắt mooc', 'Đủ hàng', 'Đang kéo về'), TRUE)) {
       $cont_status = 'Hoàn thành';
     }
     if ($cont_status !== (string) $existing_plan->trang_thai_cont) {
@@ -3281,13 +3288,10 @@ function _ke_hoach_port_cont_rest_update($id, $existing_plan) {
     $existing_plan = $changed['row'];
     $did_action = TRUE;
   }
-  if (array_key_exists('bai_lay_thuc_te', $input)) {
-    $bai_lay_thuc_te = trim((string) $input['bai_lay_thuc_te']);
-    $update['bai_lay_thuc_te'] = ($bai_lay_thuc_te && $bai_lay_thuc_te !== $existing_plan->bai_lay_cont) ? $bai_lay_thuc_te : '';
-  }
-  if (array_key_exists('bai_ha_thuc_te', $input)) {
-    $bai_ha_thuc_te = trim((string) $input['bai_ha_thuc_te']);
-    $update['bai_ha_thuc_te'] = ($bai_ha_thuc_te && $bai_ha_thuc_te !== $existing_plan->bai_ha_cont) ? $bai_ha_thuc_te : '';
+  // Bãi hạ ngoài (modal chọn cont kéo về: "Hạ theo booking" = rỗng, chọn bãi khác = tên bãi).
+  if (array_key_exists('bai_ha_ngoai', $input)) {
+    $bai_ha_ngoai = trim((string) $input['bai_ha_ngoai']);
+    $update['bai_ha_ngoai'] = ($bai_ha_ngoai !== '' && $bai_ha_ngoai !== trim((string) $existing_plan->bai_ha_cont)) ? $bai_ha_ngoai : '';
   }
   if (array_key_exists('ghi_chu', $input) || array_key_exists('dinh_muc_khoan_lai_xe', $input)) {
     $json = _ke_hoach_xep_xe_json_decode($existing_plan->thong_tin_json);
@@ -3326,7 +3330,7 @@ function _ke_hoach_port_cont_rest_update($id, $existing_plan) {
  */
 function _ke_hoach_tuyen_xa_cont_rest_update($id, $existing_plan) {
   $input = _ke_hoach_xep_xe_input();
-  $fields = array('da_du_hang', 'ha_bai_ngoai', 'ha_cang');
+  $fields = array('da_du_hang', 'ha_cang');
   $update = array('changed' => _ke_hoach_xep_xe_now());
   $main_work_source_update = NULL;
   foreach ($fields as $field) {
@@ -3600,6 +3604,19 @@ function _ke_hoach_cat_mooc_at_kho_since($json) {
   return '';
 }
 
+/**
+ * Chỉ thao tác đổi Đã cắt mooc <-> Đủ hàng (dùng cho thẻ trạng thái bấm được ở danh sách hàng cảng).
+ */
+function _ke_hoach_port_cont_toggle_actions($cont_status) {
+  $toggle = array();
+  foreach (_ke_hoach_port_cont_actions($cont_status, TRUE) as $action) {
+    if (in_array($action['action'], array('danh_dau_du_hang', 'bo_du_hang'), TRUE)) {
+      $toggle[] = $action;
+    }
+  }
+  return $toggle;
+}
+
 function ke_hoach_cat_mooc_rest_collection() {
   if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     return _ke_hoach_xep_xe_method_not_allowed('GET');
@@ -3625,7 +3642,7 @@ function _ke_hoach_cat_mooc_apply_filters($query) {
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like(trim((string) $_GET['keyword'])) . '%';
     $or = db_or();
-    foreach (array('so_bkg', 'so_cont', 'so_seal_chinh', 'so_seal_tam', 'dia_chi_kho', 'bai_lay_cont', 'bai_lay_thuc_te', 'bai_ha_cont', 'bai_ha_thuc_te', 'cang_xuat') as $field) {
+    foreach (array('so_bkg', 'so_cont', 'so_seal_chinh', 'so_seal_tam', 'dia_chi_kho', 'bai_lay_cont', 'bai_ha_cont', 'bai_ha_ngoai', 'cang_xuat') as $field) {
       $or->condition('kh.' . $field, $like, 'LIKE');
     }
     $query->condition($or);
@@ -3717,9 +3734,8 @@ function _ke_hoach_cat_mooc_rest_list() {
       'so_seal_tam' => $plan['so_seal_tam'],
       'dia_chi_kho' => $plan['dia_chi_kho'],
       'bai_lay_cont' => $plan['bai_lay_cont'],
-      'bai_lay_thuc_te' => $plan['bai_lay_thuc_te'],
       'bai_ha_cont' => $plan['bai_ha_cont'],
-      'bai_ha_thuc_te' => $plan['bai_ha_thuc_te'],
+      'bai_ha_ngoai' => $plan['bai_ha_ngoai'],
       'cang_xuat' => $plan['cang_xuat'],
       'hinh_thuc_van_tai' => $plan['hinh_thuc_van_tai'],
       'ngay_gio_ke_hoach' => $plan['ngay_gio_ke_hoach'],
@@ -4545,7 +4561,7 @@ function _ke_hoach_tuyen_xa_rest_create() {
       'ke_hoach_cont_ref_nid' => 0,
       'da_cat_mooc' => 0,
       'da_du_hang' => 0,
-      'ha_bai_ngoai' => 0,
+      'bai_ha_ngoai' => '',
       'ha_cang' => 0,
       'thong_tin_json' => $record['thong_tin_json'],
       'loai_ke_hoach' => 'tuyen_xa',

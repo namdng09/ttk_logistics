@@ -170,8 +170,8 @@
 
   function rowHtml(row, stt) {
     var contText = [row.loai_cont || '', row.so_cont || ''].filter(Boolean).join(' - ');
-    var baiLay = row.bai_lay_thuc_te || row.bai_lay_cont || '';
-    var baiHa = row.bai_ha_thuc_te || row.bai_ha_cont || '';
+    var baiLay = row.bai_lay_cont || '';
+    var baiHa = row.bai_ha_ngoai || row.bai_ha_cont || '';
     var khName = customerLabel(row.khach_hang);
     var customerTitle = 'Khách hàng: ' + (khName ? khName + (row.khach_hang && row.khach_hang.ten ? ' - ' + row.khach_hang.ten : '') : 'Chưa có') + (row.so_bkg ? '\nBKG: ' + row.so_bkg : '');
     var containerTitle = 'Container: ' + (contText || 'Chưa có') + '\nSeal chính: ' + (row.so_seal_chinh || 'Chưa có') + (row.so_seal_tam ? '\nSeal phụ: Có' : '');
