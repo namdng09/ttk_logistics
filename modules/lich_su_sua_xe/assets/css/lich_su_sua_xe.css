@@ -1,0 +1,464 @@
+.lssx-table th {
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.lssx-table td {
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+#lssx-modal .modal-content {
+  height: 100%;
+}
+
+#lssx-modal #lssx-form {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#lssx-modal .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#lssx-modal .modal-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid #e6e8ef;
+  background: #fff;
+}
+
+#lssx-view-modal .modal-body {
+  background: #f4f6f9;
+}
+
+.lssx-view-hero {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fff;
+}
+
+.lssx-view-eyebrow {
+  color: #697a8d;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.lssx-view-bks {
+  margin-top: 0.15rem;
+  color: #384551;
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.lssx-view-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  margin-top: 0.6rem;
+  color: #566a7f;
+  font-size: 0.86rem;
+}
+
+.lssx-view-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.lssx-view-total {
+  min-width: 170px;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  background: #f0f7ff;
+  text-align: right;
+}
+
+.lssx-view-total span {
+  display: block;
+  color: #697a8d;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.lssx-view-total strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: #0d6efd;
+  font-size: 1.25rem;
+}
+
+.lssx-view-card {
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  padding: 0.9rem;
+  background: #fff;
+}
+
+.lssx-view-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+  color: #384551;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.lssx-view-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.lssx-view-info-item {
+  min-width: 0;
+  border: 1px solid #eef0f4;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  background: #fbfcfe;
+}
+
+.lssx-view-info-item.wide {
+  grid-column: 1 / -1;
+}
+
+.lssx-view-info-item > span,
+.lssx-view-reminders > div > span {
+  display: block;
+  color: #697a8d;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.lssx-view-info-item > strong,
+.lssx-view-reminders > div > strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: #384551;
+  font-size: 0.9rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.lssx-view-reminders {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.lssx-view-reminders > div {
+  border: 1px solid #eef0f4;
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: #fbfcfe;
+}
+
+.lssx-view-table > thead > tr > th {
+  white-space: nowrap;
+  background: #dfdfe3 !important;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  color: #384551;
+  font-size: 0.78rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.lssx-view-table td {
+  font-size: 0.84rem;
+}
+
+.lssx-view-table tbody tr:hover td {
+  background: #f8fbff;
+}
+
+.lssx-view-empty {
+  border: 1px dashed #d9dee7;
+  border-radius: 8px;
+  padding: 1rem;
+  color: #a1acb8;
+  font-size: 0.86rem;
+  font-style: italic;
+  text-align: center;
+}
+
+@media (max-width: 767.98px) {
+  .lssx-view-hero {
+    flex-direction: column;
+  }
+
+  .lssx-view-total {
+    text-align: left;
+  }
+
+  .lssx-view-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lssx-section-title {
+  min-height: 36px;
+  margin-bottom: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #e6e8ef;
+  border-radius: 0.375rem;
+  background: #eef3f8;
+  color: #566a7f;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.lssx-info-grid .form-label {
+  margin-bottom: 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #566a7f;
+}
+
+.lssx-info-grid .form-control,
+.lssx-info-grid .form-select,
+.lssx-info-grid .select2-container--default .select2-selection--single {
+  min-height: 36px;
+  height: 36px;
+}
+
+#lssx-modal .select2-container .select2-selection--single,
+#lssx-filter-phuong-tien + .select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+#lssx-modal .select2-container .select2-selection--single .select2-selection__rendered,
+#lssx-filter-phuong-tien + .select2-container .select2-selection--single .select2-selection__rendered {
+  line-height: 1.5;
+  padding: 0;
+  padding-right: 1.75rem;
+  font-size: 0.85rem;
+}
+
+#lssx-modal .select2-container .select2-selection--single .select2-selection__arrow,
+#lssx-filter-phuong-tien + .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+  top: 0;
+  right: 0.375rem;
+  width: 1rem;
+}
+
+#lssx-modal .select2-container .select2-selection--single .select2-selection__clear,
+#lssx-filter-phuong-tien + .select2-container .select2-selection--single .select2-selection__clear {
+  position: relative;
+  z-index: 1;
+  font-size: 0.875rem;
+}
+
+.lssx-modal-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.lssx-hang-muc-table > thead > tr > th {
+  white-space: nowrap;
+  background: #dfdfe3 !important;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  line-height: 1.1;
+  font-size: 0.76rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.lssx-hang-muc-table > thead > tr > th .btn-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.lssx-hang-muc-table > thead > tr > th.lssx-hang-muc-add-cell {
+  padding-left: 0;
+  padding-right: 0;
+  text-align: center;
+}
+
+.lssx-hang-muc-add-cell #btn-lssx-add-hang-muc {
+  margin: 0 auto;
+}
+
+.lssx-hang-muc-table td {
+  font-size: 0.84rem;
+}
+
+.lssx-hang-muc-table tbody tr:hover td {
+  background: #f8fbff;
+}
+
+.lssx-hang-muc-table .form-control {
+  min-height: 32px;
+}
+
+.lssx-files-card {
+  border-radius: 8px;
+}
+
+.lssx-files-title {
+  font-weight: 600;
+  color: #384551;
+}
+
+#lssx-file-create-note {
+  color: #566a7f;
+  font-weight: 600;
+}
+
+.lssx-file-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.lssx-file-group {
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.lssx-file-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  background: #eef3f8;
+  color: #384551;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.lssx-file-empty {
+  padding: 0.85rem;
+  color: #a1acb8;
+  font-size: 0.84rem;
+  font-style: italic;
+}
+
+.lssx-file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.lssx-file-item {
+  position: relative;
+  min-width: 0;
+  border: 1px solid #eceef1;
+  border-radius: 8px;
+  padding: 0.45rem;
+  background: #fff;
+}
+
+.lssx-file-item:hover {
+  background: #f8fbff;
+}
+
+@media (max-width: 767.98px) {
+  .lssx-file-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lssx-file-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid #e6e8ef;
+  border-radius: 6px;
+  padding: 0;
+  overflow: hidden;
+  background: #f7f8fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lssx-file-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.lssx-file-pdf {
+  font-size: 2.4rem;
+  color: #ea5455;
+}
+
+.lssx-file-name {
+  margin-top: 0.45rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lssx-file-meta {
+  font-size: 0.74rem;
+  color: #a1acb8;
+}
+
+.lssx-file-item .btn-lssx-file-delete {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.85rem;
+  height: 1.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lssx-preview-img {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.lssx-preview-pdf {
+  width: 100%;
+  height: 75vh;
+  min-height: 520px;
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.lssx-preview-pdf iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.flatpickr-calendar {
+  z-index: 99999 !important;
+}

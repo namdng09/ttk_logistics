@@ -1,0 +1,84 @@
+<?php
+
+/**
+ * @file
+ * Schema for Giao dịch OPS.
+ */
+
+function giao_dich_ops_schema() {
+  $schema['giao_dich_ops_ledger'] = array(
+    'description' => 'Sổ cái giao dịch ví OPS.',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'uid_ops' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'ma_giao_dich' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'huong' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
+      'loai_giao_dich' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'so_tien' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0, 'unsigned' => TRUE),
+      'so_du_truoc' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'so_du_sau' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'tham_chieu_loai' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'tham_chieu_id' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'nid_ke_hoach' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'so_bkg' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'noi_dung' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'thong_tin_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+    ),
+    'primary key' => array('nid'),
+    'unique keys' => array('ma_giao_dich' => array('ma_giao_dich')),
+    'indexes' => array(
+      'ops_created' => array('uid_ops', 'created'),
+      'lai_xe_created' => array('nid_lai_xe', 'created'),
+      'huong' => array('huong'),
+      'loai_giao_dich' => array('loai_giao_dich'),
+      'tham_chieu' => array('tham_chieu_loai', 'tham_chieu_id'),
+      'nid_ke_hoach' => array('nid_ke_hoach'),
+      'hoat_dong' => array('hoat_dong'),
+    ),
+  );
+
+  $schema['giao_dich_ops_de_nghi_ung'] = array(
+    'description' => 'Phiếu đề nghị ứng tiền OPS/lái xe.',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'ma_de_nghi' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'uid_ops' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_ke_hoach' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'so_bkg' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'so_tien' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0, 'unsigned' => TRUE),
+      'muc_dich' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+      'trang_thai' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'cho_duyet'),
+      'nid_ledger' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nguoi_duyet_uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'ngay_duyet' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'ly_do_tu_choi' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'chung_tu_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      'thong_tin_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+    ),
+    'primary key' => array('nid'),
+    'unique keys' => array('ma_de_nghi' => array('ma_de_nghi')),
+    'indexes' => array(
+      'ops_created' => array('uid_ops', 'created'),
+      'lai_xe_created' => array('nid_lai_xe', 'created'),
+      'trang_thai' => array('trang_thai'),
+      'nid_ledger' => array('nid_ledger'),
+      'nid_ke_hoach' => array('nid_ke_hoach'),
+      'hoat_dong' => array('hoat_dong'),
+    ),
+  );
+
+  return $schema;
+}
+
+function giao_dich_ops_update_7001() {
+  drupal_install_schema('giao_dich_ops');
+}

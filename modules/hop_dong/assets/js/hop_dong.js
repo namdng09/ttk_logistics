@@ -4,12 +4,19 @@
   var notyf;
   var currentPage = 1;
   var currentKeyword = '';
+  var currentKhachHang = '';
   var KHACH_HANG_OPTIONS = [];
   var KHACH_HANG_DATA = {};
   var CURRENT_FILES = [];
   var PENDING_FILES = [];
   var CURRENT_HOP_DONG_ID = null;
   var CURRENT_FORM_MODE = 'create';
+  var PAGE_INITIALIZED = false;
+  var CONTRACT_SETTINGS = (Drupal.settings && Drupal.settings.hop_dong) || {};
+  var IS_EMPLOYEE_CONTRACT = !!CONTRACT_SETTINGS.is_employee_contract;
+  var API_BASE = CONTRACT_SETTINGS.api_base || '/api/hop-dong';
+  var PERSON_KEY = IS_EMPLOYEE_CONTRACT ? 'nhan_vien' : 'khach_hang';
+  var PERSON_LABEL = IS_EMPLOYEE_CONTRACT ? 'nhân viên' : 'khách hàng';
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -30,6 +37,18 @@
       }
 
       if ($('#table-hop-dong', context).length) {
+        var contractTable = document.getElementById('table-hop-dong');
+        /* Read the page marker as the source of truth. This prevents an old
+         * Drupal.settings cache from making the employee screen call the
+         * customer API. */
+        IS_EMPLOYEE_CONTRACT = !!(contractTable && contractTable.getAttribute('data-contract-type') === 'nhan_vien');
+        API_BASE = IS_EMPLOYEE_CONTRACT ? '/api/hop-dong-nhan-vien' : '/api/hop-dong';
+        PERSON_KEY = IS_EMPLOYEE_CONTRACT ? 'nhan_vien' : 'khach_hang';
+        PERSON_LABEL = IS_EMPLOYEE_CONTRACT ? 'nhân viên' : 'khách hàng';
+        if (PAGE_INITIALIZED) {
+          return;
+        }
+        PAGE_INITIALIZED = true;
         loadKhachHangSelect();
         loadList();
         bindNativeEvents();
@@ -66,7 +85,12 @@
     if (reloadBtn) {
       reloadBtn.addEventListener('click', function () {
         currentKeyword = '';
+        currentKhachHang = '';
         doc.getElementById('search-hop-dong').value = '';
+        if (doc.getElementById('filter-khach-hang')) {
+          doc.getElementById('filter-khach-hang').value = '';
+        }
+        initFilterSelect2();
         currentPage = 1;
         loadList();
       });
@@ -145,44 +169,14 @@
       }
     });
 
-    // Select2 change -> show NV KD
+    // Customer contracts display the assigned sales employee; employee
+    // contracts intentionally do not have this field.
     var selKh = doc.getElementById('select-khach-hang');
     if (selKh) {
       selKh.addEventListener('change', function () {
         showNvKinhDoanh(this.value);
       });
     }
-
-    // Dropdown hover
-    doc.addEventListener('mouseover', function (e) {
-      var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
-      if (dropdown && dropdown.closest('#table-hop-dong-tbody')) {
-        var menu = dropdown.querySelector('.dropdown-menu');
-        if (menu) {
-          var btn = dropdown.querySelector('button');
-          var rect = btn.getBoundingClientRect();
-          menu.style.position = 'fixed';
-          menu.style.top = rect.top + 'px';
-          menu.style.left = rect.right + 'px';
-          menu.style.display = 'block';
-        }
-      }
-    });
-
-    doc.addEventListener('mouseout', function (e) {
-      var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
-      if (dropdown && dropdown.closest('#table-hop-dong-tbody')) {
-        if (!dropdown.contains(e.relatedTarget)) {
-          var menu = dropdown.querySelector('.dropdown-menu');
-          if (menu) {
-            menu.style.display = '';
-            menu.style.position = '';
-            menu.style.top = '';
-            menu.style.left = '';
-          }
-        }
-      }
-    });
 
     doc.getElementById('pagination-jump').addEventListener('keypress', function (e) {
       if (e.which === 13) {
@@ -214,6 +208,7 @@
   function showNvKinhDoanh(khNid) {
     var section = document.getElementById('nv-kinh-doanh-section');
     var display = document.getElementById('nv-kinh-doanh-display');
+    if (!section || !display || IS_EMPLOYEE_CONTRACT) return;
     if (!khNid || !KHACH_HANG_DATA[khNid]) {
       section.style.display = 'none';
       display.innerHTML = '';
@@ -234,31 +229,48 @@
 
   function loadKhachHangSelect() {
     $.ajax({
-      url: '/api/khach-hang',
+      url: IS_EMPLOYEE_CONTRACT ? '/api/nhan-vien' : '/api/khach-hang',
       type: 'GET',
       dataType: 'json',
-      data: { limit: 500 },
+      data: IS_EMPLOYEE_CONTRACT ? { limit: 500, status: 1 } : { limit: 500 },
       success: function (res) {
         if (res.status === 'success' && res.data) {
           var items = res.data.items || [];
           var select = document.getElementById('select-khach-hang');
-          select.innerHTML = '<option value="">Chọn khách hàng</option>';
+          var filter = document.getElementById('filter-khach-hang');
+          if (select) {
+            select.innerHTML = '<option value="">Chọn ' + PERSON_LABEL + '</option>';
+          }
+          if (filter) {
+            filter.innerHTML = '<option value="">Tất cả ' + PERSON_LABEL + '</option>';
+          }
           var opts = [];
           for (var i = 0; i < items.length; i++) {
             var item = items[i];
-            var label = item.ten || '';
-            if (item.ma_kh) label += ' (' + item.ma_kh + ')';
-            opts.push({ id: item.nid, text: label });
-            KHACH_HANG_DATA[item.nid] = item;
+            var label = item.ten || item.name || '';
+            var code = IS_EMPLOYEE_CONTRACT ? item.ma_nhan_vien : item.ma_kh;
+            if (code) label += ' (' + code + ')';
+            var personId = IS_EMPLOYEE_CONTRACT ? item.uid : item.nid;
+            opts.push({ id: personId, text: label });
+            KHACH_HANG_DATA[personId] = item;
           }
           KHACH_HANG_OPTIONS = opts;
           for (var j = 0; j < opts.length; j++) {
-            var opt = document.createElement('option');
-            opt.value = opts[j].id;
-            opt.textContent = opts[j].text;
-            select.appendChild(opt);
+            if (select) {
+              var opt = document.createElement('option');
+              opt.value = opts[j].id;
+              opt.textContent = opts[j].text;
+              select.appendChild(opt);
+            }
+            if (filter) {
+              var filterOpt = document.createElement('option');
+              filterOpt.value = opts[j].id;
+              filterOpt.textContent = opts[j].text;
+              filter.appendChild(filterOpt);
+            }
           }
           initSelect2();
+          initFilterSelect2();
         }
       },
       error: function (jqXHR) {
@@ -276,10 +288,32 @@
       }
       $sel.select2({
         dropdownParent: $jq('#hop-dong-modal'),
-        placeholder: 'Chọn khách hàng',
+        placeholder: 'Chọn ' + PERSON_LABEL,
         allowClear: true,
         width: '100%'
       });
+    }
+  }
+
+  function initFilterSelect2() {
+    var $jq = (typeof $ === 'function' && typeof $.fn.select2 === 'function') ? $ : (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 === 'function' ? jQuery : null);
+    var $sel = $jq ? $jq('#filter-khach-hang') : null;
+    if ($sel && $sel.length) {
+      if ($sel.data('select2')) {
+        $sel.select2('destroy');
+      }
+      $sel.select2({
+        placeholder: 'Tất cả ' + PERSON_LABEL,
+        allowClear: true,
+        width: '100%'
+      });
+      $sel.off('change.hopDongFilterKh');
+      $sel.on('change.hopDongFilterKh', function () {
+        currentKhachHang = this.value || '';
+        currentPage = 1;
+        loadList();
+      });
+      $sel.val(currentKhachHang || '').trigger('change.select2');
     }
   }
 
@@ -297,21 +331,26 @@
   function loadList() {
     var tbody = $('#table-hop-dong-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="8" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="' + (IS_EMPLOYEE_CONTRACT ? 7 : 8) + '" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
 
+    var params = { page: currentPage, keyword: currentKeyword };
+    if (currentKhachHang) {
+      params[PERSON_KEY] = currentKhachHang;
+    }
+
     $.ajax({
-      url: '/api/hop-dong',
+      url: API_BASE,
       type: 'GET',
       dataType: 'json',
-      data: { page: currentPage, keyword: currentKeyword },
+      data: params,
       success: function (res) {
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="8" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="' + (IS_EMPLOYEE_CONTRACT ? 7 : 8) + '" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -320,7 +359,7 @@
         var pageSize = data.limit || 20;
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="8" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="' + (IS_EMPLOYEE_CONTRACT ? 7 : 8) + '" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -331,9 +370,11 @@
           var stt = (data.current_page - 1) * pageSize + i + 1;
           var actions = buildActions(item.nid);
           var khName = '';
-          if (item.khach_hang) {
-            khName = item.khach_hang.ten || '';
-            if (item.khach_hang.ma_kh) khName += ' (' + item.khach_hang.ma_kh + ')';
+          var person = item[PERSON_KEY];
+          if (person) {
+            khName = person.ten || person.name || '';
+            var personCode = IS_EMPLOYEE_CONTRACT ? person.ma_nhan_vien : person.ma_kh;
+            if (personCode) khName += ' (' + personCode + ')';
           }
           var nvKdHtml = '';
           if (item.khach_hang && item.khach_hang.nv_kinh_doanh) {
@@ -350,7 +391,7 @@
             '<td>' + (item.ngay_hop_dong || '') + '</td>' +
             '<td>' + (item.han_hop_dong || '') + '</td>' +
             '<td>' + escapeHtml(khName) + '</td>' +
-            '<td>' + nvKdHtml + '</td>' +
+            (IS_EMPLOYEE_CONTRACT ? '' : '<td>' + nvKdHtml + '</td>') +
             '<td>' + escapeHtml(item.ghi_chu || '') + '</td>' +
             '</tr>';
         }
@@ -359,7 +400,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="8" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="' + (IS_EMPLOYEE_CONTRACT ? 7 : 8) + '" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -444,7 +485,7 @@
     modalShow('hop-dong-modal');
 
     $.ajax({
-      url: '/api/hop-dong/' + id,
+      url: API_BASE + '/' + id,
       type: 'GET',
       dataType: 'json',
       success: function (res) {
@@ -476,7 +517,7 @@
     modalShow('hop-dong-modal');
 
     $.ajax({
-      url: '/api/hop-dong/' + id,
+      url: API_BASE + '/' + id,
       type: 'GET',
       dataType: 'json',
       success: function (res) {
@@ -537,8 +578,10 @@
     if (sel) {
       sel.value = '';
     }
-    document.getElementById('nv-kinh-doanh-section').style.display = 'none';
-    document.getElementById('nv-kinh-doanh-display').innerHTML = '';
+    var nvSection = document.getElementById('nv-kinh-doanh-section');
+    var nvDisplay = document.getElementById('nv-kinh-doanh-display');
+    if (nvSection) nvSection.style.display = 'none';
+    if (nvDisplay) nvDisplay.innerHTML = '';
     setFormMode('create');
 
     // Reset file section
@@ -559,12 +602,14 @@
     document.querySelector('#form-hop-dong input[name="han_hop_dong"]').value = d.han_hop_dong || '';
     document.querySelector('#form-hop-dong input[name="ghi_chu"]').value = d.ghi_chu || '';
 
-    if (d.khach_hang && d.khach_hang.nid) {
+    var person = d[PERSON_KEY];
+    var personId = person && (IS_EMPLOYEE_CONTRACT ? person.uid : person.nid);
+    if (person && personId) {
       var sel = document.querySelector('#select-khach-hang');
       if (sel) {
-        sel.value = d.khach_hang.nid;
+        sel.value = personId;
       }
-      showNvKinhDoanh(d.khach_hang.nid);
+      if (!IS_EMPLOYEE_CONTRACT) showNvKinhDoanh(personId);
     }
 
     initDatePickers();
@@ -719,7 +764,7 @@
         });
 
         $.ajax({
-          url: '/api/hop-dong/' + CURRENT_HOP_DONG_ID + '/file',
+          url: API_BASE + '/' + CURRENT_HOP_DONG_ID + '/file',
           type: 'POST',
           data: payload,
           contentType: 'application/json; charset=utf-8',
@@ -776,7 +821,7 @@
     if (!CURRENT_HOP_DONG_ID) return;
 
     $.ajax({
-      url: '/api/hop-dong/' + CURRENT_HOP_DONG_ID + '/file/' + fileId,
+      url: API_BASE + '/' + CURRENT_HOP_DONG_ID + '/file/' + fileId,
       type: 'DELETE',
       dataType: 'json',
       success: function (res) {
@@ -801,7 +846,7 @@
     var khNid = khSelect ? khSelect.value : '';
     if (!khNid) {
       form.classList.add('was-validated');
-      if (notyf) notyf.error('Vui lòng chọn khách hàng');
+      if (notyf) notyf.error('Vui lòng chọn ' + PERSON_LABEL);
       return;
     }
 
@@ -831,11 +876,11 @@
       so_hop_dong: document.querySelector('#form-hop-dong input[name="so_hop_dong"]').value,
       ngay_hop_dong: document.querySelector('#form-hop-dong input[name="ngay_hop_dong"]').value,
       han_hop_dong: document.querySelector('#form-hop-dong input[name="han_hop_dong"]').value,
-      khach_hang: parseInt(document.querySelector('#select-khach-hang').value) || null,
       ghi_chu: document.querySelector('#form-hop-dong input[name="ghi_chu"]').value
     };
+    apiData[PERSON_KEY] = parseInt(document.querySelector('#select-khach-hang').value) || null;
 
-    var url = nid ? '/api/hop-dong/' + nid : '/api/hop-dong';
+    var url = nid ? API_BASE + '/' + nid : API_BASE;
     var method = nid ? 'PUT' : 'POST';
 
     var btn = document.querySelector('.btn-luu-hop-dong');
@@ -905,7 +950,7 @@
 
   function deleteItem(id) {
     $.ajax({
-      url: '/api/hop-dong/' + id,
+      url: API_BASE + '/' + id,
       type: 'DELETE',
       dataType: 'json',
       success: function (res) {

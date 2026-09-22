@@ -17,11 +17,25 @@ function edusoul_preprocess_page(&$variables)
 function getMainMenuSoft()
 {
     global $user;
+    $brand_logo = base_path() . drupal_get_path('theme', 'edusoul') . '/quan-ly/assets/img/favicon/logo.ico';
+    $current_path = current_path();
+    $active_ke_hoach_tuyen_xa = strpos($current_path, 'ke-hoach-tuyen-xa') === 0;
+    $active_ke_hoach_xep_xe = strpos($current_path, 'ke-hoach-xep-xe') === 0 || $current_path === 'tao-ke-hoach-xep-xe';
+
+    if (preg_match('#^ke-hoach-xep-xe/([0-9]+)#', $current_path, $matches) && db_table_exists('ke_hoach_xep_xe')) {
+        $loai_ke_hoach = db_query("SELECT loai_ke_hoach FROM {ke_hoach_xep_xe} WHERE nid = :nid", array(':nid' => (int) $matches[1]))->fetchField();
+        if ($loai_ke_hoach === 'tuyen_xa') {
+            $active_ke_hoach_tuyen_xa = TRUE;
+            $active_ke_hoach_xep_xe = FALSE;
+        }
+    }
+
     return '<aside id="layout-menu" class="layout-menu menu-vertical menu">
                 <div class="app-brand demo">
                     <a href="/" class="app-brand-link">
           <span class="app-brand-logo demo">
-                <span class="text-primary">
+                <img src="' . check_plain($brand_logo) . '" alt="Tân Trường Khoa" style="width:30px;height:30px;object-fit:contain;display:block;" />
+                <!--
                   <svg width="32" height="22" viewBox="0 0 32 22" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                             fill-rule="evenodd"
@@ -47,8 +61,9 @@ function getMainMenuSoft()
                             fill="currentColor" />
                   </svg>
                 </span>
+              -->
               </span>
-                        <span class="app-brand-text demo menu-text fw-bold ms-3">TTK</span>
+                        <span class="app-brand-text demo menu-text fw-bold ms-3">Tân Trường Khoa</span>
                     </a>
 
                     <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">
@@ -60,7 +75,7 @@ function getMainMenuSoft()
                 <div class="menu-inner-shadow"></div>
 
                 <ul class="menu-inner py-1">
-                    <li class="menu-item">
+                    <li class="menu-item' . (drupal_is_front_page() ? ' active' : '') . '">
                         <a href="/" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-smart-home"></i>
                             <div data-i18n="Tổng quan">Tổng quan</div>
@@ -70,20 +85,14 @@ function getMainMenuSoft()
                     <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="Vận tải">Vận tải</span>
                     </li>
-                    <li class="menu-item">
-                        <a href="/tao-ke-hoach-xep-xe" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-calendar-plus"></i>
-                            <div data-i18n="Tạo kế hoạch">Tạo kế hoạch</div>
-                        </a>
-                    </li>
-                    <li class="menu-item">
+                    <li class="menu-item' . ($active_ke_hoach_xep_xe ? ' active' : '') . '">
                         <a href="/ke-hoach-xep-xe" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-calendar-stats"></i>
-                            <div data-i18n="Kế hoạch xếp xe">Kế hoạch xếp xe</div>
+                            <div data-i18n="Kế hoạch hàng cảng">Kế hoạch hàng cảng</div>
                         </a>
                     </li>
 
-                    ' . ((strpos(current_path(), 'cat-mooc') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
+                    ' . ((strpos(current_path(), 'cat-mooc') === 0 || strpos(current_path(), 'quan-ly-cont') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon icon-base ti tabler-container"></i>
                             <div data-i18n="Quản lý Cont">Quản lý Cont</div>
@@ -97,29 +106,56 @@ function getMainMenuSoft()
                         </ul>
                     </li>
                     
-                    <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
-                    </li>
-                    <li class="menu-item">
-                        <a href="/hop-dong" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-file-text"></i>
-                            <div data-i18n="Hợp đồng">Hợp đồng</div>
+                    <li class="menu-item' . ($active_ke_hoach_tuyen_xa ? ' active' : '') . '">
+                        <a href="/ke-hoach-tuyen-xa" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-route-2"></i>
+                            <div data-i18n="Kế hoạch tuyến xa">Kế hoạch tuyến xa</div>
                         </a>
                     </li>
-
+                    
                      <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="Hệ Thống">Hệ Thống</span>
+                        <span class="menu-header-text" data-i18n="Tài chính">Tài chính</span>
                     </li>
-                    <li class="menu-item">
-                        <a href="/nhan-vien" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-user-cog"></i>
-                            <div data-i18n="Nhân viên">Nhân viên</div>
+                    <li class="menu-item' . ((strpos(current_path(), 'quan-ly-quy') === 0 || strpos(current_path(), 'quan-ly-tai-chinh') === 0) ? ' active' : '') . '">
+                        <a href="/quan-ly-quy" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-cash"></i>
+                            <div data-i18n="Quản lý quỹ">Quản lý quỹ</div>
                         </a>
                     </li>
-                    <li class="menu-item">
-                        <a href="/khach-hang" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-users"></i>
-                            <div data-i18n="Khách hàng">Khách hàng</div>
+                    <li class="menu-item' . ((strpos(current_path(), 'thu-chi') === 0) ? ' active' : '') . '">
+                        <a href="/thu-chi" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-receipt-2"></i>
+                            <div data-i18n="Thu chi">Thu chi</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'phieu-tra-khach-hang') === 0) ? ' active' : '') . '">
+                        <a href="/phieu-tra-khach-hang" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-file-invoice"></i>
+                            <div data-i18n="Phiếu trả KH">Phiếu trả KH</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'cong-no-khach-hang') === 0) ? ' active' : '') . '">
+                        <a href="/cong-no-khach-hang" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-report-money"></i>
+                            <div data-i18n="Công nợ KH">Công nợ KH</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'so-chi-phi-van-hanh') === 0 || strpos(current_path(), 'giao-dich-ops') === 0) ? ' active' : '') . '">
+                        <a href="/so-chi-phi-van-hanh" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-wallet"></i>
+                            <div data-i18n="Sổ chi phí vận hành">Sổ chi phí vận hành</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'duyet-de-nghi-chi-phi') === 0 || strpos(current_path(), 'duyet-de-nghi-ung-ops') === 0) ? ' active' : '') . '">
+                        <a href="/duyet-de-nghi-chi-phi" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-clipboard-check"></i>
+                            <div data-i18n="Duyệt đề nghị chi phí">Duyệt đề nghị chi phí</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'luong-lai-xe') === 0) ? ' active' : '') . '">
+                        <a href="/luong-lai-xe" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-report-money"></i>
+                            <div data-i18n="Lương lái xe">Lương lái xe</div>
                         </a>
                     </li>
 
@@ -127,19 +163,20 @@ function getMainMenuSoft()
                         <span class="menu-header-text" data-i18n="DANH MỤC">DANH MỤC</span>
                     </li>
 
-                    <li class="menu-item">
-                        <a href="/danh-muc" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-category"></i>
-                            <div data-i18n="Danh mục">Danh mục</div>
+                    <li class="menu-item' . ((strpos(current_path(), 'nhan-vien') === 0) ? ' active' : '') . '">
+                        <a href="/nhan-vien" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-user-cog"></i>
+                            <div data-i18n="Nhân viên">Nhân viên</div>
                         </a>
                     </li>
-                    <li class="menu-item' . ((current_path() === 'danh-muc-dia-diem' || current_path() === 'danh-muc-bai') ? ' active' : '') . '">
-                        <a href="/danh-muc-dia-diem" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-building-warehouse"></i>
-                            <div data-i18n="Danh mục địa điểm">Danh mục địa điểm</div>
+                    <li class="menu-item' . ((strpos(current_path(), 'khach-hang') === 0) ? ' active' : '') . '">
+                        <a href="/khach-hang" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-users"></i>
+                            <div data-i18n="Khách hàng">Khách hàng</div>
                         </a>
                     </li>
-                    ' . ((strpos(current_path(), 'phuong-tien') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
+
+                    ' . ((strpos(current_path(), 'phuong-tien') === 0 || strpos(current_path(), 'lich-su-sua-xe') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon icon-base ti tabler-truck"></i>
                             <div data-i18n="Phương tiện">Phương tiện</div>
@@ -170,12 +207,43 @@ function getMainMenuSoft()
                                     <div data-i18n="Phù hiệu">Phù hiệu</div>
                                 </a>
                             </li>
+                            <li class="menu-item' . ((current_path() === 'phuong-tien/giay-phep-lien-van') ? ' active' : '') . '">
+                                <a href="/phuong-tien/giay-phep-lien-van" class="menu-link">
+                                    <div data-i18n="Giấy phép liên vận">Giấy phép liên vận</div>
+                                </a>
+                            </li>
+                            <li class="menu-item' . ((strpos(current_path(), 'lich-su-sua-xe') === 0) ? ' active' : '') . '">
+                                <a href="/lich-su-sua-xe" class="menu-link">
+                                    <div data-i18n="Lịch sử sửa xe">Lịch sử sửa xe</div>
+                                </a>
+                            </li>
                         </ul>
                     </li>
-                    <li class="menu-item">
+                    <li class="menu-item' . ((strpos(current_path(), 'lai-xe') === 0) ? ' active' : '') . '">
                         <a href="/lai-xe" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-users"></i>
                             <div data-i18n="Lái xe">Lái xe</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'danh-muc') === 0) ? ' active' : '') . '">
+                        <a href="/danh-muc" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-category"></i>
+                            <div data-i18n="Danh mục">Danh mục</div>
+                        </a>
+                    </li>
+                    <li class="menu-header small">
+                        <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
+                    </li>
+                    <li class="menu-item' . ((current_path() === 'hop-dong') ? ' active' : '') . '">
+                        <a href="/hop-dong" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-file-text"></i>
+                            <div data-i18n="Hợp đồng khách hàng">Hợp đồng khách hàng</div>
+                        </a>
+                    </li>
+                    <li class="menu-item' . ((current_path() === 'hop-dong-nhan-vien') ? ' active' : '') . '">
+                        <a href="/hop-dong-nhan-vien" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-file-description"></i>
+                            <div data-i18n="Hợp đồng nhân viên">Hợp đồng nhân viên</div>
                         </a>
                     </li>
                     <!-- Hệ thống -->
@@ -235,15 +303,11 @@ function edusoul_preprocess_html(&$variables)
     // --- XÓA TẤT CẢ CSS MẶC ĐỊNH ---
     $css = drupal_add_css();
     $preserved_module_css = array();
-    foreach ($css as $media => $stylesheets) {
-        foreach ($stylesheets as $path => $info) {
-            // Theme reset CSS ben duoi se lam mat file assets/css cua module,
-            // nen can giu lai de add lai sau khi load vendor/theme CSS.
-            if (preg_match('#(^|.*/)modules/[^/]+/assets/css/.*\.css$#', $path)) {
-                $preserved_module_css[$path] = $info;
-            }
-            // Xóa tất cả các CSS
-            unset($css[$media][$path]);
+    foreach ($css as $path => $info) {
+        // Theme reset CSS ben duoi se lam mat file assets/css cua module,
+        // nen can giu lai de add lai sau khi load vendor/theme CSS.
+        if (preg_match('#(^|.*/)modules/[^/]+/assets/css/[^?]+\.css(\?.*)?$#', $path)) {
+            $preserved_module_css[$path] = $info;
         }
     }
     drupal_static_reset('drupal_add_css'); // Reset CSS
@@ -274,6 +338,7 @@ function edusoul_preprocess_html(&$variables)
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/notyf/notyf.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/flatpickr/flatpickr.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    drupal_add_css(path_to_theme() . '/quan-ly/assets/css/date-picker.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 2));
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/bootstrap-daterangepicker/bootstrap-daterangepicker.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/jquery-timepicker/jquery-timepicker.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/libs/pickr/pickr-themes.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
@@ -287,13 +352,30 @@ function edusoul_preprocess_html(&$variables)
     if ($current_path == 'user/login') {
         drupal_add_css(path_to_theme() . '/quan-ly/assets/vendor/css/pages/page-auth.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
     }
-    if ($current_path == 'luong-lai-xe') {
-      drupal_add_css(drupal_get_path('module', 'bao_cao_luong_lai_xe') . '/css/bao_cao_luong_lai_xe.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 1));
-//      drupal_add_js(drupal_get_path('module', 'bao_cao_luong_lai_xe') . '/quan-ly/assets/vendor/libs/jquery/jquery.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
-    }
 
     if ($current_path == 'tao-ke-hoach-xep-xe' || strpos($current_path, 'ke-hoach-xep-xe/') === 0 || $current_path == 'ke-hoach-xep-xe') {
         drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 10));
+    }
+    elseif (user_is_logged_in()) {
+        drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css', array('group' => CSS_THEME, 'every_page' => FALSE, 'weight' => 10));
+        drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 12));
+        if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
+            danh_muc_add_modal_assets();
+        }
+        if (module_exists('khach_hang') && function_exists('khach_hang_add_modal_assets')) {
+            khach_hang_add_modal_assets();
+        }
+        drupal_add_js(array('ke_hoach_xep_xe' => array(
+            'mode' => 'create',
+            'data' => NULL,
+            'statuses' => function_exists('_ke_hoach_xep_xe_statuses') ? _ke_hoach_xep_xe_statuses() : array(),
+            'khach_hang_quick_create' => function_exists('_ke_hoach_xep_xe_khach_hang_quick_create_settings') ? _ke_hoach_xep_xe_khach_hang_quick_create_settings() : array(),
+            'permissions' => array(
+                'view' => user_access('ke_hoach_xep_xe_view'),
+                'create' => user_access('ke_hoach_xep_xe_create'),
+                'delete' => user_access('ke_hoach_xep_xe_delete'),
+            ),
+        )), 'setting');
     }
 
     foreach ($preserved_module_css as $path => $info) {
@@ -339,6 +421,8 @@ function edusoul_preprocess_html(&$variables)
     drupal_add_js(path_to_theme() . '/quan-ly/assets/vendor/libs/bloodhound/bloodhound.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_js(path_to_theme() . '/quan-ly/assets/vendor/libs/cleave-zen/cleave-zen.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
     drupal_add_js(path_to_theme() . '/quan-ly/assets/js/main.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    drupal_add_js(path_to_theme() . '/quan-ly/assets/js/function-dropdown.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
+    drupal_add_js(path_to_theme() . '/quan-ly/assets/js/admin-menu-shortcuts.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
 
     if ($current_path == 'user/login') {
         drupal_add_js(path_to_theme() . '/quan-ly/assets/js/login.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));

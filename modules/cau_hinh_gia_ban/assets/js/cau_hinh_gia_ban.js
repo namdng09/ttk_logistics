@@ -171,37 +171,6 @@
 
     // KH change handler is now bound inside initKhachHangSelect()
 
-    // Dropdown hover
-    doc.addEventListener('mouseover', function (e) {
-      var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
-      if (dropdown && dropdown.closest('#table-cau-hinh-gia-ban-tbody')) {
-        var menu = dropdown.querySelector('.dropdown-menu');
-        if (menu) {
-          var btn = dropdown.querySelector('button');
-          var rect = btn.getBoundingClientRect();
-          menu.style.position = 'fixed';
-          menu.style.top = rect.top + 'px';
-          menu.style.left = rect.right + 'px';
-          menu.style.display = 'block';
-        }
-      }
-    });
-
-    doc.addEventListener('mouseout', function (e) {
-      var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
-      if (dropdown && dropdown.closest('#table-cau-hinh-gia-ban-tbody')) {
-        if (!dropdown.contains(e.relatedTarget)) {
-          var menu = dropdown.querySelector('.dropdown-menu');
-          if (menu) {
-            menu.style.display = '';
-            menu.style.position = '';
-            menu.style.top = '';
-            menu.style.left = '';
-          }
-        }
-      }
-    });
-
     // Pagination jump
     var jumpInput = doc.getElementById('pagination-jump');
     if (jumpInput) {

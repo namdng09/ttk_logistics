@@ -105,6 +105,12 @@ document.addEventListener('DOMContentLoaded', function (e) {
   // datatbale bar chart
 
   const horizontalBarChartEl = document.querySelector('#horizontalBarChart'),
+    safeChartDataDaiLy =
+      typeof window.chartDataDaiLy !== 'undefined' &&
+      window.chartDataDaiLy &&
+      Array.isArray(window.chartDataDaiLy.data)
+        ? window.chartDataDaiLy
+        : { data: [] },
     horizontalBarChartConfig = {
       chart: {
         height: 300,
@@ -171,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function (e) {
       ],
 
       xaxis: {
-        categories: chartDataDaiLy.data,
+        categories: safeChartDataDaiLy.data,
         axisBorder: {
           show: false
         },
@@ -190,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function (e) {
         }
       },
       yaxis: {
-        max: Math.max(...chartDataDaiLy.data) + 1,
+        max: safeChartDataDaiLy.data.length ? Math.max.apply(null, safeChartDataDaiLy.data) + 1 : 1,
         labels: {
           style: {
             colors: [labelColor],
@@ -215,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function (e) {
         show: false
       }
     };
-  if (typeof horizontalBarChartEl !== undefined && horizontalBarChartEl !== null) {
+  if (typeof horizontalBarChartEl !== undefined && horizontalBarChartEl !== null && safeChartDataDaiLy.data.length) {
     const horizontalBarChart = new ApexCharts(horizontalBarChartEl, horizontalBarChartConfig);
     horizontalBarChart.render();
   }

@@ -165,6 +165,7 @@ function _nhan_vien_require_auth() {
 function _nhan_vien_load_row($uid) {
   $uid = (int) $uid;
   if (!$uid) return NULL;
+  if (_nhan_vien_is_driver_account($uid)) return NULL;
 
   $u = db_query("SELECT * FROM {users} WHERE uid = :uid", array(':uid' => $uid))->fetch();
   if (!$u || $u->uid == 0) return NULL;
@@ -199,6 +200,7 @@ function _nhan_vien_load_row($uid) {
     'ten' => isset($u->ten) ? $u->ten : '',
     'dob' => isset($u->dob) ? $u->dob : '',
     'cccd' => isset($u->cccd) ? $u->cccd : '',
+    'sdt' => isset($u->sdt) ? $u->sdt : '',
     'dia_chi' => isset($u->dia_chi) ? $u->dia_chi : '',
     'so_tk_ngan_hang' => isset($u->so_tk_ngan_hang) ? $u->so_tk_ngan_hang : '',
     'ngan_hang' => isset($u->ngan_hang) ? $u->ngan_hang : '',
@@ -206,6 +208,50 @@ function _nhan_vien_load_row($uid) {
     'chuc_vu' => !empty($u->chuc_vu) ? array('nid' => (int) $u->chuc_vu, 'ten' => $chuc_vu_ten) : NULL,
     'role' => $rid ? array('nid' => (int) $rid, 'ten' => $role_name) : NULL,
   );
+}
+
+function _nhan_vien_ensure_sdt_field() {
+  if (db_table_exists('users') && !db_field_exists('users', 'sdt')) {
+    db_add_field('users', 'sdt', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  }
+}
+
+function _nhan_vien_normalize_sdt($value) {
+  return preg_replace('/\D+/', '', trim((string) $value));
+}
+
+function _nhan_vien_check_unique_number($field, $value, $length, $exclude_uid = NULL) {
+  $value = $field === 'sdt' ? _nhan_vien_normalize_sdt($value) : trim((string) $value);
+  if ($value === '') {
+    return $field === 'sdt' ? NULL : _nhan_vien_fail('CCCD bắt buộc');
+  }
+  if (!preg_match('/^\\d{' . $length . '}$/', $value)) {
+    return _nhan_vien_fail($field === 'sdt' ? 'SĐT phải gồm đúng 10 chữ số' : 'CCCD phải gồm đúng 12 chữ số');
+  }
+  $q = db_select('users', 'u')->fields('u', array('uid', $field));
+  if ($exclude_uid !== NULL) $q->condition('u.uid', $exclude_uid, '<>');
+  foreach ($q->execute() as $row) {
+    $current = $field === 'sdt' ? _nhan_vien_normalize_sdt($row->sdt) : trim((string) $row->cccd);
+    if ($current !== '' && $current === $value) {
+      return _nhan_vien_fail(($field === 'sdt' ? 'SĐT' : 'CCCD') . ' "' . $value . '" đã tồn tại');
+    }
+  }
+  return NULL;
+}
+
+/** Driver accounts are owned exclusively by the Lái xe screen. */
+function _nhan_vien_is_driver_account($uid) {
+  $uid = (int) $uid;
+  if (!$uid) return FALSE;
+  $role = db_query("SELECT 1 FROM {users_roles} WHERE uid = :uid AND rid = :rid", array(
+    ':uid' => $uid,
+    ':rid' => 7,
+  ))->fetchField();
+  if ($role) return TRUE;
+  if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
+    return (bool) db_query("SELECT 1 FROM {lai_xe} WHERE uid_nguoi_dung = :uid", array(':uid' => $uid))->fetchField();
+  }
+  return FALSE;
 }
 
 /**
@@ -248,6 +294,27 @@ function _nhan_vien_check_unique_username($value, $exclude_uid = NULL) {
   return NULL;
 }
 
+/**
+ * Check unique email (active users only). Empty email is allowed.
+ */
+function _nhan_vien_check_unique_mail($value, $exclude_uid = NULL) {
+  $value = trim((string) $value);
+  if ($value === '') return NULL;
+
+  $query = db_select('users', 'u');
+  $query->fields('u', array('uid', 'status'));
+  $query->condition('u.mail', $value);
+  if ($exclude_uid !== NULL) {
+    $query->condition('u.uid', $exclude_uid, '<>');
+  }
+  $query->range(0, 1);
+  $exists = $query->execute()->fetchObject();
+  if ($exists && $exists->status) {
+    return _nhan_vien_fail('Email "' . $value . '" đã tồn tại');
+  }
+  return NULL;
+}
+
 /*******************************************************************************
  * REST: ROLES — GET /api/roles
  ******************************************************************************/
@@ -263,12 +330,17 @@ function nhan_vien_rest_roles() {
     return _nhan_vien_unauthorized('Bạn không có quyền xem danh sách role');
   }
 
-  $rows = db_query("SELECT rid, name FROM {role} WHERE rid > :auth_rid ORDER BY name ASC", array(
+  $rows = db_query("SELECT rid, name FROM {role} WHERE rid > :auth_rid AND rid <> :driver_rid ORDER BY name ASC", array(
     ':auth_rid' => DRUPAL_AUTHENTICATED_RID,
+    ':driver_rid' => 7,
   ))->fetchAll();
 
   $items = array();
   foreach ($rows as $r) {
+    $role_label = trim((string) $r->name);
+    if ((int) $r->rid === 7 || drupal_strtolower($role_label) === drupal_strtolower('Lái xe') || drupal_strtolower($role_label) === 'lai xe') {
+      continue;
+    }
     $items[] = array('rid' => (int) $r->rid, 'name' => $r->name);
   }
 
@@ -303,6 +375,14 @@ function _nhan_vien_rest_list() {
   $query = db_select('users', 'u');
   $query->fields('u');
   $query->condition('u.uid', 0, '!=');
+  _nhan_vien_ensure_sdt_field();
+  // Driver accounts are managed only from the Lái xe screen, never as staff.
+  $query->leftJoin('users_roles', 'ur_driver', 'ur_driver.uid = u.uid AND ur_driver.rid = :driver_rid', array(':driver_rid' => 7));
+  $query->isNull('ur_driver.uid');
+  if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
+    $query->leftJoin('lai_xe', 'lx_driver', 'lx_driver.uid_nguoi_dung = u.uid');
+    $query->isNull('lx_driver.nid');
+  }
 
   if (!empty($_GET['keyword'])) {
     $like = '%' . db_like($_GET['keyword']) . '%';
@@ -310,6 +390,7 @@ function _nhan_vien_rest_list() {
       ->condition('u.name', $like, 'LIKE')
       ->condition('u.mail', $like, 'LIKE')
       ->condition('u.ma_nhan_vien', $like, 'LIKE')
+      ->condition('u.sdt', $like, 'LIKE')
       ->condition('u.ten', $like, 'LIKE');
     $query->condition($or);
   }
@@ -364,6 +445,7 @@ function _nhan_vien_rest_list() {
       'ten' => isset($u->ten) ? $u->ten : '',
       'dob' => isset($u->dob) ? $u->dob : '',
       'cccd' => isset($u->cccd) ? $u->cccd : '',
+      'sdt' => isset($u->sdt) ? $u->sdt : '',
       'dia_chi' => isset($u->dia_chi) ? $u->dia_chi : '',
       'so_tk_ngan_hang' => isset($u->so_tk_ngan_hang) ? $u->so_tk_ngan_hang : '',
       'ngan_hang' => isset($u->ngan_hang) ? $u->ngan_hang : '',
@@ -391,10 +473,17 @@ function _nhan_vien_rest_create() {
   }
 
   $input = _nhan_vien_input();
+  _nhan_vien_ensure_sdt_field();
+  $input['sdt'] = _nhan_vien_normalize_sdt(isset($input['sdt']) ? $input['sdt'] : '');
+  $input['mail'] = trim(isset($input['mail']) ? $input['mail'] : '');
 
   if (empty($input['ten'])) {
     return _nhan_vien_fail('Họ tên bắt buộc');
   }
+  $dupSdt = _nhan_vien_check_unique_number('sdt', isset($input['sdt']) ? $input['sdt'] : '', 10);
+  if ($dupSdt) return $dupSdt;
+  $dupCccd = _nhan_vien_check_unique_number('cccd', isset($input['cccd']) ? $input['cccd'] : '', 12);
+  if ($dupCccd) return $dupCccd;
   if (empty($input['username'])) {
     return _nhan_vien_fail('Username bắt buộc');
   }
@@ -404,6 +493,8 @@ function _nhan_vien_rest_create() {
   if (!empty($input['mail']) && !valid_email_address($input['mail'])) {
     return _nhan_vien_fail('Email không hợp lệ');
   }
+  $dupMail = _nhan_vien_check_unique_mail($input['mail']);
+  if ($dupMail) return $dupMail;
 
   $dupMa = _nhan_vien_check_unique_ma(isset($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : '');
   if ($dupMa) return $dupMa;
@@ -444,6 +535,7 @@ function _nhan_vien_rest_create() {
       'ma_nhan_vien' => !empty($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : NULL,
       'dob' => !empty($input['dob']) ? $input['dob'] : NULL,
       'cccd' => !empty($input['cccd']) ? $input['cccd'] : NULL,
+      'sdt' => !empty($input['sdt']) ? $input['sdt'] : NULL,
       'dia_chi' => !empty($input['dia_chi']) ? $input['dia_chi'] : NULL,
       'so_tk_ngan_hang' => !empty($input['so_tk_ngan_hang']) ? $input['so_tk_ngan_hang'] : NULL,
       'ngan_hang' => !empty($input['ngan_hang']) ? $input['ngan_hang'] : NULL,
@@ -513,21 +605,30 @@ function _nhan_vien_rest_update($id) {
   }
 
   $existing = user_load($id);
-  if (!$existing || $existing->uid == 0) {
+  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id)) {
     return _nhan_vien_not_found('Nhân viên không tồn tại');
   }
 
   $input = _nhan_vien_input();
+  _nhan_vien_ensure_sdt_field();
+  $input['sdt'] = _nhan_vien_normalize_sdt(isset($input['sdt']) ? $input['sdt'] : '');
+  $input['mail'] = trim(isset($input['mail']) ? $input['mail'] : '');
 
   if (empty($input['ten'])) {
     return _nhan_vien_fail('Họ tên bắt buộc');
   }
+  $dupSdt = _nhan_vien_check_unique_number('sdt', isset($input['sdt']) ? $input['sdt'] : '', 10, $id);
+  if ($dupSdt) return $dupSdt;
+  $dupCccd = _nhan_vien_check_unique_number('cccd', isset($input['cccd']) ? $input['cccd'] : '', 12, $id);
+  if ($dupCccd) return $dupCccd;
   if (empty($input['username'])) {
     return _nhan_vien_fail('Username bắt buộc');
   }
   if (!empty($input['mail']) && !valid_email_address($input['mail'])) {
     return _nhan_vien_fail('Email không hợp lệ');
   }
+  $dupMail = _nhan_vien_check_unique_mail($input['mail'], $id);
+  if ($dupMail) return $dupMail;
 
   $dupUser = _nhan_vien_check_unique_username($input['username'], $id);
   if ($dupUser) return $dupUser;
@@ -575,6 +676,7 @@ function _nhan_vien_rest_update($id) {
       'ma_nhan_vien' => !empty($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : NULL,
       'dob' => !empty($input['dob']) ? $input['dob'] : NULL,
       'cccd' => !empty($input['cccd']) ? $input['cccd'] : NULL,
+      'sdt' => !empty($input['sdt']) ? $input['sdt'] : NULL,
       'dia_chi' => !empty($input['dia_chi']) ? $input['dia_chi'] : NULL,
       'so_tk_ngan_hang' => !empty($input['so_tk_ngan_hang']) ? $input['so_tk_ngan_hang'] : NULL,
       'ngan_hang' => !empty($input['ngan_hang']) ? $input['ngan_hang'] : NULL,
@@ -606,7 +708,7 @@ function _nhan_vien_rest_delete($id) {
   }
 
   $existing = user_load($id);
-  if (!$existing || $existing->uid == 0) {
+  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id)) {
     return _nhan_vien_not_found('Nhân viên không tồn tại');
   }
 
@@ -638,7 +740,12 @@ function _nhan_vien_rest_delete($id) {
 
 function nhan_vien_page_list() {
   drupal_add_css(drupal_get_path('module', 'nhan_vien') . '/assets/css/nhan_vien.css');
-  drupal_add_js(drupal_get_path('module', 'nhan_vien') . '/assets/js/nhan_vien.js');
+  // Bump the asset version whenever role filtering changes; otherwise an old
+  // aggregated/browser-cached JS can keep showing role Lái xe.
+  drupal_add_js(drupal_get_path('module', 'nhan_vien') . '/assets/js/nhan_vien.js', array(
+    'group' => JS_THEME,
+    'version' => 2026090904,
+  ));
 
   drupal_add_js(array('nhan_vien' => array(
     'permissions' => array(

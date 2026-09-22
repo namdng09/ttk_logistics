@@ -205,14 +205,28 @@ function _ptlx_rest_create() {
   if ($nid_pt <= 0) {
     return _ptlx_fail('Phương tiện là bắt buộc');
   }
-  if ($nid_lx <= 0) {
-    return _ptlx_fail('Lái xe là bắt buộc');
-  }
-
   // Validate exists
   $pt_exists = db_query("SELECT nid FROM {phuong_tien} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid_pt))->fetchField();
   if (!$pt_exists) {
     return _ptlx_fail('Phương tiện không tồn tại hoặc đã bị xoá');
+  }
+
+  // Cho phép gửi lái xe rỗng để bỏ gán lái xe hiện tại.
+  if ($nid_lx <= 0) {
+    $transaction = db_transaction();
+    try {
+      _ptlx_deactivate_old($nid_pt);
+      return _ptlx_success(array(
+        'nid_phuong_tien' => $nid_pt,
+        'nid_lai_xe' => 0,
+        'cleared' => TRUE,
+      ));
+    }
+    catch (Exception $e) {
+      $transaction->rollback();
+      watchdog('phuong_tien_lai_xe', 'Lỗi bỏ gán lái xe: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+      return _ptlx_error('Lỗi hệ thống khi bỏ gán lái xe');
+    }
   }
 
   $lx_exists = db_query("SELECT nid FROM {lai_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid_lx))->fetchField();

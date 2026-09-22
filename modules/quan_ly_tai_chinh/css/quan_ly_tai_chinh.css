@@ -1,0 +1,278 @@
+.qltc-page {
+  font-size: 14px;
+}
+
+.qltc-card {
+  border: 0;
+  box-shadow: 0 .125rem .375rem rgba(67, 89, 113, .12);
+}
+
+.qltc-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.qltc-title-row h4 {
+  margin: 0;
+  font-weight: 700;
+}
+
+.qltc-toolbar,
+.qltc-actions {
+  display: flex;
+  gap: .75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.qltc-quy-title-row {
+  padding-bottom: .25rem;
+}
+
+.qltc-filter {
+  margin-bottom: 1rem;
+}
+
+.qltc-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: .75rem;
+}
+
+.qltc-filter-row > div {
+  min-width: 145px;
+}
+
+.qltc-filter-row label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: .25rem;
+}
+
+.qltc-table-wrap {
+  margin-top: .25rem;
+}
+
+.qltc-table tbody td {
+  vertical-align: middle;
+}
+
+.qltc-muted {
+  color: #64748b;
+  font-size: 12px;
+  margin-top: .125rem;
+}
+
+.qltc-table-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .55rem;
+  white-space: nowrap;
+}
+
+.qltc-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  line-height: 1;
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.qltc-action-icon:hover {
+  opacity: .78;
+  transform: translateY(-1px);
+  background: transparent !important;
+}
+
+.qltc-action-icon i {
+  font-size: 1.1rem;
+}
+
+.qltc-action-edit {
+  color: #0d6efd !important;
+}
+
+.qltc-action-delete {
+  color: #dc3545 !important;
+}
+
+.qltc-runtime-modal {
+  z-index: 1095;
+}
+
+.qltc-runtime-modal .modal-header {
+  background: transparent;
+  border-bottom: 1px solid #edf2f7;
+  padding: 1rem 1.25rem;
+}
+
+.qltc-runtime-modal .modal-title {
+  font-weight: 700;
+}
+
+.qltc-runtime-modal .modal-body {
+  background: #fff;
+  padding: 1.25rem;
+}
+
+.qltc-quy-form .form-label {
+  margin-bottom: .35rem;
+}
+
+.qltc-quy-form .form-control,
+.qltc-quy-form .form-select {
+  min-height: calc(1.5em + .5rem + 2px);
+}
+
+.qltc-quy-field-row > [class*="col-"] > .row,
+.qltc-quy-note-row > [class*="col-"] > .row {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.qltc-modal-actions {
+  border-top: 0;
+}
+
+.qltc-form-alert.alert {
+  padding: .65rem .85rem;
+  margin-bottom: 0;
+}
+
+.qltc-btn-save-quy.is-loading {
+  pointer-events: none;
+}
+
+.qltc-form-disabled {
+  opacity: .85;
+}
+
+.qltc-loading-state,
+.qltc-region-loading {
+  position: relative;
+}
+
+.qltc-region-loading {
+  min-height: 80px;
+}
+
+.qltc-region-loading::after {
+  content: 'Đang tải...';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, .72);
+  color: #0d6efd;
+  font-weight: 700;
+  z-index: 5;
+}
+
+.text-end {
+  text-align: right;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-success {
+  color: #16a34a !important;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+}
+
+.fw-semibold {
+  font-weight: 600 !important;
+}
+
+@media (max-width: 768px) {
+  .qltc-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .qltc-toolbar,
+  .qltc-actions {
+    width: 100%;
+  }
+
+  .qltc-toolbar .btn,
+  .qltc-actions .btn {
+    flex: 1 1 auto;
+  }
+
+  .qltc-filter-row > div {
+    width: 100%;
+  }
+}
+
+.qltc-action-adjust {
+  color: #f59e0b !important;
+}
+
+
+.qltc-adjust-diff {
+  font-weight: 700;
+}
+
+.qltc-btn-save-adjust.is-loading {
+  pointer-events: none;
+}
+
+
+.qltc-action-view {
+  color: #0ea5e9 !important;
+}
+
+.qltc-quy-detail .card.border {
+  border-color: #e6edf5 !important;
+}
+
+.qltc-quy-history-table td {
+  white-space: normal;
+}
+
+.qltc-ledger-detail-row > td {
+  background: #f8fafc;
+  padding: 1rem;
+}
+
+.qltc-ledger-inline-detail {
+  border: 1px solid #e6edf5;
+  border-radius: 6px;
+  background: #fff;
+  padding: 1rem;
+}
+
+.qltc-ledger-inline-detail .tc-detail-view .card.border {
+  border-color: #e6edf5 !important;
+}
+
+.flatpickr-calendar {
+  z-index: 99999 !important;
+}
+
+#qltc-pagination-wrap .pagination {
+  flex-wrap: wrap;
+  row-gap: .25rem;
+}
+
+#qltc-pagination-wrap .page-link {
+  cursor: pointer;
+}

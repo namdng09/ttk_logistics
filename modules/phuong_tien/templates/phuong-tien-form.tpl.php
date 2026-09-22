@@ -17,7 +17,7 @@
         <input type="text" name="loai_phuong_tien" class="form-control">
       </div>
       <div class="col-md-4">
-        <label class="form-label">Hãng xe</label>
+        <label class="form-label">Nhãn hiệu</label>
         <input type="text" name="hang_xe" class="form-control">
       </div>
       <div class="col-md-4">

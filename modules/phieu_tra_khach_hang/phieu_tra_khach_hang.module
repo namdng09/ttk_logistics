@@ -1,0 +1,687 @@
+<?php
+
+/**
+ * @file
+ * Phiếu trả khách hàng.
+ */
+
+function phieu_tra_khach_hang_permission() {
+  return array(
+    'phieu_tra_khach_hang_view' => array('title' => t('Xem phiếu trả khách hàng')),
+    'phieu_tra_khach_hang_create' => array('title' => t('Tạo phiếu trả khách hàng')),
+    'phieu_tra_khach_hang_approve' => array('title' => t('Duyệt phiếu trả khách hàng')),
+  );
+}
+
+function phieu_tra_khach_hang_menu() {
+  $items = array();
+
+  $items['api/phieu-tra-khach-hang'] = array(
+    'page callback' => 'phieu_tra_khach_hang_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/phieu-tra-khach-hang/candidates'] = array(
+    'page callback' => 'phieu_tra_khach_hang_candidates_api',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/phieu-tra-khach-hang/%'] = array(
+    'page callback' => 'phieu_tra_khach_hang_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['phieu-tra-khach-hang'] = array(
+    'title' => 'Phiếu trả khách hàng',
+    'page callback' => 'phieu_tra_khach_hang_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['phieu-tra-khach-hang/tai/%'] = array(
+    'title' => 'Tải phiếu trả khách hàng',
+    'page callback' => 'phieu_tra_khach_hang_download',
+    'page arguments' => array(2),
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+function phieu_tra_khach_hang_theme() {
+  $path = drupal_get_path('module', 'phieu_tra_khach_hang') . '/templates';
+  return array(
+    'phieu_tra_khach_hang_list_page' => array(
+      'template' => 'phieu-tra-khach-hang-list',
+      'path' => $path,
+    ),
+  );
+}
+
+function phieu_tra_khach_hang_page_list() {
+  $module_path = drupal_get_path('module', 'phieu_tra_khach_hang');
+  $css_path = $module_path . '/assets/css/phieu_tra_khach_hang.css';
+  $js_path = $module_path . '/assets/js/phieu_tra_khach_hang.js';
+  $css_version = file_exists($css_path) ? filemtime($css_path) . '-' . filesize($css_path) : REQUEST_TIME;
+  $js_version = file_exists($js_path) ? filemtime($js_path) . '-' . filesize($js_path) : REQUEST_TIME;
+
+  drupal_add_css($css_path, array('type' => 'file', 'group' => CSS_THEME, 'preprocess' => FALSE, 'version' => $css_version));
+  drupal_add_js($js_path, array('type' => 'file', 'group' => JS_THEME, 'weight' => 4, 'preprocess' => FALSE, 'version' => $js_version));
+  drupal_add_js(array('phieu_tra_khach_hang' => array(
+    'permissions' => array(
+      'view' => user_access('phieu_tra_khach_hang_view'),
+      'create' => user_access('phieu_tra_khach_hang_create'),
+      'approve' => user_access('phieu_tra_khach_hang_approve'),
+    ),
+  )), 'setting');
+  return theme('phieu_tra_khach_hang_list_page');
+}
+
+function _ptkh_input() {
+  $data = json_decode(file_get_contents('php://input'), TRUE);
+  return is_array($data) ? $data : array();
+}
+
+function _ptkh_success($data = NULL) {
+  $res = array('status' => 'success');
+  if ($data !== NULL) $res['data'] = $data;
+  return $res;
+}
+
+function _ptkh_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _ptkh_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _ptkh_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _ptkh_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function _ptkh_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+function _ptkh_now() {
+  return date('Y-m-d H:i:s');
+}
+
+function _ptkh_json_encode($data) {
+  $options = defined('JSON_UNESCAPED_UNICODE') ? JSON_UNESCAPED_UNICODE : 0;
+  return !empty($data) ? json_encode($data, $options) : '';
+}
+
+function _ptkh_json_decode($value) {
+  $data = json_decode((string) $value, TRUE);
+  return is_array($data) ? $data : array();
+}
+
+function _ptkh_money($value) {
+  if (is_numeric($value)) return (int) round($value);
+  $value = preg_replace('/[^\d-]/', '', (string) $value);
+  return $value === '' || $value === '-' ? 0 : (int) $value;
+}
+
+function _ptkh_date_to_db($value) {
+  $value = trim((string) $value);
+  if ($value === '') return '';
+  if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) return $value;
+  if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $value, $m)) {
+    return sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]);
+  }
+  $ts = strtotime($value);
+  return $ts ? date('Y-m-d', $ts) : '';
+}
+
+function _ptkh_date_display($value) {
+  $value = trim((string) $value);
+  if ($value === '') return '';
+  $ts = strtotime($value);
+  return $ts ? date('d/m/Y', $ts) : $value;
+}
+
+function _ptkh_month_normalize($value) {
+  $value = preg_replace('/[^0-9]/', '', (string) $value);
+  if (strlen($value) === 6) return $value;
+  return '';
+}
+
+function _ptkh_customer_name($nid) {
+  $nid = (int) $nid;
+  if (!$nid) return '';
+  if (db_table_exists('khach_hang')) {
+    $name = db_select('khach_hang', 'kh')->fields('kh', array('ten'))->condition('kh.nid', $nid)->range(0, 1)->execute()->fetchField();
+    if ($name !== FALSE && $name !== '') return (string) $name;
+  }
+  $node = node_load($nid);
+  if (!$node || !is_object($node)) return '#' . $nid;
+  foreach (array('field_ho_ten', 'field_ten_khach_hang', 'field_ten_cong_ty') as $field) {
+    if (!empty($node->{$field}[LANGUAGE_NONE][0]['value'])) {
+      return (string) $node->{$field}[LANGUAGE_NONE][0]['value'];
+    }
+  }
+  return !empty($node->title) ? $node->title : ('#' . $nid);
+}
+
+function _ptkh_customer_code($nid) {
+  $nid = (int) $nid;
+  $code = '';
+  if ($nid && db_table_exists('khach_hang')) {
+    $code = db_select('khach_hang', 'kh')->fields('kh', array('ma_kh'))->condition('kh.nid', $nid)->range(0, 1)->execute()->fetchField();
+  }
+  $code = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $code));
+  return $code !== '' ? $code : ('KH' . $nid);
+}
+
+function _ptkh_user_name($uid) {
+  $uid = (int) $uid;
+  if (!$uid) return '-';
+  $name = db_select('users', 'u')->fields('u', array('name'))->condition('u.uid', $uid)->range(0, 1)->execute()->fetchField();
+  return $name !== FALSE && $name !== '' ? (string) $name : ('UID ' . $uid);
+}
+
+function _ptkh_customer_info($nid) {
+  $nid = (int) $nid;
+  $info = array('nid' => $nid, 'ma_kh' => '', 'ten' => '');
+  if (!$nid) return $info;
+  if (db_table_exists('khach_hang')) {
+    $row = db_select('khach_hang', 'kh')->fields('kh', array('nid', 'ma_kh', 'ten'))->condition('kh.nid', $nid)->range(0, 1)->execute()->fetchAssoc();
+    if ($row) {
+      return array('nid' => (int) $row['nid'], 'ma_kh' => (string) $row['ma_kh'], 'ten' => (string) $row['ten']);
+    }
+  }
+  $info['ten'] = _ptkh_customer_name($nid);
+  return $info;
+}
+
+function _ptkh_user_info($uid) {
+  $uid = (int) $uid;
+  return array('uid' => $uid, 'name' => $uid ? _ptkh_user_name($uid) : '');
+}
+
+function _ptkh_status_label($status) {
+  $labels = array(
+    'chua_duyet' => 'Chờ duyệt',
+    'da_duyet' => 'Đã duyệt',
+    'khong_duyet' => 'Không duyệt',
+  );
+  return isset($labels[$status]) ? $labels[$status] : (string) $status;
+}
+
+function _ptkh_status_info($status) {
+  $status = (string) $status;
+  return array('value' => $status, 'label' => _ptkh_status_label($status));
+}
+
+function _ptkh_history_items($json) {
+  $items = _ptkh_json_decode($json);
+  foreach ($items as &$item) {
+    $old = isset($item['old_status']) ? (string) $item['old_status'] : '';
+    $new = isset($item['new_status']) ? (string) $item['new_status'] : '';
+    $item['old_status'] = $old;
+    $item['old_status_label'] = _ptkh_status_label($old);
+    $item['new_status'] = $new;
+    $item['new_status_label'] = _ptkh_status_label($new);
+  }
+  unset($item);
+  return $items;
+}
+
+function _ptkh_plan_label($row) {
+  $parts = array();
+  if (!empty($row->so_bkg)) $parts[] = $row->so_bkg;
+  if (!empty($row->so_cont)) $parts[] = $row->so_cont;
+  if (!empty($row->loai_cont)) $parts[] = $row->loai_cont;
+  return !empty($parts) ? implode(' / ', $parts) : ('Kế hoạch #' . (int) $row->nid);
+}
+
+function _ptkh_route_value($row, $fields) {
+  foreach ((array) $fields as $field) {
+    if (isset($row->{$field}) && trim((string) $row->{$field}) !== '') {
+      return trim((string) $row->{$field});
+    }
+  }
+  return '';
+}
+
+function _ptkh_route_push(&$parts, $value) {
+  $value = trim((string) $value);
+  if ($value === '') return;
+  if (!empty($parts) && end($parts) === $value) return;
+  $parts[] = $value;
+}
+
+function _ptkh_related_plan($row) {
+  $ref_id = !empty($row->ke_hoach_cont_ref_nid) ? (int) $row->ke_hoach_cont_ref_nid : 0;
+  if (!$ref_id || !db_table_exists('ke_hoach_xep_xe')) return NULL;
+  return db_select('ke_hoach_xep_xe', 'k')->fields('k')->condition('k.nid', $ref_id)->condition('k.hoat_dong', 1)->range(0, 1)->execute()->fetch();
+}
+
+function _ptkh_plan_route($row) {
+  $parts = array();
+  $start = _ptkh_route_value($row, array('bai_lay_thuc_te', 'bai_lay_cont', 'diem_di'));
+  $kho = _ptkh_route_value($row, array('dia_chi_kho', 'diem_den'));
+  $end = _ptkh_route_value($row, array('bai_ha_thuc_te', 'bai_ha_cont', 'cang_xuat', 'diem_den'));
+  $hinh_thuc = isset($row->hinh_thuc_van_tai) ? (string) $row->hinh_thuc_van_tai : '';
+
+  if ($hinh_thuc === 'cat_keo_cheo') {
+    $related = _ptkh_related_plan($row);
+    _ptkh_route_push($parts, $start);
+    _ptkh_route_push($parts, $kho);
+    if ($related) {
+      _ptkh_route_push($parts, _ptkh_route_value($related, array('dia_chi_kho', 'diem_den')));
+      _ptkh_route_push($parts, _ptkh_route_value($related, array('bai_ha_thuc_te', 'bai_ha_cont', 'cang_xuat', 'diem_den')));
+    }
+    else {
+      _ptkh_route_push($parts, $end);
+    }
+    return implode(' - ', $parts);
+  }
+
+  _ptkh_route_push($parts, $start);
+  _ptkh_route_push($parts, $kho);
+  _ptkh_route_push($parts, $end);
+  return implode(' - ', $parts);
+}
+
+function _ptkh_generate_code($nid_khach_hang) {
+  $base = _ptkh_customer_code($nid_khach_hang) . date('ymdHi', REQUEST_TIME);
+  $code = $base;
+  $suffix = 1;
+  while (db_select('phieu_tra_khach_hang', 'p')->fields('p', array('nid'))->condition('ma_phieu', $code)->range(0, 1)->execute()->fetchField()) {
+    $suffix++;
+    $code = $base . '-' . $suffix;
+  }
+  return $code;
+}
+
+function _ptkh_cost_totals($plan_ids) {
+  $result = array();
+  $plan_ids = array_values(array_unique(array_filter(array_map('intval', (array) $plan_ids))));
+  if (empty($plan_ids) || !db_table_exists('ke_hoach_chi_phi')) return $result;
+  $rows = db_select('ke_hoach_chi_phi', 'c')
+    ->fields('c', array('nid_ke_hoach', 'loai_chi_phi', 'tong_sau_vat'))
+    ->condition('c.hoat_dong', 1)
+    ->condition('c.nid_ke_hoach', $plan_ids, 'IN')
+    ->condition('c.loai_chi_phi', array('doanh_thu', 'tinh_cho_khach'), 'IN')
+    ->execute();
+  foreach ($rows as $row) {
+    $pid = (int) $row->nid_ke_hoach;
+    if (!isset($result[$pid])) $result[$pid] = array('doanh_thu' => 0, 'tinh_cho_khach' => 0, 'tong_tien' => 0);
+    $amount = (int) $row->tong_sau_vat;
+    if ($row->loai_chi_phi === 'doanh_thu') $result[$pid]['doanh_thu'] += $amount;
+    if ($row->loai_chi_phi === 'tinh_cho_khach') $result[$pid]['tinh_cho_khach'] += $amount;
+    $result[$pid]['tong_tien'] += $amount;
+  }
+  return $result;
+}
+
+function _ptkh_blocked_plan_ids($plan_ids = array()) {
+  $blocked = array();
+  foreach (_ptkh_plan_voucher_map($plan_ids) as $plan_id => $info) {
+    $blocked[$plan_id] = $plan_id;
+  }
+  return $blocked;
+}
+
+function _ptkh_plan_voucher_map($plan_ids = array()) {
+  $map = array();
+  if (!db_table_exists('phieu_tra_khach_hang_ke_hoach')) return $map;
+  $query = db_select('phieu_tra_khach_hang_ke_hoach', 'l');
+  $query->innerJoin('phieu_tra_khach_hang', 'p', 'p.nid = l.nid_phieu_tra_khach_hang AND p.hoat_dong = 1');
+  $query
+    ->fields('l', array('nid_ke_hoach'))
+    ->fields('p', array('nid', 'ma_phieu', 'ma_phieu_khach', 'so_hoa_don', 'trang_thai_duyet'))
+    ->condition('l.hoat_dong', 1)
+    ->condition('p.trang_thai_duyet', array('chua_duyet', 'da_duyet'), 'IN');
+  $plan_ids = array_values(array_unique(array_filter(array_map('intval', (array) $plan_ids))));
+  if (!empty($plan_ids)) $query->condition('l.nid_ke_hoach', $plan_ids, 'IN');
+  foreach ($query->execute() as $row) {
+    $plan_id = (int) $row->nid_ke_hoach;
+    $status = (string) $row->trang_thai_duyet;
+    $map[$plan_id] = array(
+      'nid_phieu_tra_khach_hang' => (int) $row->nid,
+      'ma_phieu' => (string) $row->ma_phieu,
+      'ma_phieu_khach' => (string) $row->ma_phieu_khach,
+      'so_hoa_don' => (string) $row->so_hoa_don,
+      'trang_thai_duyet' => $status,
+      'trang_thai_label' => $status === 'da_duyet' ? 'Đã xuất hóa đơn' : 'Chờ khách duyệt',
+    );
+  }
+  return $map;
+}
+
+function _ptkh_candidate_rows($filters) {
+  if (!db_table_exists('ke_hoach_xep_xe')) return array();
+  if (empty($filters['nid_khach_hang'])) return array();
+  $query = db_select('ke_hoach_xep_xe', 'k')->fields('k')->condition('k.hoat_dong', 1)->condition('k.trang_thai_van_chuyen', 'Hoàn thành');
+  if (!empty($filters['nid_khach_hang'])) $query->condition('k.nid_khach_hang', (int) $filters['nid_khach_hang']);
+  if (!empty($filters['from_date'])) $query->condition('k.ngay_bat_dau', $filters['from_date'], '>=');
+  if (!empty($filters['to_date'])) $query->condition('k.ngay_bat_dau', $filters['to_date'], '<=');
+  $rows = $query->orderBy('k.ngay_bat_dau', 'ASC')->orderBy('k.nid', 'ASC')->range(0, 500)->execute()->fetchAll();
+  if (empty($rows)) return array();
+  $ids = array();
+  foreach ($rows as $row) $ids[] = (int) $row->nid;
+  $voucher_map = _ptkh_plan_voucher_map($ids);
+  $totals = _ptkh_cost_totals($ids);
+  $items = array();
+  foreach ($rows as $row) {
+    $id = (int) $row->nid;
+    if (isset($voucher_map[$id])) continue;
+    $total = isset($totals[$id]) ? $totals[$id] : array('doanh_thu' => 0, 'tinh_cho_khach' => 0, 'tong_tien' => 0);
+    $items[] = array(
+      'nid' => $id,
+      'nid_khach_hang' => (int) $row->nid_khach_hang,
+      'khach_hang' => _ptkh_customer_name($row->nid_khach_hang),
+      'label' => _ptkh_plan_label($row),
+      'ngay' => !empty($row->ngay_bat_dau) ? $row->ngay_bat_dau : '',
+      'tuyen' => _ptkh_plan_route($row),
+      'so_bkg' => (string) $row->so_bkg,
+      'loai_cont' => (string) $row->loai_cont,
+      'so_cont' => (string) $row->so_cont,
+      'tong_doanh_thu' => (int) $total['doanh_thu'],
+      'tong_chi_ho_khach_hang' => (int) $total['tinh_cho_khach'],
+      'tong_tien' => (int) $total['tong_tien'],
+    );
+  }
+  return $items;
+}
+
+function _ptkh_load_raw($id) {
+  return db_select('phieu_tra_khach_hang', 'p')->fields('p')->condition('p.nid', (int) $id)->condition('p.hoat_dong', 1)->execute()->fetchAssoc();
+}
+
+function _ptkh_load($id, $with_items = FALSE) {
+  $row = _ptkh_load_raw($id);
+  if (!$row) return NULL;
+  $result = array(
+    'nid' => (int) $row['nid'],
+    'ma_phieu' => (string) $row['ma_phieu'],
+    'ma_phieu_khach' => (string) $row['ma_phieu_khach'],
+    'so_hoa_don' => (string) $row['so_hoa_don'],
+    'khach_hang' => _ptkh_customer_info($row['nid_khach_hang']),
+    'nguoi_thuc_hien' => _ptkh_user_info(!empty($row['uid_nguoi_tao']) ? $row['uid_nguoi_tao'] : 0),
+    'tu_ngay' => (string) $row['tu_ngay'],
+    'den_ngay' => (string) $row['den_ngay'],
+    'thang_hach_toan' => (string) $row['thang_hach_toan'],
+    'created' => (string) $row['created'],
+    'changed' => (string) $row['changed'],
+    'tong_doanh_thu' => (int) $row['tong_doanh_thu'],
+    'tong_chi_ho_khach_hang' => (int) $row['tong_chi_ho_khach_hang'],
+    'tong_tien' => (int) $row['tong_tien'],
+    'trang_thai_duyet' => (string) $row['trang_thai_duyet'],
+    'trang_thai_duyet_label' => _ptkh_status_label($row['trang_thai_duyet']),
+    'ghi_chu' => (string) $row['ghi_chu'],
+    'file_url' => (string) $row['file_url'],
+    'download_url' => url('phieu-tra-khach-hang/tai/' . (int) $row['nid']),
+    'hoat_dong' => (int) $row['hoat_dong'],
+  );
+  if ($with_items) {
+    $items = db_select('phieu_tra_khach_hang_ke_hoach', 'l')->fields('l')->condition('l.nid_phieu_tra_khach_hang', (int) $id)->condition('l.hoat_dong', 1)->orderBy('l.id', 'ASC')->execute()->fetchAll();
+    $result['items'] = array();
+    foreach ($items as $item) {
+      $json = _ptkh_json_decode($item->thong_tin_json);
+      $result['items'][] = array(
+        'id' => (int) $item->id,
+        'nid_ke_hoach' => (int) $item->nid_ke_hoach,
+        'tong_doanh_thu' => (int) $item->tong_doanh_thu,
+        'tong_chi_ho_khach_hang' => (int) $item->tong_chi_ho_khach_hang,
+        'tong_tien' => (int) $item->tong_tien,
+        'label' => !empty($json['label']) ? $json['label'] : ('Kế hoạch #' . (int) $item->nid_ke_hoach),
+        'ngay' => !empty($json['ngay']) ? $json['ngay'] : '',
+        'tuyen' => !empty($json['tuyen']) ? $json['tuyen'] : '',
+        'so_bkg' => !empty($json['so_bkg']) ? $json['so_bkg'] : '',
+        'loai_cont' => !empty($json['loai_cont']) ? $json['loai_cont'] : '',
+        'so_cont' => !empty($json['so_cont']) ? $json['so_cont'] : '',
+      );
+    }
+    $result['lich_su_duyet'] = _ptkh_history_items($row['lich_su_duyet_json']);
+  }
+  return $result;
+}
+
+function phieu_tra_khach_hang_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ptkh_rest_list();
+    case 'POST':
+      return _ptkh_rest_create();
+    default:
+      return _ptkh_method_not_allowed('GET, POST');
+  }
+}
+
+function phieu_tra_khach_hang_rest_item($id) {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ptkh_rest_get($id);
+    case 'PUT':
+      return _ptkh_rest_update_status($id);
+    default:
+      return _ptkh_method_not_allowed('GET, PUT');
+  }
+}
+
+function phieu_tra_khach_hang_candidates_api() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _ptkh_method_not_allowed('GET');
+  if (!user_access('phieu_tra_khach_hang_view')) return _ptkh_unauthorized('Bạn không có quyền xem kế hoạch xuất phiếu');
+  if (empty($_GET['nid_khach_hang'])) return _ptkh_fail('Vui lòng chọn khách hàng');
+  $filters = array(
+    'nid_khach_hang' => !empty($_GET['nid_khach_hang']) ? (int) $_GET['nid_khach_hang'] : 0,
+    'from_date' => !empty($_GET['from_date']) ? _ptkh_date_to_db($_GET['from_date']) : '',
+    'to_date' => !empty($_GET['to_date']) ? _ptkh_date_to_db($_GET['to_date']) : '',
+  );
+  return _ptkh_success(array('items' => _ptkh_candidate_rows($filters)));
+}
+
+function _ptkh_rest_list() {
+  if (!user_access('phieu_tra_khach_hang_view')) return _ptkh_unauthorized('Bạn không có quyền xem phiếu trả khách hàng');
+  $page = !empty($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = !empty($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $query = db_select('phieu_tra_khach_hang', 'p')->fields('p')->condition('p.hoat_dong', 1);
+  if (!empty($_GET['nid_khach_hang'])) $query->condition('p.nid_khach_hang', (int) $_GET['nid_khach_hang']);
+  if (!empty($_GET['trang_thai_duyet'])) $query->condition('p.trang_thai_duyet', trim((string) $_GET['trang_thai_duyet']));
+  if (!empty($_GET['thang_hach_toan'])) $query->condition('p.thang_hach_toan', _ptkh_month_normalize($_GET['thang_hach_toan']));
+  if (!empty($_GET['created_from'])) {
+    $created_from = _ptkh_date_to_db($_GET['created_from']);
+    if ($created_from !== '') $query->condition('p.created', $created_from . ' 00:00:00', '>=');
+  }
+  if (!empty($_GET['created_to'])) {
+    $created_to = _ptkh_date_to_db($_GET['created_to']);
+    if ($created_to !== '') $query->condition('p.created', $created_to . ' 23:59:59', '<=');
+  }
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like(trim((string) $_GET['keyword'])) . '%';
+    $query->condition(db_or()->condition('p.ma_phieu', $like, 'LIKE')->condition('p.ma_phieu_khach', $like, 'LIKE')->condition('p.so_hoa_don', $like, 'LIKE'));
+  }
+  $count = clone $query;
+  $total = (int) $count->countQuery()->execute()->fetchField();
+  $total_pages = (int) ceil($total / $limit);
+  $current_page = $total_pages > 0 ? min($page, $total_pages) : 0;
+  $rows = $current_page > 0 ? $query->orderBy('p.created', 'DESC')->orderBy('p.nid', 'DESC')->range(($current_page - 1) * $limit, $limit)->execute()->fetchAll() : array();
+  $items = array();
+  foreach ($rows as $row) $items[] = _ptkh_load($row->nid, FALSE);
+  return _ptkh_success(array('items' => $items, 'total' => $total, 'current_page' => $current_page, 'total_pages' => $total_pages, 'limit' => $limit));
+}
+
+function _ptkh_rest_get($id) {
+  if (!user_access('phieu_tra_khach_hang_view')) return _ptkh_unauthorized('Bạn không có quyền xem phiếu trả khách hàng');
+  $row = _ptkh_load((int) $id, TRUE);
+  return $row ? _ptkh_success($row) : _ptkh_not_found('Phiếu trả khách hàng không tồn tại');
+}
+
+function _ptkh_rest_create() {
+  global $user;
+  if (!user_access('phieu_tra_khach_hang_create')) return _ptkh_unauthorized('Bạn không có quyền tạo phiếu trả khách hàng');
+  $input = _ptkh_input();
+  $plan_ids = !empty($input['nid_ke_hoach']) && is_array($input['nid_ke_hoach']) ? array_values(array_unique(array_filter(array_map('intval', $input['nid_ke_hoach'])))) : array();
+  if (empty($plan_ids)) return _ptkh_fail('Vui lòng chọn kế hoạch cần xuất phiếu');
+  $input_customer_id = !empty($input['nid_khach_hang']) ? (int) $input['nid_khach_hang'] : 0;
+  if (!$input_customer_id) return _ptkh_fail('Vui lòng chọn khách hàng');
+
+  $filters = array(
+    'nid_khach_hang' => $input_customer_id,
+    'from_date' => !empty($input['tu_ngay']) ? _ptkh_date_to_db($input['tu_ngay']) : '',
+    'to_date' => !empty($input['den_ngay']) ? _ptkh_date_to_db($input['den_ngay']) : '',
+  );
+  $candidates = _ptkh_candidate_rows($filters);
+  $map = array();
+  foreach ($candidates as $item) $map[(int) $item['nid']] = $item;
+  $selected = array();
+  $customer_id = 0;
+  foreach ($plan_ids as $pid) {
+    if (empty($map[$pid])) return _ptkh_fail('Kế hoạch #' . $pid . ' không đủ điều kiện xuất phiếu');
+    if ((int) $map[$pid]['nid_khach_hang'] !== $input_customer_id) return _ptkh_fail('Kế hoạch #' . $pid . ' không thuộc khách hàng đã chọn');
+    if ($customer_id && $customer_id !== (int) $map[$pid]['nid_khach_hang']) return _ptkh_fail('Các kế hoạch phải cùng một khách hàng');
+    $customer_id = (int) $map[$pid]['nid_khach_hang'];
+    $selected[] = $map[$pid];
+  }
+  if (!$customer_id) return _ptkh_fail('Không xác định được khách hàng');
+
+  $now = _ptkh_now();
+  $ma_phieu = _ptkh_generate_code($customer_id);
+  $tu_ngay = !empty($input['tu_ngay']) ? _ptkh_date_to_db($input['tu_ngay']) : '';
+  $den_ngay = !empty($input['den_ngay']) ? _ptkh_date_to_db($input['den_ngay']) : '';
+  $tong_doanh_thu = 0;
+  $tong_chi_ho = 0;
+  $tong_tien = 0;
+  foreach ($selected as $item) {
+    $tong_doanh_thu += (int) $item['tong_doanh_thu'];
+    $tong_chi_ho += (int) $item['tong_chi_ho_khach_hang'];
+    $tong_tien += (int) $item['tong_tien'];
+    if (!empty($item['ngay'])) {
+      if ($tu_ngay === '' || $item['ngay'] < $tu_ngay) $tu_ngay = $item['ngay'];
+      if ($den_ngay === '' || $item['ngay'] > $den_ngay) $den_ngay = $item['ngay'];
+    }
+  }
+  if ($tong_tien <= 0) return _ptkh_fail('Tổng tiền phiếu phải lớn hơn 0');
+
+  $transaction = db_transaction();
+  try {
+    if (_ptkh_blocked_plan_ids($plan_ids)) {
+      throw new Exception('Có kế hoạch vừa được xuất ở phiếu khác. Vui lòng tải lại danh sách.');
+    }
+    $insert = array(
+      'ma_phieu' => $ma_phieu,
+      'ma_phieu_khach' => !empty($input['ma_phieu_khach']) ? trim((string) $input['ma_phieu_khach']) : $ma_phieu,
+      'nid_khach_hang' => $customer_id,
+      'tu_ngay' => $tu_ngay,
+      'den_ngay' => $den_ngay,
+      'tong_doanh_thu' => $tong_doanh_thu,
+      'tong_chi_ho_khach_hang' => $tong_chi_ho,
+      'tong_tien' => $tong_tien,
+      'con_lai_thanh_toan' => $tong_tien,
+      'trang_thai_duyet' => 'chua_duyet',
+      'trang_thai_thanh_toan' => 'chua_thanh_toan',
+      'ghi_chu' => !empty($input['ghi_chu']) ? trim((string) $input['ghi_chu']) : '',
+      'chi_tiet_json' => _ptkh_json_encode(array('items' => $selected)),
+      'created' => $now,
+      'changed' => $now,
+      'hoat_dong' => 1,
+    );
+    if (db_field_exists('phieu_tra_khach_hang', 'uid_nguoi_tao')) {
+      $insert['uid_nguoi_tao'] = isset($user->uid) ? (int) $user->uid : 0;
+    }
+    $nid = db_insert('phieu_tra_khach_hang')->fields($insert)->execute();
+    foreach ($selected as $item) {
+      db_insert('phieu_tra_khach_hang_ke_hoach')->fields(array(
+        'nid_phieu_tra_khach_hang' => $nid,
+        'nid_ke_hoach' => (int) $item['nid'],
+        'nid_khach_hang' => $customer_id,
+        'tong_doanh_thu' => (int) $item['tong_doanh_thu'],
+        'tong_chi_ho_khach_hang' => (int) $item['tong_chi_ho_khach_hang'],
+        'tong_tien' => (int) $item['tong_tien'],
+        'thong_tin_json' => _ptkh_json_encode($item),
+        'created' => $now,
+        'changed' => $now,
+        'hoat_dong' => 1,
+      ))->execute();
+    }
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('phieu_tra_khach_hang', 'Lỗi tạo phiếu: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ptkh_fail($e->getMessage());
+  }
+
+  return _ptkh_success(_ptkh_load($nid, TRUE));
+}
+
+function _ptkh_rest_update_status($id) {
+  global $user;
+  if (!user_access('phieu_tra_khach_hang_approve')) return _ptkh_unauthorized('Bạn không có quyền duyệt phiếu trả khách hàng');
+  $row = _ptkh_load_raw((int) $id);
+  if (!$row) return _ptkh_not_found('Phiếu trả khách hàng không tồn tại');
+  $input = _ptkh_input();
+  $status = !empty($input['trang_thai_duyet']) ? trim((string) $input['trang_thai_duyet']) : '';
+  if (!in_array($status, array('chua_duyet', 'da_duyet', 'khong_duyet'), TRUE)) return _ptkh_fail('Trạng thái duyệt không hợp lệ');
+  $so_hoa_don = $status === 'da_duyet' && isset($input['so_hoa_don']) ? trim((string) $input['so_hoa_don']) : '';
+  $thang = $status === 'da_duyet' && isset($input['thang_hach_toan']) ? _ptkh_month_normalize($input['thang_hach_toan']) : '';
+  if ($status === 'da_duyet' && $so_hoa_don === '') return _ptkh_fail('Vui lòng nhập số hóa đơn');
+  if ($status === 'da_duyet' && $thang === '') return _ptkh_fail('Vui lòng nhập tháng hạch toán YYYYMM');
+  $history = _ptkh_json_decode($row['lich_su_duyet_json']);
+  $history[] = array(
+    'time' => REQUEST_TIME,
+    'time_text' => format_date(REQUEST_TIME, 'custom', 'd/m/Y H:i:s'),
+    'uid' => isset($user->uid) ? (int) $user->uid : 0,
+    'username' => isset($user->name) ? $user->name : '',
+    'old_status' => $row['trang_thai_duyet'],
+    'new_status' => $status,
+    'so_hoa_don' => $so_hoa_don,
+    'thang_hach_toan' => $thang,
+    'ghi_chu' => !empty($input['ghi_chu']) ? trim((string) $input['ghi_chu']) : '',
+  );
+  db_update('phieu_tra_khach_hang')->fields(array(
+    'trang_thai_duyet' => $status,
+    'so_hoa_don' => $status === 'da_duyet' ? $so_hoa_don : '',
+    'thang_hach_toan' => $status === 'da_duyet' ? $thang : '',
+    'ngay_duyet' => $status === 'da_duyet' ? _ptkh_now() : NULL,
+    'uid_nguoi_duyet' => isset($user->uid) ? (int) $user->uid : 0,
+    'lich_su_duyet_json' => _ptkh_json_encode($history),
+    'changed' => _ptkh_now(),
+  ))->condition('nid', (int) $id)->execute();
+  return _ptkh_success(_ptkh_load($id, TRUE));
+}
+
+function phieu_tra_khach_hang_download($id) {
+  if (!user_access('phieu_tra_khach_hang_view')) {
+    drupal_access_denied();
+    return;
+  }
+  $row = _ptkh_load((int) $id, TRUE);
+  if (!$row) {
+    drupal_not_found();
+    return;
+  }
+  drupal_add_http_header('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
+  drupal_add_http_header('Content-Disposition', 'attachment; filename="' . $row['ma_phieu'] . '.xls"');
+  print '<html><head><meta charset="utf-8"></head><body>';
+  print '<h2>Phiếu trả khách hàng ' . check_plain($row['ma_phieu']) . '</h2>';
+  print '<p>Khách hàng: ' . check_plain($row['khach_hang']['ten']) . '</p>';
+  print '<p>Thời gian: ' . check_plain(_ptkh_date_display($row['tu_ngay'])) . ' - ' . check_plain(_ptkh_date_display($row['den_ngay'])) . '</p>';
+  print '<table border="1" cellspacing="0" cellpadding="4"><thead><tr><th>#</th><th>Ngày vận chuyển</th><th>Số BKG</th><th>Loại cont</th><th>Số cont</th><th>Tuyến</th><th>Doanh thu</th><th>Chi hộ</th><th>Tổng</th></tr></thead><tbody>';
+  $i = 0;
+  foreach ($row['items'] as $item) {
+    $i++;
+    print '<tr><td>' . $i . '</td><td>' . check_plain(_ptkh_date_display($item['ngay'])) . '</td><td>' . check_plain($item['so_bkg']) . '</td><td>' . check_plain($item['loai_cont']) . '</td><td>' . check_plain($item['so_cont']) . '</td><td>' . check_plain($item['tuyen']) . '</td><td>' . (int) $item['tong_doanh_thu'] . '</td><td>' . (int) $item['tong_chi_ho_khach_hang'] . '</td><td>' . (int) $item['tong_tien'] . '</td></tr>';
+  }
+  print '</tbody><tfoot><tr><th colspan="6">Tổng cộng</th><th>' . (int) $row['tong_doanh_thu'] . '</th><th>' . (int) $row['tong_chi_ho_khach_hang'] . '</th><th>' . (int) $row['tong_tien'] . '</th></tr></tfoot></table>';
+  print '</body></html>';
+  drupal_exit();
+}

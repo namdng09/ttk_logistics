@@ -9,11 +9,6 @@ function ke_hoach_xep_xe_schema() {
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
-      'ngay' => array(
-        'type' => 'varchar',
-        'length' => 10,
-        'not null' => FALSE,
-      ),
       'nid_khach_hang' => array(
         'type' => 'int',
         'unsigned' => TRUE,
@@ -41,12 +36,23 @@ function ke_hoach_xep_xe_schema() {
         'length' => 50,
         'not null' => FALSE,
       ),
+      'loai_hang' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
       'so_cont' => array(
         'type' => 'varchar',
         'length' => 50,
         'not null' => FALSE,
       ),
       'nid_phuong_tien' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ),
+      'nid_mooc' => array(
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => FALSE,
@@ -73,7 +79,17 @@ function ke_hoach_xep_xe_schema() {
         'length' => 500,
         'not null' => FALSE,
       ),
+      'bai_lay_thuc_te' => array(
+        'type' => 'varchar',
+        'length' => 500,
+        'not null' => FALSE,
+      ),
       'bai_ha_cont' => array(
+        'type' => 'varchar',
+        'length' => 500,
+        'not null' => FALSE,
+      ),
+      'bai_ha_thuc_te' => array(
         'type' => 'varchar',
         'length' => 500,
         'not null' => FALSE,
@@ -91,6 +107,95 @@ function ke_hoach_xep_xe_schema() {
       'hinh_thuc_van_tai' => array(
         'type' => 'varchar',
         'length' => 50,
+        'not null' => FALSE,
+      ),
+      'ke_hoach_cont_ref_nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ),
+      // Kế hoạch tuyến xa gốc của một kế hoạch kết hợp/hàng vào.  Không dùng
+      // ke_hoach_cont_ref_nid vì field đó là quan hệ nhận chặng của cont.
+      'nid_ke_hoach_nguon' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ),
+      'da_cat_mooc' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'da_du_hang' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      // Bãi hạ ngoài của kế hoạch hàng cảng (tên bãi). Có giá trị = kế hoạch có hạ bãi ngoài.
+      // Trước đây là cờ 0/1 `ha_bai_ngoai` (xem ke_hoach_xep_xe_update_7025).
+      'bai_ha_ngoai' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'ha_cang' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'thong_tin_json' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'loai_ke_hoach' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => TRUE,
+        'default' => 'thuong',
+      ),
+      'diem_di' => array(
+        'type' => 'varchar',
+        'length' => 500,
+        'not null' => FALSE,
+      ),
+      'cua_khau' => array(
+        'type' => 'varchar',
+        'length' => 500,
+        'not null' => FALSE,
+      ),
+      'diem_den' => array(
+        'type' => 'varchar',
+        'length' => 500,
+        'not null' => FALSE,
+      ),
+      'ngay_bat_dau' => array(
+        'type' => 'varchar',
+        'length' => 10,
+        'not null' => FALSE,
+      ),
+      // Mốc ngày giờ nghiệp vụ của kế hoạch hàng cảng, độc lập với tiến độ.
+      'ngay_gio_ke_hoach' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
+      ),
+      // Trạng thái của cont (hàng cảng), tách khỏi trạng thái chuyến của lái xe
+      // (trang_thai_van_chuyen). Chỉ dùng cho kế hoạch hàng cảng.
+      'trang_thai_cont' => array(
+        'type' => 'varchar',
+        'length' => 30,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'ngay_ket_thuc' => array(
+        'type' => 'varchar',
+        'length' => 10,
         'not null' => FALSE,
       ),
       'created' => array(
@@ -113,9 +218,119 @@ function ke_hoach_xep_xe_schema() {
     'primary key' => array('nid'),
     'indexes' => array(
       'hoat_dong' => array('hoat_dong'),
+      'loai_ke_hoach' => array('loai_ke_hoach'),
       'so_bkg' => array('so_bkg'),
-      'ngay' => array('ngay'),
       'trang_thai_van_chuyen' => array('trang_thai_van_chuyen'),
+      'nid_ke_hoach_nguon' => array('nid_ke_hoach_nguon'),
+      'ke_hoach_cont_ref_nid' => array('ke_hoach_cont_ref_nid'),
+      'nid_khach_hang' => array('nid_khach_hang'),
+      'nid_lai_xe' => array('nid_lai_xe'),
+      'ngay_gio_ke_hoach' => array('ngay_gio_ke_hoach'),
+      'created' => array('created'),
+      'trang_thai_cont' => array('trang_thai_cont'),
+    ),
+  );
+
+  $schema['ke_hoach_tuyen_xa_chang'] = array(
+    'description' => 'Các chặng của kế hoạch tuyến xa.',
+    'fields' => array(
+      'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'ke_hoach_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'thu_tu' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'loai_chang' => array('type' => 'varchar', 'length' => 50, 'not null' => FALSE),
+      'diem_di' => array('type' => 'varchar', 'length' => 500, 'not null' => FALSE),
+      'diem_den' => array('type' => 'varchar', 'length' => 500, 'not null' => FALSE),
+      'ngay_di' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+      'ngay_den' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+      'nid_phuong_tien' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_mooc' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'thong_tin_json' => array('type' => 'text', 'not null' => FALSE),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'ke_hoach_id' => array('ke_hoach_id'),
+      'hoat_dong' => array('hoat_dong'),
+    ),
+  );
+
+  $schema['ke_hoach_chi_phi'] = array(
+    'description' => 'Chi phí chung của kế hoạch xếp xe.',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'nid_ke_hoach' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'loai_ke_hoach' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'thuong'),
+      'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'loai_chi_phi' => array('type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => ''),
+      'ten_chi_phi' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'don_gia' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'so_luong' => array('type' => 'numeric', 'precision' => 12, 'scale' => 2, 'not null' => TRUE, 'default' => 1),
+      'tong_truoc_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'vat_percent' => array('type' => 'numeric', 'precision' => 5, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'tong_sau_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'trang_thai_duyet' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'khong_can_duyet'),
+      'nid_de_nghi_chi_phi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_ledger' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+      'thong_tin_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'nid_ke_hoach' => array('nid_ke_hoach'),
+      'loai_ke_hoach' => array('loai_ke_hoach'),
+      'nid_lai_xe' => array('nid_lai_xe'),
+      'loai_chi_phi' => array('loai_chi_phi'),
+      'trang_thai_duyet' => array('trang_thai_duyet'),
+      'nid_de_nghi_chi_phi' => array('nid_de_nghi_chi_phi'),
+      'nid_ledger' => array('nid_ledger'),
+      'hoat_dong' => array('hoat_dong'),
+      'created' => array('created'),
+    ),
+  );
+
+  $schema['ke_hoach_chi_phi_mau'] = array(
+    'description' => 'Danh mục chi phí mặc định dùng chung khi nhập chi phí kế hoạch.',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'ten' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'loai_chi_phi' => array('type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => 'cong_ty_chi_tra'),
+      'thu_tu' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'hoat_dong_thu_tu' => array('hoat_dong', 'thu_tu'),
+      'loai_chi_phi' => array('loai_chi_phi'),
+    ),
+  );
+
+  $schema['ke_hoach_tuyen_xa_dau'] = array(
+    'description' => 'Nhật ký dầu của kế hoạch tuyến xa.',
+    'fields' => array(
+      'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'ke_hoach_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'chang_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'ngay' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+      'loai_dau' => array('type' => 'varchar', 'length' => 100, 'not null' => FALSE),
+      'so_lit' => array('type' => 'numeric', 'precision' => 12, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'so_tien' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'thong_tin_json' => array('type' => 'text', 'not null' => FALSE),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'ke_hoach_id' => array('ke_hoach_id'),
+      'hoat_dong' => array('hoat_dong'),
     ),
   );
 
@@ -151,3 +366,471 @@ function ke_hoach_xep_xe_update_7004() {
     ));
   }
 }
+
+function ke_hoach_xep_xe_update_7005() {
+  $fields = array(
+    'ke_hoach_cont_ref_nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE, 'default' => 0),
+    'da_cat_mooc' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'da_du_hang' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'ha_bai_ngoai' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'ha_cang' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+  );
+
+  foreach ($fields as $name => $definition) {
+    if (!db_field_exists('ke_hoach_xep_xe', $name)) {
+      db_add_field('ke_hoach_xep_xe', $name, $definition);
+    }
+  }
+}
+
+function ke_hoach_xep_xe_update_7006() {
+  $fields = array(
+    'ke_hoach_cont_ref_nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE, 'default' => 0),
+    'da_cat_mooc' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'da_du_hang' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'ha_bai_ngoai' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'ha_cang' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+    'thong_tin_json' => array('type' => 'text', 'not null' => FALSE),
+  );
+
+  foreach ($fields as $name => $definition) {
+    if (!db_field_exists('ke_hoach_xep_xe', $name)) {
+      db_add_field('ke_hoach_xep_xe', $name, $definition);
+    }
+  }
+
+  return 'Đã bổ sung các field quản lý cont và thong_tin_json cho ke_hoach_xep_xe nếu còn thiếu.';
+}
+
+function ke_hoach_xep_xe_update_7007() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'nid_mooc')) {
+    db_add_field('ke_hoach_xep_xe', 'nid_mooc', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+      'default' => 0,
+    ));
+  }
+
+  return 'Đã bổ sung field nid_mooc cho ke_hoach_xep_xe nếu còn thiếu.';
+}
+
+function ke_hoach_xep_xe_update_7008() {
+  $fields = array(
+    'loai_ke_hoach' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'thuong'),
+    'diem_di' => array('type' => 'varchar', 'length' => 500, 'not null' => FALSE),
+    'cua_khau' => array('type' => 'varchar', 'length' => 500, 'not null' => FALSE),
+    'diem_den' => array('type' => 'varchar', 'length' => 500, 'not null' => FALSE),
+    'ngay_bat_dau' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+    'ngay_ket_thuc' => array('type' => 'varchar', 'length' => 10, 'not null' => FALSE),
+  );
+  foreach ($fields as $name => $definition) {
+    if (!db_field_exists('ke_hoach_xep_xe', $name)) {
+      db_add_field('ke_hoach_xep_xe', $name, $definition);
+    }
+  }
+  if (!db_index_exists('ke_hoach_xep_xe', 'loai_ke_hoach')) {
+    db_add_index('ke_hoach_xep_xe', 'loai_ke_hoach', array('loai_ke_hoach'));
+  }
+  db_update('ke_hoach_xep_xe')
+    ->fields(array('loai_ke_hoach' => 'thuong'))
+    ->isNull('loai_ke_hoach')
+    ->execute();
+
+  return 'Đã bổ sung các field nền cho kế hoạch tuyến xa.';
+}
+
+function ke_hoach_xep_xe_update_7009() {
+  $schema = ke_hoach_xep_xe_schema();
+  $tables = array('ke_hoach_tuyen_xa_chang', 'ke_hoach_tuyen_xa_dau');
+  foreach ($tables as $table) {
+    if (!db_table_exists($table)) {
+      db_create_table($table, $schema[$table]);
+    }
+  }
+
+  return 'Đã tạo các bảng con cho kế hoạch tuyến xa.';
+}
+
+function ke_hoach_xep_xe_update_7010() {
+  $date_fields = array(
+    'ke_hoach_xep_xe' => array('ngay_bat_dau', 'ngay_ket_thuc', 'cut_off'),
+    'ke_hoach_tuyen_xa_chang' => array('ngay_di', 'ngay_den'),
+    'ke_hoach_tuyen_xa_chi_phi' => array('ngay'),
+    'ke_hoach_tuyen_xa_dau' => array('ngay'),
+  );
+
+  foreach ($date_fields as $table => $fields) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    foreach ($fields as $field) {
+      if (db_field_exists($table, $field)) {
+        db_query("UPDATE {" . $table . "} SET {" . $field . "} = SUBSTRING({" . $field . "}, 1, 10) WHERE {" . $field . "} IS NOT NULL AND {" . $field . "} <> ''");
+      }
+    }
+  }
+
+  if (db_field_exists('ke_hoach_xep_xe', 'ngay_bat_dau')) {
+    db_change_field('ke_hoach_xep_xe', 'ngay_bat_dau', 'ngay_bat_dau', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  }
+  if (db_field_exists('ke_hoach_xep_xe', 'ngay_ket_thuc')) {
+    db_change_field('ke_hoach_xep_xe', 'ngay_ket_thuc', 'ngay_ket_thuc', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  }
+  if (db_field_exists('ke_hoach_xep_xe', 'cut_off')) {
+    db_change_field('ke_hoach_xep_xe', 'cut_off', 'cut_off', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  }
+  if (db_field_exists('ke_hoach_tuyen_xa_chang', 'ngay_di')) {
+    db_change_field('ke_hoach_tuyen_xa_chang', 'ngay_di', 'ngay_di', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  }
+  if (db_field_exists('ke_hoach_tuyen_xa_chang', 'ngay_den')) {
+    db_change_field('ke_hoach_tuyen_xa_chang', 'ngay_den', 'ngay_den', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  }
+  if (db_field_exists('ke_hoach_tuyen_xa_chi_phi', 'ngay')) {
+    db_change_field('ke_hoach_tuyen_xa_chi_phi', 'ngay', 'ngay', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  }
+  if (db_field_exists('ke_hoach_tuyen_xa_dau', 'ngay')) {
+    db_change_field('ke_hoach_tuyen_xa_dau', 'ngay', 'ngay', array('type' => 'varchar', 'length' => 10, 'not null' => FALSE));
+  }
+
+  return 'Đã chuẩn hoá toàn bộ ngày của kế hoạch tuyến xa về định dạng date-only.';
+}
+
+function ke_hoach_xep_xe_update_7011() {
+  if (db_field_exists('ke_hoach_xep_xe', 'loai_hinh_tuyen_xa')) {
+    db_drop_field('ke_hoach_xep_xe', 'loai_hinh_tuyen_xa');
+  }
+
+  return 'Đã xoá field loai_hinh_tuyen_xa khỏi ke_hoach_xep_xe.';
+}
+
+function ke_hoach_xep_xe_update_7012() {
+  if (db_field_exists('ke_hoach_xep_xe', 'ngay_ket_thuc_du_kien') && !db_field_exists('ke_hoach_xep_xe', 'ngay_ket_thuc')) {
+    db_change_field('ke_hoach_xep_xe', 'ngay_ket_thuc_du_kien', 'ngay_ket_thuc', array(
+      'type' => 'varchar',
+      'length' => 10,
+      'not null' => FALSE,
+    ));
+  }
+  elseif (db_field_exists('ke_hoach_xep_xe', 'ngay_ket_thuc')) {
+    db_change_field('ke_hoach_xep_xe', 'ngay_ket_thuc', 'ngay_ket_thuc', array(
+      'type' => 'varchar',
+      'length' => 10,
+      'not null' => FALSE,
+    ));
+  }
+
+  return 'Đã đổi tên field ngay_ket_thuc_du_kien thành ngay_ket_thuc.';
+}
+
+function ke_hoach_xep_xe_update_7013() {
+  if (db_index_exists('ke_hoach_xep_xe', 'ngay')) {
+    db_drop_index('ke_hoach_xep_xe', 'ngay');
+  }
+  if (db_field_exists('ke_hoach_xep_xe', 'ngay')) {
+    db_drop_field('ke_hoach_xep_xe', 'ngay');
+  }
+
+  return 'Đã xoá field ngay khỏi ke_hoach_xep_xe.';
+}
+
+function ke_hoach_xep_xe_update_7014() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'bai_ha_thuc_te')) {
+    db_add_field('ke_hoach_xep_xe', 'bai_ha_thuc_te', array(
+      'type' => 'varchar',
+      'length' => 500,
+      'not null' => FALSE,
+    ));
+  }
+
+  return 'Đã thêm field bai_ha_thuc_te cho kế hoạch xếp xe.';
+}
+
+function ke_hoach_xep_xe_update_7015() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'bai_lay_thuc_te')) {
+    db_add_field('ke_hoach_xep_xe', 'bai_lay_thuc_te', array(
+      'type' => 'varchar',
+      'length' => 500,
+      'not null' => FALSE,
+    ));
+  }
+
+  return 'Đã thêm field bai_lay_thuc_te cho kế hoạch xếp xe.';
+}
+
+function ke_hoach_xep_xe_update_7016() {
+  $schema = ke_hoach_xep_xe_schema();
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    db_create_table('ke_hoach_chi_phi', $schema['ke_hoach_chi_phi']);
+  }
+
+  if (!db_table_exists('ke_hoach_tuyen_xa_chi_phi')) {
+    return 'Đã tạo bảng ke_hoach_chi_phi. Không có bảng chi phí tuyến xa cũ để migrate.';
+  }
+
+  $count_new = db_query("SELECT COUNT(*) FROM {ke_hoach_chi_phi}")->fetchField();
+  if ((int) $count_new > 0) {
+    db_drop_table('ke_hoach_tuyen_xa_chi_phi');
+    return 'Đã tạo bảng ke_hoach_chi_phi. Bỏ qua migrate vì bảng mới đã có dữ liệu.';
+  }
+
+  $rows = db_query("
+    SELECT c.*, kh.loai_ke_hoach, kh.nid_lai_xe
+    FROM {ke_hoach_tuyen_xa_chi_phi} c
+    LEFT JOIN {ke_hoach_xep_xe} kh ON kh.nid = c.ke_hoach_id
+    WHERE c.hoat_dong = 1
+    ORDER BY c.id ASC
+  ")->fetchAll();
+
+  $now = date('Y-m-d H:i:s', REQUEST_TIME);
+  $migrated = 0;
+  foreach ($rows as $row) {
+    $amount = !empty($row->so_tien) ? (int) $row->so_tien : 0;
+    $legacy_json = array(
+      'legacy_table' => 'ke_hoach_tuyen_xa_chi_phi',
+      'legacy_id' => !empty($row->id) ? (int) $row->id : 0,
+      'legacy_chang_id' => !empty($row->chang_id) ? (int) $row->chang_id : 0,
+      'ngay' => !empty($row->ngay) ? (string) $row->ngay : '',
+      'is_co_dinh' => !empty($row->is_co_dinh) ? 1 : 0,
+    );
+    if (!empty($row->thong_tin_json)) {
+      $decoded = json_decode((string) $row->thong_tin_json, TRUE);
+      $legacy_json['legacy_thong_tin_json'] = is_array($decoded) ? $decoded : (string) $row->thong_tin_json;
+    }
+
+    db_insert('ke_hoach_chi_phi')
+      ->fields(array(
+        'nid_ke_hoach' => !empty($row->ke_hoach_id) ? (int) $row->ke_hoach_id : 0,
+        'loai_ke_hoach' => !empty($row->loai_ke_hoach) ? (string) $row->loai_ke_hoach : 'tuyen_xa',
+        'nid_lai_xe' => !empty($row->nid_lai_xe) ? (int) $row->nid_lai_xe : 0,
+        'loai_chi_phi' => !empty($row->loai_chi_phi) ? (string) $row->loai_chi_phi : '',
+        'ten_chi_phi' => !empty($row->ten_chi_phi) ? (string) $row->ten_chi_phi : '',
+        'don_gia' => $amount,
+        'so_luong' => 1,
+        'tong_truoc_vat' => $amount,
+        'vat_percent' => 0,
+        'tong_sau_vat' => $amount,
+        'trang_thai_duyet' => 'khong_can_duyet',
+        'nid_de_nghi_chi_phi' => 0,
+        'nid_ledger' => 0,
+        'ghi_chu' => '',
+        'thong_tin_json' => json_encode($legacy_json),
+        'created' => !empty($row->created) ? (string) $row->created : $now,
+        'changed' => !empty($row->changed) ? (string) $row->changed : $now,
+        'hoat_dong' => 1,
+      ))
+      ->execute();
+    $migrated++;
+  }
+
+  db_drop_table('ke_hoach_tuyen_xa_chi_phi');
+
+  return 'Đã tạo bảng ke_hoach_chi_phi, migrate ' . $migrated . ' chi phí tuyến xa cũ và xoá bảng ke_hoach_tuyen_xa_chi_phi.';
+}
+
+function ke_hoach_xep_xe_update_7017() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'loai_hang')) {
+    db_add_field('ke_hoach_xep_xe', 'loai_hang', array(
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => FALSE,
+    ));
+  }
+
+  return 'Đã thêm field loai_hang cho kế hoạch xếp xe.';
+}
+
+/**
+ * Nối kế hoạch kết hợp/hàng vào về kế hoạch tuyến xa gốc.
+ */
+function ke_hoach_xep_xe_update_7018() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'nid_ke_hoach_nguon')) {
+    db_add_field('ke_hoach_xep_xe', 'nid_ke_hoach_nguon', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+      'default' => 0,
+    ));
+  }
+  if (!db_index_exists('ke_hoach_xep_xe', 'nid_ke_hoach_nguon')) {
+    db_add_index('ke_hoach_xep_xe', 'nid_ke_hoach_nguon', array('nid_ke_hoach_nguon'));
+  }
+
+  return 'Đã bổ sung liên kết kế hoạch nguồn cho kế hoạch kết hợp tuyến xa.';
+}
+
+/**
+ * Danh mục chi phí mặc định dùng chung cho bảng chi phí kế hoạch.
+ */
+function ke_hoach_xep_xe_update_7019() {
+  $schema = ke_hoach_xep_xe_schema();
+  if (!db_table_exists('ke_hoach_chi_phi_mau')) {
+    db_create_table('ke_hoach_chi_phi_mau', $schema['ke_hoach_chi_phi_mau']);
+  }
+
+  $existing = (int) db_query("SELECT COUNT(*) FROM {ke_hoach_chi_phi_mau}")->fetchField();
+  if ($existing) return 'Đã tạo bảng danh mục chi phí mặc định.';
+
+  $items = array(
+    'Số tiền hạ', 'Số tiền hạ sớm', 'Kiểm hóa', 'Số tiền phát sinh',
+    'Thưởng lễ', 'Neo xe', 'Vé cầu đường', 'Mua đồ xe+ sửa chửa',
+    'Lấp vỏ', 'Hạ cảng đổi biển số', 'Phát sinh thêm', 'Đổ dầu ngoài',
+    'Xét xe+mooc', 'Vá vỏ+ Rửa xe', 'Công an', 'Qua cửa khẩu',
+  );
+  $now = date('Y-m-d H:i:s', REQUEST_TIME);
+  foreach ($items as $index => $ten) {
+    db_insert('ke_hoach_chi_phi_mau')->fields(array(
+      'ten' => $ten,
+      'loai_chi_phi' => $ten === 'Qua cửa khẩu' ? 'lai_xe_tu_chiu' : 'cong_ty_chi_tra',
+      'thu_tu' => $index + 1,
+      'created' => $now,
+      'changed' => $now,
+      'hoat_dong' => 1,
+    ))->execute();
+  }
+  return 'Đã tạo và nạp danh mục chi phí mặc định.';
+}
+
+/**
+ * Thêm mốc ngày giờ nghiệp vụ riêng cho kế hoạch hàng cảng.
+ */
+function ke_hoach_xep_xe_update_7020() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'ngay_gio_ke_hoach')) {
+    db_add_field('ke_hoach_xep_xe', 'ngay_gio_ke_hoach', array(
+      'type' => 'varchar',
+      'length' => 19,
+      'not null' => FALSE,
+    ));
+  }
+  return 'Đã thêm trường ngày giờ nghiệp vụ cho kế hoạch hàng cảng.';
+}
+
+/**
+ * Cut-off hàng cảng hỗ trợ ngày thuần hoặc ngày kèm giờ.
+ */
+function ke_hoach_xep_xe_update_7021() {
+  if (db_field_exists('ke_hoach_xep_xe', 'cut_off')) {
+    db_change_field('ke_hoach_xep_xe', 'cut_off', 'cut_off', array(
+      'type' => 'varchar',
+      'length' => 19,
+      'not null' => FALSE,
+    ));
+  }
+  return 'Đã mở rộng trường Cut-off để lưu ngày kèm giờ khi cần.';
+}
+
+/**
+ * Index cho các cột lọc/sắp xếp/join nhiều nhất của danh sách kế hoạch.
+ */
+function ke_hoach_xep_xe_update_7022() {
+  $indexes = array(
+    'ke_hoach_cont_ref_nid' => array('ke_hoach_cont_ref_nid'),
+    'nid_khach_hang' => array('nid_khach_hang'),
+    'nid_lai_xe' => array('nid_lai_xe'),
+    'ngay_gio_ke_hoach' => array('ngay_gio_ke_hoach'),
+  );
+  foreach ($indexes as $name => $fields) {
+    if (!db_index_exists('ke_hoach_xep_xe', $name)) {
+      db_add_index('ke_hoach_xep_xe', $name, $fields);
+    }
+  }
+  return 'Đã thêm index cho ke_hoach_cont_ref_nid, nid_khach_hang, nid_lai_xe, ngay_gio_ke_hoach.';
+}
+
+/**
+ * Index cho created: danh sách tuyến xa lọc và sắp xếp theo ngày tạo.
+ */
+function ke_hoach_xep_xe_update_7023() {
+  if (!db_index_exists('ke_hoach_xep_xe', 'created')) {
+    db_add_index('ke_hoach_xep_xe', 'created', array('created'));
+  }
+  return 'Đã thêm index cho created.';
+}
+
+/**
+ * Trạng thái cont của kế hoạch hàng cảng (tách khỏi trạng thái chuyến lái xe).
+ *
+ * Giá trị: Chưa cắt mooc, Đã cắt mooc, Đủ hàng, Đang kéo về, Hoàn thành.
+ * Chỉ kế hoạch có cont ở kho (cắt kéo, cắt kéo chéo, thả mooc) mới có trạng thái
+ * cont; các hình thức khác để trống.
+ */
+function ke_hoach_xep_xe_update_7024() {
+  if (!db_field_exists('ke_hoach_xep_xe', 'trang_thai_cont')) {
+    db_add_field('ke_hoach_xep_xe', 'trang_thai_cont', array(
+      'type' => 'varchar',
+      'length' => 30,
+      'not null' => FALSE,
+      'default' => '',
+    ));
+  }
+  if (!db_index_exists('ke_hoach_xep_xe', 'trang_thai_cont')) {
+    db_add_index('ke_hoach_xep_xe', 'trang_thai_cont', array('trang_thai_cont'));
+  }
+
+  // Suy ra trạng thái cont cho dữ liệu cũ từ các cờ và từ kế hoạch đang kéo cont về.
+  $rows = db_query("SELECT nid, da_cat_mooc, da_du_hang, ha_bai_ngoai, ha_cang, trang_thai_van_chuyen FROM {ke_hoach_xep_xe} WHERE hoat_dong = 1 AND (loai_ke_hoach IS NULL OR loai_ke_hoach = '' OR loai_ke_hoach = 'thuong') AND da_cat_mooc = 1");
+  $updated = 0;
+  foreach ($rows as $row) {
+    $puller = db_query("SELECT trang_thai_van_chuyen FROM {ke_hoach_xep_xe} WHERE ke_hoach_cont_ref_nid = :nid AND hoat_dong = 1 AND trang_thai_van_chuyen <> 'Đã huỷ' ORDER BY nid DESC", array(':nid' => (int) $row->nid))->fetchField();
+    if (!empty($row->ha_cang) || !empty($row->ha_bai_ngoai) || $puller === 'Hoàn thành') {
+      $status = 'Hoàn thành';
+    }
+    elseif ($puller === 'Đang kéo về') {
+      $status = 'Đang kéo về';
+    }
+    elseif (!empty($row->da_du_hang)) {
+      $status = 'Đủ hàng';
+    }
+    elseif (in_array($row->trang_thai_van_chuyen, array('Hoàn thành', 'Đang kéo về'), TRUE)) {
+      $status = 'Đã cắt mooc';
+    }
+    else {
+      $status = 'Chưa cắt mooc';
+    }
+    db_update('ke_hoach_xep_xe')->fields(array('trang_thai_cont' => $status))->condition('nid', (int) $row->nid)->execute();
+    $updated++;
+  }
+  return 'Đã thêm trang_thai_cont và gán trạng thái cho ' . $updated . ' kế hoạch hàng cảng có cont ở kho.';
+}
+
+/**
+ * Cờ ha_bai_ngoai (0/1) -> bai_ha_ngoai (varchar): lưu tên bãi hạ ngoài của kế hoạch hàng cảng.
+ *
+ * - Đổi tên và kiểu cột. Giá trị cờ cũ ('0'/'1') không có tên bãi nên chuyển thành rỗng.
+ * - Kế hoạch hàng cảng: chép bãi hạ thực tế (bai_ha_thuc_te) sang bai_ha_ngoai để không mất bãi đã chọn,
+ *   rồi xoá bai_lay_thuc_te / bai_ha_thuc_te của hàng cảng (hàng cảng không dùng hai trường này nữa;
+ *   tuyến xa giữ nguyên). Hai cột này vẫn còn trong bảng.
+ */
+function ke_hoach_xep_xe_update_7025() {
+  if (db_field_exists('ke_hoach_xep_xe', 'ha_bai_ngoai') && !db_field_exists('ke_hoach_xep_xe', 'bai_ha_ngoai')) {
+    db_change_field('ke_hoach_xep_xe', 'ha_bai_ngoai', 'bai_ha_ngoai', array(
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ));
+  }
+  elseif (!db_field_exists('ke_hoach_xep_xe', 'bai_ha_ngoai')) {
+    db_add_field('ke_hoach_xep_xe', 'bai_ha_ngoai', array(
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ));
+  }
+
+  db_query("UPDATE {ke_hoach_xep_xe} SET bai_ha_ngoai = '' WHERE bai_ha_ngoai IN ('0', '1') OR bai_ha_ngoai IS NULL");
+
+  $port_only = "(loai_ke_hoach IS NULL OR loai_ke_hoach = '' OR loai_ke_hoach = 'thuong')";
+  $copied = 0;
+  if (db_field_exists('ke_hoach_xep_xe', 'bai_ha_thuc_te')) {
+    $copied = (int) db_query("SELECT COUNT(*) FROM {ke_hoach_xep_xe} WHERE " . $port_only . " AND bai_ha_thuc_te IS NOT NULL AND bai_ha_thuc_te <> '' AND bai_ha_thuc_te <> bai_ha_cont AND bai_ha_ngoai = ''")->fetchField();
+    db_query("UPDATE {ke_hoach_xep_xe} SET bai_ha_ngoai = bai_ha_thuc_te WHERE " . $port_only . " AND bai_ha_thuc_te IS NOT NULL AND bai_ha_thuc_te <> '' AND bai_ha_thuc_te <> bai_ha_cont AND bai_ha_ngoai = ''");
+    db_query("UPDATE {ke_hoach_xep_xe} SET bai_ha_thuc_te = '' WHERE " . $port_only);
+  }
+  if (db_field_exists('ke_hoach_xep_xe', 'bai_lay_thuc_te')) {
+    db_query("UPDATE {ke_hoach_xep_xe} SET bai_lay_thuc_te = '' WHERE " . $port_only);
+  }
+  return 'Đã đổi ha_bai_ngoai thành bai_ha_ngoai (varchar 255); chép ' . $copied . ' bãi hạ thực tế của hàng cảng sang bãi hạ ngoài.';
+}
+

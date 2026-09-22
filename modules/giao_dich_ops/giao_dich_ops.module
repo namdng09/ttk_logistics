@@ -1,0 +1,903 @@
+<?php
+
+/**
+ * @file
+ * Giao dịch OPS - ledger and advance request API.
+ */
+
+function giao_dich_ops_permission() {
+  return array(
+    'giao_dich_ops_view' => array('title' => t('Xem giao dịch vận hành')),
+    'giao_dich_ops_create' => array('title' => t('Tạo/sửa giao dịch vận hành')),
+    'giao_dich_ops_delete' => array('title' => t('Xoá giao dịch vận hành')),
+    'giao_dich_ops_approve' => array('title' => t('Duyệt đề nghị chi phí')),
+  );
+}
+
+function giao_dich_ops_init() {
+  $path = current_path();
+  if (strpos($path, 'api/giao-dich-ops') === 0 || strpos($path, 'api/de-nghi-ung-ops') === 0 || strpos($path, 'api/so-du-ops') === 0) {
+    drupal_add_http_header('Access-Control-Allow-Origin', '*');
+    drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    drupal_add_http_header('Access-Control-Max-Age', '86400');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      drupal_add_http_header('Status', '204 No Content');
+      drupal_exit();
+    }
+  }
+}
+
+function giao_dich_ops_menu() {
+  $items = array();
+
+  $items['api/giao-dich-ops'] = array(
+    'page callback' => 'giao_dich_ops_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/giao-dich-ops/%'] = array(
+    'page callback' => 'giao_dich_ops_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/so-du-ops'] = array(
+    'page callback' => 'giao_dich_ops_balance_api',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/de-nghi-ung-ops'] = array(
+    'page callback' => 'giao_dich_ops_advance_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/de-nghi-ung-ops/%'] = array(
+    'page callback' => 'giao_dich_ops_advance_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  $items['so-chi-phi-van-hanh'] = array(
+    'title' => 'Sổ chi phí vận hành',
+    'page callback' => 'giao_dich_ops_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['duyet-de-nghi-chi-phi'] = array(
+    'title' => 'Duyệt đề nghị chi phí',
+    'page callback' => 'giao_dich_ops_approve_page',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['giao-dich-ops'] = array(
+    'title' => 'Sổ chi phí vận hành',
+    'page callback' => 'giao_dich_ops_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_CALLBACK,
+  );
+  $items['duyet-de-nghi-ung-ops'] = array(
+    'title' => 'Duyệt đề nghị chi phí',
+    'page callback' => 'giao_dich_ops_approve_page',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+function giao_dich_ops_theme() {
+  $path = drupal_get_path('module', 'giao_dich_ops') . '/templates';
+  return array(
+    'giao_dich_ops_list_page' => array(
+      'template' => 'giao-dich-ops-list',
+      'path' => $path,
+    ),
+    'giao_dich_ops_approve_page' => array(
+      'template' => 'giao-dich-ops-approve',
+      'path' => $path,
+    ),
+  );
+}
+
+function _giao_dich_ops_input() {
+  $raw = file_get_contents('php://input');
+  $data = json_decode($raw, TRUE);
+  return is_array($data) ? $data : array();
+}
+
+function _giao_dich_ops_success($data = NULL) {
+  $response = array('status' => 'success');
+  if ($data !== NULL) $response['data'] = $data;
+  return $response;
+}
+
+function _giao_dich_ops_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _giao_dich_ops_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _giao_dich_ops_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _giao_dich_ops_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function _giao_dich_ops_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+function _giao_dich_ops_auth_user() {
+  global $user;
+  if (!empty($user->uid)) return $user;
+
+  $token = '';
+  if (function_exists('getallheaders')) {
+    $headers = getallheaders();
+    if (!empty($headers['Authorization']) && preg_match('/Bearer\s+(.*)$/i', $headers['Authorization'], $matches)) {
+      $token = trim($matches[1]);
+    }
+  }
+  if ($token === '' && !empty($_GET['token'])) {
+    $token = trim($_GET['token']);
+  }
+  if ($token === '') return FALSE;
+
+  module_load_include('module', 'user_login_api', 'user_login_api');
+  if (function_exists('api_validate_token')) {
+    return api_validate_token($token);
+  }
+  return FALSE;
+}
+
+function _giao_dich_ops_require_permission($permission) {
+  $account = _giao_dich_ops_auth_user();
+  if (!$account || empty($account->uid)) {
+    return _giao_dich_ops_unauthorized('Thiếu thông tin xác thực');
+  }
+  if (!user_access($permission, $account) && !user_access('administer permissions', $account)) {
+    return _giao_dich_ops_unauthorized('Bạn không có quyền thực hiện thao tác này');
+  }
+  return $account;
+}
+
+function _giao_dich_ops_now() {
+  return date('Y-m-d H:i:s', REQUEST_TIME);
+}
+
+function _giao_dich_ops_json_encode($data) {
+  return json_encode($data, JSON_UNESCAPED_UNICODE);
+}
+
+function _giao_dich_ops_json_decode($value) {
+  if (is_array($value)) return $value;
+  if (!is_string($value) || trim($value) === '') return array();
+  $decoded = json_decode($value, TRUE);
+  return is_array($decoded) ? $decoded : array();
+}
+
+function _giao_dich_ops_money($value) {
+  if (is_numeric($value)) return max(0, (int) $value);
+  return max(0, (int) preg_replace('/\D+/', '', (string) $value));
+}
+
+function _giao_dich_ops_code($prefix) {
+  $map = array(
+    'GDOPS' => array('code' => 'GD', 'table' => 'giao_dich_ops_ledger', 'field' => 'ma_giao_dich'),
+    'DNU' => array('code' => 'DNCP', 'table' => 'giao_dich_ops_de_nghi_ung', 'field' => 'ma_de_nghi'),
+    'HU' => array('code' => 'HU', 'table' => 'giao_dich_ops_ledger', 'field' => 'ma_giao_dich'),
+    'DC' => array('code' => 'DC', 'table' => 'giao_dich_ops_ledger', 'field' => 'ma_giao_dich'),
+  );
+  $config = isset($map[$prefix]) ? $map[$prefix] : array('code' => $prefix, 'table' => 'giao_dich_ops_ledger', 'field' => 'ma_giao_dich');
+  $base = $config['code'] . date('y', REQUEST_TIME);
+  $max = 0;
+
+  if (db_table_exists($config['table'])) {
+    $codes = db_select($config['table'], 't')
+      ->fields('t', array($config['field']))
+      ->condition($config['field'], db_like($base . '-') . '%', 'LIKE')
+      ->execute()
+      ->fetchCol();
+    foreach ($codes as $code) {
+      if (preg_match('/^' . preg_quote($base, '/') . '-(\d+)$/', (string) $code, $matches)) {
+        $max = max($max, (int) $matches[1]);
+      }
+    }
+  }
+
+  for ($next = $max + 1; $next <= $max + 1000; $next++) {
+    $code = $base . '-' . str_pad($next, 6, '0', STR_PAD_LEFT);
+    if (!_giao_dich_ops_code_exists($config['table'], $config['field'], $code)) {
+      return $code;
+    }
+  }
+
+  throw new Exception('Không sinh được mã giao dịch không trùng.');
+}
+
+function _giao_dich_ops_code_exists($table, $field, $code) {
+  if (!db_table_exists($table)) return FALSE;
+  return (bool) db_select($table, 't')
+    ->condition($field, $code)
+    ->countQuery()
+    ->execute()
+    ->fetchField();
+}
+
+function giao_dich_ops_direction_label($huong) {
+  return $huong === 'debit' ? 'Chi' : 'Thu';
+}
+
+function giao_dich_ops_type_label($type) {
+  $labels = array(
+    'ung_tien' => 'Công ty chi trả',
+    'bo_sung_ung' => 'Bổ sung chi trả',
+    'quyet_toan_chi_phi' => 'Quyết toán chi phí',
+    'hoan_tien_thua' => 'Hoàn tiền thừa',
+    'cong_ty_hoan_them' => 'Công ty hoàn thêm',
+    'tam_ung_luong' => 'Tạm ứng lương',
+    'thanh_toan_luong' => 'Thanh toán lương',
+    'dieu_chinh_tang' => 'Điều chỉnh tăng',
+    'dieu_chinh_giam' => 'Điều chỉnh giảm',
+    'huy_dao_giao_dich' => 'Hủy/đảo giao dịch',
+  );
+  return isset($labels[$type]) ? $labels[$type] : $type;
+}
+
+function giao_dich_ops_status_label($status) {
+  $labels = array(
+    'cho_duyet' => 'Chờ duyệt',
+    'da_duyet' => 'Đã duyệt',
+    'tu_choi' => 'Từ chối',
+    'da_thanh_toan' => 'Đã chi trả',
+    'huy' => 'Hủy',
+  );
+  return isset($labels[$status]) ? $labels[$status] : $status;
+}
+
+function giao_dich_ops_current_balance($uid_ops = 0, $nid_lai_xe = 0) {
+  $query = db_select('giao_dich_ops_ledger', 'gd');
+  $query->fields('gd', array('so_du_sau'));
+  $query->condition('gd.hoat_dong', 1);
+  if ((int) $uid_ops > 0) {
+    $query->condition('gd.uid_ops', (int) $uid_ops);
+  }
+  if ((int) $nid_lai_xe > 0) {
+    $query->condition('gd.nid_lai_xe', (int) $nid_lai_xe);
+  }
+  if ((int) $uid_ops <= 0 && (int) $nid_lai_xe <= 0) {
+    return 0;
+  }
+  $query->orderBy('gd.nid', 'DESC')->range(0, 1);
+  $value = $query->execute()->fetchField();
+  return $value === FALSE ? 0 : (int) $value;
+}
+
+function giao_dich_ops_create_ledger_transaction(array $params) {
+  $uid_ops = !empty($params['uid_ops']) ? (int) $params['uid_ops'] : (!empty($params['ops_uid']) ? (int) $params['ops_uid'] : 0);
+  $nid_lai_xe = !empty($params['nid_lai_xe']) ? (int) $params['nid_lai_xe'] : (!empty($params['lai_xe_id']) ? (int) $params['lai_xe_id'] : 0);
+  $amount = _giao_dich_ops_money(isset($params['so_tien']) ? $params['so_tien'] : 0);
+  $huong = !empty($params['huong']) && $params['huong'] === 'debit' ? 'debit' : 'credit';
+
+  if ($uid_ops <= 0 && $nid_lai_xe <= 0) {
+    throw new Exception('Giao dịch cần nhân sự hoặc lái xe.');
+  }
+  if ($amount <= 0) {
+    throw new Exception('Số tiền giao dịch không hợp lệ.');
+  }
+
+  $lock_name = 'giao_dich_ops_wallet_' . $uid_ops . '_' . $nid_lai_xe;
+  if (!lock_acquire($lock_name, 30.0)) {
+    throw new Exception('Sổ chi phí đang có giao dịch khác. Vui lòng thử lại.');
+  }
+
+  $code_lock_name = '';
+  try {
+    $before = giao_dich_ops_current_balance($uid_ops, $nid_lai_xe);
+    $after = $huong === 'debit' ? $before - $amount : $before + $amount;
+
+    if (empty($params['ma_giao_dich'])) {
+      $code_lock_name = 'giao_dich_ops_code_GDOPS';
+      if (!lock_acquire($code_lock_name, 30.0)) {
+        throw new Exception('Đang sinh mã giao dịch. Vui lòng thử lại.');
+      }
+    }
+
+    $now = _giao_dich_ops_now();
+    $ma_giao_dich = !empty($params['ma_giao_dich']) ? trim((string) $params['ma_giao_dich']) : _giao_dich_ops_code('GDOPS');
+    $nid = db_insert('giao_dich_ops_ledger')->fields(array(
+      'uid_ops' => $uid_ops,
+      'nid_lai_xe' => $nid_lai_xe,
+      'ma_giao_dich' => $ma_giao_dich,
+      'huong' => $huong,
+      'loai_giao_dich' => !empty($params['loai_giao_dich']) ? trim((string) $params['loai_giao_dich']) : 'dieu_chinh_tang',
+      'so_tien' => $amount,
+      'so_du_truoc' => $before,
+      'so_du_sau' => $after,
+      'tham_chieu_loai' => !empty($params['tham_chieu_loai']) ? trim((string) $params['tham_chieu_loai']) : '',
+      'tham_chieu_id' => !empty($params['tham_chieu_id']) ? trim((string) $params['tham_chieu_id']) : '',
+      'nid_ke_hoach' => !empty($params['nid_ke_hoach']) ? (int) $params['nid_ke_hoach'] : (!empty($params['ke_hoach_id']) ? (int) $params['ke_hoach_id'] : 0),
+      'so_bkg' => !empty($params['so_bkg']) ? trim((string) $params['so_bkg']) : '',
+      'noi_dung' => !empty($params['noi_dung']) ? trim((string) $params['noi_dung']) : '',
+      'thong_tin_json' => _giao_dich_ops_json_encode(!empty($params['thong_tin_json']) && is_array($params['thong_tin_json']) ? $params['thong_tin_json'] : array()),
+      'hoat_dong' => 1,
+      'created' => $now,
+      'changed' => $now,
+    ))->execute();
+
+    return giao_dich_ops_load_ledger($nid);
+  }
+  finally {
+    if (!empty($code_lock_name)) {
+      lock_release($code_lock_name);
+    }
+    lock_release($lock_name);
+  }
+}
+
+function giao_dich_ops_load_ledger($id) {
+  $row = db_query("SELECT gd.*, lx.ten AS lai_xe_ten, lx.sdt AS lai_xe_sdt, u.name AS ops_ten
+    FROM {giao_dich_ops_ledger} gd
+    LEFT JOIN {lai_xe} lx ON lx.nid = gd.nid_lai_xe
+    LEFT JOIN {users} u ON u.uid = gd.uid_ops
+    WHERE gd.nid = :id AND gd.hoat_dong = 1", array(':id' => (int) $id))->fetchAssoc();
+  if (!$row) return NULL;
+  $row['nid'] = (int) $row['nid'];
+  $row['uid_ops'] = (int) $row['uid_ops'];
+  $row['nid_lai_xe'] = (int) $row['nid_lai_xe'];
+  $row['nid_ke_hoach'] = (int) $row['nid_ke_hoach'];
+  $row['so_tien'] = (int) $row['so_tien'];
+  $row['so_du_truoc'] = (int) $row['so_du_truoc'];
+  $row['so_du_sau'] = (int) $row['so_du_sau'];
+  $row['thong_tin_json'] = _giao_dich_ops_json_decode($row['thong_tin_json']);
+  $row['huong_label'] = giao_dich_ops_direction_label($row['huong']);
+  $row['loai_giao_dich_label'] = giao_dich_ops_type_label($row['loai_giao_dich']);
+  return $row;
+}
+
+function giao_dich_ops_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _giao_dich_ops_rest_list();
+    case 'POST':
+      return _giao_dich_ops_rest_create();
+    default:
+      return _giao_dich_ops_method_not_allowed('GET, POST');
+  }
+}
+
+function _giao_dich_ops_rest_list() {
+  if (($auth = _giao_dich_ops_require_permission('giao_dich_ops_view')) && is_array($auth)) return $auth;
+
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(200, (int) $_GET['limit'])) : 20;
+  $offset = ($page - 1) * $limit;
+
+  $query = db_select('giao_dich_ops_ledger', 'gd');
+  $query->fields('gd');
+  $query->leftJoin('lai_xe', 'lx', 'lx.nid = gd.nid_lai_xe');
+  $query->leftJoin('users', 'u', 'u.uid = gd.uid_ops');
+  $query->addField('lx', 'ten', 'lai_xe_ten');
+  $query->addField('lx', 'sdt', 'lai_xe_sdt');
+  $query->addField('u', 'name', 'ops_ten');
+  $query->condition('gd.hoat_dong', 1);
+
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like(trim($_GET['keyword'])) . '%';
+    $or = db_or()
+      ->condition('gd.ma_giao_dich', $like, 'LIKE')
+      ->condition('gd.so_bkg', $like, 'LIKE')
+      ->condition('gd.noi_dung', $like, 'LIKE')
+      ->condition('lx.ten', $like, 'LIKE')
+      ->condition('u.name', $like, 'LIKE');
+    $query->condition($or);
+  }
+  foreach (array('huong', 'loai_giao_dich') as $field) {
+    if (!empty($_GET[$field])) $query->condition('gd.' . $field, trim($_GET[$field]));
+  }
+  if (!empty($_GET['uid_ops'])) $query->condition('gd.uid_ops', (int) $_GET['uid_ops']);
+  if (!empty($_GET['ops_uid'])) $query->condition('gd.uid_ops', (int) $_GET['ops_uid']);
+  if (!empty($_GET['nid_lai_xe'])) $query->condition('gd.nid_lai_xe', (int) $_GET['nid_lai_xe']);
+  if (!empty($_GET['lai_xe_id'])) $query->condition('gd.nid_lai_xe', (int) $_GET['lai_xe_id']);
+  if (!empty($_GET['date_from'])) $query->condition('gd.created', trim($_GET['date_from']) . ' 00:00:00', '>=');
+  if (!empty($_GET['date_to'])) $query->condition('gd.created', trim($_GET['date_to']) . ' 23:59:59', '<=');
+
+  $count = clone $query;
+  $total = $count->countQuery()->execute()->fetchField();
+
+  $query->orderBy('gd.created', 'DESC')->orderBy('gd.nid', 'DESC')->range($offset, $limit);
+  $items = array();
+  foreach ($query->execute()->fetchAllAssoc('nid', PDO::FETCH_ASSOC) as $row) {
+    $row['nid'] = (int) $row['nid'];
+    $row['uid_ops'] = (int) $row['uid_ops'];
+    $row['nid_lai_xe'] = (int) $row['nid_lai_xe'];
+    $row['so_tien'] = (int) $row['so_tien'];
+    $row['so_du_truoc'] = (int) $row['so_du_truoc'];
+    $row['so_du_sau'] = (int) $row['so_du_sau'];
+    $row['huong_label'] = giao_dich_ops_direction_label($row['huong']);
+    $row['loai_giao_dich_label'] = giao_dich_ops_type_label($row['loai_giao_dich']);
+    $items[] = $row;
+  }
+
+  return _giao_dich_ops_success(array(
+    'items' => $items,
+    'total' => (int) $total,
+    'current_page' => $total > 0 ? $page : 0,
+    'total_pages' => (int) ceil($total / $limit),
+    'limit' => $limit,
+  ));
+}
+
+function _giao_dich_ops_rest_create() {
+  if (($auth = _giao_dich_ops_require_permission('giao_dich_ops_create')) && is_array($auth)) return $auth;
+  $input = _giao_dich_ops_input();
+  $transaction = db_transaction();
+  try {
+    $row = giao_dich_ops_create_ledger_transaction($input);
+    return _giao_dich_ops_success($row);
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('giao_dich_ops', 'Lỗi tạo giao dịch vận hành: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _giao_dich_ops_error($e->getMessage());
+  }
+}
+
+function giao_dich_ops_rest_item($id) {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _giao_dich_ops_rest_get($id);
+    case 'DELETE':
+      return _giao_dich_ops_rest_delete($id);
+    default:
+      return _giao_dich_ops_method_not_allowed('GET, DELETE');
+  }
+}
+
+function _giao_dich_ops_rest_get($id) {
+  if (($auth = _giao_dich_ops_require_permission('giao_dich_ops_view')) && is_array($auth)) return $auth;
+  $row = giao_dich_ops_load_ledger($id);
+  return $row ? _giao_dich_ops_success($row) : _giao_dich_ops_not_found('Giao dịch vận hành không tồn tại');
+}
+
+function _giao_dich_ops_rest_delete($id) {
+  if (($auth = _giao_dich_ops_require_permission('giao_dich_ops_delete')) && is_array($auth)) return $auth;
+  $row = giao_dich_ops_load_ledger($id);
+  if (!$row) return _giao_dich_ops_not_found('Giao dịch vận hành không tồn tại');
+  db_update('giao_dich_ops_ledger')->fields(array('hoat_dong' => 0, 'changed' => _giao_dich_ops_now()))->condition('nid', (int) $id)->execute();
+  return _giao_dich_ops_success(array('nid' => (int) $id, 'deleted' => TRUE));
+}
+
+function giao_dich_ops_balance_api() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _giao_dich_ops_method_not_allowed('GET');
+  if (($auth = _giao_dich_ops_require_permission('giao_dich_ops_view')) && is_array($auth)) return $auth;
+
+  $query = db_select('giao_dich_ops_ledger', 'gd');
+  $query->fields('gd', array('uid_ops', 'nid_lai_xe'));
+  $query->addExpression('MAX(gd.nid)', 'last_id');
+  $query->condition('gd.hoat_dong', 1);
+  $query->groupBy('gd.uid_ops');
+  $query->groupBy('gd.nid_lai_xe');
+
+  $items = array();
+  foreach ($query->execute() as $record) {
+    $row = giao_dich_ops_load_ledger((int) $record->last_id);
+    if ($row) $items[] = $row;
+  }
+  return _giao_dich_ops_success(array('items' => $items, 'total' => count($items)));
+}
+
+function giao_dich_ops_advance_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _giao_dich_ops_advance_list();
+    case 'POST':
+      return _giao_dich_ops_advance_create();
+    default:
+      return _giao_dich_ops_method_not_allowed('GET, POST');
+  }
+}
+
+function _giao_dich_ops_advance_list() {
+  if (($auth = _giao_dich_ops_require_permission('giao_dich_ops_view')) && is_array($auth)) return $auth;
+
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(200, (int) $_GET['limit'])) : 20;
+  $query = db_select('giao_dich_ops_de_nghi_ung', 'dn');
+  $query->fields('dn');
+  $query->leftJoin('lai_xe', 'lx', 'lx.nid = dn.nid_lai_xe');
+  $query->leftJoin('users', 'u', 'u.uid = dn.uid_ops');
+  $query->leftJoin('giao_dich_ops_ledger', 'gd', 'gd.nid = dn.nid_ledger AND gd.hoat_dong = 1');
+  $query->addField('lx', 'ten', 'lai_xe_ten');
+  $query->addField('lx', 'sdt', 'lai_xe_sdt');
+  $query->addField('u', 'name', 'ops_ten');
+  $query->addField('u', 'mail', 'ops_mail');
+  $query->addField('gd', 'ma_giao_dich', 'ledger_ma_giao_dich');
+  $query->addField('gd', 'huong', 'ledger_huong');
+  $query->addField('gd', 'loai_giao_dich', 'ledger_loai_giao_dich');
+  $query->addField('gd', 'so_tien', 'ledger_so_tien');
+  $query->addField('gd', 'so_du_sau', 'ledger_so_du_sau');
+  $query->addField('gd', 'created', 'ledger_created');
+  $query->condition('dn.hoat_dong', 1);
+  if (!empty($_GET['trang_thai'])) $query->condition('dn.trang_thai', trim($_GET['trang_thai']));
+  if (!empty($_GET['uid_ops'])) $query->condition('dn.uid_ops', (int) $_GET['uid_ops']);
+  if (!empty($_GET['ops_uid'])) $query->condition('dn.uid_ops', (int) $_GET['ops_uid']);
+  if (!empty($_GET['nid_lai_xe'])) $query->condition('dn.nid_lai_xe', (int) $_GET['nid_lai_xe']);
+  if (!empty($_GET['lai_xe_id'])) $query->condition('dn.nid_lai_xe', (int) $_GET['lai_xe_id']);
+  if (!empty($_GET['date_from'])) $query->condition('dn.created', trim($_GET['date_from']) . ' 00:00:00', '>=');
+  if (!empty($_GET['date_to'])) $query->condition('dn.created', trim($_GET['date_to']) . ' 23:59:59', '<=');
+  if (isset($_GET['amount_min']) && $_GET['amount_min'] !== '') $query->condition('dn.so_tien', _giao_dich_ops_money($_GET['amount_min']), '>=');
+  if (isset($_GET['amount_max']) && $_GET['amount_max'] !== '') $query->condition('dn.so_tien', _giao_dich_ops_money($_GET['amount_max']), '<=');
+  if (!empty($_GET['ledger_status'])) {
+    if ($_GET['ledger_status'] === 'da_ghi') {
+      $query->condition('dn.nid_ledger', 0, '>');
+    }
+    elseif ($_GET['ledger_status'] === 'chua_ghi') {
+      $query->condition('dn.nid_ledger', 0);
+    }
+  }
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like(trim($_GET['keyword'])) . '%';
+    $query->condition(db_or()
+      ->condition('dn.ma_de_nghi', $like, 'LIKE')
+      ->condition('dn.so_bkg', $like, 'LIKE')
+      ->condition('dn.muc_dich', $like, 'LIKE')
+      ->condition('lx.ten', $like, 'LIKE')
+      ->condition('u.name', $like, 'LIKE'));
+  }
+  $count = clone $query;
+  $total = $count->countQuery()->execute()->fetchField();
+  $query->orderBy('dn.created', 'DESC')->orderBy('dn.nid', 'DESC')->range(($page - 1) * $limit, $limit);
+
+  $items = array();
+  foreach ($query->execute()->fetchAllAssoc('nid', PDO::FETCH_ASSOC) as $row) {
+    $items[] = _giao_dich_ops_normalize_advance_row($row);
+  }
+
+  return _giao_dich_ops_success(array(
+    'items' => $items,
+    'total' => (int) $total,
+    'current_page' => $total > 0 ? $page : 0,
+    'total_pages' => (int) ceil($total / $limit),
+    'limit' => $limit,
+  ));
+}
+
+function _giao_dich_ops_advance_create() {
+  $account = _giao_dich_ops_auth_user();
+  if (!$account || empty($account->uid)) return _giao_dich_ops_unauthorized('Thiếu thông tin xác thực');
+
+  $input = _giao_dich_ops_input();
+  $amount = _giao_dich_ops_money(isset($input['so_tien']) ? $input['so_tien'] : 0);
+  if ($amount <= 0) return _giao_dich_ops_fail('Số tiền đề nghị ứng không hợp lệ');
+  if (empty($input['muc_dich'])) return _giao_dich_ops_fail('Mục đích ứng tiền bắt buộc');
+
+  $now = _giao_dich_ops_now();
+  $transaction = db_transaction();
+  $code_lock_name = '';
+  try {
+    $ma_de_nghi = !empty($input['ma_de_nghi']) ? trim((string) $input['ma_de_nghi']) : '';
+    if ($ma_de_nghi === '') {
+      $code_lock_name = 'giao_dich_ops_code_DNU';
+      if (!lock_acquire($code_lock_name, 30.0)) {
+        throw new Exception('Đang sinh mã đề nghị. Vui lòng thử lại.');
+      }
+      $ma_de_nghi = _giao_dich_ops_code('DNU');
+    }
+    $thong_tin_json = !empty($input['thong_tin_json']) && is_array($input['thong_tin_json']) ? $input['thong_tin_json'] : array();
+    $nid = db_insert('giao_dich_ops_de_nghi_ung')->fields(array(
+      'ma_de_nghi' => $ma_de_nghi,
+      'uid_ops' => !empty($input['uid_ops']) ? (int) $input['uid_ops'] : (!empty($input['ops_uid']) ? (int) $input['ops_uid'] : (int) $account->uid),
+      'nid_lai_xe' => !empty($input['nid_lai_xe']) ? (int) $input['nid_lai_xe'] : (!empty($input['lai_xe_id']) ? (int) $input['lai_xe_id'] : 0),
+      'nid_ke_hoach' => !empty($input['nid_ke_hoach']) ? (int) $input['nid_ke_hoach'] : (!empty($input['ke_hoach_id']) ? (int) $input['ke_hoach_id'] : 0),
+      'so_bkg' => !empty($input['so_bkg']) ? trim((string) $input['so_bkg']) : '',
+      'so_tien' => $amount,
+      'muc_dich' => trim((string) $input['muc_dich']),
+      'ghi_chu' => !empty($input['ghi_chu']) ? trim((string) $input['ghi_chu']) : '',
+      'trang_thai' => 'cho_duyet',
+      'nid_ledger' => 0,
+      'chung_tu_json' => _giao_dich_ops_json_encode(!empty($input['chung_tu_json']) && is_array($input['chung_tu_json']) ? $input['chung_tu_json'] : array()),
+      'thong_tin_json' => _giao_dich_ops_json_encode($thong_tin_json),
+      'hoat_dong' => 1,
+      'created' => $now,
+      'changed' => $now,
+    ))->execute();
+    _giao_dich_ops_sync_plan_cost_from_advance(array(
+      'nid' => (int) $nid,
+      'nid_ledger' => 0,
+      'trang_thai' => 'cho_duyet',
+      'thong_tin_json' => $thong_tin_json,
+    ));
+    return _giao_dich_ops_success(giao_dich_ops_load_advance($nid));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('giao_dich_ops', 'Lỗi tạo đề nghị chi phí: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _giao_dich_ops_error('Lỗi hệ thống khi tạo đề nghị ứng');
+  }
+  finally {
+    if (!empty($code_lock_name)) {
+      lock_release($code_lock_name);
+    }
+  }
+}
+
+function giao_dich_ops_advance_item($id) {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _giao_dich_ops_advance_get($id);
+    case 'PUT':
+      return _giao_dich_ops_advance_update($id);
+    case 'DELETE':
+      return _giao_dich_ops_advance_delete($id);
+    default:
+      return _giao_dich_ops_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+function _giao_dich_ops_advance_get($id) {
+  if (($auth = _giao_dich_ops_require_permission('giao_dich_ops_view')) && is_array($auth)) return $auth;
+  $row = giao_dich_ops_load_advance($id);
+  return $row ? _giao_dich_ops_success($row) : _giao_dich_ops_not_found('Đề nghị ứng không tồn tại');
+}
+
+function _giao_dich_ops_advance_update($id) {
+  $account = _giao_dich_ops_require_permission('giao_dich_ops_approve');
+  if (is_array($account)) return $account;
+  $row = giao_dich_ops_load_advance($id);
+  if (!$row) return _giao_dich_ops_not_found('Đề nghị ứng không tồn tại');
+
+  $input = _giao_dich_ops_input();
+  $allowed_status = array('cho_duyet', 'da_duyet', 'tu_choi', 'da_thanh_toan', 'huy');
+  $new_status = !empty($input['trang_thai']) ? trim((string) $input['trang_thai']) : $row['trang_thai'];
+  if (!in_array($new_status, $allowed_status)) return _giao_dich_ops_fail('Trạng thái đề nghị ứng không hợp lệ');
+
+  $transaction = db_transaction();
+  try {
+    $update = array(
+      'trang_thai' => $new_status,
+      'changed' => _giao_dich_ops_now(),
+    );
+    if (array_key_exists('ly_do_tu_choi', $input)) $update['ly_do_tu_choi'] = trim((string) $input['ly_do_tu_choi']);
+    if (array_key_exists('ghi_chu', $input)) $update['ghi_chu'] = trim((string) $input['ghi_chu']);
+
+    if (in_array($new_status, array('da_duyet', 'tu_choi', 'da_thanh_toan'), TRUE)) {
+      $update['nguoi_duyet_uid'] = (int) $account->uid;
+      $update['ngay_duyet'] = _giao_dich_ops_now();
+    }
+
+    $nhan_su = !empty($row['nhan_su']) && is_array($row['nhan_su']) ? $row['nhan_su'] : array();
+    $lai_xe = !empty($row['lai_xe']) && is_array($row['lai_xe']) ? $row['lai_xe'] : array();
+    $current_ledger = !empty($row['ledger']) && is_array($row['ledger']) ? $row['ledger'] : NULL;
+
+    if ($new_status === 'da_thanh_toan' && empty($current_ledger['nid'])) {
+      $ledger = giao_dich_ops_create_ledger_transaction(array(
+        'uid_ops' => !empty($nhan_su['uid']) ? (int) $nhan_su['uid'] : 0,
+        'nid_lai_xe' => !empty($lai_xe['nid']) ? (int) $lai_xe['nid'] : 0,
+        'huong' => 'debit',
+        'loai_giao_dich' => 'ung_tien',
+        'so_tien' => (int) $row['so_tien'],
+        'tham_chieu_loai' => 'de_nghi_ung_ops',
+        'tham_chieu_id' => (string) $row['nid'],
+        'nid_ke_hoach' => (int) $row['nid_ke_hoach'],
+        'so_bkg' => $row['so_bkg'],
+        'noi_dung' => $row['muc_dich'],
+        'thong_tin_json' => array('de_nghi_ung' => $row),
+      ));
+      $update['nid_ledger'] = (int) $ledger['nid'];
+    }
+
+    db_update('giao_dich_ops_de_nghi_ung')->fields($update)->condition('nid', (int) $id)->execute();
+    $updated = giao_dich_ops_load_advance($id);
+    _giao_dich_ops_sync_plan_cost_from_advance($updated);
+    return _giao_dich_ops_success($updated);
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('giao_dich_ops', 'Lỗi cập nhật đề nghị chi phí #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _giao_dich_ops_error($e->getMessage());
+  }
+}
+
+function _giao_dich_ops_advance_delete($id) {
+  if (($auth = _giao_dich_ops_require_permission('giao_dich_ops_delete')) && is_array($auth)) return $auth;
+  $row = giao_dich_ops_load_advance($id);
+  if (!$row) return _giao_dich_ops_not_found('Đề nghị ứng không tồn tại');
+  if (!empty($row['ledger']['nid'])) return _giao_dich_ops_fail('Đề nghị đã sinh giao dịch ví, không thể xoá');
+  db_update('giao_dich_ops_de_nghi_ung')->fields(array('hoat_dong' => 0, 'changed' => _giao_dich_ops_now()))->condition('nid', (int) $id)->execute();
+  _giao_dich_ops_reset_plan_cost_advance_link($row);
+  return _giao_dich_ops_success(array('nid' => (int) $id, 'deleted' => TRUE));
+}
+
+function _giao_dich_ops_advance_cost_ref(array $advance) {
+  $json = !empty($advance['thong_tin_json']) ? _giao_dich_ops_json_decode($advance['thong_tin_json']) : array();
+  $source = !empty($json['nguon']) ? (string) $json['nguon'] : (!empty($json['source']) ? (string) $json['source'] : '');
+  $nid_chi_phi = !empty($json['nid_chi_phi']) ? (int) $json['nid_chi_phi'] : (!empty($json['nid_ke_hoach_chi_phi']) ? (int) $json['nid_ke_hoach_chi_phi'] : 0);
+  if ($source !== 'ke_hoach_chi_phi' || !$nid_chi_phi) {
+    return 0;
+  }
+  return $nid_chi_phi;
+}
+
+function _giao_dich_ops_sync_plan_cost_from_advance(array $advance) {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return;
+  }
+  $nid_chi_phi = _giao_dich_ops_advance_cost_ref($advance);
+  if (!$nid_chi_phi) {
+    return;
+  }
+  $status_map = array(
+    'cho_duyet' => 'cho_duyet',
+    'da_duyet' => 'da_duyet',
+    'da_thanh_toan' => 'da_thanh_toan',
+    'tu_choi' => 'tu_choi',
+    'huy' => 'huy',
+  );
+  $trang_thai = !empty($advance['trang_thai']) && isset($status_map[$advance['trang_thai']]) ? $status_map[$advance['trang_thai']] : 'cho_duyet';
+  db_update('ke_hoach_chi_phi')
+    ->fields(array(
+      'trang_thai_duyet' => $trang_thai,
+      'nid_de_nghi_chi_phi' => !empty($advance['nid']) ? (int) $advance['nid'] : 0,
+      'nid_ledger' => !empty($advance['nid_ledger']) ? (int) $advance['nid_ledger'] : (!empty($advance['ledger']['nid']) ? (int) $advance['ledger']['nid'] : 0),
+      'changed' => _giao_dich_ops_now(),
+    ))
+    ->condition('nid', $nid_chi_phi)
+    ->execute();
+}
+
+function _giao_dich_ops_reset_plan_cost_advance_link(array $advance) {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return;
+  }
+  $nid_chi_phi = _giao_dich_ops_advance_cost_ref($advance);
+  if (!$nid_chi_phi) {
+    return;
+  }
+  db_update('ke_hoach_chi_phi')
+    ->fields(array(
+      'trang_thai_duyet' => 'khong_can_duyet',
+      'nid_de_nghi_chi_phi' => 0,
+      'nid_ledger' => 0,
+      'changed' => _giao_dich_ops_now(),
+    ))
+    ->condition('nid', $nid_chi_phi)
+    ->condition('nid_de_nghi_chi_phi', !empty($advance['nid']) ? (int) $advance['nid'] : 0)
+    ->execute();
+}
+
+function giao_dich_ops_load_advance($id) {
+  $row = db_query("SELECT dn.*, lx.ten AS lai_xe_ten, lx.sdt AS lai_xe_sdt,
+      u.name AS ops_ten, u.mail AS ops_mail,
+      gd.ma_giao_dich AS ledger_ma_giao_dich,
+      gd.huong AS ledger_huong,
+      gd.loai_giao_dich AS ledger_loai_giao_dich,
+      gd.so_tien AS ledger_so_tien,
+      gd.so_du_sau AS ledger_so_du_sau,
+      gd.created AS ledger_created
+    FROM {giao_dich_ops_de_nghi_ung} dn
+    LEFT JOIN {lai_xe} lx ON lx.nid = dn.nid_lai_xe
+    LEFT JOIN {users} u ON u.uid = dn.uid_ops
+    LEFT JOIN {giao_dich_ops_ledger} gd ON gd.nid = dn.nid_ledger AND gd.hoat_dong = 1
+    WHERE dn.nid = :id AND dn.hoat_dong = 1", array(':id' => (int) $id))->fetchAssoc();
+  if (!$row) return NULL;
+  return _giao_dich_ops_normalize_advance_row($row);
+}
+
+function _giao_dich_ops_normalize_advance_row($row) {
+  foreach (array('nid', 'uid_ops', 'nid_lai_xe', 'nid_ke_hoach', 'so_tien', 'nid_ledger', 'nguoi_duyet_uid') as $field) {
+    $row[$field] = isset($row[$field]) ? (int) $row[$field] : 0;
+  }
+  foreach (array('ledger_so_tien', 'ledger_so_du_sau') as $field) {
+    $row[$field] = isset($row[$field]) ? (int) $row[$field] : 0;
+  }
+  $row['chung_tu_json'] = _giao_dich_ops_json_decode(isset($row['chung_tu_json']) ? $row['chung_tu_json'] : '');
+  $row['thong_tin_json'] = _giao_dich_ops_json_decode(isset($row['thong_tin_json']) ? $row['thong_tin_json'] : '');
+  $row['trang_thai_label'] = giao_dich_ops_status_label($row['trang_thai']);
+  $row['nhan_su'] = array(
+    'uid' => $row['uid_ops'],
+    'ten' => isset($row['ops_ten']) ? $row['ops_ten'] : '',
+    'name' => isset($row['ops_ten']) ? $row['ops_ten'] : '',
+    'mail' => isset($row['ops_mail']) ? $row['ops_mail'] : '',
+  );
+  $row['lai_xe'] = array(
+    'nid' => $row['nid_lai_xe'],
+    'ten' => isset($row['lai_xe_ten']) ? $row['lai_xe_ten'] : '',
+    'sdt' => isset($row['lai_xe_sdt']) ? $row['lai_xe_sdt'] : '',
+  );
+  $row['ledger'] = $row['nid_ledger'] > 0 ? array(
+    'nid' => $row['nid_ledger'],
+    'ma_giao_dich' => isset($row['ledger_ma_giao_dich']) ? $row['ledger_ma_giao_dich'] : '',
+    'huong' => isset($row['ledger_huong']) ? $row['ledger_huong'] : '',
+    'huong_label' => !empty($row['ledger_huong']) ? giao_dich_ops_direction_label($row['ledger_huong']) : '',
+    'loai_giao_dich' => isset($row['ledger_loai_giao_dich']) ? $row['ledger_loai_giao_dich'] : '',
+    'loai_giao_dich_label' => !empty($row['ledger_loai_giao_dich']) ? giao_dich_ops_type_label($row['ledger_loai_giao_dich']) : '',
+    'so_tien' => $row['ledger_so_tien'],
+    'so_du_sau' => $row['ledger_so_du_sau'],
+    'created' => isset($row['ledger_created']) ? $row['ledger_created'] : '',
+  ) : NULL;
+  foreach (array(
+    'uid_ops',
+    'nid_lai_xe',
+    'nid_ledger',
+    'ops_ten',
+    'ops_mail',
+    'lai_xe_ten',
+    'lai_xe_sdt',
+    'ledger_ma_giao_dich',
+    'ledger_huong',
+    'ledger_loai_giao_dich',
+    'ledger_so_tien',
+    'ledger_so_du_sau',
+    'ledger_created',
+  ) as $field) {
+    unset($row[$field]);
+  }
+  return $row;
+}
+
+function giao_dich_ops_page_list() {
+  $path = drupal_get_path('module', 'giao_dich_ops');
+  $css_path = $path . '/assets/css/giao_dich_ops.css';
+  $js_path = $path . '/assets/js/giao_dich_ops.js';
+  drupal_add_css($css_path, array(
+    'preprocess' => FALSE,
+    'weight' => 100,
+    'version' => REQUEST_TIME,
+  ));
+  drupal_add_js($js_path, array(
+    'preprocess' => FALSE,
+    'weight' => 100,
+    'version' => REQUEST_TIME,
+  ));
+  drupal_add_js(array('giao_dich_ops' => array(
+    'permissions' => array(
+      'giao_dich_ops_view' => user_access('giao_dich_ops_view'),
+      'giao_dich_ops_create' => user_access('giao_dich_ops_create'),
+      'giao_dich_ops_delete' => user_access('giao_dich_ops_delete'),
+      'giao_dich_ops_approve' => user_access('giao_dich_ops_approve'),
+    ),
+  )), 'setting');
+
+  return theme('giao_dich_ops_list_page');
+}
+
+function giao_dich_ops_approve_page() {
+  $path = drupal_get_path('module', 'giao_dich_ops');
+  drupal_add_css($path . '/assets/css/giao_dich_ops.css', array(
+    'preprocess' => FALSE,
+    'weight' => 100,
+    'version' => REQUEST_TIME,
+  ));
+  drupal_add_js($path . '/assets/js/giao_dich_ops_approve.js', array(
+    'preprocess' => FALSE,
+    'weight' => 100,
+    'version' => REQUEST_TIME,
+  ));
+  drupal_add_js(array('giao_dich_ops_approve' => array(
+    'permissions' => array(
+      'giao_dich_ops_view' => user_access('giao_dich_ops_view'),
+      'giao_dich_ops_approve' => user_access('giao_dich_ops_approve') || user_access('administer permissions'),
+      'giao_dich_ops_delete' => user_access('giao_dich_ops_delete'),
+    ),
+  )), 'setting');
+
+  return theme('giao_dich_ops_approve_page');
+}

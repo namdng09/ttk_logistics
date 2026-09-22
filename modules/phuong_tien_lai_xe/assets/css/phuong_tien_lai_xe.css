@@ -4,3 +4,46 @@
   border-radius: 0.375rem;
   padding: 0.4375rem 0.75rem;
 }
+
+/* Keep the clear icon and arrow in separate, predictable positions. */
+#phuong-tien-lai-xe-modal .select2-container {
+  width: 100% !important;
+}
+
+#phuong-tien-lai-xe-modal .select2-container .select2-selection--single {
+  position: relative;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 2.9rem 0 0.75rem;
+  display: flex;
+  align-items: center;
+}
+
+#phuong-tien-lai-xe-modal .select2-container .select2-selection--single .select2-selection__rendered {
+  min-width: 0;
+  padding: 0;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#phuong-tien-lai-xe-modal .select2-container .select2-selection--single .select2-selection__clear {
+  position: absolute;
+  top: 50%;
+  right: 1.65rem;
+  z-index: 2;
+  float: none;
+  margin: 0;
+  padding: 0;
+  transform: translateY(-50%);
+  line-height: 1;
+}
+
+#phuong-tien-lai-xe-modal .select2-container .select2-selection--single .select2-selection__arrow {
+  position: absolute;
+  top: 0;
+  right: 0.45rem;
+  width: 1.15rem;
+  height: 100%;
+}

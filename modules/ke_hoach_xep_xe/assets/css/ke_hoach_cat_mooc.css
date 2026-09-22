@@ -1,0 +1,735 @@
+/**
+ * Screen /cat-mooc (cont ở kho) — CSS RIÊNG.
+ *
+ * Toàn bộ kiểu ở đây được sao chép từ screen hàng cảng rồi đổi tiền tố class/id
+ * sang `cm-` để hai screen KHÔNG còn chia sẻ selector: sửa CSS hàng cảng không làm
+ * đổi màn này và ngược lại. Khi muốn màn này khác đi, sửa thẳng file này.
+ * Rule chung (không gắn id) được bọc :where(#ke-hoach-cat-mooc-screen) để giữ
+ * nguyên độ ưu tiên như bản gốc.
+ */
+
+/* ==== Nền: kiểu dùng chung của danh sách kế hoạch (sao chép từ ke_hoach_xep_xe.css) ==== */
+
+:where(#ke-hoach-cat-mooc-screen) .cm-list-table {
+  width: 100%;
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-list-table th {
+  white-space: nowrap;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #e7eaf0;
+  border-radius: 0.6rem;
+  background: #fbfcfe;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-bar .form-label {
+  margin-bottom: 0.35rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #566a7f;
+  white-space: nowrap;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-bar .form-control,
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-bar .form-select,
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-bar .select2-container {
+  font-size: 0.85rem;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-bar .select2-container {
+  width: 100% !important;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.75rem 0.85rem;
+  align-items: end;
+  flex: 1 1 620px;
+  min-width: 0;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-field {
+  min-width: 0;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.65rem;
+  margin-left: auto;
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-actions-row {
+  grid-column: 1 / -1;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-filter-actions .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 1199.98px) {
+  :where(#ke-hoach-cat-mooc-screen) .cm-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  :where(#ke-hoach-cat-mooc-screen) .cm-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 575.98px) {
+  :where(#ke-hoach-cat-mooc-screen) .cm-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(#ke-hoach-cat-mooc-screen) .cm-filter-actions {
+    justify-content: stretch;
+  }
+
+  :where(#ke-hoach-cat-mooc-screen) .cm-filter-actions .btn {
+    flex: 1 1 auto;
+  }
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-list-table.table-hover > tbody > tr.cm-row-menu-active > * {
+  --bs-table-accent-bg: var(--bs-table-hover-bg);
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table th:nth-child(3),
+#ke-hoach-cat-mooc-screen .cm-list-table td:nth-child(3),
+#ke-hoach-cat-mooc-screen .cm-list-table th:nth-child(11),
+#ke-hoach-cat-mooc-screen .cm-list-table td:nth-child(11) {
+  width: 92px;
+  min-width: 92px;
+  max-width: 92px;
+  white-space: nowrap;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table td:first-child {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table:not(.cm-tuyen-xa-list-table) th:first-child,
+#ke-hoach-cat-mooc-screen .cm-list-table:not(.cm-tuyen-xa-list-table) td:first-child {
+  text-align: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table th:nth-child(2),
+#ke-hoach-cat-mooc-screen .cm-list-table td:nth-child(2) {
+  text-align: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table:not(.cm-tuyen-xa-list-table) td:nth-child(3) {
+  text-align: left;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-date-stack {
+  display: inline-block;
+  line-height: 1.5;
+  text-align: center;
+  white-space: nowrap;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-common-cell {
+  line-height: 1.35;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-common-cell .cm-customer-cell {
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.45rem;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-common-cell .cm-customer-bkg {
+  font-weight: 400;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-common-cell .cm-htvt-cell {
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-container-cell,
+:where(#ke-hoach-cat-mooc-screen) .cm-vehicle-cell {
+  line-height: 1.55;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-vehicle-bks {
+  font-weight: 800;
+  color: #1f2937;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-vehicle-mooc,
+:where(#ke-hoach-cat-mooc-screen) .cm-vehicle-driver {
+  color: #667085;
+  font-size: 0.8rem;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-kho-cell,
+:where(#ke-hoach-cat-mooc-screen) .cm-customer-cell {
+  line-height: 1.45;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table td > div,
+#ke-hoach-cat-mooc-screen .cm-list-table td > span,
+#ke-hoach-cat-mooc-screen .cm-list-table td .cm-hanh-trinh-box,
+#ke-hoach-cat-mooc-screen .cm-list-table td .cm-vehicle-cell {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+:where(#ke-hoach-cat-mooc-screen) #cm-filter .select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+:where(#ke-hoach-cat-mooc-screen) #cm-filter .select2-container .select2-selection--single .select2-selection__rendered {
+  line-height: 1.5;
+  padding: 0;
+  padding-right: 1.75rem;
+  font-size: 0.85rem;
+}
+
+:where(#ke-hoach-cat-mooc-screen) #cm-filter .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+  top: 0;
+  right: 0.375rem;
+  width: 1rem;
+}
+
+:where(#ke-hoach-cat-mooc-screen) #cm-filter .select2-container .select2-selection--single .select2-selection__clear {
+  position: relative;
+  z-index: 1;
+  font-size: 0.875rem;
+}
+
+:where(#ke-hoach-cat-mooc-screen) #cm-filter .select2-container.cm-select2-invalid .select2-selection,
+:where(#ke-hoach-cat-mooc-screen) #cm-filter .select2-container--default.cm-select2-invalid .select2-selection--single {
+  border-color: var(--bs-form-validation-border-color) !important;
+  box-shadow: var(--bs-form-validation-shadow) !important;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-status-cell .btn-tuyen-xa-toggle-du-hang,
+:where(#ke-hoach-cat-mooc-screen) .cm-status-cell .btn-hang-cang-toggle-du-hang {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-status-cell .btn-tuyen-xa-toggle-du-hang:hover,
+:where(#ke-hoach-cat-mooc-screen) .cm-status-cell .btn-hang-cang-toggle-du-hang:hover {
+  box-shadow: 0 0 0 0.18rem rgba(105, 108, 255, 0.16);
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-status-cell .btn-tuyen-xa-toggle-du-hang:focus-visible,
+:where(#ke-hoach-cat-mooc-screen) .cm-status-cell .btn-hang-cang-toggle-du-hang:focus-visible {
+  outline: 2px solid rgba(105, 108, 255, 0.45);
+  outline-offset: 2px;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-status-cell .btn-tuyen-xa-toggle-du-hang.is-saving,
+:where(#ke-hoach-cat-mooc-screen) .cm-status-cell .btn-hang-cang-toggle-du-hang.is-saving {
+  cursor: wait;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-htvt-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-row-action-menu > .dropdown > button {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-row-actions-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  text-align: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-row-actions-trigger:hover,
+:where(#ke-hoach-cat-mooc-screen) .cm-row-actions-trigger:focus-visible {
+  color: #696cff;
+  text-decoration: underline;
+  outline: none;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-htvt-badge-wrap {
+  display: block;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-hanh-trinh-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-hanh-trinh-box {
+  padding: 0;
+  font-size: 0.84rem;
+  color: #344054;
+  line-height: 1.4;
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-hanh-trinh-separator {
+  height: 1px;
+  background: #e5e7eb;
+}
+
+/* ==== Giao diện hàng cảng (sao chép từ ke_hoach_hang_cang.css) ==== */
+
+#ke-hoach-cat-mooc-screen .cm-list-table .cm-col-stt {
+  width: 25px;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table .cm-col-date {
+  width: 55px;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table .cm-col-common {
+  width: 155px;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table .cm-col-container {
+  width: 95px;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table .cm-col-vehicle {
+  width: 90px;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table .cm-col-kho {
+  width: 90px;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table .cm-col-route {
+  width: 80px;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table .cm-col-cang {
+  width: 80px;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table .cm-col-status {
+  width: 52px;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table td.cm-date-cell,
+#ke-hoach-cat-mooc-screen .cm-list-table td.cm-common-cell,
+#ke-hoach-cat-mooc-screen .cm-list-table td:nth-child(7),
+#ke-hoach-cat-mooc-screen .cm-list-table td.cm-status-cell {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table td.cm-date-cell *,
+#ke-hoach-cat-mooc-screen .cm-list-table td.cm-common-cell *,
+#ke-hoach-cat-mooc-screen .cm-list-table td:nth-child(7) *,
+#ke-hoach-cat-mooc-screen .cm-list-table td.cm-status-cell * {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table td:nth-child(7) {
+  white-space: normal !important;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-list-cont-number {
+  font-weight: 600;
+  color: #158fff;
+}
+
+#ke-hoach-cat-mooc-screen .cm-date-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+#ke-hoach-cat-mooc-screen .cm-date-sort-btn i {
+  color: #696cff;
+  font-size: 0.9rem;
+}
+
+#ke-hoach-cat-mooc-screen .cm-date-sort-btn:hover,
+#ke-hoach-cat-mooc-screen .cm-date-sort-btn:focus-visible {
+  color: #696cff;
+}
+
+#ke-hoach-cat-mooc-screen .cm-date-sort-btn:focus-visible {
+  outline: 2px solid rgba(105, 108, 255, 0.4);
+  outline-offset: 2px;
+  border-radius: 0.2rem;
+}
+
+#ke-hoach-cat-mooc-screen #cm-filter .select2-container--default .select2-results > .select2-results__options {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#ke-hoach-cat-mooc-screen #cm-filter .select2-container--open .select2-dropdown--below,
+#ke-hoach-cat-mooc-screen #cm-filter .select2-container--open .select2-dropdown--above {
+  min-width: 200px !important;
+  max-width: calc(100vw - 1rem);
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-list-app {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-controls-card .cm-filter-bar {
+  margin-bottom: 0 !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-controls-card .cm-filter-grid {
+  --cm-filter-customer: minmax(130px, 1.7fr);
+  --cm-filter-kho: minmax(150px, 0.9fr);
+  --cm-filter-keyword: minmax(120px, 0.6fr);
+  --cm-filter-vehicle: minmax(120px, 0.6fr);
+  --cm-filter-date: minmax(210px, 0.9fr);
+  --cm-filter-actions: max-content;
+  display: grid;
+  grid-template-columns:
+  var(--cm-filter-customer)
+  var(--cm-filter-kho)
+  var(--cm-filter-keyword)
+  var(--cm-filter-vehicle)
+  var(--cm-filter-date)
+  var(--cm-filter-actions);
+  align-items: flex-end;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-controls-card .cm-filter-field {
+  min-width: 0;
+  grid-column: auto;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-controls-card .cm-filter-field-date {
+  grid-column: auto;
+  position: relative;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-controls-card .cm-filter-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0;
+  grid-column: auto;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-filter-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-filter-reset > i {
+  margin: 0 !important;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-table-scroll {
+  min-height: 280px;
+  max-height: min(620px, calc(100vh - 310px));
+  overflow: auto;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-status-tabs-wrap {
+  padding: .5rem 1rem;
+  border-bottom: 1px solid #eef0f4;
+  background: #fff;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-status-tabs {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-status-tabs .nav-link {
+  border: 0;
+  cursor: pointer;
+  padding-left: 7px;
+  padding-right: 7px;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-status-tabs .nav-link .badge {
+  pointer-events: none;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-table-scroll .table-responsive {
+  overflow: visible;
+}
+
+#ke-hoach-cat-mooc-screen .cm-port-table-scroll .cm-list-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bs-table-bg, #f8f9fa);
+}
+
+@media (max-width: 1199.98px) {
+  #ke-hoach-cat-mooc-screen .cm-port-controls-card .cm-filter-grid {
+    gap: 0.55rem;
+  }
+}
+
+:where(#ke-hoach-cat-mooc-screen) .cm-status-cho-thuc-hien {
+  --cm-cho-thuc-hien: #6c7a96;
+  background-color: color-mix(in sRGB, var(--bs-paper-bg) var(--bs-bg-label-tint-amount), var(--cm-cho-thuc-hien)) !important;
+  color: var(--cm-cho-thuc-hien) !important;
+}
+
+[data-bs-theme=dark] :where(#ke-hoach-cat-mooc-screen) .cm-status-cho-thuc-hien {
+  --cm-cho-thuc-hien: #a3aec6;
+}
+
+#ke-hoach-cat-mooc-screen .cm-row-action-menu .dropdown-menu {
+  width: max-content;
+  min-width: 13rem;
+  max-width: calc(100vw - 16px);
+  text-align: left;
+  white-space: nowrap;
+}
+
+#ke-hoach-cat-mooc-screen .cm-row-action-menu .dropdown-menu .dropdown-item {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-align: left;
+}
+
+#ke-hoach-cat-mooc-screen .cm-row-action-menu .dropdown-menu .cm-action-disabled {
+  cursor: not-allowed;
+}
+
+#ke-hoach-cat-mooc-screen .cm-row-action-menu .dropdown-menu .cm-action-disabled .dropdown-item {
+  opacity: .55;
+  pointer-events: none;
+}
+
+#ke-hoach-cat-mooc-screen .cm-row-action-menu .dropdown-menu .cm-action-hint {
+  margin-left: .35rem;
+  font-size: .75rem;
+  font-style: italic;
+}
+
+/* Cột T.Thái chỉ có trạng thái cont: căn giữa theo chiều dọc. */
+#ke-hoach-cat-mooc-screen .cm-list-table td.cm-status-cell {
+  vertical-align: middle;
+}
+
+#ke-hoach-cat-mooc-screen .cm-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: .25rem;
+}
+
+/* ==== Phần riêng của cat-mooc ==== */
+
+
+/* Thanh lọc chỉ có 3 ô + nút: khách hàng, kho, từ khóa. */
+#ke-hoach-cat-mooc-screen .cm-port-controls-card .cm-filter-grid {
+  grid-template-columns:
+    minmax(150px, 1.6fr)
+    minmax(150px, 1fr)
+    minmax(150px, 1fr)
+    max-content;
+}
+
+/* Cột "Kéo về" cần rộng hơn cột Cảng xuất mà nó thay thế. */
+#ke-hoach-cat-mooc-screen .cm-list-table .cm-col-keo-ve { width: 90px; }
+
+#ke-hoach-cat-mooc-screen .cm-keo-ve-htvt {
+  margin-bottom: 0.25rem;
+}
+
+#ke-hoach-cat-mooc-screen .cm-list-table td.cm-keo-ve-cell {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Số ngày cont ở kho, dưới ngày kế hoạch. */
+#ke-hoach-cat-mooc-screen .cm-o-kho-days {
+  display: block;
+  font-size: .7rem;
+  color: #8592a3;
+  white-space: nowrap;
+}
+
+/* Trạng thái cont bấm được để đổi Đã cắt mooc <-> Đủ hàng. */
+#ke-hoach-cat-mooc-screen .cm-cont-toggle {
+  cursor: pointer;
+  user-select: none;
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+
+/* Báo hiệu bấm được: nổi nhẹ, có bóng và viền, đậm màu hơn. */
+#ke-hoach-cat-mooc-screen .cm-cont-toggle:hover,
+#ke-hoach-cat-mooc-screen .cm-cont-toggle:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px currentColor, 0 3px 8px rgba(47, 51, 73, .18);
+  filter: brightness(.92) saturate(1.15);
+  outline: none;
+}
+
+#ke-hoach-cat-mooc-screen .cm-cont-toggle:active {
+  transform: translateY(0);
+  box-shadow: 0 0 0 2px currentColor;
+}
+
+#ke-hoach-cat-mooc-screen tr.cm-row-busy {
+  opacity: .55;
+  pointer-events: none;
+}
+
+/* ==== Modal tạo kế hoạch kéo về (nằm ngoài vùng screen nên không dùng selector gốc screen) ==== */
+#cm-create-modal .cm-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+#cm-create-modal .cm-create-cont {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #e7eaf0;
+  border-radius: 0.5rem;
+  background: #fbfcfe;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* Select2 chuẩn (theo SELECT2_PATTERN.md), scope theo modal. */
+#cm-create-modal .select2-container {
+  width: 100% !important;
+  font-family: inherit;
+}
+
+#cm-create-modal .select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+#cm-create-modal .select2-container .select2-selection--single .select2-selection__rendered {
+  line-height: 1.5;
+  padding: 0;
+  padding-right: 1.75rem;
+  font-size: 0.85rem;
+}
+
+#cm-create-modal .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+  top: 0;
+  right: 0.375rem;
+  width: 1rem;
+}
+
+#cm-create-modal .select2-container .select2-selection--single .select2-selection__clear {
+  position: relative;
+  z-index: 1;
+  font-size: 0.875rem;
+}
+
+/* Dropdown Select2: danh sách dài có cuộn (cao tối đa 320px) và rộng tối thiểu 200px,
+ * cùng giới hạn với thanh lọc và modal hàng cảng. Dropdown nằm trong modal (dropdownParent). */
+#cm-create-modal .select2-container--default .select2-results > .select2-results__options {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#cm-create-modal .select2-container--open .select2-dropdown--below,
+#cm-create-modal .select2-container--open .select2-dropdown--above {
+  min-width: 200px !important;
+  max-width: calc(100vw - 1rem);
+}
+
+#cm-create-modal .form-control.is-invalid,
+#cm-create-modal select.is-invalid + .select2-container .select2-selection {
+  border-color: #ff4c51;
+}
+
+/* Lịch chọn ngày của modal gắn vào body (không nằm trong modal nên không làm modal có thanh cuộn)
+ * và phải nổi trên modal. */
+body > .flatpickr-calendar {
+  z-index: 99999 !important;
+}
+

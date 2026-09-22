@@ -8,6 +8,9 @@
   var currentTrangThai = '';
   var BANK_LIST = [];
   var BANK_LIST_LOADED = false;
+  var FORM_SUPPORT_DATA_LOADED = false;
+  var FORM_SUPPORT_DATA_LOADING = false;
+  var FORM_SUPPORT_DATA_CALLBACKS = [];
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -28,7 +31,6 @@
       }
 
       if ($('#table-nhan-vien', context).length) {
-        loadBankList();
         loadFilters();
         loadList();
         bindNativeEvents();
@@ -36,11 +38,18 @@
     }
   };
 
-  function loadBankList() {
-    if (BANK_LIST_LOADED) return;
+  function loadBankList(done) {
+    if (BANK_LIST_LOADED) {
+      if (done) done();
+      return;
+    }
     var cached = localStorage.getItem('bankList');
     if (cached) {
       try { BANK_LIST = JSON.parse(cached); BANK_LIST_LOADED = true; } catch (e) {}
+    }
+    if (BANK_LIST_LOADED) {
+      if (done) done();
+      return;
     }
     $.ajax({
       url: 'https://api.vietqr.io/v2/banks',
@@ -58,7 +67,10 @@
           }
         }
       },
-      error: function () {}
+      error: function () {},
+      complete: function () {
+        if (done) done();
+      }
     });
   }
 
@@ -177,6 +189,7 @@
       themBtn.addEventListener('click', function () {
         resetForm();
         setFormMode('create');
+        ensureFormSupportData();
       });
     }
 
@@ -232,37 +245,6 @@
       }
     });
 
-    // Dropdown hover
-    doc.addEventListener('mouseover', function (e) {
-      var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
-      if (dropdown && dropdown.closest('#table-nhan-vien-tbody')) {
-        var menu = dropdown.querySelector('.dropdown-menu');
-        if (menu) {
-          var btn = dropdown.querySelector('button');
-          var rect = btn.getBoundingClientRect();
-          menu.style.position = 'fixed';
-          menu.style.top = rect.top + 'px';
-          menu.style.left = rect.right + 'px';
-          menu.style.display = 'block';
-        }
-      }
-    });
-
-    doc.addEventListener('mouseout', function (e) {
-      var dropdown = e.target.closest ? e.target.closest('.dropdown') : null;
-      if (dropdown && dropdown.closest('#table-nhan-vien-tbody')) {
-        if (!dropdown.contains(e.relatedTarget)) {
-          var menu = dropdown.querySelector('.dropdown-menu');
-          if (menu) {
-            menu.style.display = '';
-            menu.style.position = '';
-            menu.style.top = '';
-            menu.style.left = '';
-          }
-        }
-      }
-    });
-
     // Pagination jump keypress
     doc.getElementById('pagination-jump').addEventListener('keypress', function (e) {
       if (e.which === 13) {
@@ -289,6 +271,9 @@
           var html = '';
           for (var i = 0; i < res.data.length; i++) {
             var r = res.data[i];
+            // Role Lái xe (rid 7) is managed exclusively in the Lái xe screen.
+            var roleName = String(r.name || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            if (parseInt(r.rid, 10) === 7 || roleName === 'lái xe' || roleName === 'lai xe') continue;
             html += '<option value="' + r.rid + '">' + escapeHtml(r.name) + '</option>';
           }
           if (filterRole) {
@@ -304,12 +289,9 @@
       }
     });
 
-    // Load phong ban + chuc vu from danh_muc
-    loadDanhMucOptions('Phòng ban', 'phong_ban');
-    loadDanhMucOptions('Chức vụ', 'chuc_vu');
   }
 
-  function loadDanhMucOptions(phanLoai, fieldName) {
+  function loadDanhMucOptions(phanLoai, fieldName, done) {
     $.ajax({
       url: '/api/danh-muc',
       type: 'GET',
@@ -329,8 +311,53 @@
       },
       error: function (jqXHR) {
         if (notyf) notyf.error(apiMsg(jqXHR));
+      },
+      complete: function () {
+        if (done) done();
       }
     });
+  }
+
+  function ensureFormSupportData(callback) {
+    if (FORM_SUPPORT_DATA_LOADED) {
+      if (callback) callback();
+      return;
+    }
+
+    if (callback) {
+      FORM_SUPPORT_DATA_CALLBACKS.push(callback);
+    }
+
+    if (FORM_SUPPORT_DATA_LOADING) {
+      return;
+    }
+
+    FORM_SUPPORT_DATA_LOADING = true;
+
+    var remaining = 3;
+    function finishOne() {
+      remaining--;
+      if (remaining > 0) return;
+
+      FORM_SUPPORT_DATA_LOADING = false;
+      FORM_SUPPORT_DATA_LOADED = true;
+
+      var sel = document.querySelector('#form-nhan-vien select[name="ngan_hang"]');
+      if (sel) {
+        var curVal = sel.value;
+        initNganHangSelect(sel, curVal || null);
+      }
+
+      var callbacks = FORM_SUPPORT_DATA_CALLBACKS.slice();
+      FORM_SUPPORT_DATA_CALLBACKS = [];
+      for (var i = 0; i < callbacks.length; i++) {
+        callbacks[i]();
+      }
+    }
+
+    loadBankList(finishOne);
+    loadDanhMucOptions('Phòng ban', 'phong_ban', finishOne);
+    loadDanhMucOptions('Chức vụ', 'chuc_vu', finishOne);
   }
 
   function submitForm() {
@@ -360,6 +387,7 @@
     var apiData = {
       ten: data.ten,
       ma_nhan_vien: data.ma_nhan_vien || '',
+      sdt: data.sdt || '',
       username: data.username,
       mail: data.mail || '',
       dob: data.dob || '',
@@ -412,7 +440,7 @@
   function loadList() {
     var tbody = $('#table-nhan-vien-tbody');
     tbody.html(
-      '<tr id="loading-row"><td colspan="10" class="text-center py-4">' +
+      '<tr id="loading-row"><td colspan="11" class="text-center py-4">' +
       '<div class="spinner-border text-primary" role="status">' +
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
@@ -434,7 +462,7 @@
         $('#loading-row').remove();
 
         if (res.status !== 'success' || !res.data) {
-          tbody.append('<tr><td colspan="10" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
+          tbody.append('<tr><td colspan="11" class="text-center text-danger">' + escapeHtml(res.message || 'Lỗi không xác định') + '</td></tr>');
           return;
         }
 
@@ -443,7 +471,7 @@
         var pageSize = data.limit || 20;
 
         if (items.length === 0) {
-          tbody.append('<tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>');
+          tbody.append('<tr><td colspan="11" class="text-center">Không có dữ liệu</td></tr>');
           renderPagination(data);
           return;
         }
@@ -463,6 +491,7 @@
             '<td>' + escapeHtml(item.ma_nhan_vien || '') + '</td>' +
             '<td>' + escapeHtml(item.ten || '') + '</td>' +
             '<td>' + escapeHtml(item.name || '') + '</td>' +
+            '<td>' + escapeHtml(item.sdt || '') + '</td>' +
             '<td>' + escapeHtml(item.mail || '') + '</td>' +
             '<td>' + escapeHtml(item.phong_ban ? item.phong_ban.ten : '') + '</td>' +
             '<td>' + escapeHtml(item.chuc_vu ? item.chuc_vu.ten : '') + '</td>' +
@@ -475,7 +504,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="10" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append('<tr><td colspan="11" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -595,20 +624,40 @@
     showLoading(true);
     modalShow('nhan-vien-modal');
 
+    var detailData = null;
+    var detailLoaded = false;
+    var supportLoaded = false;
+    var detailFailed = false;
+
+    function finalizeEditModal() {
+      if (detailFailed || !detailLoaded || !supportLoaded) return;
+      showLoading(false);
+      populateForm(detailData);
+    }
+
+    ensureFormSupportData(function () {
+      supportLoaded = true;
+      finalizeEditModal();
+    });
+
     $.ajax({
       url: '/api/nhan-vien/' + id,
       type: 'GET',
       dataType: 'json',
       success: function (res) {
-        showLoading(false);
         if (res.status !== 'success' || !res.data) {
+          detailFailed = true;
+          showLoading(false);
           if (notyf) notyf.error(res.message || 'Không tìm thấy dữ liệu');
           modalHide('nhan-vien-modal');
           return;
         }
-        populateForm(res.data);
+        detailData = res.data;
+        detailLoaded = true;
+        finalizeEditModal();
       },
       error: function (jqXHR) {
+        detailFailed = true;
         showLoading(false);
         modalHide('nhan-vien-modal');
         if (notyf) notyf.error(apiMsg(jqXHR));
@@ -658,6 +707,7 @@
     document.querySelector('#form-nhan-vien input[name="uid"]').value = d.uid || '';
     document.querySelector('#form-nhan-vien input[name="ten"]').value = d.ten || '';
     document.querySelector('#form-nhan-vien input[name="ma_nhan_vien"]').value = d.ma_nhan_vien || '';
+    document.querySelector('#form-nhan-vien input[name="sdt"]').value = d.sdt || '';
     document.querySelector('#form-nhan-vien input[name="username"]').value = d.name || '';
     document.querySelector('#form-nhan-vien input[name="password"]').value = '';
     document.querySelector('#form-nhan-vien input[name="mail"]').value = d.mail || '';

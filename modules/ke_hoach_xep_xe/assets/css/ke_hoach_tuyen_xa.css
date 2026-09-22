@@ -1,0 +1,143 @@
+#ke-hoach-tuyen-xa-app th,
+#ke-hoach-tuyen-xa-app td {
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+.ke-hoach-tuyen-xa-section {
+  border-top: 1px solid #eceef1;
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+#ke-hoach-tuyen-xa-modal .table .form-control,
+#ke-hoach-tuyen-xa-modal .table .form-select {
+  min-width: 140px;
+  font-size: 0.83rem;
+}
+
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table,
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-dau-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table th,
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table td,
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-dau-table th,
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-dau-table td {
+  overflow: hidden;
+}
+
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table th:nth-child(1),
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table td:nth-child(1),
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-dau-table th:nth-child(1),
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-dau-table td:nth-child(1) {
+  width: 220px;
+}
+
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table th:nth-child(2),
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table td:nth-child(2) {
+  width: 260px;
+}
+
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table .select2-container,
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-dau-table .select2-container {
+  display: block;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table .select2-selection,
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-dau-table .select2-selection {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table .select2-selection__rendered,
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-dau-table .select2-selection__rendered {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table .form-control,
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-chi-phi-table .form-select,
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-dau-table .form-control,
+#ke-hoach-tuyen-xa-modal .ke-hoach-tuyen-xa-dau-table .form-select {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+#ke-hoach-tuyen-xa-modal .section-readonly {
+  pointer-events: none;
+  opacity: 0.96;
+}
+
+#ke-hoach-tuyen-xa-modal .table td.text-center .btn {
+  padding: 0.35rem 0.5rem;
+}
+
+#ke-hoach-tuyen-xa-modal .line-vehicle-display,
+#ke-hoach-tuyen-xa-modal .line-mooc-display {
+  min-width: 180px;
+}
+
+#ke-hoach-tuyen-xa-modal .line-vehicle-display.is-selected,
+#ke-hoach-tuyen-xa-modal .line-mooc-display.is-selected {
+  color: inherit;
+  background-color: inherit;
+  border-color: inherit;
+}
+
+#ke-hoach-tuyen-xa-modal .line-vehicle-display .vehicle-inline-placeholder,
+#ke-hoach-tuyen-xa-modal .line-mooc-display .vehicle-inline-placeholder {
+  color: #98a2b3;
+}
+
+#ke-hoach-tuyen-xa-modal .line-vehicle-display .vehicle-inline-text,
+#ke-hoach-tuyen-xa-modal .line-mooc-display .vehicle-inline-text {
+  color: #344054;
+  font-size: 0.85rem;
+}
+
+#vehicle-picker-modal .vehicle-picker-driver {
+  color: #667085;
+  font-size: 0.8rem;
+}
+
+#ke-hoach-tuyen-xa-modal .modal-body {
+  background: #f8f8fb;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+#ke-hoach-tuyen-xa-modal .modal-header,
+#ke-hoach-tuyen-xa-modal .modal-footer {
+  background: #fff;
+}
+
+.ke-hoach-tuyen-xa-route {
+  line-height: 1.5;
+}
+
+.ke-hoach-tuyen-xa-route .route-arrow {
+  color: #98a2b3;
+  margin: 0 0.25rem;
+}
+
+.ke-hoach-tuyen-xa-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #344054;
+  font-size: 0.78rem;
+  font-weight: 600;
+}

@@ -14,18 +14,15 @@
           </button>
         </div>
       </div>
-      <div class="col-6 col-md-5 mb-2 mb-md-0">
+      <div class="col-6 col-md-3 mb-2 mb-md-0">
         <select class="form-select" id="filter-phan-loai">
           <option value="">Tất cả phân loại</option>
-          <option value="Doanh nghiệp">Doanh nghiệp</option>
           <option value="Cá nhân">Cá nhân</option>
-          <option value="Khách hàng">Khách hàng</option>
+          <option value="Doanh nghiệp">Doanh nghiệp</option>
           <option value="Nhà cung cấp">Nhà cung cấp</option>
-          <option value="Đối tác">Đối tác</option>
-          <option value="Khác">Khác</option>
         </select>
       </div>
-      <div class="col-6 col-md-3">
+      <div class="col-6 col-md-5">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
           <button type="button" class="btn btn-primary btn-them-khach-hang" data-bs-toggle="modal" data-bs-target="#khach-hang-modal">
             <i class="ti tabler-plus me-1"></i>Thêm
@@ -49,15 +46,13 @@
             <th>MST / CCCD</th>
             <th>SĐT</th>
             <th>Địa chỉ</th>
-            <th>NV</th>
-            <th>DOB</th>
             <th>Phân loại</th>
             <th>Ghi chú</th>
           </tr>
         </thead>
         <tbody id="table-khach-hang-tbody">
           <tr id="loading-row">
-            <td colspan="11" class="text-center py-4">
+            <td colspan="9" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -84,9 +79,83 @@
   </div>
 </div>
 
-<!-- Create/Edit/View Modal — Fullscreen -->
-<div class="modal fade" id="khach-hang-modal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="khach-hang-dinh-muc-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <h5 class="modal-title" id="khach-hang-dinh-muc-title">Định mức khách hàng</h5>
+          <span class="kh-dm-header-meta">
+            <span id="kh-dm-rule-count">0 rule · 0 tuyến</span>
+            <span id="kh-dm-status" class="kh-dm-status">Đã lưu</span>
+          </span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0 position-relative">
+        <div id="khach-hang-dinh-muc-loading" class="kh-dm-loading" style="display:none;">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Đang tải...</span>
+          </div>
+        </div>
+        <div class="kh-dm-rule-app">
+          <div class="kh-dm-rule-toolbar">
+            <input type="text" class="form-control kh-dm-customer" id="kh-dm-customer-name" readonly>
+            <input type="text" class="form-control kh-dm-tag-input" id="kh-dm-from-tags" placeholder="Địa điểm 1">
+            <input type="text" class="form-control kh-dm-tag-input" id="kh-dm-to-tags" placeholder="Địa điểm 2">
+            <input type="text" class="form-control kh-dm-rule-number" id="kh-dm-rule-km" placeholder="KM" inputmode="decimal">
+            <input type="text" class="form-control kh-dm-rule-number money-input" id="kh-dm-rule-t" placeholder="Trống" inputmode="numeric">
+            <input type="text" class="form-control kh-dm-rule-number money-input" id="kh-dm-rule-v" placeholder="Vỏ" inputmode="numeric">
+            <input type="text" class="form-control kh-dm-rule-number money-input" id="kh-dm-rule-h" placeholder="Hàng" inputmode="numeric">
+            <button type="button" class="btn btn-primary" id="kh-dm-add-rule">
+              <i class="ti tabler-plus me-1"></i>Thêm
+            </button>
+            <button type="button" class="btn btn-label-secondary" id="kh-dm-reset-rule">
+              <i class="ti tabler-reload me-1"></i>Reset
+            </button>
+          </div>
+          <div class="kh-dm-table-topbar">
+            <div class="kh-dm-rule-search input-group input-group-sm">
+              <span class="input-group-text"><i class="ti tabler-search"></i></span>
+              <input type="text" class="form-control" id="kh-dm-rule-search" placeholder="Tìm định mức">
+            </div>
+          </div>
+          <div class="kh-dm-rule-card">
+            <div class="kh-dm-rule-table-wrap">
+              <table class="kh-dm-rule-table" id="kh-dm-rule-table">
+                <thead>
+                  <tr>
+                    <th class="kh-dm-col-stt">STT</th>
+                    <th class="kh-dm-col-place">Địa điểm 1</th>
+                    <th class="kh-dm-col-place">Địa điểm 2</th>
+                    <th class="kh-dm-col-number">KM</th>
+                    <th class="kh-dm-col-number">Trống</th>
+                    <th class="kh-dm-col-number">Vỏ</th>
+                    <th class="kh-dm-col-number">Hàng</th>
+                    <th class="kh-dm-col-actions">CN</th>
+                  </tr>
+                </thead>
+                <tbody id="kh-dm-rule-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="kh-dm-rule-footer"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <input type="file" id="kh-dm-import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="d-none">
+        <button type="button" class="btn btn-label-secondary me-auto" id="kh-dm-import"><i class="ti tabler-file-import me-1"></i>Import Excel</button>
+        <button type="button" class="btn btn-label-secondary" id="kh-dm-export"><i class="ti tabler-file-export me-1"></i>Export Excel</button>
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary" id="kh-dm-save"><i class="ti tabler-device-floppy me-1"></i>Lưu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create/Edit/View Modal -->
+<div class="modal fade" id="khach-hang-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="khach-hang-modal-title">Thêm khách hàng</h5>
@@ -109,25 +178,33 @@
               <div class="invalid-feedback">Vui lòng nhập tên</div>
             </div>
             <div class="col-lg-3">
-              <label class="form-label">Tên ngắn gọn</label>
-              <input type="text" class="form-control" name="ma_kh" placeholder="ABC">
+              <label class="form-label">Tên ngắn gọn <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="ma_kh" required placeholder="ABC">
+              <div class="invalid-feedback">Vui lòng nhập tên ngắn gọn</div>
             </div>
             <div class="col-lg-3">
-              <label class="form-label">MST / CCCD</label>
-              <input type="text" class="form-control" name="cccd_mst" placeholder="0201234567">
+              <label class="form-label">MST / CCCD <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="cccd_mst" required minlength="10" placeholder="Tối thiểu 10 ký tự">
+              <div class="invalid-feedback">MST / CCCD bắt buộc và phải có ít nhất 10 ký tự</div>
             </div>
 
-            <div class="col-lg-6">
+            <div class="col-lg-3">
               <label class="form-label">Phân loại <span class="text-danger">*</span></label>
               <input id="tagifyPhanLoai" class="form-control" name="phan_loai_tags" placeholder="Chọn phân loại" required>
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>
             </div>
             <div class="col-lg-3">
               <label class="form-label">SĐT</label>
-              <input type="tel" class="form-control" name="sdt" placeholder="0901234567" inputmode="numeric">
+              <input type="tel" class="form-control" name="sdt" minlength="10" maxlength="10" pattern="[0-9]{10}" placeholder="0901234567" inputmode="numeric">
+              <div class="invalid-feedback">SĐT phải gồm đúng 10 chữ số</div>
             </div>
             <div class="col-lg-3">
-              <label class="form-label">Ngày sinh</label>
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" name="email" placeholder="email@congty.vn">
+              <div class="invalid-feedback">Email không đúng định dạng</div>
+            </div>
+            <div class="col-lg-3">
+              <label class="form-label">Ngày thành lập</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="dob" placeholder="dd/MM/yyyy">
             </div>
 
@@ -138,18 +215,26 @@
           </div>
 
           <!-- Bank Info Section -->
-          <div class="section mt-4">
+          <div class="section mt-4 khach-hang-bank-section">
             <div class="section-head d-flex justify-content-between align-items-center mb-2">
-              <label class="form-label mb-0 fw-bold"><i class="ti tabler-building-bank me-2"></i>Thông tin ngân hàng</label>
-              <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-ngan-hang">
-                <i class="ti tabler-plus me-1"></i>Thêm
+              <label class="form-label mb-0 fw-bold khach-hang-section-title"><i class="ti tabler-building-bank me-2"></i>Thông tin ngân hàng</label>
+              <button type="button" class="btn btn-sm btn-icon btn-primary text-white" id="btn-them-ngan-hang" title="Thêm ngân hàng">
+                <i class="ti tabler-plus"></i>
               </button>
             </div>
             <div id="ngan-hang-repeater"></div>
           </div>
 
+          <div class="section mt-4 khach-hang-contact-section">
+            <div class="section-head d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label mb-0 fw-bold khach-hang-section-title"><i class="ti tabler-user me-2"></i>Người đại diện / Liên hệ</label>
+              <button type="button" class="btn btn-sm btn-icon btn-primary text-white" id="btn-them-lien-he" title="Thêm người liên hệ"><i class="ti tabler-plus"></i></button>
+            </div>
+            <div id="lien-he-repeater"></div>
+          </div>
+
           <!-- Warehouse + Pricing Section -->
-          <div class="section mt-4 mb-3">
+          <div class="section mt-4 mb-3 khach-hang-warehouse-pricing-section d-none">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <label class="form-label mb-0 fw-bold"><i class="ti tabler-truck me-2"></i>Địa chỉ kho & Bảng giá cước vận chuyển</label>
               <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-kho">

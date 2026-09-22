@@ -64,12 +64,24 @@ function lai_xe_schema() {
         'length' => 10,
         'not null' => FALSE,
       ),
+      'dod' => array(
+        'type' => 'varchar',
+        'length' => 10,
+        'not null' => FALSE,
+      ),
       'thong_tin_ngan_hang' => array(
         'type' => 'text',
         'not null' => FALSE,
       ),
-      'luong' => array(
+      'thong_tin_json' => array(
         'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ),
+      // Drupal user account used by the driver mobile app (role: Lái xe).
+      'uid_nguoi_dung' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
         'not null' => FALSE,
       ),
       'hoat_dong' => array(
@@ -100,6 +112,7 @@ function lai_xe_schema() {
       'sdt' => array('sdt'),
       'cccd' => array('cccd'),
       'so_bang_lai' => array('so_bang_lai'),
+      'uid_nguoi_dung' => array('uid_nguoi_dung'),
     ),
     'indexes' => array(
       'hoat_dong' => array('hoat_dong'),
@@ -171,5 +184,43 @@ function lai_xe_update_7007() {
   $field = db_query("SHOW COLUMNS FROM {lai_xe} LIKE 'luong'")->fetch();
   if (!$field) {
     db_query("ALTER TABLE {lai_xe} ADD luong TEXT NULL AFTER thong_tin_ngan_hang");
+  }
+}
+
+function lai_xe_update_7008() {
+  // Add dod (ngày sinh) column
+  $field = db_query("SHOW COLUMNS FROM {lai_xe} LIKE 'dod'")->fetch();
+  if (!$field) {
+    db_query("ALTER TABLE {lai_xe} ADD dod VARCHAR(10) NULL AFTER ngay_nhan_viec");
+  }
+  // Drop unused luong column
+  $field = db_query("SHOW COLUMNS FROM {lai_xe} LIKE 'luong'")->fetch();
+  if ($field) {
+    db_query("ALTER TABLE {lai_xe} DROP COLUMN luong");
+  }
+}
+
+function lai_xe_update_7009() {
+  if (!db_field_exists('lai_xe', 'thong_tin_json')) {
+    db_add_field('lai_xe', 'thong_tin_json', array(
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => FALSE,
+    ));
+  }
+}
+
+/** Add the driver-app account link. */
+function lai_xe_update_7010() {
+  if (!db_field_exists('lai_xe', 'uid_nguoi_dung')) {
+    db_add_field('lai_xe', 'uid_nguoi_dung', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+    ));
+  }
+  $index = db_query("SHOW INDEX FROM {lai_xe} WHERE Key_name = :name", array(':name' => 'uid_nguoi_dung'))->fetch();
+  if (!$index) {
+    db_add_unique_key('lai_xe', 'uid_nguoi_dung', array('uid_nguoi_dung'));
   }
 }

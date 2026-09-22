@@ -1,0 +1,704 @@
+/**
+ * Screen hàng cảng.
+ *
+ * Các style danh sách/filter mới của hàng cảng chỉ được thêm dưới root này,
+ * không dùng selector chung với tuyến xa.
+ */
+#ke-hoach-hang-cang-screen {
+  min-width: 0;
+}
+
+/* Độ rộng cột chỉ của bảng kế hoạch hàng cảng. */
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-stt { width: 25px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-date { width: 55px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-common { width: 155px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-container { width: 95px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-vehicle { width: 90px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-kho { width: 90px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-route { width: 80px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-cang { width: 80px; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-col-status { width: 52px; }
+
+/* Ba cột có text biến động: luôn ngắt trong chính ô, không lấn sang cột kế. */
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-date-cell,
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-common-cell,
+#ke-hoach-hang-cang-screen .khxh-list-table td:nth-child(7),
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-status-cell {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-date-cell *,
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-common-cell *,
+#ke-hoach-hang-cang-screen .khxh-list-table td:nth-child(7) *,
+#ke-hoach-hang-cang-screen .khxh-list-table td.khxh-status-cell * {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Dòng kế hoạch vừa thao tác trong modal: nền tím nhạt + vạch trái, nháy 2 lần khi hiện, mờ dần khi hết. */
+#ke-hoach-hang-cang-screen .khxh-list-table tr[data-plan-id] {
+  scroll-margin-top: 140px;
+}
+
+#ke-hoach-hang-cang-screen .khxh-list-table tr.khxh-row-touched > td {
+  background-color: rgba(var(--bs-primary-rgb, 115, 103, 240), .10);
+  box-shadow: inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10);
+  animation: khxh-row-touched-flash 1.1s ease-in-out 2;
+}
+
+#ke-hoach-hang-cang-screen .khxh-list-table tr.khxh-row-touched > td:first-child {
+  box-shadow: inset 4px 0 0 var(--bs-primary, #7367f0), inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10);
+  animation-name: khxh-row-touched-flash-first;
+}
+
+/* Hết thời gian nổi bật: mờ dần về nền thường. */
+#ke-hoach-hang-cang-screen .khxh-list-table tr.khxh-row-touched.khxh-row-touched-out > td {
+  background-color: transparent;
+  box-shadow: none;
+  animation: none;
+  transition: background-color .9s ease, box-shadow .9s ease;
+}
+
+@keyframes khxh-row-touched-flash {
+  0%, 100% { box-shadow: inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10); }
+  50% { box-shadow: inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .30); }
+}
+
+@keyframes khxh-row-touched-flash-first {
+  0%, 100% { box-shadow: inset 4px 0 0 var(--bs-primary, #7367f0), inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10); }
+  50% { box-shadow: inset 4px 0 0 var(--bs-primary, #7367f0), inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .30); }
+}
+
+/* Giờ kế hoạch dưới ngày: sáng (0h–11h) xanh mát, từ 12h cam. */
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-time {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-time-sang {
+  color: #0e8fa6;
+  background: rgba(0, 207, 232, .16);
+}
+
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-time-chieu {
+  color: #d9730d;
+  background: rgba(255, 159, 67, .18);
+}
+
+/* Cột Bãi lấy/hạ vốn có text-nowrap từ markup chung. */
+#ke-hoach-hang-cang-screen .khxh-list-table td:nth-child(7) {
+  white-space: normal !important;
+}
+
+/* Chỉ số container của hàng cảng nổi bật hơn loại cont và seal. */
+#ke-hoach-hang-cang-screen .khxh-port-list-cont-number {
+  font-weight: 600;
+  color: #158fff;
+}
+
+/* Nút sort của header Ngày — gọn như một nhãn cột, nhưng vùng click rõ ràng. */
+#ke-hoach-hang-cang-screen .khxh-date-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+#ke-hoach-hang-cang-screen .khxh-date-sort-btn i {
+  color: #696cff;
+  font-size: 0.9rem;
+}
+
+#ke-hoach-hang-cang-screen .khxh-date-sort-btn:hover,
+#ke-hoach-hang-cang-screen .khxh-date-sort-btn:focus-visible {
+  color: #696cff;
+}
+
+#ke-hoach-hang-cang-screen .khxh-date-sort-btn:focus-visible {
+  outline: 2px solid rgba(105, 108, 255, 0.4);
+  outline-offset: 2px;
+  border-radius: 0.2rem;
+}
+
+/* Filter hàng cảng dùng cùng giới hạn Select2 của modal tạo kế hoạch. */
+#ke-hoach-hang-cang-screen #ke-hoach-inline-filter .select2-container--default .select2-results > .select2-results__options {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#ke-hoach-hang-cang-screen #ke-hoach-inline-filter .select2-container--open .select2-dropdown--below,
+#ke-hoach-hang-cang-screen #ke-hoach-inline-filter .select2-container--open .select2-dropdown--above {
+  min-width: 200px !important;
+  max-width: calc(100vw - 1rem);
+}
+
+/* Hàng cảng: card điều khiển và card danh sách tách biệt. */
+#ke-hoach-hang-cang-screen .khxh-port-list-app {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-bar {
+  margin-bottom: 0 !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-grid {
+  /* Chỉnh trực tiếp sáu biến này để thay đổi độ rộng từng filter. */
+  --khxh-filter-customer: minmax(130px, 1.7fr);
+  --khxh-filter-kho: minmax(150px, 0.9fr);
+  --khxh-filter-keyword: minmax(120px, 0.6fr);
+  --khxh-filter-vehicle: minmax(120px, 0.6fr);
+  --khxh-filter-date: minmax(210px, 0.9fr);
+  --khxh-filter-actions: max-content;
+
+  display: grid;
+  grid-template-columns:
+    var(--khxh-filter-customer)
+    var(--khxh-filter-kho)
+    var(--khxh-filter-keyword)
+    var(--khxh-filter-vehicle)
+    var(--khxh-filter-date)
+    var(--khxh-filter-actions);
+  align-items: flex-end;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-field {
+  min-width: 0;
+  grid-column: auto;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-field-date {
+  grid-column: auto;
+  position: relative;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0;
+  grid-column: auto;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-date-quick-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  position: absolute;
+  top: calc(100% + 0.32rem);
+  left: 0;
+  min-height: 16px;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-date-quick {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--bs-primary, #696cff);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-date-quick:hover,
+#ke-hoach-hang-cang-screen .khxh-port-date-quick:focus-visible {
+  color: #4f51d8;
+  text-decoration: underline;
+  outline: 0;
+}
+
+/* Giữ Reset bằng đúng chiều cao nút Tìm, dù chỉ còn icon. */
+#ke-hoach-hang-cang-screen .khxh-port-filter-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-filter-reset > i {
+  margin: 0 !important;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+/* Chỉ nội dung bảng cuộn; header filter ở card phía trên luôn nhìn thấy. */
+#ke-hoach-hang-cang-screen .khxh-port-table-scroll {
+  min-height: 280px;
+  max-height: min(620px, calc(100vh - 310px));
+  overflow: auto;
+}
+
+/* Lọc nhanh theo trạng thái: nằm trong card bảng để vẫn thấy khi cuộn bảng. */
+#ke-hoach-hang-cang-screen .khxh-port-status-tabs-wrap {
+  padding: .5rem 1rem;
+  border-bottom: 1px solid #eef0f4;
+  background: #fff;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-status-tabs {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-status-tabs .nav-link {
+  border: 0;
+  cursor: pointer;
+  padding-left: 7px;
+  padding-right: 7px;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-status-tabs .nav-link .badge {
+  pointer-events: none;
+}
+
+/* Theme đặt màu icon dropdown bằng !important. Override riêng hàng cảng để
+ * phân biệt thao tác xem chi tiết và nhập chi phí. */
+#ke-hoach-hang-cang-screen .dropdown-menu .dropdown-item.btn-view-ke-hoach-xep-xe > i.tabler-eye {
+  color: var(--bs-info) !important;
+}
+
+#ke-hoach-hang-cang-screen .dropdown-menu .dropdown-item.btn-open-port-cost-tab > i.tabler-receipt-2 {
+  color: var(--bs-success) !important;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-table-scroll .table-responsive {
+  overflow: visible;
+}
+
+#ke-hoach-hang-cang-screen .khxh-port-table-scroll .khxh-list-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bs-table-bg, #f8f9fa);
+}
+
+@media (max-width: 1199.98px) {
+  #ke-hoach-hang-cang-screen .khxh-port-controls-card .khxh-filter-grid {
+    /* Vẫn giữ một dòng; khi thiếu chỗ, các cột co về min-width đã khai báo. */
+    gap: 0.55rem;
+  }
+}
+
+/* Modal xếp xe hàng cảng: namespace riêng, không dùng selector tuyến xa. */
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-layout,
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-main {
+  overflow: visible;
+}
+
+#ke-hoach-edit-fullscreen-modal #ke-hoach-form-app > .card-header {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-layout {
+  margin-top: 1rem;
+}
+
+.khxh-hang-cang-header-title { min-width: 0; }
+
+.khxh-hang-cang-header-route {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-top: .2rem;
+  color: #7b8794;
+  font-size: .76rem;
+  font-weight: 600;
+}
+
+.khxh-hang-cang-header-route span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Hai tab chỉ dành cho modal xếp xe hàng cảng. */
+.khxh-hang-cang-modal-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+  padding: .2rem;
+  border: 1px solid #e5e7eb;
+  border-radius: .5rem;
+  background: #f7f8fa;
+}
+
+.khxh-hang-cang-modal-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  min-height: 30px;
+  padding: .32rem .6rem;
+  border: 0;
+  border-radius: .34rem;
+  background: transparent;
+  color: #667085;
+  font-size: .78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.khxh-hang-cang-modal-tab:hover,
+.khxh-hang-cang-modal-tab:focus-visible {
+  color: #696cff;
+}
+
+.khxh-hang-cang-modal-tab:focus-visible {
+  outline: 2px solid rgba(105, 108, 255, .3);
+  outline-offset: 1px;
+}
+
+.khxh-hang-cang-modal-tab.is-active {
+  background: #fff;
+  color: #696cff;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .12);
+}
+
+.khxh-hang-cang-cost-mount {
+  position: relative;
+  min-width: 0;
+  --khcp-border: #e7e9ee;
+  --khcp-muted: #6c757d;
+  --khcp-bg: #f6f7f9;
+  --khcp-input-h: 34px;
+}
+
+.khxh-hang-cang-cost-mount > .row {
+  min-height: 0;
+}
+
+/* Card kế hoạch cũ là thông tin trùng với Tóm tắt xếp xe nên không nhúng lại. */
+.khxh-hang-cang-cost-mount .khcp-plan-card {
+  display: none;
+}
+
+/* Tổng quan chi phí sẽ được thiết kế lại sau; hiện tab chỉ giữ các bảng thao tác. */
+.khxh-hang-cang-cost-mount > .row > .col-xl-4 {
+  display: none;
+}
+
+.khxh-hang-cang-cost-mount > .row > .col-xl-8 {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-table > thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 3px 5px !important;
+  line-height: 1.2 !important;
+  vertical-align: middle !important;
+  border-bottom: 1px solid #d9e2ec !important;
+  background: #eef3f8 !important;
+  color: #344054 !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-table .select2-container {
+  width: 100% !important;
+}
+
+/* Tab Chi phí hàng cảng không cần người dùng nhập tên/chỉ số chặng. */
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-dm-table .khcp-dm-col-leg,
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-dm-table tbody td:nth-child(2) {
+  display: none;
+}
+
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-table-wrap {
+  /* Không dùng vh: zoom làm viewport CSS thay đổi và bảng co đột ngột.
+   * Danh sách chi phí tự cuộn trong vùng cố định; modal vẫn có thể cuộn khi
+   * màn hình thấp. */
+  height: 620px;
+  max-height: none;
+}
+
+@media (max-width: 1199.98px) {
+  .khxh-hang-cang-modal-tabs {
+    order: 3;
+    width: 100%;
+  }
+}
+
+.khxh-hang-cang-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 1rem;
+}
+
+.khxh-hang-cang-main { min-width: 0; }
+
+.khxh-hang-cang-side {
+  min-width: 0;
+  padding-left: 1rem;
+  border-left: 1px solid #e6e8ef;
+}
+
+.khxh-hang-cang-side-sticky {
+  position: sticky;
+  top: .75rem;
+}
+
+.khxh-hang-cang-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fbfcfe;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, .04);
+}
+
+/* Cụm yêu cầu trong modal xếp xe: dùng đúng button-checkbox của modal tạo,
+ * nhưng đủ rộng để bốn lựa chọn luôn gọn trong 2 cột. */
+#ke-hoach-edit-fullscreen-modal .khxh-port-edit-options {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: end;
+  justify-content: start;
+  gap: .3rem;
+  overflow: visible;
+}
+
+#ke-hoach-edit-fullscreen-modal .khxh-port-edit-options .khxh-port-create-option {
+  padding-right: .45rem;
+  padding-left: .45rem;
+  font-size: .78rem;
+}
+
+/* Select2 của modal xếp xe hàng cảng dùng cùng giới hạn như modal tạo. */
+#ke-hoach-edit-fullscreen-modal .select2-container--default .select2-results > .select2-results__options {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#ke-hoach-edit-fullscreen-modal .select2-container--open .select2-dropdown--below,
+#ke-hoach-edit-fullscreen-modal .select2-container--open .select2-dropdown--above {
+  min-width: 200px !important;
+  max-width: calc(100vw - 1rem);
+}
+
+#ke-hoach-lines .ke-hoach-line-card.khxh-hang-cang-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 1rem;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, .04);
+}
+
+.khxh-cont-ref-card .khxh-hang-cang-card-head {
+  padding: .75rem 1rem;
+  background: #fbfcfd;
+  border-bottom: 1px solid #e9eef3;
+}
+
+.khxh-hang-cang-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.khxh-hang-cang-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  color: #263445;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.khxh-hang-cang-card-subtitle {
+  margin-top: .2rem;
+  color: #a1acb8;
+  font-size: .82rem;
+}
+
+.khxh-hang-cang-section { margin-top: 1rem; }
+.khxh-hang-cang-section:first-of-type { margin-top: 0; }
+
+.khxh-hang-cang-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .75rem;
+}
+
+.khxh-hang-cang-section-title {
+  margin-bottom: 0;
+  color: #667085;
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.khxh-hang-cang-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual) {
+  display: flex;
+  align-items: flex-end;
+  overflow-x: auto;
+  padding-bottom: .25rem;
+}
+
+.khxh-hang-cang-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual) .khxh-route-node {
+  flex: 1 0 190px;
+}
+
+.khxh-hang-cang-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual) .khxh-route-arrow {
+  flex: 0 0 1.5rem;
+}
+
+@media (max-width: 767.98px) {
+  .khxh-hang-cang-layout { grid-template-columns: 1fr; }
+  .khxh-hang-cang-side { padding-left: 0; border-left: 0; }
+  .khxh-hang-cang-side-sticky { position: static; }
+  .khxh-hang-cang-section-head,
+  .khxh-hang-cang-card-head { align-items: flex-start; flex-direction: column; }
+}
+#vehicle-picker-modal .modal-header > .btn-close {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+#ke-hoach-edit-fullscreen-modal #complete-plan-btn {
+  cursor: pointer;
+  transition: filter .15s ease;
+}
+
+#ke-hoach-edit-fullscreen-modal #complete-plan-btn:hover,
+#ke-hoach-edit-fullscreen-modal #complete-plan-btn:focus-visible {
+  filter: brightness(.96);
+}
+
+/* Màu trạng thái "Chờ thực hiện" (badge cột T.Thái + nút trạng thái trong modal xếp xe hàng cảng). */
+.khxh-status-cho-thuc-hien {
+  --khxh-cho-thuc-hien: #6c7a96;
+  background-color: color-mix(in sRGB, var(--bs-paper-bg) var(--bs-bg-label-tint-amount), var(--khxh-cho-thuc-hien)) !important;
+  color: var(--khxh-cho-thuc-hien) !important;
+}
+[data-bs-theme=dark] .khxh-status-cho-thuc-hien {
+  --khxh-cho-thuc-hien: #a3aec6;
+}
+
+/* Menu chức năng của dòng hàng cảng: rộng theo mục dài nhất, không xuống dòng.
+ * Menu nằm trong ô ngày (căn giữa, hẹp) nên phải đặt lại width/căn lề/nowrap. */
+#ke-hoach-hang-cang-screen .khxh-row-action-menu .dropdown-menu {
+  width: max-content;
+  min-width: 13rem;
+  max-width: calc(100vw - 16px);
+  text-align: left;
+  white-space: nowrap;
+}
+
+#ke-hoach-hang-cang-screen .khxh-row-action-menu .dropdown-menu .dropdown-item {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-align: left;
+}
+
+/* Mục chưa dùng được (VD: Đẩy cho lái xe khi chưa có lái xe). */
+#ke-hoach-hang-cang-screen .khxh-row-action-menu .dropdown-menu .khxh-action-disabled {
+  cursor: not-allowed;
+}
+
+#ke-hoach-hang-cang-screen .khxh-row-action-menu .dropdown-menu .khxh-action-disabled .dropdown-item {
+  opacity: .55;
+  pointer-events: none;
+}
+
+#ke-hoach-hang-cang-screen .khxh-row-action-menu .dropdown-menu .khxh-action-hint {
+  margin-left: .35rem;
+  font-size: .75rem;
+  font-style: italic;
+}
+
+/* Cột T.Thái hàng cảng: trạng thái chuyến (lái xe) và trạng thái cont xếp chồng. */
+#ke-hoach-hang-cang-screen .khxh-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .25rem;
+}
+
+/* Thẻ trạng thái cont bấm được (Đã cắt mooc <-> Đủ hàng): báo hiệu bằng con trỏ, nổi nhẹ, viền và bóng. */
+#ke-hoach-hang-cang-screen .khxh-cont-toggle {
+  cursor: pointer;
+  user-select: none;
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+
+#ke-hoach-hang-cang-screen .khxh-cont-toggle:hover,
+#ke-hoach-hang-cang-screen .khxh-cont-toggle:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px currentColor, 0 3px 8px rgba(47, 51, 73, .18);
+  filter: brightness(.92) saturate(1.15);
+  outline: none;
+}
+
+#ke-hoach-hang-cang-screen .khxh-cont-toggle:active {
+  transform: translateY(0);
+  box-shadow: 0 0 0 2px currentColor;
+}
+
+#ke-hoach-hang-cang-screen .khxh-cont-toggle-busy {
+  opacity: .55;
+  pointer-events: none;
+}
+
+/* Công tắc Bãi hạ ngoài ở đầu card Thông tin xếp xe. */
+.khxh-hang-cang-switches {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.khxh-hang-cang-switches .form-check-label {
+  font-size: 0.86rem;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+/* Khi hiện thêm nút Bãi hạ ngoài, các nút trong tuyến co lại để vẫn vừa một hàng. */
+.khxh-hang-cang-layout .khxh-main-plan-card .khxh-route-flow:not(.khxh-route-flow-actual):has(.line-bai-ha-ngoai-fields:not(.d-none)) .khxh-route-node {
+  flex: 1 0 150px;
+}
+
+
+/* Thẻ trạng thái cont trong header modal xếp xe: nằm cạnh nút (cao hơn) nên phải căn giữa dọc icon + chữ. */
+#khxh-cont-status-badge:not(.d-none) {
+  display: inline-flex;
+  align-items: center;
+  /* align-self: center; */
+}

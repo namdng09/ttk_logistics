@@ -82,6 +82,15 @@ thead.tableFloatingHeaderOriginal{
   margin-left: .1rem;
   margin-right: .1rem;
 }
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  padding-right: 0 !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__clear {
+  margin-right: 0 !important;
+}
+
 .dropend {
   position: relative;
 }
@@ -222,4 +231,72 @@ table#table-hack-toan-trucking thead tr th {
   .qltx-driver-modal .bank-sub-row {
     grid-template-columns: 1fr;
   }
+}
+
+.table > thead > tr > th {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  line-height: 2;
+}
+
+/* Function column dropdowns */
+.dropdown-menu .dropdown-item {
+  align-items: center;
+  display: flex;
+}
+
+.dropdown-menu .dropdown-item > i.ti,
+.dropdown-menu .dropdown-item > i.tabler {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 1.125rem;
+  font-size: 1rem;
+  justify-content: center;
+  line-height: 1;
+}
+
+.dropdown-menu .dropdown-item > i.tabler-eye,
+.dropdown-menu .dropdown-item > i.tabler-file-text {
+  color: var(--bs-primary) !important;
+}
+
+.dropdown-menu .dropdown-item > i.tabler-edit,
+.dropdown-menu .dropdown-item > i.tabler-pencil {
+  color: var(--bs-info) !important;
+}
+
+.dropdown-menu .dropdown-item > i.tabler-download,
+.dropdown-menu .dropdown-item > i.tabler-file-export {
+  color: var(--bs-info) !important;
+}
+
+.dropdown-menu .dropdown-item > i.tabler-history,
+.dropdown-menu .dropdown-item > i.tabler-refresh {
+  color: var(--bs-secondary) !important;
+}
+
+.dropdown-menu .dropdown-item > i.tabler-circle-check,
+.dropdown-menu .dropdown-item > i.tabler-check,
+.dropdown-menu .dropdown-item > i.tabler-wallet,
+.dropdown-menu .dropdown-item > i.tabler-cash {
+  color: var(--bs-success) !important;
+}
+
+.dropdown-menu .dropdown-item > i.tabler-receipt-2,
+.dropdown-menu .dropdown-item > i.tabler-map-dollar,
+.dropdown-menu .dropdown-item > i.tabler-adjustments-dollar {
+  color: var(--bs-warning) !important;
+}
+
+.dropdown-menu .dropdown-item > i.tabler-truck-delivery,
+.dropdown-menu .dropdown-item > i.tabler-steering-wheel,
+.dropdown-menu .dropdown-item > i.tabler-link {
+  color: var(--bs-primary) !important;
+}
+
+.dropdown-menu .dropdown-item > i.tabler-trash,
+.dropdown-menu .dropdown-item > i.tabler-x,
+.dropdown-menu .dropdown-item > i.tabler-circle-x,
+.dropdown-menu .dropdown-item > i.tabler-unlink {
+  color: var(--bs-danger) !important;
 }

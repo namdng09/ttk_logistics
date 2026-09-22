@@ -8390,6 +8390,7 @@ img[data-app-light-img][data-app-dark-img] {
   font-size: 0.85rem;
   letter-spacing: 0.2px;
   text-transform: uppercase;
+  font-weight: 600;
 }
 .table:not(.table-borderless):not(.dataTable) thead th {
   border-block-start-width: var(--bs-border-width);

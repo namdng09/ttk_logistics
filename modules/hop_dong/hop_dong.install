@@ -29,6 +29,17 @@ function hop_dong_schema() {
         'unsigned' => TRUE,
         'not null' => FALSE,
       ),
+      'nhan_vien' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'loai_doi_tuong' => array(
+        'type' => 'varchar',
+        'length' => 20,
+        'not null' => TRUE,
+        'default' => 'khach_hang',
+      ),
       'files' => array(
         'type' => 'text',
         'size' => 'big',
@@ -60,6 +71,8 @@ function hop_dong_schema() {
       'hoat_dong' => array('hoat_dong'),
       'so_hop_dong' => array('so_hop_dong'),
       'khach_hang' => array('khach_hang'),
+      'nhan_vien' => array('nhan_vien'),
+      'loai_doi_tuong' => array('loai_doi_tuong'),
     ),
   );
 
@@ -76,4 +89,17 @@ function hop_dong_update_7002() {
     'size' => 'big',
     'not null' => FALSE,
   ));
+}
+
+/** Adds the employee-contract relation while keeping existing customer contracts intact. */
+function hop_dong_update_7003() {
+  if (!db_field_exists('hop_dong', 'nhan_vien')) {
+    db_add_field('hop_dong', 'nhan_vien', array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE));
+  }
+  if (!db_field_exists('hop_dong', 'loai_doi_tuong')) {
+    db_add_field('hop_dong', 'loai_doi_tuong', array('type' => 'varchar', 'length' => 20, 'not null' => TRUE, 'default' => 'khach_hang'));
+    db_update('hop_dong')->fields(array('loai_doi_tuong' => 'khach_hang'))->execute();
+  }
+  if (!db_index_exists('hop_dong', 'nhan_vien')) db_add_index('hop_dong', 'nhan_vien', array('nhan_vien'));
+  if (!db_index_exists('hop_dong', 'loai_doi_tuong')) db_add_index('hop_dong', 'loai_doi_tuong', array('loai_doi_tuong'));
 }

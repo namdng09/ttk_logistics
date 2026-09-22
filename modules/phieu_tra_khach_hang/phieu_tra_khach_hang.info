@@ -1,0 +1,6 @@
+name = Phiếu trả khách hàng
+description = Quản lý phiếu trả khách hàng từ kế hoạch hoàn thành và chi phí khách phải trả.
+core = 7.x
+package = ANDIN JSC API
+version = 7.x-1.0
+

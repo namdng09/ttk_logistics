@@ -1,0 +1,6 @@
+name = Lịch Sử Sửa Xe
+description = Quản lý lịch sử sửa chữa, bảo dưỡng phương tiện.
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = phuong_tien
+dependencies[] = lai_xe

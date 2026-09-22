@@ -1,0 +1,807 @@
+<?php
+
+/**
+ * @file
+ * Cài đặt cho module Thu chi.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function thu_chi_schema() {
+  $schema = array();
+
+  $schema['qltc_phieu_thu_chi'] = array(
+    'description' => 'Phieu thu chi luu bang schema thuong, khong dung content type.',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'not null' => TRUE),
+      'ma_giao_dich' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'loai_phieu' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'thu'),
+      'nhom_giao_dich' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => 'khac'),
+      'nid_quy' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid_quy_nhan' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'so_tien' => array('type' => 'numeric', 'precision' => 18, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'ngay_giao_dich' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'thang_luong' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
+      'nid_khach_hang' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid_nha_cung_cap' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid_chuyen_xe' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'uid_nguoi_de_xuat' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'ref_type' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'nid_ref' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'loai_giao_dich_json' => array('type' => 'text', 'not null' => FALSE),
+      'chi_tiet_json' => array('type' => 'text', 'not null' => FALSE),
+      'thong_tin_json' => array('type' => 'text', 'not null' => FALSE),
+      'duyet_status' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'cho_duyet'),
+      'dong_phieu' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 0),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+      'uid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'status' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'changed' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+    ),
+    'primary key' => array('nid'),
+    'unique keys' => array(
+      'ma_giao_dich' => array('ma_giao_dich'),
+    ),
+    'indexes' => array(
+      'loai_phieu' => array('loai_phieu'),
+      'duyet_status' => array('duyet_status'),
+      'nid_quy' => array('nid_quy'),
+      'nid_quy_nhan' => array('nid_quy_nhan'),
+      'ngay_giao_dich' => array('ngay_giao_dich'),
+      'hoat_dong' => array('hoat_dong'),
+    ),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function thu_chi_install() {
+  thu_chi_ensure_content_type();
+  thu_chi_ensure_chuyen_xe_dong_field();
+  thu_chi_set_default_dong_chuyen_xe_values();
+}
+
+/**
+ * Legacy update cũ, nay chỉ đảm bảo schema phiếu thu chi tồn tại.
+ */
+function thu_chi_update_7201() {
+  thu_chi_ensure_content_type();
+  return 'Đã đảm bảo schema qltc_phieu_thu_chi sẵn sàng.';
+}
+
+
+/**
+ * Update: tách chức năng ứng lương ra module riêng, ẩn các phân loại ứng lương khỏi Thu chi.
+ */
+function thu_chi_update_7202() {
+  thu_chi_ensure_content_type();
+  $count = thu_chi_deactivate_salary_advance_categories();
+  return 'Đã cập nhật module Thu chi chỉ quản lý phiếu thu/chi và ẩn ' . intval($count) . ' phân loại ứng lương.';
+}
+
+/**
+ * Update: rebuild menu router để nhận các endpoint AJAX Select2 của Thu chi.
+ */
+function thu_chi_update_7203() {
+  menu_rebuild();
+  return 'Đã rebuild menu router cho các endpoint AJAX của module Thu chi.';
+}
+
+/**
+ * Update: rebuild menu router sau khi bổ sung hook_boot fallback cho AJAX Select2.
+ */
+function thu_chi_update_7204() {
+  menu_rebuild();
+  return 'Đã rebuild menu router và kích hoạt fallback sớm cho AJAX Select2 của Thu chi.';
+}
+
+/**
+ * Update: bổ sung field_dong_chuyen_xe cho content type chuyen_xe.
+ */
+function thu_chi_update_7205() {
+  thu_chi_ensure_chuyen_xe_dong_field();
+  $count = thu_chi_set_default_dong_chuyen_xe_values();
+  menu_rebuild();
+  return 'Đã bổ sung field_dong_chuyen_xe cho chuyến xe và gán mặc định 0 cho ' . intval($count) . ' chuyến xe.';
+}
+
+/**
+ * Update legacy: đồng bộ trạng thái duyệt mặc định trên schema.
+ */
+function thu_chi_update_7206() {
+  thu_chi_ensure_content_type();
+  $count = 0;
+  if (db_table_exists('qltc_phieu_thu_chi')) {
+    $count = db_update('qltc_phieu_thu_chi')
+      ->fields(array('duyet_status' => 'cho_duyet'))
+      ->isNull('duyet_status')
+      ->execute();
+  }
+  menu_rebuild();
+  return 'Đã đồng bộ trạng thái duyệt mặc định cho ' . intval($count) . ' phiếu schema.';
+}
+
+/**
+ * Update legacy: đồng bộ người đề xuất mặc định trên schema.
+ */
+function thu_chi_update_7207() {
+  thu_chi_ensure_content_type();
+  $count = 0;
+  menu_rebuild();
+  return 'Đã sẵn sàng cập nhật người đề xuất cho phiếu schema.';
+}
+
+/**
+ * Update: đồng bộ phiếu thu chi sang bảng qltc_giao_dich để số dư quỹ rebuild đúng.
+ */
+function thu_chi_update_7208() {
+  thu_chi_ensure_content_type();
+  module_load_include('module', 'thu_chi');
+
+  $result = array('synced' => 0, 'rebuilt' => 0);
+  if (function_exists('thu_chi_sync_all_qltc_giao_dich')) {
+    $result = thu_chi_sync_all_qltc_giao_dich();
+  }
+
+  menu_rebuild();
+  return 'Đã đồng bộ ' . intval($result['synced']) . ' phiếu thu chi sang qltc_giao_dich và rebuild ' . intval($result['rebuilt']) . ' quỹ.';
+}
+
+/**
+ * Đảm bảo content type chuyen_xe có field_dong_chuyen_xe.
+ */
+function thu_chi_ensure_chuyen_xe_dong_field() {
+  if (!node_type_get_type('chuyen_xe')) {
+    return;
+  }
+
+  if (!field_info_field('field_dong_chuyen_xe')) {
+    field_create_field(array(
+      'field_name' => 'field_dong_chuyen_xe',
+      'type' => 'number_integer',
+      'cardinality' => 1,
+    ));
+  }
+
+  if (!field_info_instance('node', 'field_dong_chuyen_xe', 'chuyen_xe')) {
+    field_create_instance(array(
+      'field_name' => 'field_dong_chuyen_xe',
+      'entity_type' => 'node',
+      'bundle' => 'chuyen_xe',
+      'label' => 'Đóng chuyến xe',
+      'description' => '0 = chưa đóng, 1 = đã đóng. Dữ liệu phiếu thu chi chỉ lấy chuyến xe có giá trị 0.',
+      'required' => FALSE,
+      'default_value' => array(array('value' => 0)),
+      'widget' => array(
+        'type' => 'number',
+        'settings' => array(),
+      ),
+      'display' => array(
+        'default' => array(
+          'label' => 'above',
+          'type' => 'number_integer',
+          'settings' => array(),
+        ),
+      ),
+    ));
+  }
+
+  field_cache_clear();
+}
+
+/**
+ * Gán mặc định field_dong_chuyen_xe = 0 cho các chuyến xe chưa có dữ liệu.
+ */
+function thu_chi_set_default_dong_chuyen_xe_values() {
+  if (!node_type_get_type('chuyen_xe') || !field_info_field('field_dong_chuyen_xe')) {
+    return 0;
+  }
+
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'chuyen_xe')
+    ->propertyOrderBy('nid', 'ASC')
+    ->range(0, 5000);
+
+  $result = $query->execute();
+  if (empty($result['node'])) {
+    return 0;
+  }
+
+  $count = 0;
+  $nodes = node_load_multiple(array_keys($result['node']));
+  foreach ($nodes as $node) {
+    $current = NULL;
+    if (isset($node->field_dong_chuyen_xe['und'][0]['value'])) {
+      $current = $node->field_dong_chuyen_xe['und'][0]['value'];
+    }
+
+    if ($current === NULL || $current === '') {
+      $node->field_dong_chuyen_xe['und'][0]['value'] = 0;
+      node_save($node);
+      $count++;
+    }
+  }
+
+  return $count;
+}
+
+/**
+ * Đảm bảo schema phiếu thu chi tồn tại.
+ */
+function thu_chi_ensure_content_type() {
+  if (function_exists('db_table_exists') && !db_table_exists('qltc_phieu_thu_chi')) {
+    $schema = drupal_get_schema('qltc_phieu_thu_chi');
+    if ($schema) {
+      db_create_table('qltc_phieu_thu_chi', $schema);
+    }
+  }
+}
+
+/**
+ * Gán mặc định field_duyet = cho_duyet cho phiếu chưa có trạng thái.
+ */
+function thu_chi_set_default_duyet_values() {
+  if (!node_type_get_type('phieu_thu_chi') || !field_info_field('field_duyet')) {
+    return 0;
+  }
+
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'phieu_thu_chi')
+    ->propertyOrderBy('nid', 'ASC')
+    ->range(0, 5000);
+
+  $result = $query->execute();
+  if (empty($result['node'])) {
+    return 0;
+  }
+
+  $count = 0;
+  $nodes = node_load_multiple(array_keys($result['node']));
+  foreach ($nodes as $node) {
+    $current = isset($node->field_duyet[LANGUAGE_NONE][0]['value']) ? trim((string) $node->field_duyet[LANGUAGE_NONE][0]['value']) : '';
+    if ($current === '') {
+      $node->field_duyet[LANGUAGE_NONE][0]['value'] = 'cho_duyet';
+      $json = array();
+      if (isset($node->field_thong_tin_json[LANGUAGE_NONE][0]['value'])) {
+        $json = json_decode($node->field_thong_tin_json[LANGUAGE_NONE][0]['value'], TRUE);
+        if (!is_array($json)) {
+          $json = array();
+        }
+      }
+      $json['duyet'] = 'cho_duyet';
+      $json['duyet_label'] = 'Chờ duyệt';
+      if (empty($json['lich_su_trang_thai_phieu']) || !is_array($json['lich_su_trang_thai_phieu'])) {
+        $json['lich_su_trang_thai_phieu'] = array();
+      }
+      $json['lich_su_trang_thai_phieu'][] = array(
+        'time' => REQUEST_TIME,
+        'time_text' => format_date(REQUEST_TIME, 'custom', 'd/m/Y H:i:s'),
+        'tu_trang_thai' => 'Khởi tạo',
+        'den_trang_thai' => 'Chờ duyệt',
+        'nguoi_cap_nhat_uid' => 0,
+        'nguoi_cap_nhat' => 'system',
+        'ghi_chu' => 'Gán mặc định khi cập nhật module',
+      );
+      $node->field_thong_tin_json[LANGUAGE_NONE][0]['value'] = json_encode($json);
+      $node->status = 0;
+      $node->changed = REQUEST_TIME;
+      node_save($node);
+      $count++;
+    }
+  }
+
+  return $count;
+}
+
+/**
+ * Gán mặc định người đề xuất theo người tạo phiếu nếu chưa có.
+ */
+/**
+ * Gán mặc định field_dong_phieu = 0 cho phiếu chưa có dữ liệu.
+ */
+function thu_chi_set_default_dong_phieu_values() {
+  if (!node_type_get_type('phieu_thu_chi') || !field_info_field('field_dong_phieu')) {
+    return 0;
+  }
+
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'phieu_thu_chi')
+    ->propertyOrderBy('nid', 'ASC')
+    ->range(0, 5000);
+
+  $result = $query->execute();
+  if (empty($result['node'])) {
+    return 0;
+  }
+
+  $count = 0;
+  $nodes = node_load_multiple(array_keys($result['node']));
+  foreach ($nodes as $node) {
+    if (!isset($node->field_dong_phieu[LANGUAGE_NONE][0]['value']) || $node->field_dong_phieu[LANGUAGE_NONE][0]['value'] === '') {
+      $node->field_dong_phieu[LANGUAGE_NONE][0]['value'] = 0;
+      node_save($node);
+      $count++;
+    }
+  }
+  return $count;
+}
+
+function thu_chi_set_default_nguoi_de_xuat_values() {
+  if (!node_type_get_type('phieu_thu_chi') || !field_info_field('field_tc_nguoi_de_xuat')) {
+    return 0;
+  }
+
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'phieu_thu_chi')
+    ->propertyOrderBy('nid', 'ASC')
+    ->range(0, 5000);
+
+  $result = $query->execute();
+  if (empty($result['node'])) {
+    return 0;
+  }
+
+  $count = 0;
+  $nodes = node_load_multiple(array_keys($result['node']));
+  foreach ($nodes as $node) {
+    $current = isset($node->field_tc_nguoi_de_xuat[LANGUAGE_NONE][0]['target_id']) ? intval($node->field_tc_nguoi_de_xuat[LANGUAGE_NONE][0]['target_id']) : 0;
+    if ($current > 0) {
+      continue;
+    }
+
+    $uid = !empty($node->uid) ? intval($node->uid) : 1;
+    if ($uid <= 0) {
+      $uid = 1;
+    }
+
+    $node->field_tc_nguoi_de_xuat[LANGUAGE_NONE][0]['target_id'] = $uid;
+    $json = array();
+    if (isset($node->field_thong_tin_json[LANGUAGE_NONE][0]['value'])) {
+      $json = json_decode($node->field_thong_tin_json[LANGUAGE_NONE][0]['value'], TRUE);
+      if (!is_array($json)) {
+        $json = array();
+      }
+    }
+    $json['uid_nguoi_de_xuat'] = $uid;
+    $node->field_thong_tin_json[LANGUAGE_NONE][0]['value'] = json_encode($json);
+    $node->status = 0;
+    $node->changed = REQUEST_TIME;
+    node_save($node);
+    $count++;
+  }
+
+  return $count;
+}
+
+/**
+ * Tạo field text_long và instance nếu thiếu.
+ */
+function thu_chi_ensure_text_long_field($field_name, $label, $description = '') {
+  if (!field_info_field($field_name)) {
+    field_create_field(array(
+      'field_name' => $field_name,
+      'type' => 'text_long',
+      'cardinality' => 1,
+    ));
+  }
+
+  if (!field_info_instance('node', $field_name, 'phieu_thu_chi')) {
+    field_create_instance(array(
+      'field_name' => $field_name,
+      'entity_type' => 'node',
+      'bundle' => 'phieu_thu_chi',
+      'label' => $label,
+      'description' => $description,
+      'required' => FALSE,
+      'widget' => array('type' => 'text_textarea', 'settings' => array('rows' => 5)),
+    ));
+  }
+}
+
+/**
+ * Tạo field text ngắn và instance nếu thiếu.
+ */
+function thu_chi_ensure_text_field($field_name, $label, $description = '', $default_value = '') {
+  if (!field_info_field($field_name)) {
+    field_create_field(array(
+      'field_name' => $field_name,
+      'type' => 'text',
+      'cardinality' => 1,
+      'settings' => array('max_length' => 64),
+    ));
+  }
+
+  if (!field_info_instance('node', $field_name, 'phieu_thu_chi')) {
+    $instance = array(
+      'field_name' => $field_name,
+      'entity_type' => 'node',
+      'bundle' => 'phieu_thu_chi',
+      'label' => $label,
+      'description' => $description,
+      'required' => FALSE,
+      'widget' => array('type' => 'text_textfield', 'settings' => array('size' => 30)),
+      'display' => array(
+        'default' => array('label' => 'above', 'type' => 'text_default', 'settings' => array()),
+      ),
+    );
+    if ($default_value !== '') {
+      $instance['default_value'] = array(array('value' => $default_value));
+    }
+    field_create_instance($instance);
+  }
+}
+
+/**
+ * Tạo field số và instance nếu thiếu.
+ */
+function thu_chi_ensure_number_field($field_name, $type, $label, array $settings = array()) {
+  if (!field_info_field($field_name)) {
+    $field = array(
+      'field_name' => $field_name,
+      'type' => $type,
+      'cardinality' => 1,
+    );
+    if (!empty($settings)) {
+      $field['settings'] = $settings;
+    }
+    field_create_field($field);
+  }
+
+  if (!field_info_instance('node', $field_name, 'phieu_thu_chi')) {
+    field_create_instance(array(
+      'field_name' => $field_name,
+      'entity_type' => 'node',
+      'bundle' => 'phieu_thu_chi',
+      'label' => $label,
+      'required' => FALSE,
+      'widget' => array('type' => 'number', 'settings' => array()),
+    ));
+  }
+}
+
+/**
+ * Tạo field entityreference và instance nếu thiếu.
+ */
+function thu_chi_ensure_entityreference_field($field_name, $label, array $target_bundles = array()) {
+  if (!module_exists('entityreference')) {
+    return;
+  }
+
+  if (!field_info_field($field_name)) {
+    field_create_field(array(
+      'field_name' => $field_name,
+      'type' => 'entityreference',
+      'cardinality' => 1,
+      'settings' => array(
+        'target_type' => 'node',
+        'handler' => 'base',
+        'handler_settings' => array(
+          'target_bundles' => $target_bundles,
+          'sort' => array('type' => 'property', 'property' => 'title', 'direction' => 'ASC'),
+        ),
+      ),
+    ));
+  }
+
+  if (!field_info_instance('node', $field_name, 'phieu_thu_chi')) {
+    field_create_instance(array(
+      'field_name' => $field_name,
+      'entity_type' => 'node',
+      'bundle' => 'phieu_thu_chi',
+      'label' => $label,
+      'required' => FALSE,
+      'widget' => array(
+        'type' => 'entityreference_autocomplete',
+        'settings' => array('match_operator' => 'CONTAINS', 'size' => 60),
+      ),
+    ));
+  }
+}
+
+/**
+ * Tạo field entityreference đến user và instance nếu thiếu.
+ */
+function thu_chi_ensure_user_entityreference_field($field_name, $label) {
+  if (!module_exists('entityreference')) {
+    return;
+  }
+
+  if (!field_info_field($field_name)) {
+    field_create_field(array(
+      'field_name' => $field_name,
+      'type' => 'entityreference',
+      'cardinality' => 1,
+      'settings' => array(
+        'target_type' => 'user',
+        'handler' => 'base',
+        'handler_settings' => array(
+          'sort' => array('type' => 'property', 'property' => 'name', 'direction' => 'ASC'),
+        ),
+      ),
+    ));
+  }
+
+  if (!field_info_instance('node', $field_name, 'phieu_thu_chi')) {
+    field_create_instance(array(
+      'field_name' => $field_name,
+      'entity_type' => 'node',
+      'bundle' => 'phieu_thu_chi',
+      'label' => $label,
+      'required' => FALSE,
+      'widget' => array(
+        'type' => 'entityreference_autocomplete',
+        'settings' => array('match_operator' => 'CONTAINS', 'size' => 60),
+      ),
+    ));
+  }
+}
+
+/**
+ * Migrate dữ liệu cũ từ bảng qltc_giao_dich sang node phieu_thu_chi.
+ */
+function thu_chi_migrate_table_to_nodes() {
+  if (!db_table_exists('qltc_giao_dich')) {
+    return 0;
+  }
+
+  $count = 0;
+  $rows = db_select('qltc_giao_dich', 'gd')->fields('gd')->execute()->fetchAll();
+  foreach ($rows as $row) {
+    $ma = trim($row->ma_giao_dich);
+    if ($ma === '') {
+      $ma = 'GD' . intval($row->gd_id);
+    }
+
+    $exists = db_select('node', 'n')
+      ->fields('n', array('nid'))
+      ->condition('type', 'phieu_thu_chi')
+      ->condition('title', $ma)
+      ->range(0, 1)
+      ->execute()
+      ->fetchField();
+
+    if ($exists) {
+      continue;
+    }
+
+    $node = new stdClass();
+    $node->type = 'phieu_thu_chi';
+    node_object_prepare($node);
+    $node->title = $ma;
+    $node->uid = !empty($row->uid) ? intval($row->uid) : 1;
+    $node->status = 0;
+    $node->created = !empty($row->created) ? intval($row->created) : REQUEST_TIME;
+    $node->changed = !empty($row->changed) ? intval($row->changed) : REQUEST_TIME;
+
+    $json = array(
+      'loai_giao_dich' => $row->loai_giao_dich,
+      'nhom_giao_dich' => $row->nhom_giao_dich,
+      'duyet' => 'cho_duyet',
+      'duyet_label' => 'Chờ duyệt',
+      'lich_su_trang_thai_phieu' => array(array(
+        'time' => REQUEST_TIME,
+        'time_text' => format_date(REQUEST_TIME, 'custom', 'd/m/Y H:i:s'),
+        'tu_trang_thai' => 'Khởi tạo',
+        'den_trang_thai' => 'Chờ duyệt',
+        'nguoi_cap_nhat_uid' => 0,
+        'nguoi_cap_nhat' => 'system',
+        'ghi_chu' => 'Migrate dữ liệu cũ sang trạng thái chờ duyệt',
+      )),
+      'chi_tiet' => array(),
+      'ref_type' => isset($row->ref_type) ? $row->ref_type : '',
+      'nid_ref' => isset($row->nid_ref) ? intval($row->nid_ref) : 0,
+      'uid_nguoi_de_xuat' => !empty($row->uid) ? intval($row->uid) : 1,
+      'source_table' => 'qltc_giao_dich',
+      'source_gd_id' => intval($row->gd_id),
+    );
+
+    thu_chi_install_set_target($node, 'field_tc_quy', isset($row->nid_quy) ? intval($row->nid_quy) : 0);
+    thu_chi_install_set_target($node, 'field_tc_quy_nhan', isset($row->nid_quy_nhan) ? intval($row->nid_quy_nhan) : 0);
+    thu_chi_install_set_value($node, 'field_tc_so_tien', isset($row->so_tien) ? $row->so_tien : 0);
+    thu_chi_install_set_value($node, 'field_tc_ngay_phieu', isset($row->ngay_giao_dich) ? intval($row->ngay_giao_dich) : REQUEST_TIME);
+    thu_chi_install_set_value($node, 'field_tc_thang_hach_toan', !empty($row->thang_luong) ? intval($row->thang_luong) : intval(date('Ym')));
+    thu_chi_install_set_value($node, 'field_duyet', 'cho_duyet');
+    thu_chi_install_set_value($node, 'field_dong_phieu', 0);
+    thu_chi_install_set_target($node, 'field_tc_khach_hang', isset($row->nid_khach_hang) ? intval($row->nid_khach_hang) : 0);
+    thu_chi_install_set_target($node, 'field_tc_nha_cung_cap', isset($row->nid_nha_cung_cap) ? intval($row->nid_nha_cung_cap) : 0);
+    thu_chi_install_set_target($node, 'field_tc_chuyen_xe', isset($row->nid_chuyen_xe) ? intval($row->nid_chuyen_xe) : 0);
+    thu_chi_install_set_target($node, 'field_tc_nguoi_de_xuat', !empty($row->uid) ? intval($row->uid) : 1);
+    thu_chi_install_set_value($node, 'field_hoat_dong', !empty($row->status) ? 1 : 0);
+    thu_chi_install_set_value($node, 'field_thong_tin_json', json_encode($json));
+
+    node_save($node);
+    $count++;
+  }
+
+  return $count;
+}
+
+
+/**
+ * Ẩn các danh mục ứng lương cũ khỏi phân loại thu chi.
+ */
+function thu_chi_deactivate_salary_advance_categories() {
+  if (!node_type_get_type('danh_muc')) {
+    return 0;
+  }
+
+  $count = 0;
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'danh_muc')
+    ->propertyOrderBy('title', 'ASC')
+    ->range(0, 1000);
+  if (field_info_field('field_phan_loai')) {
+    $query->fieldCondition('field_phan_loai', 'value', 'Phân loại thu chi', '=');
+  }
+
+  $result = $query->execute();
+  if (empty($result['node'])) {
+    return 0;
+  }
+
+  $nodes = node_load_multiple(array_keys($result['node']));
+  foreach ($nodes as $node) {
+    if (!thu_chi_install_is_salary_advance_category_label($node->title)) {
+      continue;
+    }
+    thu_chi_install_set_value($node, 'field_hoat_dong', 0);
+    $node->status = 0;
+    $node->changed = REQUEST_TIME;
+    node_save($node);
+    $count++;
+  }
+
+  return $count;
+}
+
+/**
+ * Kiểm tra tên phân loại ứng lương đã tách riêng.
+ */
+function thu_chi_install_is_salary_advance_category_label($label) {
+  $label = trim(drupal_strtolower((string) $label));
+  $blocked = array(
+    drupal_strtolower('Ứng tiền lái xe'),
+    drupal_strtolower('Ung tien lai xe'),
+    drupal_strtolower('Tạm ứng lái xe'),
+    drupal_strtolower('Tam ung lai xe'),
+    drupal_strtolower('Khấu trừ tạm ứng lương'),
+    drupal_strtolower('Khau tru tam ung luong'),
+  );
+  return in_array($label, $blocked, TRUE);
+}
+
+function thu_chi_install_set_value(&$node, $field_name, $value) {
+  if (field_info_instance('node', $field_name, 'phieu_thu_chi')) {
+    $node->{$field_name}[LANGUAGE_NONE][0]['value'] = $value;
+  }
+}
+
+function thu_chi_install_set_target(&$node, $field_name, $target_id) {
+  if (field_info_instance('node', $field_name, 'phieu_thu_chi') && intval($target_id) > 0) {
+    $node->{$field_name}[LANGUAGE_NONE][0]['target_id'] = intval($target_id);
+  }
+}
+
+/**
+ * Rebuild lại số dư các quỹ quy_tai_chinh từ phiếu thu chi đã duyệt.
+ */
+function thu_chi_update_7209() {
+  module_load_include('module', 'thu_chi');
+
+  $quy_ids = array();
+  if (function_exists('thu_chi_sync_all_qltc_giao_dich')) {
+    thu_chi_sync_all_qltc_giao_dich();
+  }
+
+  if (function_exists('thu_chi_quy_options')) {
+    foreach (thu_chi_quy_options(FALSE) as $qid => $label) {
+      $quy_ids[] = intval($qid);
+    }
+  }
+
+  $count = 0;
+  foreach (array_unique(array_filter($quy_ids)) as $qid) {
+    if (function_exists('thu_chi_rebuild_quy_balance')) {
+      thu_chi_rebuild_quy_balance($qid);
+      $count++;
+    }
+  }
+
+  return 'Đã rebuild số dư cho ' . intval($count) . ' quỹ từ phiếu thu chi đã duyệt.';
+}
+
+
+/**
+ * Update: đồng bộ phiếu thu chi sang sổ cái qltc_so_cai_quy và rebuild quỹ.
+ */
+function thu_chi_update_7210() {
+  module_load_include('module', 'thu_chi');
+  module_load_include('module', 'quan_ly_tai_chinh');
+
+  $synced = 0;
+  if (function_exists('thu_chi_sync_all_so_cai_quy')) {
+    $synced = thu_chi_sync_all_so_cai_quy();
+  }
+
+  $rebuilt = 0;
+  if (function_exists('quan_ly_tai_chinh_quy_get_all') && function_exists('quan_ly_tai_chinh_rebuild_quy_balance')) {
+    foreach (quan_ly_tai_chinh_quy_get_all(FALSE) as $quy) {
+      quan_ly_tai_chinh_rebuild_quy_balance($quy->nid_quy, FALSE);
+      $rebuilt++;
+    }
+  }
+
+  return 'Đã đồng bộ ' . intval($synced) . ' phiếu thu chi sang sổ cái quỹ và rebuild ' . intval($rebuilt) . ' quỹ.';
+}
+
+/**
+ * Update: bổ sung field_dong_phieu cho Phiếu thu chi.
+ */
+function thu_chi_update_7211() {
+  thu_chi_ensure_content_type();
+  $count = thu_chi_set_default_dong_phieu_values();
+  menu_rebuild();
+  return 'Đã bổ sung field_dong_phieu và gán mặc định 0 cho ' . intval($count) . ' phiếu thu chi.';
+}
+
+/**
+ * Đổi tên field khoá ngoại theo quy tắc nid_<entity> (VD: quy_id -> nid_quy, ref_id -> nid_ref).
+ */
+function thu_chi_update_7212() {
+  $spec = array('type' => 'int', 'not null' => TRUE, 'default' => 0);
+
+  $renames = array(
+    'qltc_phieu_thu_chi' => array(
+      'quy_id' => 'nid_quy',
+      'quy_nhan_id' => 'nid_quy_nhan',
+      'khach_hang_nid' => 'nid_khach_hang',
+      'nha_cung_cap_nid' => 'nid_nha_cung_cap',
+      'chuyen_xe_nid' => 'nid_chuyen_xe',
+      'nguoi_de_xuat_uid' => 'uid_nguoi_de_xuat',
+      'ref_id' => 'nid_ref',
+    ),
+  );
+
+  $indexes = array(
+    'qltc_phieu_thu_chi' => array(
+      'nid_quy' => array('nid_quy'),
+      'nid_quy_nhan' => array('nid_quy_nhan'),
+    ),
+  );
+
+  $renamed = 0;
+  foreach ($renames as $table => $fields) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    foreach ($fields as $old => $new) {
+      if (db_field_exists($table, $old) && !db_field_exists($table, $new)) {
+        db_change_field($table, $old, $new, $spec);
+        $renamed++;
+      }
+    }
+  }
+
+  foreach ($indexes as $table => $defs) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    foreach ($defs as $name => $columns) {
+      if (!db_index_exists($table, $name)) {
+        db_add_index($table, $name, $columns);
+      }
+    }
+  }
+
+  return 'Đã đổi tên ' . intval($renamed) . ' cột của bảng qltc_phieu_thu_chi theo quy tắc nid_<entity>.';
+}

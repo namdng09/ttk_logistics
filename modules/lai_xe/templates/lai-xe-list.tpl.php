@@ -39,14 +39,13 @@
             <th>CCCD</th>
             <th>Số bằng lái</th>
             <th>Loại bằng</th>
-            <th style="width:110px;" class="text-end">Lương tháng</th>
-            <th style="width:90px;" class="text-center">Ngày công</th>
-            <th style="width:110px;" class="text-end">Lương ngày</th>
+            <th style="width:110px;" class="text-center">Ngày sinh</th>
+            <th style="width:130px;" class="text-center">Truy cập app</th>
           </tr>
         </thead>
         <tbody id="table-lai-xe-tbody">
           <tr id="loading-row">
-            <td colspan="11" class="text-center py-4">
+            <td colspan="10" class="text-center py-4">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang tải...</span>
               </div>
@@ -91,61 +90,96 @@
           <input type="hidden" name="nid" value="">
 
           <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Họ tên <span class="text-danger">*</span></label>
               <input type="text" class="form-control" name="ten" required placeholder="Nhập họ tên">
               <div class="invalid-feedback">Vui lòng nhập họ tên</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Mã nhân viên</label>
               <input type="text" class="form-control" name="ma_nhan_vien" placeholder="NV001">
             </div>
-            <div class="col-md-4">
-              <label class="form-label">SĐT</label>
-              <input type="tel" class="form-control phone-mask" name="sdt" placeholder="0987654321" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+            <div class="col-md-3">
+              <label class="form-label">SĐT <span class="text-danger">*</span></label>
+              <input type="tel" class="form-control phone-mask" name="sdt" required minlength="10" maxlength="10" pattern="[0-9]{10}" placeholder="0987654321" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <div class="invalid-feedback">SĐT phải gồm đúng 10 chữ số</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">CCCD</label>
-              <input type="text" class="form-control" name="cccd" placeholder="Nhập CCCD" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <input type="text" class="form-control" name="cccd" minlength="12" maxlength="12" pattern="[0-9]{12}" placeholder="Nhập CCCD 12 số nếu có" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <div class="invalid-feedback">CCCD phải gồm đúng 12 chữ số</div>
             </div>
-            <div class="col-md-4">
+
+            <div class="col-md-3">
               <label class="form-label">Ngày cấp</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="ngay_cap" placeholder="dd/MM/yyyy">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Nơi cấp</label>
               <input type="text" class="form-control" name="noi_cap" placeholder="Nhập nơi cấp">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Hạn CCCD</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="han_cccd" placeholder="dd/MM/yyyy">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+              <label class="form-label">Ngày sinh</label>
+              <input type="text" class="form-control flatpickr-date date-mask" name="dod" placeholder="dd/MM/yyyy">
+            </div>
+
+            <div class="col-md-3">
               <label class="form-label">Số bằng lái</label>
               <input type="text" class="form-control" name="so_bang_lai" placeholder="Nhập số bằng lái" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Loại bằng lái</label>
               <select class="form-select select2-tags-loai-bang" name="loai_bang_lai" data-placeholder="Chọn hoặc nhập loại bằng">
                 <option value="">Chọn loại bằng</option>
               </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Hạn bằng lái</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="han_bang_lai" placeholder="dd/MM/yyyy">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Ngày nhận việc</label>
               <input type="text" class="form-control flatpickr-date date-mask" name="ngay_nhan_viec" placeholder="dd/MM/yyyy">
             </div>
 
+            <div class="col-12">
+              <div class="lai-xe-app-account-section" id="lai-xe-app-account-section">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                  <div>
+                    <label class="form-label mb-0"><i class="ti tabler-device-mobile me-2"></i>Tài khoản ứng dụng lái xe</label>
+                    <div class="small text-muted mt-1" id="lai-xe-app-account-status">Chưa tạo tài khoản</div>
+                  </div>
+                  <label class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" name="kich_hoat_app" id="lai-xe-kich-hoat-app" value="1">
+                    <span class="form-check-label">Kích hoạt truy cập app</span>
+                  </label>
+                </div>
+                <div class="row g-3 d-none" id="lai-xe-app-password-fields">
+                  <div class="col-md-6">
+                    <label class="form-label" id="lai-xe-app-password-label">Mật khẩu <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" name="mat_khau_app" autocomplete="new-password" placeholder="Ít nhất 6 ký tự">
+                    <div class="invalid-feedback">Vui lòng nhập mật khẩu ít nhất 6 ký tự</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" id="lai-xe-app-confirm-label">Xác nhận mật khẩu</label>
+                    <input type="password" class="form-control" name="xac_nhan_mat_khau_app" autocomplete="new-password" placeholder="Nhập lại mật khẩu">
+                    <div class="invalid-feedback">Xác nhận mật khẩu chưa khớp</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Bank Info Repeater -->
             <div class="col-12">
-              <div class="ngan-hang-section">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <label class="form-label mb-0"><i class="ti tabler-building-bank me-2"></i>Thông tin ngân hàng</label>
-                  <button type="button" class="btn btn-sm btn-label-primary" id="btn-them-ngan-hang">
-                    <i class="ti tabler-plus me-1"></i>Thêm
+              <div class="section mt-4 lai-xe-bank-section">
+                <div class="section-head d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label mb-0 fw-bold lai-xe-section-title"><i class="ti tabler-building-bank me-2"></i>Thông tin ngân hàng</label>
+                  <button type="button" class="btn btn-sm btn-icon btn-primary text-white" id="btn-them-ngan-hang" title="Thêm ngân hàng">
+                    <i class="ti tabler-plus"></i>
                   </button>
                 </div>
                 <div id="ngan-hang-repeater">
@@ -154,34 +188,63 @@
               </div>
             </div>
 
-            <!-- Lương -->
+            <!-- Driver Files -->
             <div class="col-12">
-              <hr class="my-3">
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <label class="form-label">Lương cơ bản</label>
-                  <div class="input-group">
-                    <span class="input-group-text">đ</span>
-                    <input type="text" class="form-control money-mask" name="luong_co_ban" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+              <div class="lai-xe-file-section" id="lai-xe-file-section">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                  <label class="form-label mb-0"><i class="ti tabler-files me-2"></i>Hồ sơ tài liệu</label>
+                  <span class="badge rounded-pill bg-label-secondary border" id="lai-xe-file-count">0 file</span>
+                </div>
+
+                <div class="alert alert-light border py-2 px-3 mb-2 small" id="lai-xe-file-create-note" style="display:none;">
+                  Có thể chọn hồ sơ ngay tại đây; hồ sơ sẽ được upload tự động sau khi lưu lái xe.
+                </div>
+
+                <div class="lai-xe-file-upload row g-2 align-items-end mb-2" id="lai-xe-file-upload">
+                  <div class="col-12 col-lg-3">
+                    <label class="form-label">Loại hồ sơ</label>
+                    <select class="form-select form-select-sm" id="lx-file-type" name="loai" form="lai-xe-file-form">
+                      <option value="cccd_truoc">CCCD mặt trước</option>
+                      <option value="cccd_sau">CCCD mặt sau</option>
+                      <option value="bang_lai">Bằng lái</option>
+                      <option value="anh_chan_dung">Ảnh chân dung</option>
+                      <option value="giay_kham_suc_khoe">Giấy khám sức khoẻ</option>
+                      <option value="khac">Khác</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label">Tên hiển thị</label>
+                    <input type="text" class="form-control form-control-sm" id="lx-file-title" name="ten_hien_thi" form="lai-xe-file-form" placeholder="VD: CCCD mặt trước">
+                  </div>
+                  <div class="col-12 col-lg-3">
+                    <label class="form-label">File</label>
+                    <input type="file" class="form-control form-control-sm" id="lx-file-input" name="driver_file" form="lai-xe-file-form" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf">
+                  </div>
+                  <div class="col-12 col-lg-2">
+                    <button type="button" class="btn btn-sm btn-primary w-100" id="btn-upload-lai-xe-file">
+                      <i class="ti tabler-upload me-1"></i>Upload
+                    </button>
                   </div>
                 </div>
-                <div class="col-md-4">
-                  <label class="form-label">Lương tháng</label>
-                  <div class="input-group">
-                    <span class="input-group-text">đ</span>
-                    <input type="text" class="form-control money-mask" name="luong_thang" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Ngày công</label>
-                  <input type="text" class="form-control" name="ngay_cong" placeholder="0" inputmode="numeric" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Lương ngày</label>
-                  <div class="input-group">
-                    <span class="input-group-text">đ</span>
-                    <input type="text" class="form-control" name="luong_ngay" readonly tabindex="-1" placeholder="Tự tính">
-                  </div>
+
+                <div class="table-responsive lai-xe-file-table-wrap">
+                  <table class="table table-bordered table-hover table-sm align-middle mb-0 lai-xe-file-table">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width:56px">#</th>
+                        <th style="width:170px">Loại hồ sơ</th>
+                        <th>Tên file</th>
+                        <th style="width:120px" class="text-end">Dung lượng</th>
+                        <th style="width:150px" class="text-center">Ngày upload</th>
+                        <th style="width:120px" class="text-center">CN</th>
+                      </tr>
+                    </thead>
+                    <tbody id="lai-xe-file-tbody">
+                      <tr>
+                        <td colspan="6" class="text-center text-muted py-3">Chưa có hồ sơ</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -194,8 +257,7 @@
           </button>
         </div>
       </form>
+      <form id="lai-xe-file-form" enctype="multipart/form-data" style="display:none;"></form>
     </div>
   </div>
 </div>
-
-

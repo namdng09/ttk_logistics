@@ -1,0 +1,312 @@
+#giao-dich-ops-app .table th,
+#giao-dich-ops-app .table td,
+#giao-dich-ops-approve-app .table th,
+#giao-dich-ops-approve-app .table td {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1120px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table th,
+#giao-dich-ops-approve-app .ops-approve-table td {
+  padding-left: .45rem;
+  padding-right: .45rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-actions {
+  width: 44px;
+  text-align: center !important;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-stt {
+  width: 36px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-date {
+  width: 125px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-code {
+  width: 108px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-person {
+  width: 100px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-money {
+  width: 110px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-booking {
+  width: 130px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-status {
+  width: 90px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-ledger {
+  width: 110px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-col-purpose {
+  min-width: 220px;
+  width: 220px;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table .ops-desc-cell {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table .ops-person-main {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table .ops-person-sub {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-actions,
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-stt,
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-code,
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-money,
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-status,
+#giao-dich-ops-approve-app .ops-approve-table .ops-approve-col-ledger,
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(1),
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(2),
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(4),
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(6),
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(8),
+#giao-dich-ops-approve-app .ops-approve-table td:nth-child(9) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
+}
+
+#giao-dich-ops-app .ops-desc-cell,
+#giao-dich-ops-approve-app .ops-desc-cell {
+  min-width: 220px;
+  white-space: normal;
+}
+
+#giao-dich-ops-app .ops-code,
+#giao-dich-ops-approve-app .ops-code {
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+#giao-dich-ops-app .ops-person-main,
+#giao-dich-ops-approve-app .ops-person-main {
+  font-weight: 600;
+  color: #4b465c;
+}
+
+#giao-dich-ops-app .ops-person-sub,
+#giao-dich-ops-approve-app .ops-person-sub {
+  color: #6d6b77;
+  font-size: 0.78rem;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi,
+#giao-dich-ops-approve-app .ops-wallet-kpi {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 .125rem .375rem rgba(67, 89, 113, .08);
+}
+
+#giao-dich-ops-app .ops-wallet-kpi .card-body,
+#giao-dich-ops-approve-app .ops-wallet-kpi .card-body {
+  padding: .55rem .8rem;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi .text-muted.small,
+#giao-dich-ops-approve-app .ops-wallet-kpi .text-muted.small {
+  font-size: .76rem;
+  line-height: 1.1;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi .h5,
+#giao-dich-ops-approve-app .ops-wallet-kpi .h5 {
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-icon {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  display: inline-flex;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  font-size: 17px;
+  line-height: 1;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-icon i,
+#giao-dich-ops-approve-app .ops-wallet-kpi-icon i {
+  font-size: 17px;
+  line-height: 1;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-primary .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-primary .ops-wallet-kpi-icon {
+  background: #f4efff !important;
+  color: #7367f0 !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-success .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-success .ops-wallet-kpi-icon {
+  background: #e8fadf !important;
+  color: #28c76f !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-danger .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-danger .ops-wallet-kpi-icon {
+  background: #ffe2e3 !important;
+  color: #ea5455 !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-info .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-info .ops-wallet-kpi-icon {
+  background: #d9f8fc !important;
+  color: #00bad1 !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-warning .ops-wallet-kpi-icon,
+#giao-dich-ops-approve-app .ops-wallet-kpi-warning .ops-wallet-kpi-icon {
+  background: #fff1de !important;
+  color: #ff9f43 !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-success [data-kpi="credit"],
+#giao-dich-ops-app .ops-kpi-credit-value,
+.ops-money-credit {
+  color: #28c76f !important;
+}
+
+#giao-dich-ops-app .ops-wallet-kpi-danger [data-kpi="debit"],
+#giao-dich-ops-app .ops-kpi-debit-value,
+.ops-money-debit {
+  color: #ea5455 !important;
+}
+
+#giao-dich-ops-app .ops-direction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: .82rem;
+}
+
+#giao-dich-ops-app .ops-direction-pill-credit,
+#giao-dich-ops-app .ops-type-pill-credit {
+  background: #e8fadf;
+  color: #28c76f !important;
+}
+
+#giao-dich-ops-app .ops-direction-pill-debit,
+#giao-dich-ops-app .ops-type-pill-debit {
+  background: #ffe2e3;
+  color: #ea5455 !important;
+}
+
+#giao-dich-ops-app .ops-type-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: .18rem .55rem;
+  border-radius: .35rem;
+  font-weight: 600;
+  font-size: .82rem;
+}
+
+#giao-dich-ops-app .ops-money-pill,
+#giao-dich-ops-approve-app .ops-money-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 100px;
+  font-weight: 700;
+  font-size: .88rem;
+}
+
+#giao-dich-ops-app .ops-money-pill-credit,
+#giao-dich-ops-approve-app .ops-money-pill-credit {
+  color: #28c76f !important;
+}
+
+#giao-dich-ops-app .ops-money-pill-debit,
+#giao-dich-ops-approve-app .ops-money-pill-debit {
+  color: #ea5455 !important;
+}
+
+#giao-dich-ops-app .ops-balance-pill {
+  display: inline-flex;
+  justify-content: flex-end;
+  min-width: 104px;
+  color: #6d6b77;
+  font-weight: 700;
+  font-size: .88rem;
+}
+
+.ops-modal-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.85);
+  border-radius: 0.375rem;
+}
+
+.ops-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ops-detail-item {
+  border: 1px solid #e6e6ef;
+  border-radius: 0.65rem;
+  padding: 0.75rem;
+}
+
+.ops-detail-label {
+  color: #6d6b77;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.ops-detail-value {
+  color: #4b465c;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+@media (max-width: 767px) {
+  .ops-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

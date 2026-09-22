@@ -1,0 +1,372 @@
+<?php
+
+/**
+ * @file
+ * Install hooks for Lương lái xe.
+ */
+
+function luong_lai_xe_schema() {
+  $schema['luong_lai_xe'] = array(
+    'description' => 'Bảng tổng hợp kỳ lương lái xe.',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'ma_bang_luong' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => ''),
+      'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'ky_luong' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
+      'so_ke_hoach' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'tong_luong_ke_hoach' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'hoan_chi_phi_da_thanh_toan' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'tam_ung_da_chi' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'khau_tru_tam_ung' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'luong_tam_tinh' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'luong_chot' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'thuc_lanh' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'nid_ledger_thanh_toan' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'trang_thai' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'nhap'),
+      'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+      'thong_tin_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+    ),
+    'primary key' => array('nid'),
+    'unique keys' => array(
+      'ma_bang_luong' => array('ma_bang_luong'),
+    ),
+    'indexes' => array(
+      'nid_lai_xe' => array('nid_lai_xe'),
+      'ky_luong' => array('ky_luong'),
+      'trang_thai' => array('trang_thai'),
+      'nid_ledger_thanh_toan' => array('nid_ledger_thanh_toan'),
+      'hoat_dong' => array('hoat_dong'),
+      'created' => array('created'),
+    ),
+  );
+
+  $schema['llx_thanh_toan_luong'] = array(
+    'description' => 'Phiếu chi thanh toán lương lái xe phát sinh từ module lương lái xe.',
+    'fields' => array(
+      'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'ma_phieu' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => ''),
+      'line_index' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'nid_phieu_thu_chi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_luong_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'thang_luong' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
+      'luong_phai_tra' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'tam_ung_con_lai' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'khau_tru_tam_ung' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'so_tien' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'ngay_chi' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'quy_chi' => array('type' => 'varchar', 'length' => 255, 'not null' => FALSE),
+      'hinh_thuc_chi' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'tien_mat'),
+      'trang_thai' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'cho_duyet'),
+      'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+      'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'updated' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'ma_phieu' => array('ma_phieu'),
+      'phieu_thu_chi' => array('nid_phieu_thu_chi'),
+      'lai_xe_thang' => array('nid_lai_xe', 'thang_luong'),
+      'luong_lai_xe' => array('nid_luong_lai_xe'),
+      'trang_thai' => array('trang_thai'),
+    ),
+  );
+
+  return $schema;
+}
+
+function luong_lai_xe_update_7001() {
+  $schema = luong_lai_xe_schema();
+  if (!db_table_exists('luong_lai_xe')) {
+    db_create_table('luong_lai_xe', $schema['luong_lai_xe']);
+  }
+
+  return 'Đã tạo bảng luong_lai_xe.';
+}
+
+function luong_lai_xe_update_7002() {
+  if (db_table_exists('luong_lai_xe') && db_field_exists('luong_lai_xe', 'chi_ho_khach_hang')) {
+    db_drop_field('luong_lai_xe', 'chi_ho_khach_hang');
+  }
+
+  return 'Đã xoá field chi_ho_khach_hang khỏi bảng lương lái xe nếu tồn tại.';
+}
+
+function luong_lai_xe_update_7003() {
+  if (db_table_exists('luong_lai_xe_chi_tiet')) {
+    db_drop_table('luong_lai_xe_chi_tiet');
+  }
+  if (db_table_exists('luong_lai_xe') && db_field_exists('luong_lai_xe', 'tu_ngay')) {
+    db_drop_field('luong_lai_xe', 'tu_ngay');
+  }
+  if (db_table_exists('luong_lai_xe') && db_field_exists('luong_lai_xe', 'den_ngay')) {
+    db_drop_field('luong_lai_xe', 'den_ngay');
+  }
+
+  return 'Đã bỏ bảng chi tiết lương và field tu_ngay/den_ngay.';
+}
+
+function luong_lai_xe_update_7004() {
+  if (db_table_exists('luong_lai_xe') && db_field_exists('luong_lai_xe', 'chi_phi_cong_ty_chi_tra')) {
+    db_drop_field('luong_lai_xe', 'chi_phi_cong_ty_chi_tra');
+  }
+  if (db_table_exists('luong_lai_xe') && db_field_exists('luong_lai_xe', 'de_nghi_da_thanh_toan') && !db_field_exists('luong_lai_xe', 'hoan_chi_phi_da_thanh_toan')) {
+    db_change_field('luong_lai_xe', 'de_nghi_da_thanh_toan', 'hoan_chi_phi_da_thanh_toan', array(
+      'type' => 'int',
+      'size' => 'big',
+      'not null' => TRUE,
+      'default' => 0,
+    ));
+  }
+  elseif (db_table_exists('luong_lai_xe') && !db_field_exists('luong_lai_xe', 'hoan_chi_phi_da_thanh_toan')) {
+    db_add_field('luong_lai_xe', 'hoan_chi_phi_da_thanh_toan', array(
+      'type' => 'int',
+      'size' => 'big',
+      'not null' => TRUE,
+      'default' => 0,
+    ));
+  }
+  if (db_table_exists('luong_lai_xe') && db_field_exists('luong_lai_xe', 'de_nghi_da_thanh_toan') && db_field_exists('luong_lai_xe', 'hoan_chi_phi_da_thanh_toan')) {
+    db_drop_field('luong_lai_xe', 'de_nghi_da_thanh_toan');
+  }
+
+  return 'Đã bỏ field chi_phi_cong_ty_chi_tra và đổi de_nghi_da_thanh_toan thành hoan_chi_phi_da_thanh_toan.';
+}
+
+function luong_lai_xe_update_7005() {
+  $fields = array(
+    'tam_ung_da_chi' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+    'khau_tru_tam_ung' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+    'thuc_lanh' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+    'nid_ledger_thanh_toan' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+  );
+  if (!db_table_exists('luong_lai_xe')) {
+    $schema = luong_lai_xe_schema();
+    db_create_table('luong_lai_xe', $schema['luong_lai_xe']);
+    return 'Đã tạo bảng luong_lai_xe với field tạm ứng/thanh toán lương.';
+  }
+  foreach ($fields as $name => $definition) {
+    if (!db_field_exists('luong_lai_xe', $name)) {
+      db_add_field('luong_lai_xe', $name, $definition);
+    }
+  }
+  if (!db_index_exists('luong_lai_xe', 'nid_ledger_thanh_toan')) {
+    db_add_index('luong_lai_xe', 'nid_ledger_thanh_toan', array('nid_ledger_thanh_toan'));
+  }
+
+  return 'Đã bổ sung field tạm ứng, khấu trừ và thanh toán lương.';
+}
+
+function luong_lai_xe_update_7006() {
+  if (!db_table_exists('luong_lai_xe')) {
+    $schema = luong_lai_xe_schema();
+    db_create_table('luong_lai_xe', $schema['luong_lai_xe']);
+    return 'Đã tạo bảng luong_lai_xe theo schema lương tháng.';
+  }
+
+  if (!db_field_exists('luong_lai_xe', 'tong_luong_ke_hoach')) {
+    db_add_field('luong_lai_xe', 'tong_luong_ke_hoach', array(
+      'type' => 'int',
+      'size' => 'big',
+      'not null' => TRUE,
+      'default' => 0,
+    ));
+  }
+
+  if (db_field_exists('luong_lai_xe', 'luong_tam_tinh')) {
+    db_query("UPDATE {luong_lai_xe} SET tong_luong_ke_hoach = luong_tam_tinh WHERE tong_luong_ke_hoach = 0");
+  }
+
+  foreach (array('so_chuyen_khoan', 'so_chuyen_theo_chuyen', 'tong_khoan', 'tong_luong_chuyen', 'chi_phi_lai_xe_tu_chiu') as $field) {
+    if (db_field_exists('luong_lai_xe', $field)) {
+      db_drop_field('luong_lai_xe', $field);
+    }
+  }
+
+  return 'Đã gom schema lương lái xe về lương tháng, không tách khoán/chuyến/tuyến xa.';
+}
+
+function luong_lai_xe_update_7007() {
+  $schema = array(
+    'bcllx_tam_ung_lai_xe' => array(
+      'description' => 'Phiếu ứng tiền lái xe phát sinh từ module lương lái xe.',
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'ma_phieu' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => ''),
+        'line_index' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+        'nid_phieu_thu_chi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'nid_luong_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'thang_luong' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
+        'so_tien' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+        'ngay_ung' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+        'quy_chi' => array('type' => 'varchar', 'length' => 255, 'not null' => FALSE),
+        'hinh_thuc_chi' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'tien_mat'),
+        'trang_thai' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'cho_duyet'),
+        'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+        'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+        'updated' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      ),
+      'primary key' => array('id'),
+      'indexes' => array(
+        'ma_phieu' => array('ma_phieu'),
+        'phieu_thu_chi' => array('nid_phieu_thu_chi'),
+        'lai_xe_thang' => array('nid_lai_xe', 'thang_luong'),
+        'luong_lai_xe' => array('nid_luong_lai_xe'),
+        'trang_thai' => array('trang_thai'),
+      ),
+    ),
+    'bcllx_tam_ung_khau_tru' => array(
+      'description' => 'Khoản khấu trừ tạm ứng vào lương lái xe theo kỳ.',
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'nid_luong_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'thang_luong' => array('type' => 'varchar', 'length' => 6, 'not null' => TRUE, 'default' => ''),
+        'so_tien' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+        'nid_phieu_thu_khau_tru' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'trang_thai' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => 'da_chi'),
+        'ngay_khau_tru' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+        'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
+        'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+        'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+        'updated' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      ),
+      'primary key' => array('id'),
+      'indexes' => array(
+        'lai_xe_thang' => array('nid_lai_xe', 'thang_luong'),
+        'luong_lai_xe' => array('nid_luong_lai_xe'),
+        'phieu_thu_khau_tru' => array('nid_phieu_thu_khau_tru'),
+        'trang_thai' => array('trang_thai'),
+      ),
+    ),
+  );
+
+  foreach ($schema as $table => $definition) {
+    if (!db_table_exists($table)) {
+      db_create_table($table, $definition);
+    }
+  }
+
+  return 'Đã tạo bảng bcllx_tam_ung_lai_xe và bcllx_tam_ung_khau_tru nếu chưa tồn tại.';
+}
+
+/**
+ * Đổi tên field khoá ngoại theo quy tắc nid_<entity> (VD: lai_xe_nid -> nid_lai_xe).
+ */
+function luong_lai_xe_update_7008() {
+  $spec = array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0);
+
+  $renames = array(
+    'bcllx_tam_ung_lai_xe' => array(
+      'phieu_thu_chi_nid' => 'nid_phieu_thu_chi',
+      'lai_xe_nid' => 'nid_lai_xe',
+      'luong_lai_xe_nid' => 'nid_luong_lai_xe',
+    ),
+    'bcllx_tam_ung_khau_tru' => array(
+      'lai_xe_nid' => 'nid_lai_xe',
+      'luong_lai_xe_nid' => 'nid_luong_lai_xe',
+      'phieu_thu_khau_tru_nid' => 'nid_phieu_thu_khau_tru',
+    ),
+  );
+
+  $indexes = array(
+    'bcllx_tam_ung_lai_xe' => array(
+      'phieu_thu_chi' => array('nid_phieu_thu_chi'),
+      'lai_xe_thang' => array('nid_lai_xe', 'thang_luong'),
+      'luong_lai_xe' => array('nid_luong_lai_xe'),
+    ),
+    'bcllx_tam_ung_khau_tru' => array(
+      'lai_xe_thang' => array('nid_lai_xe', 'thang_luong'),
+      'luong_lai_xe' => array('nid_luong_lai_xe'),
+      'phieu_thu_khau_tru' => array('nid_phieu_thu_khau_tru'),
+    ),
+  );
+
+  $renamed = 0;
+  foreach ($renames as $table => $fields) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    foreach ($fields as $old => $new) {
+      if (db_field_exists($table, $old) && !db_field_exists($table, $new)) {
+        db_change_field($table, $old, $new, $spec);
+        $renamed++;
+      }
+    }
+  }
+
+  foreach ($indexes as $table => $defs) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    foreach ($defs as $name => $columns) {
+      if (!db_index_exists($table, $name)) {
+        db_add_index($table, $name, $columns);
+      }
+    }
+  }
+
+  return 'Đã đổi tên ' . intval($renamed) . ' cột của bảng bcllx_tam_ung_lai_xe / bcllx_tam_ung_khau_tru theo quy tắc nid_<entity>.';
+}
+
+function luong_lai_xe_update_7009() {
+  $schema = luong_lai_xe_schema();
+  if (!db_table_exists('llx_thanh_toan_luong') && isset($schema['llx_thanh_toan_luong'])) {
+    db_create_table('llx_thanh_toan_luong', $schema['llx_thanh_toan_luong']);
+  }
+
+  return 'Đã tạo bảng llx_thanh_toan_luong cho phiếu chi thanh toán lương lái xe.';
+}
+
+/**
+ * Thêm cột trang_thai cho bảng khấu trừ tạm ứng để đồng bộ khi phiếu thu
+ * được duyệt/không duyệt trong screen Thu chi.
+ */
+function luong_lai_xe_update_7010() {
+  if (db_table_exists('bcllx_tam_ung_khau_tru') && !db_field_exists('bcllx_tam_ung_khau_tru', 'trang_thai')) {
+    db_add_field('bcllx_tam_ung_khau_tru', 'trang_thai', array(
+      'type' => 'varchar',
+      'length' => 50,
+      'not null' => TRUE,
+      'default' => 'da_chi',
+      'description' => 'Trạng thái khấu trừ: da_chi / cho_duyet / huy.',
+    ));
+  }
+  if (db_table_exists('bcllx_tam_ung_khau_tru') && !db_index_exists('bcllx_tam_ung_khau_tru', 'trang_thai')) {
+    db_add_index('bcllx_tam_ung_khau_tru', 'trang_thai', array('trang_thai'));
+  }
+
+  return 'Đã thêm cột trang_thai cho bảng bcllx_tam_ung_khau_tru để đồng bộ trạng thái khi duyệt/không duyệt phiếu thu.';
+}
+
+/**
+ * Xử lý lỗi #1062 khi convert bảng search sang utf8mb4_unicode_ci.
+ *
+ * Bảng search_index có PK (word, sid, type), cột word lưu từ khóa đã lowercase.
+ * utf8mb4_unicode_ci không phân biệt dấu nên các từ khác dấu (VD: đông/động)
+ * trùng sort key dẫn tới Duplicate entry. Cần xóa index trước khi convert.
+ * Search index là dữ liệu cache, Drupal cron sẽ đánh index lại.
+ */
+function luong_lai_xe_update_7011() {
+  $tables = array('search_index', 'search_dataset', 'search_total', 'search_node_links');
+  $converted = array();
+  foreach ($tables as $table) {
+    if (!db_table_exists($table)) {
+      continue;
+    }
+    db_query('TRUNCATE TABLE {' . $table . '}');
+    db_query('ALTER TABLE {' . $table . '} CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    $converted[] = $table;
+  }
+
+  if (empty($converted)) {
+    return 'Không có bảng search nào cần xử lý.';
+  }
+  return 'Đã xóa sạch và convert sang utf8mb4_unicode_ci các bảng: ' . implode(', ', $converted) . '. Chạy cron để đánh search index lại.';
+}

@@ -34,6 +34,15 @@ function khach_hang_schema() {
         'length' => 20,
         'not null' => FALSE,
       ),
+      'email' => array(
+        'type' => 'varchar',
+        'length' => 254,
+        'not null' => FALSE,
+      ),
+      'thong_tin_lien_he' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
       'dia_chi' => array(
         'type' => 'varchar',
         'length' => 255,
@@ -188,4 +197,13 @@ function khach_hang_update_7004() {
   // Copy data from old column
   db_query("UPDATE {khach_hang} SET bang_gia_cuoc = dia_chi_kho");
   db_drop_field('khach_hang', 'dia_chi_kho');
+}
+
+function khach_hang_update_7005() {
+  if (!db_field_exists('khach_hang', 'email')) {
+    db_add_field('khach_hang', 'email', array('type' => 'varchar', 'length' => 254, 'not null' => FALSE));
+  }
+  if (!db_field_exists('khach_hang', 'thong_tin_lien_he')) {
+    db_add_field('khach_hang', 'thong_tin_lien_he', array('type' => 'text', 'not null' => FALSE));
+  }
 }

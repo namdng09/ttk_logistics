@@ -1,0 +1,62 @@
+.ptkh-page .table td,
+.ptkh-page .table th { vertical-align: middle; }
+.ptkh-money { font-variant-numeric: tabular-nums; }
+.ptkh-voucher-link { color:#0d6efd; font-weight:700; text-decoration:none; }
+.ptkh-voucher-link:hover { text-decoration:underline; }
+.ptkh-total-box { min-width: 140px; border: 1px solid #e6e6f0; border-radius: 6px; padding: 8px 12px; background: #fff; text-align: right; }
+.ptkh-total-box span { display:block; color:#6f6b7d; font-size:12px; }
+.ptkh-total-box strong { font-size:16px; }
+.ptkh-candidate-disabled { background:#f8f8fb; }
+.ptkh-candidate-disabled td { color:#6f6b7d; }
+.ptkh-detail-summary { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.ptkh-detail-summary > div { border:1px solid #e6e6f0; border-radius:6px; padding:10px 12px; background:#fff; }
+.ptkh-detail-summary span { display:block; color:#6f6b7d; font-size:12px; }
+.ptkh-detail-summary strong { display:block; margin-top:4px; }
+.ptkh-filter-select + .select2-container .select2-selection--single,
+.ptkh-customer-select + .select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+  padding: 0 2.45rem 0 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.ptkh-filter-select + .select2-container .select2-selection--single .select2-selection__rendered,
+.ptkh-customer-select + .select2-container .select2-selection--single .select2-selection__rendered {
+  line-height: 1.5;
+  padding: 0 !important;
+  padding-right: 0 !important;
+  font-size: 0.85rem;
+  width: 100%;
+}
+.ptkh-filter-select + .select2-container .select2-selection--single .select2-selection__clear,
+.ptkh-customer-select + .select2-container .select2-selection--single .select2-selection__clear {
+  position: absolute;
+  right: 1.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  font-size: 0.875rem;
+  line-height: 1;
+  margin-right: 0 !important;
+}
+.ptkh-filter-select + .select2-container .select2-selection--single .select2-selection__arrow,
+.ptkh-customer-select + .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+  top: 0;
+  right: 0.35rem;
+  width: 1rem;
+}
+@media (max-width: 767.98px) { .ptkh-detail-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ptkh-status-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.flatpickr-calendar { z-index: 99999 !important; }
