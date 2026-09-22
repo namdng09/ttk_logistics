@@ -123,12 +123,14 @@
     roi_cont: 'bg-label-secondary',
     ket_hop: 'bg-label-info'
   };
+  // Không đánh số cứng trong nhãn: hàng cảng chỉ có 4 nhóm (không Tăng bo), đánh số ở
+  // renderPlanFilesHtml() theo đúng thứ tự đang hiển thị, tránh nhảy số khi thiếu Tăng bo.
   var PLAN_FILE_GROUPS = {
-    lay_cont_rong: '1. Nhận cont rỗng',
-    tang_bo: '2. Tăng bo',
-    giao_cont_rong_cho_kho: '3. Giao cont rỗng',
-    nhan_cont_hang_tu_kho: '4. Nhận cont hàng',
-    ha_cont: '5. Hạ cont hàng'
+    lay_cont_rong: 'Nhận cont rỗng',
+    tang_bo: 'Tăng bo',
+    giao_cont_rong_cho_kho: 'Giao cont rỗng',
+    nhan_cont_hang_tu_kho: 'Nhận cont hàng',
+    ha_cont: 'Hạ cont hàng'
   };
   var PLAN_FILE_GROUP_ORDER = ['lay_cont_rong', 'giao_cont_rong_cho_kho', 'nhan_cont_hang_tu_kho', 'ha_cont'];
   var planFilePreviewMap = {};
@@ -336,9 +338,10 @@
     for (var g = 0; g < groups.length; g++) {
       var key = groups[g];
       var groupFiles = byGroup[key] || [];
+      var groupLabel = (g + 1) + '. ' + (PLAN_FILE_GROUPS[key] || '');
       html += '<div class="khxh-plan-file-group" data-group="' + escHtml(key) + '">' +
         '<div class="khxh-plan-file-group-title">' +
-          '<span>' + escHtml(PLAN_FILE_GROUPS[key]) + '</span>' +
+          '<span>' + escHtml(groupLabel) + '</span>' +
           '<span class="badge rounded-pill bg-label-secondary border">' + groupFiles.length + '</span>' +
         '</div>';
       if (!groupFiles.length) {
@@ -354,7 +357,7 @@
           var fileMeta = (f.uploaded_text || '') + (fileSize ? ' · ' + fileSize : '');
           var fileTooltip = [
             fileName ? 'Tên file: ' + fileName : '',
-            PLAN_FILE_GROUPS[key] ? 'Mốc nghiệp vụ: ' + PLAN_FILE_GROUPS[key] : '',
+            PLAN_FILE_GROUPS[key] ? 'Mốc nghiệp vụ: ' + groupLabel : '',
             f.uploaded_text ? 'Thời gian upload: ' + f.uploaded_text : '',
             fileSize ? 'Dung lượng: ' + fileSize : ''
           ].filter(Boolean).join('\n');

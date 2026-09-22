@@ -73,6 +73,34 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/mobile/chuyen-xe/%/file'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_file_collection',
+    'page arguments' => array(3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/mobile/chuyen-xe/%/file/%'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_file_item',
+    'page arguments' => array(3, 5),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/mobile/chuyen-xe/%/chi-phi'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_chi_phi_collection',
+    'page arguments' => array(3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/mobile/chuyen-xe/%/chi-phi/%'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_chi_phi_item',
+    'page arguments' => array(3, 5),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
 
   $items['api/ke-hoach-xep-xe'] = array(
     'page callback' => 'ke_hoach_xep_xe_rest_collection',
@@ -407,13 +435,32 @@ function _ke_hoach_xep_xe_mobile_audit(array &$json, $action, $account, $driver,
   if (count($json['lich_su_mobile']) > 100) $json['lich_su_mobile'] = array_slice($json['lich_su_mobile'], -100);
 }
 
-function _ke_hoach_xep_xe_mobile_enrich_plan($plan) {
-  if (!empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach === 'tuyen_xa' && function_exists('_ke_hoach_tuyen_xa_enrich_row')) return _ke_hoach_tuyen_xa_enrich_row($plan);
-  return _ke_hoach_xep_xe_enrich_row($plan, TRUE);
+// Lọc chứng từ (thong_tin_json.hinh_anh_chung_tu) chỉ giữ file do đúng uid này upload.
+function _ke_hoach_xep_xe_files_owned_by($files, $uid) {
+  $uid = (int) $uid;
+  if (!$uid || empty($files) || !is_array($files)) return array();
+  return array_values(array_filter($files, function ($file) use ($uid) {
+    return !empty($file['uid']) && (int) $file['uid'] === $uid;
+  }));
+}
+
+// $account_uid: lái xe chỉ thấy chứng từ do CHÍNH mình upload, không thấy chứng từ
+// người khác (admin, lái xe khác) thêm vào cùng kế hoạch. Web/nội bộ không truyền
+// uid thì giữ nguyên hành vi cũ (thấy đủ).
+function _ke_hoach_xep_xe_mobile_enrich_plan($plan, $account_uid = 0) {
+  $result = (!empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach === 'tuyen_xa' && function_exists('_ke_hoach_tuyen_xa_enrich_row'))
+    ? _ke_hoach_tuyen_xa_enrich_row($plan)
+    : _ke_hoach_xep_xe_enrich_row($plan, TRUE);
+  if ($account_uid && isset($result['hinh_anh_chung_tu'])) {
+    $result['hinh_anh_chung_tu'] = _ke_hoach_xep_xe_files_owned_by($result['hinh_anh_chung_tu'], $account_uid);
+  }
+  return $result;
 }
 
 function _ke_hoach_xep_xe_mobile_load_trip($id, $driver_id) {
-  return db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND nid_lai_xe = :nid_lai_xe AND hoat_dong = 1", array(':nid' => (int) $id, ':nid_lai_xe' => (int) $driver_id))->fetch();
+  // Cùng điều kiện với danh sách chuyến-của-tôi: chưa đẩy cho lái xe (còn "Chờ duyệt") thì
+  // không cho xem chi tiết hay thao tác, dù chuyến đó đúng là của lái xe này.
+  return db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :nid AND nid_lai_xe = :nid_lai_xe AND hoat_dong = 1 AND trang_thai_van_chuyen <> 'Chờ duyệt'", array(':nid' => (int) $id, ':nid_lai_xe' => (int) $driver_id))->fetch();
 }
 
 function ke_hoach_xep_xe_mobile_my_trips() {
@@ -441,17 +488,193 @@ function ke_hoach_xep_xe_mobile_my_trips() {
   $total = (int) $count_query->countQuery()->execute()->fetchField();
   $rows = $query->orderBy('kh.changed', 'DESC')->orderBy('kh.nid', 'DESC')->range(($page - 1) * $limit, $limit)->execute()->fetchAll();
   $items = array();
-  foreach ($rows as $row) $items[] = _ke_hoach_xep_xe_mobile_enrich_plan($row);
+  foreach ($rows as $row) $items[] = _ke_hoach_xep_xe_mobile_enrich_plan($row, (int) $identity['account']->uid);
   return _ke_hoach_xep_xe_success(array('items' => $items, 'total' => $total, 'current_page' => $page, 'total_pages' => max(1, (int) ceil($total / $limit)), 'limit' => $limit));
 }
 
 function ke_hoach_xep_xe_mobile_trip_detail($id) {
-  if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _ke_hoach_xep_xe_method_not_allowed('GET');
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ke_hoach_xep_xe_mobile_trip_get($id);
+    case 'PUT':
+      return _ke_hoach_xep_xe_mobile_trip_update($id);
+    default:
+      return _ke_hoach_xep_xe_method_not_allowed('GET, PUT');
+  }
+}
+
+function _ke_hoach_xep_xe_mobile_trip_get($id) {
   $identity = _ke_hoach_xep_xe_mobile_driver();
   if (!is_array($identity) || empty($identity['driver'])) return $identity;
   $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
   if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
-  return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_mobile_enrich_plan($plan));
+  return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_mobile_enrich_plan($plan, (int) $identity['account']->uid));
+}
+
+/**
+ * Lái xe tự cập nhật vài thông tin thao tác thực tế của chuyến (mooc, loại
+ * cont/hàng, số cont, seal, bãi hạ ngoài). KHÔNG dùng chung đường "ghi đè toàn
+ * bộ" của PUT /api/ke-hoach-xep-xe/{id} (_ke_hoach_xep_xe_rest_update): đường
+ * đó dựng lại cả bản ghi từ _ke_hoach_xep_xe_build_record(), field nào thiếu
+ * trong body bị xoá về rỗng — không phù hợp để lái xe chỉ gửi vài field.
+ * Ở đây chỉ field có mặt trong body mới bị đổi (array_key_exists); field
+ * không gửi giữ nguyên. Gửi "" là xoá có chủ đích (trừ so_cont không cho xoá
+ * về rỗng để tránh mất số cont do gõ nhầm).
+ */
+function _ke_hoach_xep_xe_mobile_trip_update($id) {
+  $input = _ke_hoach_xep_xe_input();
+  $identity = _ke_hoach_xep_xe_mobile_driver($input);
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+
+  // bai_ha_ngoai chỉ có ý nghĩa ở hàng cảng (xem AGENTS.md); đây là guard dữ liệu
+  // đầu vào, không phải nhánh logic nghiệp vụ mới theo loai_ke_hoach.
+  $is_tuyen_xa = !empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach === 'tuyen_xa';
+  if ($is_tuyen_xa && array_key_exists('bai_ha_ngoai', $input)) {
+    return _ke_hoach_xep_xe_fail('Trường bai_ha_ngoai chỉ áp dụng cho chuyến hàng cảng');
+  }
+
+  // Cùng field, cùng cách chuẩn hoá với _ke_hoach_xep_xe_build_record() (web), chỉ khác
+  // là dùng array_key_exists nên field nào không gửi thì giữ nguyên (không dựng lại cả
+  // bản ghi như web). KHÔNG đưa vào đây: trang_thai_van_chuyen, trang_thai_cont,
+  // da_cat_mooc, da_du_hang, ke_hoach_cont_ref_nid, ha_cang — các field này có luồng
+  // chuyển trạng thái/kiểm tra riêng (_ke_hoach_port_trip_change, _ke_hoach_port_cont_rest_update,
+  // _ke_hoach_port_validate_return_cont); ghi thẳng ở đây sẽ bỏ qua toàn bộ kiểm tra thứ tự
+  // và đồng bộ cont đã làm. Cần mở thêm field nào thì báo lại.
+  $fields = array();
+  $changed_fields = array();
+
+  if (array_key_exists('nid_khach_hang', $input)) {
+    $fields['nid_khach_hang'] = (int) $input['nid_khach_hang'];
+    $changed_fields[] = 'nid_khach_hang';
+  }
+  if (array_key_exists('so_bkg', $input)) {
+    $fields['so_bkg'] = trim((string) $input['so_bkg']);
+    $changed_fields[] = 'so_bkg';
+  }
+  if (array_key_exists('dia_chi_kho', $input)) {
+    $fields['dia_chi_kho'] = trim((string) $input['dia_chi_kho']);
+    $changed_fields[] = 'dia_chi_kho';
+  }
+  if (array_key_exists('nid_phuong_tien', $input)) {
+    $fields['nid_phuong_tien'] = (int) $input['nid_phuong_tien'];
+    $changed_fields[] = 'nid_phuong_tien';
+  }
+  if (array_key_exists('nid_mooc', $input)) {
+    $fields['nid_mooc'] = (int) $input['nid_mooc'];
+    $changed_fields[] = 'nid_mooc';
+  }
+  if (array_key_exists('loai_cont', $input)) {
+    $fields['loai_cont'] = trim((string) $input['loai_cont']);
+    $changed_fields[] = 'loai_cont';
+  }
+  if (array_key_exists('so_cont', $input)) {
+    $so_cont = trim((string) $input['so_cont']);
+    if ($so_cont === '') {
+      return _ke_hoach_xep_xe_fail('Số cont không được để trống');
+    }
+    $fields['so_cont'] = $so_cont;
+    $changed_fields[] = 'so_cont';
+  }
+  if (array_key_exists('so_seal_chinh', $input)) {
+    $fields['so_seal_chinh'] = trim((string) $input['so_seal_chinh']);
+    $changed_fields[] = 'so_seal_chinh';
+  }
+  if (array_key_exists('so_seal_tam', $input)) {
+    $fields['so_seal_tam'] = trim((string) $input['so_seal_tam']);
+    $changed_fields[] = 'so_seal_tam';
+  }
+  if (array_key_exists('bai_lay_cont', $input)) {
+    $fields['bai_lay_cont'] = trim((string) $input['bai_lay_cont']);
+    $changed_fields[] = 'bai_lay_cont';
+  }
+  if (array_key_exists('bai_ha_cont', $input)) {
+    $fields['bai_ha_cont'] = trim((string) $input['bai_ha_cont']);
+    $changed_fields[] = 'bai_ha_cont';
+  }
+  if (array_key_exists('bai_ha_ngoai', $input)) {
+    $fields['bai_ha_ngoai'] = trim((string) $input['bai_ha_ngoai']);
+    $changed_fields[] = 'bai_ha_ngoai';
+  }
+  if (array_key_exists('cang_xuat', $input)) {
+    $fields['cang_xuat'] = trim((string) $input['cang_xuat']);
+    $changed_fields[] = 'cang_xuat';
+  }
+  if (array_key_exists('cut_off', $input)) {
+    $fields['cut_off'] = _ke_hoach_xep_xe_normalize_datetime($input['cut_off']);
+    $changed_fields[] = 'cut_off';
+  }
+  if (array_key_exists('ngay_bat_dau', $input)) {
+    $ngay_bat_dau = trim((string) $input['ngay_bat_dau']);
+    $fields['ngay_bat_dau'] = $ngay_bat_dau === '' ? '' : substr(_ke_hoach_xep_xe_filter_date($ngay_bat_dau), 0, 10);
+    $changed_fields[] = 'ngay_bat_dau';
+  }
+  if (array_key_exists('ngay_gio_ke_hoach', $input)) {
+    $fields['ngay_gio_ke_hoach'] = _ke_hoach_xep_xe_normalize_datetime($input['ngay_gio_ke_hoach']);
+    $changed_fields[] = 'ngay_gio_ke_hoach';
+  }
+  if (array_key_exists('ngay_ket_thuc', $input)) {
+    $ngay_ket_thuc = trim((string) $input['ngay_ket_thuc']);
+    $fields['ngay_ket_thuc'] = $ngay_ket_thuc === '' ? '' : substr(_ke_hoach_xep_xe_filter_date($ngay_ket_thuc), 0, 10);
+    $changed_fields[] = 'ngay_ket_thuc';
+  }
+  if (array_key_exists('hinh_thuc_van_tai', $input)) {
+    $hinh_thuc = trim((string) $input['hinh_thuc_van_tai']);
+    if ($hinh_thuc !== '') {
+      $hinh_thuc = _ke_hoach_xep_xe_normalize_hinh_thuc($hinh_thuc);
+      if (!in_array($hinh_thuc, _ke_hoach_xep_xe_hinh_thuc_options(), TRUE)) {
+        return _ke_hoach_xep_xe_fail('Hình thức vận tải không hợp lệ');
+      }
+    }
+    $fields['hinh_thuc_van_tai'] = $hinh_thuc;
+    $changed_fields[] = 'hinh_thuc_van_tai';
+  }
+
+  $loai_hang_value = NULL;
+  if (array_key_exists('loai_hang', $input)) {
+    $loai_hang_value = trim((string) $input['loai_hang']);
+    $changed_fields[] = 'loai_hang';
+    if (_ke_hoach_xep_xe_has_loai_hang_field()) {
+      $fields['loai_hang'] = $loai_hang_value;
+    }
+  }
+
+  $ghi_chu_value = NULL;
+  if (array_key_exists('ghi_chu', $input)) {
+    $ghi_chu_value = trim((string) $input['ghi_chu']);
+    $changed_fields[] = 'ghi_chu';
+  }
+
+  if (!$changed_fields) {
+    return _ke_hoach_xep_xe_fail('Không có dữ liệu để cập nhật');
+  }
+
+  // loai_hang luôn mirror vào thong_tin_json để tương thích cài đặt chưa có cột riêng
+  // (xem _ke_hoach_xep_xe_has_loai_hang_field), cộng mốc lịch sử ai/khi nào sửa field gì.
+  $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
+  if ($loai_hang_value !== NULL) {
+    $json['loai_hang'] = $loai_hang_value;
+  }
+  if ($ghi_chu_value !== NULL) {
+    $json['ghi_chu'] = $ghi_chu_value;
+  }
+  _ke_hoach_xep_xe_mobile_audit($json, 'cap_nhat_thong_tin', $identity['account'], $identity['driver'], implode(', ', $changed_fields));
+  $fields['thong_tin_json'] = _ke_hoach_xep_xe_json_encode($json);
+  $fields['changed'] = _ke_hoach_xep_xe_now();
+
+  $transaction = db_transaction();
+  try {
+    db_update('ke_hoach_xep_xe')->fields($fields)->condition('nid', (int) $id)->execute();
+    $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+    watchdog('ke_hoach_xep_xe', 'Lái xe cập nhật chuyến #%id: @fields', array('%id' => $id, '@fields' => implode(', ', $changed_fields)));
+    return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_mobile_enrich_plan($row, (int) $identity['account']->uid));
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('ke_hoach_xep_xe', 'Lỗi lái xe cập nhật chuyến #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ke_hoach_xep_xe_error('Lỗi hệ thống khi cập nhật chuyến');
+  }
 }
 
 /**
@@ -469,7 +692,7 @@ function _ke_hoach_xep_xe_mobile_port_response($plan, array $identity, array $in
     if ($accepted_uid && $accepted_uid !== $uid) return _ke_hoach_xep_xe_fail('Chuyến xe đã được một tài khoản khác nhận');
     // Nhận lại, hoặc admin đã nhận chuyến thay lái xe trên web: không đổi gì.
     if ($accepted_uid || in_array($plan->trang_thai_van_chuyen, array('Đã nhận chuyến', 'Đang kéo lên', 'Đang kéo về', 'Hoàn thành'), TRUE)) {
-      $extra['ke_hoach'] = _ke_hoach_xep_xe_mobile_enrich_plan($plan);
+      $extra['ke_hoach'] = _ke_hoach_xep_xe_mobile_enrich_plan($plan, (int) $identity['account']->uid);
       return _ke_hoach_xep_xe_success($extra);
     }
   }
@@ -493,7 +716,7 @@ function _ke_hoach_xep_xe_mobile_port_response($plan, array $identity, array $in
   }
   $result = _ke_hoach_port_trip_change($plan->nid, $to, '', $audit);
   if (empty($result['ok'])) return _ke_hoach_xep_xe_fail($result['message']);
-  $extra['ke_hoach'] = _ke_hoach_xep_xe_mobile_enrich_plan($result['row']);
+  $extra['ke_hoach'] = _ke_hoach_xep_xe_mobile_enrich_plan($result['row'], (int) $identity['account']->uid);
   return _ke_hoach_xep_xe_success($extra);
 }
 
@@ -540,7 +763,7 @@ function ke_hoach_xep_xe_mobile_accept_trip($id) {
     db_update('ke_hoach_xep_xe')->fields(array('trang_thai_van_chuyen' => $accepted_status, 'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json), 'changed' => $now))->condition('nid', (int) $plan->nid)->execute();
   }
   $fresh = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
-  return _ke_hoach_xep_xe_success(array('da_nhan_chuyen' => TRUE, 'ke_hoach' => _ke_hoach_xep_xe_mobile_enrich_plan($fresh)));
+  return _ke_hoach_xep_xe_success(array('da_nhan_chuyen' => TRUE, 'ke_hoach' => _ke_hoach_xep_xe_mobile_enrich_plan($fresh, (int) $identity['account']->uid)));
 }
 
 function ke_hoach_xep_xe_mobile_complete_trip($id) {
@@ -564,7 +787,7 @@ function ke_hoach_xep_xe_mobile_complete_trip($id) {
   _ke_hoach_xep_xe_mobile_audit($json, 'hoan_thanh_chuyen', $identity['account'], $identity['driver'], !empty($input['ghi_chu']) ? $input['ghi_chu'] : '');
   db_update('ke_hoach_xep_xe')->fields(array('trang_thai_van_chuyen' => 'Hoàn thành', 'ngay_ket_thuc' => date('Y-m-d', REQUEST_TIME), 'thong_tin_json' => _ke_hoach_xep_xe_json_encode($json), 'changed' => $now))->condition('nid', (int) $plan->nid)->execute();
   $fresh = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
-  return _ke_hoach_xep_xe_success(array('da_hoan_thanh' => TRUE, 'ke_hoach' => _ke_hoach_xep_xe_mobile_enrich_plan($fresh)));
+  return _ke_hoach_xep_xe_success(array('da_hoan_thanh' => TRUE, 'ke_hoach' => _ke_hoach_xep_xe_mobile_enrich_plan($fresh, (int) $identity['account']->uid)));
 }
 
 function _ke_hoach_xep_xe_hinh_thuc_options() {
@@ -1055,9 +1278,182 @@ function _ke_hoach_chi_phi_rest_create() {
   $record['created'] = _ke_hoach_xep_xe_now();
   $record['changed'] = $record['created'];
   $record['hoat_dong'] = 1;
+  // uid_nguoi_tao ghi 1 lần lúc tạo, không đổi khi sửa. Hiện chỉ web gọi được endpoint
+  // này (user_access) nên lấy theo phiên đăng nhập; khi có API mobile cho lái xe tự
+  // nhập chi phí thì phải truyền uid tường minh, không dùng global $user (xem
+  // _ke_hoach_xep_xe_file_upload_core cho mẫu đã áp dụng ở phần chứng từ).
+  global $user;
+  $record['uid_nguoi_tao'] = isset($user->uid) ? (int) $user->uid : 0;
   $nid = db_insert('ke_hoach_chi_phi')->fields($record)->execute();
   $row = db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid = :id", array(':id' => $nid))->fetch();
   return _ke_hoach_xep_xe_success((array) $row);
+}
+
+/**
+ * Chi phí từ app lái xe — CHỈ áp dụng kế hoạch hàng cảng (loai_ke_hoach = thuong);
+ * tuyến xa để sau. Dùng chung _ke_hoach_chi_phi_build_record()/_validate_record()
+ * với web, khác ở chỗ:
+ * - nid_ke_hoach lấy từ URL (id), không tin field trong body — tránh thêm chi phí
+ *   vào kế hoạch khác qua body giả mạo.
+ * - nid_lai_xe không cho gửi, luôn tự suy ra theo kế hoạch (đã chắc là của lái xe
+ *   này nhờ _ke_hoach_xep_xe_mobile_load_trip).
+ * - Không cho gửi trang_thai_duyet, nid_de_nghi_chi_phi, nid_ledger — các field
+ *   thuộc quy trình duyệt/sổ quỹ, lái xe không được tự đặt cho chi phí của mình.
+ * - uid_nguoi_tao lấy theo tài khoản của token, không dùng global $user.
+ * loai_chi_phi lái xe được khai loại nào vẫn để ngỏ (chưa giới hạn thêm ngoài
+ * validate chung của _ke_hoach_chi_phi_validate_record) — bàn sau nếu cần.
+ */
+function ke_hoach_xep_xe_mobile_chi_phi_collection($id) {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ke_hoach_xep_xe_mobile_chi_phi_list($id);
+    case 'POST':
+      return _ke_hoach_xep_xe_mobile_chi_phi_create($id);
+    default:
+      return _ke_hoach_xep_xe_method_not_allowed('GET, POST');
+  }
+}
+
+/** Kiểm tra kế hoạch {id} là của lái xe này, đã đẩy, và là hàng cảng — dùng chung
+ * cho cả 4 API chi phí (list/create/update/delete) để nhất quán 1 chỗ. */
+function _ke_hoach_xep_xe_mobile_chi_phi_plan_or_fail($id, $identity) {
+  $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+  if (!empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach !== 'thuong') {
+    return _ke_hoach_xep_xe_fail('API này chỉ áp dụng cho kế hoạch hàng cảng');
+  }
+  return $plan;
+}
+
+function _ke_hoach_xep_xe_mobile_chi_phi_list($id) {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return _ke_hoach_xep_xe_error('Bảng ke_hoach_chi_phi chưa được tạo. Hãy chạy update database.');
+  }
+  $identity = _ke_hoach_xep_xe_mobile_driver();
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_chi_phi_plan_or_fail($id, $identity);
+  if (!is_object($plan)) return $plan;
+
+  // Chỉ trả về chi phí do chính lái xe này nhập, không lộ chi phí người khác
+  // (admin, lái xe khác) đã nhập cho cùng kế hoạch.
+  $rows = db_query(
+    "SELECT * FROM {ke_hoach_chi_phi} WHERE nid_ke_hoach = :nid AND hoat_dong = 1 AND uid_nguoi_tao = :uid ORDER BY nid ASC",
+    array(':nid' => (int) $id, ':uid' => (int) $identity['account']->uid)
+  )->fetchAll();
+  $items = array();
+  foreach ($rows as $row) $items[] = (array) $row;
+  return _ke_hoach_xep_xe_success(array('nid_ke_hoach' => (int) $id, 'items' => $items));
+}
+
+function _ke_hoach_xep_xe_mobile_chi_phi_create($id) {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return _ke_hoach_xep_xe_error('Bảng ke_hoach_chi_phi chưa được tạo. Hãy chạy update database.');
+  }
+  $input = _ke_hoach_xep_xe_input();
+  $identity = _ke_hoach_xep_xe_mobile_driver($input);
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_chi_phi_plan_or_fail($id, $identity);
+  if (!is_object($plan)) return $plan;
+  if (empty($input['ten_chi_phi'])) {
+    return _ke_hoach_xep_xe_fail('Vui lòng nhập tên chi phí');
+  }
+
+  $allowed = array('loai_chi_phi', 'ten_chi_phi', 'don_gia', 'so_luong', 'vat_percent', 'tong_truoc_vat', 'tong_sau_vat', 'ghi_chu');
+  $safe_input = array_intersect_key($input, array_flip($allowed));
+  $safe_input['nid_ke_hoach'] = (int) $id;
+
+  $record = _ke_hoach_chi_phi_build_record($safe_input);
+  try {
+    _ke_hoach_chi_phi_validate_record($record);
+  }
+  catch (Exception $e) {
+    return _ke_hoach_xep_xe_fail($e->getMessage());
+  }
+  $record['created'] = _ke_hoach_xep_xe_now();
+  $record['changed'] = $record['created'];
+  $record['hoat_dong'] = 1;
+  $record['uid_nguoi_tao'] = (int) $identity['account']->uid;
+
+  $nid = db_insert('ke_hoach_chi_phi')->fields($record)->execute();
+  $row = db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid = :id", array(':id' => $nid))->fetch();
+  watchdog('ke_hoach_xep_xe', 'Lái xe #%lx thêm chi phí #%id cho kế hoạch #%plan', array('%lx' => $identity['driver']->nid, '%id' => $nid, '%plan' => $id));
+  return _ke_hoach_xep_xe_success((array) $row);
+}
+
+/**
+ * Sửa/xoá chi phí từ app lái xe — nằm dưới đúng kế hoạch cha (cùng dạng URL với
+ * .../file/{file_id}), CHỈ chi phí do CHÍNH lái xe này nhập (uid_nguoi_tao) và
+ * thuộc đúng kế hoạch {id} trong URL, CHỈ kế hoạch hàng cảng. Không cho đổi
+ * nid_ke_hoach, nid_lai_xe, hay các field quy trình duyệt/sổ quỹ — cùng quy tắc
+ * với API thêm chi phí (_ke_hoach_xep_xe_mobile_chi_phi_create).
+ */
+function ke_hoach_xep_xe_mobile_chi_phi_item($id, $chi_phi_id) {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'PUT':
+      return _ke_hoach_xep_xe_mobile_chi_phi_update($id, $chi_phi_id);
+    case 'DELETE':
+      return _ke_hoach_xep_xe_mobile_chi_phi_delete($id, $chi_phi_id);
+    default:
+      return _ke_hoach_xep_xe_method_not_allowed('PUT, DELETE');
+  }
+}
+
+/** Chi phí đúng của lái xe này (uid_nguoi_tao), đúng thuộc kế hoạch {id}, hoặc NULL. */
+function _ke_hoach_xep_xe_mobile_chi_phi_load_own($ke_hoach_id, $chi_phi_id, $account_uid) {
+  if (!db_table_exists('ke_hoach_chi_phi')) return NULL;
+  return db_query(
+    "SELECT * FROM {ke_hoach_chi_phi} WHERE nid = :cpid AND nid_ke_hoach = :khid AND hoat_dong = 1 AND uid_nguoi_tao = :uid",
+    array(':cpid' => (int) $chi_phi_id, ':khid' => (int) $ke_hoach_id, ':uid' => (int) $account_uid)
+  )->fetch();
+}
+
+function _ke_hoach_xep_xe_mobile_chi_phi_update($id, $chi_phi_id) {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return _ke_hoach_xep_xe_error('Bảng ke_hoach_chi_phi chưa được tạo. Hãy chạy update database.');
+  }
+  $input = _ke_hoach_xep_xe_input();
+  $identity = _ke_hoach_xep_xe_mobile_driver($input);
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_chi_phi_plan_or_fail($id, $identity);
+  if (!is_object($plan)) return $plan;
+  $uid = (int) $identity['account']->uid;
+  $existing = _ke_hoach_xep_xe_mobile_chi_phi_load_own($id, $chi_phi_id, $uid);
+  if (!$existing) return _ke_hoach_xep_xe_not_found('Chi phí không tồn tại hoặc không phải do bạn nhập');
+
+  $allowed = array('loai_chi_phi', 'ten_chi_phi', 'don_gia', 'so_luong', 'vat_percent', 'tong_truoc_vat', 'tong_sau_vat', 'ghi_chu');
+  $safe_input = array_intersect_key($input, array_flip($allowed));
+
+  // build_record tự giữ nguyên field không có trong $safe_input theo $existing (xem
+  // _ke_hoach_chi_phi_build_record) — không phải kiểu "ghi đè toàn bộ" như kế hoạch.
+  $record = _ke_hoach_chi_phi_build_record($safe_input, $existing);
+  try {
+    _ke_hoach_chi_phi_validate_record($record);
+  }
+  catch (Exception $e) {
+    return _ke_hoach_xep_xe_fail($e->getMessage());
+  }
+  $record['changed'] = _ke_hoach_xep_xe_now();
+  db_update('ke_hoach_chi_phi')->fields($record)->condition('nid', $chi_phi_id)->execute();
+  $row = db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid = :id", array(':id' => $chi_phi_id))->fetch();
+  watchdog('ke_hoach_xep_xe', 'Lái xe #%lx sửa chi phí #%id', array('%lx' => $identity['driver']->nid, '%id' => $chi_phi_id));
+  return _ke_hoach_xep_xe_success((array) $row);
+}
+
+function _ke_hoach_xep_xe_mobile_chi_phi_delete($id, $chi_phi_id) {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return _ke_hoach_xep_xe_error('Bảng ke_hoach_chi_phi chưa được tạo. Hãy chạy update database.');
+  }
+  $identity = _ke_hoach_xep_xe_mobile_driver();
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_chi_phi_plan_or_fail($id, $identity);
+  if (!is_object($plan)) return $plan;
+  $uid = (int) $identity['account']->uid;
+  $existing = _ke_hoach_xep_xe_mobile_chi_phi_load_own($id, $chi_phi_id, $uid);
+  if (!$existing) return _ke_hoach_xep_xe_not_found('Chi phí không tồn tại hoặc không phải do bạn nhập');
+
+  db_update('ke_hoach_chi_phi')->fields(array('hoat_dong' => 0, 'changed' => _ke_hoach_xep_xe_now()))->condition('nid', $chi_phi_id)->execute();
+  watchdog('ke_hoach_xep_xe', 'Lái xe #%lx xoá chi phí #%id', array('%lx' => $identity['driver']->nid, '%id' => $chi_phi_id));
+  return _ke_hoach_xep_xe_success(array('nid' => (int) $chi_phi_id, 'deleted' => TRUE));
 }
 
 function _ke_hoach_chi_phi_rest_update($id) {
@@ -2349,11 +2745,13 @@ function _ke_hoach_xep_xe_save_file_context($id, array $json) {
     ->execute();
 }
 
-function _ke_hoach_xep_xe_file_upload($id) {
-  if (!user_access('ke_hoach_xep_xe_create')) {
-    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền upload chứng từ kế hoạch');
-  }
-
+/**
+ * Lõi lưu file, dùng chung cho web (_ke_hoach_xep_xe_file_upload, mọi chứng từ
+ * xem được) và mobile (_ke_hoach_xep_xe_mobile_file_upload, chỉ thấy của mình).
+ * $uid là người upload thật (web: uid phiên đăng nhập; mobile: uid của tài khoản
+ * ứng với token) — không đọc global $user ở đây để không lệ thuộc phiên Drupal.
+ */
+function _ke_hoach_xep_xe_file_upload_core($id, $uid) {
   $context = _ke_hoach_xep_xe_file_context($id);
   if (!$context) return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
 
@@ -2382,7 +2780,6 @@ function _ke_hoach_xep_xe_file_upload($id) {
     return _ke_hoach_xep_xe_error('Không thể tạo thư mục lưu chứng từ kế hoạch');
   }
 
-  global $user;
   $json = $context->thong_tin_json;
   $saved = array();
   $failed = 0;
@@ -2406,7 +2803,7 @@ function _ke_hoach_xep_xe_file_upload($id) {
       'is_image' => strpos($file->filemime, 'image/') === 0,
       'uploaded' => REQUEST_TIME,
       'uploaded_text' => date('d/m/Y H:i', REQUEST_TIME),
-      'uid' => isset($user->uid) ? (int) $user->uid : 0,
+      'uid' => (int) $uid,
     );
     $json['hinh_anh_chung_tu'][] = $item;
     $saved[] = $item;
@@ -2429,11 +2826,20 @@ function _ke_hoach_xep_xe_file_upload($id) {
   ));
 }
 
-function _ke_hoach_xep_xe_file_delete($id, $file_id) {
+function _ke_hoach_xep_xe_file_upload($id) {
   if (!user_access('ke_hoach_xep_xe_create')) {
-    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá chứng từ kế hoạch');
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền upload chứng từ kế hoạch');
   }
+  global $user;
+  return _ke_hoach_xep_xe_file_upload_core($id, isset($user->uid) ? (int) $user->uid : 0);
+}
 
+/**
+ * Lõi xoá file, dùng chung cho web và mobile. $owner_uid = NULL (web): xoá được
+ * mọi chứng từ trên kế hoạch, như hành vi cũ. $owner_uid khác NULL (mobile):
+ * chỉ xoá được chứng từ có đúng uid này upload.
+ */
+function _ke_hoach_xep_xe_file_delete_core($id, $file_id, $owner_uid = NULL) {
   $context = _ke_hoach_xep_xe_file_context($id);
   if (!$context) return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
 
@@ -2442,6 +2848,9 @@ function _ke_hoach_xep_xe_file_delete($id, $file_id) {
   if ($index < 0) return _ke_hoach_xep_xe_not_found('File không tồn tại');
 
   $deleted = $json['hinh_anh_chung_tu'][$index];
+  if ($owner_uid !== NULL && (empty($deleted['uid']) || (int) $deleted['uid'] !== (int) $owner_uid)) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn chỉ có thể xoá chứng từ do chính mình upload');
+  }
   if (!empty($deleted['fid'])) {
     $file = file_load((int) $deleted['fid']);
     if ($file) file_delete($file, TRUE);
@@ -2449,12 +2858,75 @@ function _ke_hoach_xep_xe_file_delete($id, $file_id) {
   array_splice($json['hinh_anh_chung_tu'], $index, 1);
   _ke_hoach_xep_xe_save_file_context($id, $json);
   $json = _ke_hoach_xep_xe_normalize_files($json);
+  $remaining = $owner_uid !== NULL ? _ke_hoach_xep_xe_files_owned_by($json['hinh_anh_chung_tu'], $owner_uid) : $json['hinh_anh_chung_tu'];
 
   return _ke_hoach_xep_xe_success(array(
     'nid' => $id,
     'deleted' => TRUE,
-    'hinh_anh_chung_tu' => $json['hinh_anh_chung_tu'],
+    'hinh_anh_chung_tu' => $remaining,
   ));
+}
+
+function _ke_hoach_xep_xe_file_delete($id, $file_id) {
+  if (!user_access('ke_hoach_xep_xe_create')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá chứng từ kế hoạch');
+  }
+  return _ke_hoach_xep_xe_file_delete_core($id, $file_id, NULL);
+}
+
+/**
+ * API mobile chứng từ: lái xe chỉ xem/upload/xoá chứng từ do CHÍNH mình upload.
+ * Sửa (đổi tên hiển thị, đổi nhóm) chưa hỗ trợ — làm sau nếu cần.
+ */
+function ke_hoach_xep_xe_mobile_file_collection($id) {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _ke_hoach_xep_xe_mobile_file_list($id);
+    case 'POST':
+      return _ke_hoach_xep_xe_mobile_file_upload($id);
+    default:
+      return _ke_hoach_xep_xe_method_not_allowed('GET, POST');
+  }
+}
+
+function ke_hoach_xep_xe_mobile_file_item($id, $file_id) {
+  if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') return _ke_hoach_xep_xe_method_not_allowed('DELETE');
+  return _ke_hoach_xep_xe_mobile_file_delete($id, $file_id);
+}
+
+function _ke_hoach_xep_xe_mobile_file_list($id) {
+  $identity = _ke_hoach_xep_xe_mobile_driver();
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+  $context = _ke_hoach_xep_xe_file_context($id);
+  if (!$context) return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
+  $files = _ke_hoach_xep_xe_files_owned_by($context->thong_tin_json['hinh_anh_chung_tu'], (int) $identity['account']->uid);
+  return _ke_hoach_xep_xe_success(array('nid' => (int) $id, 'hinh_anh_chung_tu' => $files));
+}
+
+function _ke_hoach_xep_xe_mobile_file_upload($id) {
+  $identity = _ke_hoach_xep_xe_mobile_driver();
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+
+  $uid = (int) $identity['account']->uid;
+  $result = _ke_hoach_xep_xe_file_upload_core($id, $uid);
+  if (isset($result['status']) && $result['status'] === 'success' && isset($result['data']['hinh_anh_chung_tu'])) {
+    // Response chỉ trả về chứng từ của chính lái xe này, không lộ chứng từ người khác
+    // đã thêm vào cùng kế hoạch từ trước.
+    $result['data']['hinh_anh_chung_tu'] = _ke_hoach_xep_xe_files_owned_by($result['data']['hinh_anh_chung_tu'], $uid);
+  }
+  return $result;
+}
+
+function _ke_hoach_xep_xe_mobile_file_delete($id, $file_id) {
+  $identity = _ke_hoach_xep_xe_mobile_driver();
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+  $plan = _ke_hoach_xep_xe_mobile_load_trip($id, $identity['driver']->nid);
+  if (!$plan) return _ke_hoach_xep_xe_not_found('Không tìm thấy chuyến xe được giao cho bạn');
+  return _ke_hoach_xep_xe_file_delete_core($id, $file_id, (int) $identity['account']->uid);
 }
 
 function _ke_hoach_xep_xe_query_condition_loai($query, $loai_ke_hoach = 'thuong', $alias = 'kh') {

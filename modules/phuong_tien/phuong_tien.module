@@ -151,6 +151,24 @@ function _phuong_tien_require_auth() {
   return $user;
 }
 
+/**
+ * Tài khoản đang gọi API: ưu tiên phiên đăng nhập trình duyệt (web admin UI gọi
+ * bằng session sẵn có, không đổi hành vi cũ), nếu không có phiên thì thử theo
+ * Bearer token/?token= (Postman, app ngoài). Không bắt buộc phải có token — nếu
+ * cả hai đều không có thì trả về NULL, user_access() tự hiểu là Anonymous.
+ * Dùng để user_access($quyen, _phuong_tien_current_account()) thay vì
+ * user_access($quyen) — bare user_access() luôn chỉ nhìn phiên trình duyệt nên
+ * gọi bằng Bearer token qua Postman/app sẽ luôn bị tính là Anonymous.
+ */
+function _phuong_tien_current_account() {
+  global $user;
+  if (!empty($user->uid)) {
+    return $user;
+  }
+  $auth = _phuong_tien_require_auth();
+  return is_array($auth) ? NULL : $auth;
+}
+
 function _phuong_tien_success($data = NULL) {
   $response = array('status' => 'success');
   if ($data !== NULL) {
@@ -425,6 +443,9 @@ function phuong_tien_rest_collection() {
 }
 
 function _phuong_tien_rest_list() {
+  if (!user_access('phuong_tien_view', _phuong_tien_current_account())) {
+    return _phuong_tien_unauthorized('Bạn không có quyền xem danh sách phương tiện');
+  }
   _phuong_tien_ensure_extended_fields();
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
   $limit = isset($_GET['limit']) ? max(1, min(500, (int) $_GET['limit'])) : 20;
@@ -500,7 +521,7 @@ function _phuong_tien_rest_list() {
 }
 
 function _phuong_tien_rest_create() {
-  if (!user_access('phuong_tien_create')) {
+  if (!user_access('phuong_tien_create', _phuong_tien_current_account())) {
     return _phuong_tien_unauthorized('Bạn không có quyền tạo phương tiện');
   }
 
@@ -612,6 +633,9 @@ function phuong_tien_rest_item($id) {
 }
 
 function _phuong_tien_rest_get($id) {
+  if (!user_access('phuong_tien_view', _phuong_tien_current_account())) {
+    return _phuong_tien_unauthorized('Bạn không có quyền xem phương tiện');
+  }
   _phuong_tien_ensure_extended_fields();
   $query = db_select('phuong_tien', 'pt');
   $query->fields('pt');
@@ -651,7 +675,7 @@ function _phuong_tien_rest_get($id) {
 
 function _phuong_tien_rest_update($id) {
   _phuong_tien_ensure_extended_fields();
-  if (!user_access('phuong_tien_create')) {
+  if (!user_access('phuong_tien_create', _phuong_tien_current_account())) {
     return _phuong_tien_unauthorized('Bạn không có quyền sửa phương tiện');
   }
 
@@ -731,7 +755,7 @@ function _phuong_tien_rest_update($id) {
 }
 
 function _phuong_tien_rest_delete($id) {
-  if (!user_access('phuong_tien_delete')) {
+  if (!user_access('phuong_tien_delete', _phuong_tien_current_account())) {
     return _phuong_tien_unauthorized('Bạn không có quyền xoá phương tiện');
   }
 
@@ -819,7 +843,7 @@ function _phuong_tien_save_file_context($id, $json) {
 }
 
 function _phuong_tien_rest_file_upload($id) {
-  if (!user_access('phuong_tien_create')) {
+  if (!user_access('phuong_tien_create', _phuong_tien_current_account())) {
     return _phuong_tien_unauthorized('Bạn không có quyền upload hồ sơ phương tiện');
   }
 
@@ -875,7 +899,7 @@ function _phuong_tien_rest_file_upload($id) {
 }
 
 function _phuong_tien_rest_file_update($id, $file_id) {
-  if (!user_access('phuong_tien_create')) {
+  if (!user_access('phuong_tien_create', _phuong_tien_current_account())) {
     return _phuong_tien_unauthorized('Bạn không có quyền sửa hồ sơ phương tiện');
   }
 
@@ -910,7 +934,7 @@ function _phuong_tien_rest_file_update($id, $file_id) {
 }
 
 function _phuong_tien_rest_file_delete($id, $file_id) {
-  if (!user_access('phuong_tien_create')) {
+  if (!user_access('phuong_tien_create', _phuong_tien_current_account())) {
     return _phuong_tien_unauthorized('Bạn không có quyền xoá hồ sơ phương tiện');
   }
 

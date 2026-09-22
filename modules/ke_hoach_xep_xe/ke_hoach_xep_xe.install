@@ -276,6 +276,8 @@ function ke_hoach_xep_xe_schema() {
       'nid_ledger' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
       'thong_tin_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      // Ai nhập dòng chi phí này (uid Drupal); set 1 lần lúc tạo, không đổi khi sửa.
+      'uid_nguoi_tao' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
       'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
       'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
@@ -291,6 +293,7 @@ function ke_hoach_xep_xe_schema() {
       'nid_ledger' => array('nid_ledger'),
       'hoat_dong' => array('hoat_dong'),
       'created' => array('created'),
+      'uid_nguoi_tao' => array('uid_nguoi_tao'),
     ),
   );
 
@@ -832,5 +835,27 @@ function ke_hoach_xep_xe_update_7025() {
     db_query("UPDATE {ke_hoach_xep_xe} SET bai_lay_thuc_te = '' WHERE " . $port_only);
   }
   return 'Đã đổi ha_bai_ngoai thành bai_ha_ngoai (varchar 255); chép ' . $copied . ' bãi hạ thực tế của hàng cảng sang bãi hạ ngoài.';
+}
+
+/**
+ * Thêm cột uid_nguoi_tao cho ke_hoach_chi_phi — ghi ai nhập dòng chi phí (uid Drupal),
+ * set 1 lần lúc tạo. Chi phí đã có từ trước không xác định được ai nhập, để mặc định 0.
+ */
+function ke_hoach_xep_xe_update_7026() {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return 'Bảng ke_hoach_chi_phi chưa tồn tại, bỏ qua.';
+  }
+  if (!db_field_exists('ke_hoach_chi_phi', 'uid_nguoi_tao')) {
+    db_add_field('ke_hoach_chi_phi', 'uid_nguoi_tao', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 0,
+    ));
+  }
+  if (!db_index_exists('ke_hoach_chi_phi', 'uid_nguoi_tao')) {
+    db_add_index('ke_hoach_chi_phi', 'uid_nguoi_tao', array('uid_nguoi_tao'));
+  }
+  return 'Đã thêm cột uid_nguoi_tao cho ke_hoach_chi_phi.';
 }
 

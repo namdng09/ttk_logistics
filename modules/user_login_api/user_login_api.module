@@ -119,6 +119,14 @@ function user_login_api_callback() {
         drupal_exit();
     }
 
+    if (empty($account->status)) {
+        drupal_json_output(array(
+            'status' => 'error',
+            'message' => 'Tài khoản đã bị khoá truy cập',
+        ));
+        drupal_exit();
+    }
+
     // Generate new token
     $new_token = md5(uniqid(mt_rand(), true));
 
@@ -190,7 +198,12 @@ function api_validate_token($token) {
 
     if (!$uid) return FALSE;
 
-    return user_load($uid);
+    $account = user_load($uid);
+    // Tài khoản bị khoá (status = 0) — xoá mềm lái xe/nhân viên hoặc khoá thủ công — thì
+    // token cũ cấp từ trước cũng mất hiệu lực ngay, không phải đợi hết hạn hay bị xoá.
+    if (!$account || empty($account->status)) return FALSE;
+
+    return $account;
 }
 
 function _api_token_find_user($token, $uid) {
