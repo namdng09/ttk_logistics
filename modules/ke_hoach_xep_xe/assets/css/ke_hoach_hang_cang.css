@@ -695,3 +695,10 @@
   flex: 1 0 150px;
 }
 
+
+/* Thẻ trạng thái cont trong header modal xếp xe: nằm cạnh nút (cao hơn) nên phải căn giữa dọc icon + chữ. */
+#khxh-cont-status-badge:not(.d-none) {
+  display: inline-flex;
+  align-items: center;
+  /* align-self: center; */
+}
