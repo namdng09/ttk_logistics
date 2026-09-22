@@ -324,9 +324,9 @@
       '<td title="' + escapeHtml(aliasTitle(row.diem_cuoi, row.diem_cuoi_alias)) + '">' + escapeHtml(row.diem_cuoi) +
         (row.diem_cuoi_alias && row.diem_cuoi_alias.length ? ' <span class="badge bg-label-secondary">+' + row.diem_cuoi_alias.length + '</span>' : '') + '</td>' +
       '<td>' + escapeHtml(row.khoang_cach || '') + '</td>' +
+      '<td>' + formatMoney(row.gia_trong) + '</td>' +
       '<td>' + formatMoney(row.gia_vo) + '</td>' +
       '<td>' + formatMoney(row.gia_hang) + '</td>' +
-      '<td>' + formatMoney(row.gia_trong) + '</td>' +
       '<td class="text-center">' +
         '<div class="dropdown">' +
           '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill"><i class="ti tabler-dots-vertical"></i></button>' +

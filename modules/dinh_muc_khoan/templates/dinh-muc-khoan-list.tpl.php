@@ -35,9 +35,9 @@
             <th>Điểm đầu</th>
             <th>Điểm cuối</th>
             <th style="width:90px">KM</th>
+            <th style="width:120px">Trống</th>
             <th style="width:120px">Vỏ</th>
             <th style="width:120px">Hàng</th>
-            <th style="width:120px">Trống</th>
             <th style="width:60px;text-align:center !important">CN</th>
           </tr>
         </thead>
@@ -105,16 +105,16 @@
               <input type="text" class="form-control" name="khoang_cach" inputmode="decimal">
             </div>
             <div class="col-lg-3 col-6">
+              <label class="form-label">Trống</label>
+              <input type="text" class="form-control money-mask" name="gia_trong" placeholder="0" inputmode="numeric">
+            </div>
+            <div class="col-lg-3 col-6">
               <label class="form-label">Vỏ</label>
               <input type="text" class="form-control money-mask" name="gia_vo" placeholder="0" inputmode="numeric">
             </div>
             <div class="col-lg-3 col-6">
               <label class="form-label">Hàng</label>
               <input type="text" class="form-control money-mask" name="gia_hang" placeholder="0" inputmode="numeric">
-            </div>
-            <div class="col-lg-3 col-6">
-              <label class="form-label">Trống</label>
-              <input type="text" class="form-control money-mask" name="gia_trong" placeholder="0" inputmode="numeric">
             </div>
           </div>
         </div>
