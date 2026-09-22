@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Khách Hàng — Customer management.
+ * Đối Tác — Customer management.
  * RESTful API + Modal CRUD.
  */
 
@@ -11,9 +11,9 @@
  */
 function khach_hang_permission() {
   return array(
-    'khach_hang_view' => array('title' => t('Xem khách hàng')),
-    'khach_hang_create' => array('title' => t('Tạo/sửa khách hàng')),
-    'khach_hang_delete' => array('title' => t('Xoá khách hàng')),
+    'khach_hang_view' => array('title' => t('Xem đối tác')),
+    'khach_hang_create' => array('title' => t('Tạo/sửa đối tác')),
+    'khach_hang_delete' => array('title' => t('Xoá đối tác')),
   );
 }
 
@@ -55,7 +55,7 @@ function khach_hang_menu() {
   );
 
   $items['khach-hang'] = array(
-    'title' => 'Danh sách khách hàng',
+    'title' => 'Danh sách đối tác',
     'page callback' => 'khach_hang_page_list',
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
@@ -108,7 +108,7 @@ function khach_hang_modal_html() {
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="khach-hang-modal-title">Thêm khách hàng</h5>
+        <h5 class="modal-title" id="khach-hang-modal-title">Thêm đối tác</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" style="position:relative;">
@@ -121,7 +121,7 @@ function khach_hang_modal_html() {
           <input type="hidden" name="nid" value="">
           <div class="row g-3">
             <div class="col-lg-6">
-              <label class="form-label">Tên công ty / Khách hàng <span class="text-danger">*</span></label>
+              <label class="form-label">Tên công ty / Đối tác <span class="text-danger">*</span></label>
               <input type="text" class="form-control" name="ten" required placeholder="Công ty TNHH ABC">
               <div class="invalid-feedback">Vui lòng nhập tên</div>
             </div>
@@ -292,7 +292,7 @@ function _khach_hang_check_unique_ma($value, $exclude_nid = NULL) {
   $query->range(0, 1);
   $exists = $query->execute()->fetchObject();
   if ($exists && $exists->hoat_dong) {
-    return _khach_hang_fail('Mã khách hàng "' . $value . '" đã tồn tại');
+    return _khach_hang_fail('Mã đối tác "' . $value . '" đã tồn tại');
   }
   return NULL;
 }
@@ -487,7 +487,7 @@ function khach_hang_rest_collection() {
 
 function _khach_hang_rest_list() {
   if (!user_access('khach_hang_view')) {
-    return _khach_hang_unauthorized('Bạn không có quyền xem khách hàng');
+    return _khach_hang_unauthorized('Bạn không có quyền xem đối tác');
   }
 
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
@@ -538,13 +538,13 @@ function _khach_hang_rest_list() {
 
 function _khach_hang_rest_create() {
   if (!user_access('khach_hang_create')) {
-    return _khach_hang_unauthorized('Bạn không có quyền tạo khách hàng');
+    return _khach_hang_unauthorized('Bạn không có quyền tạo đối tác');
   }
 
   $input = _khach_hang_input();
 
   if (empty($input['ten'])) {
-    return _khach_hang_fail('Tên khách hàng bắt buộc');
+    return _khach_hang_fail('Tên đối tác bắt buộc');
   }
   $input['ma_kh'] = isset($input['ma_kh']) ? trim((string) $input['ma_kh']) : '';
   if ($input['ma_kh'] === '') {
@@ -603,7 +603,7 @@ function _khach_hang_rest_create() {
     // Sync nv_kinh_doanh junction table
     _khach_hang_sync_nv_kinh_doanh($nid, isset($input['nv_kinh_doanh']) ? $input['nv_kinh_doanh'] : array());
 
-    watchdog('khach_hang', 'Tạo khách hàng #%id: %ten', array(
+    watchdog('khach_hang', 'Tạo đối tác #%id: %ten', array(
       '%id' => $nid,
       '%ten' => $input['ten'],
     ));
@@ -612,8 +612,8 @@ function _khach_hang_rest_create() {
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog('khach_hang', 'Lỗi tạo khách hàng: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _khach_hang_error('Lỗi hệ thống khi tạo khách hàng');
+    watchdog('khach_hang', 'Lỗi tạo đối tác: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _khach_hang_error('Lỗi hệ thống khi tạo đối tác');
   }
 }
 
@@ -641,30 +641,30 @@ function khach_hang_rest_item($id) {
 
 function _khach_hang_rest_get($id) {
   if (!user_access('khach_hang_view')) {
-    return _khach_hang_unauthorized('Bạn không có quyền xem khách hàng');
+    return _khach_hang_unauthorized('Bạn không có quyền xem đối tác');
   }
 
   $row = _khach_hang_load_row($id, TRUE);
   if (!$row) {
-    return _khach_hang_not_found('Khách hàng không tồn tại');
+    return _khach_hang_not_found('Đối tác không tồn tại');
   }
   return _khach_hang_success($row);
 }
 
 function _khach_hang_rest_update($id) {
   if (!user_access('khach_hang_create')) {
-    return _khach_hang_unauthorized('Bạn không có quyền sửa khách hàng');
+    return _khach_hang_unauthorized('Bạn không có quyền sửa đối tác');
   }
 
   $existing = db_query("SELECT nid FROM {khach_hang} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
   if (!$existing) {
-    return _khach_hang_not_found('Khách hàng không tồn tại');
+    return _khach_hang_not_found('Đối tác không tồn tại');
   }
 
   $input = _khach_hang_input();
 
   if (empty($input['ten'])) {
-    return _khach_hang_fail('Tên khách hàng bắt buộc');
+    return _khach_hang_fail('Tên đối tác bắt buộc');
   }
   $input['ma_kh'] = isset($input['ma_kh']) ? trim((string) $input['ma_kh']) : '';
   if ($input['ma_kh'] === '') {
@@ -732,25 +732,25 @@ function _khach_hang_rest_update($id) {
       _khach_hang_sync_nv_kinh_doanh($id, $input['nv_kinh_doanh'] ? $input['nv_kinh_doanh'] : array());
     }
 
-    watchdog('khach_hang', 'Cập nhật khách hàng #%id', array('%id' => $id));
+    watchdog('khach_hang', 'Cập nhật đối tác #%id', array('%id' => $id));
 
     return _khach_hang_success(_khach_hang_load_row($id, TRUE));
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog('khach_hang', 'Lỗi cập nhật khách hàng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _khach_hang_error('Lỗi hệ thống khi cập nhật khách hàng');
+    watchdog('khach_hang', 'Lỗi cập nhật đối tác #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _khach_hang_error('Lỗi hệ thống khi cập nhật đối tác');
   }
 }
 
 function _khach_hang_rest_delete($id) {
   if (!user_access('khach_hang_delete')) {
-    return _khach_hang_unauthorized('Bạn không có quyền xoá khách hàng');
+    return _khach_hang_unauthorized('Bạn không có quyền xoá đối tác');
   }
 
   $existing = db_query("SELECT nid, ten FROM {khach_hang} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
-    return _khach_hang_not_found('Khách hàng không tồn tại');
+    return _khach_hang_not_found('Đối tác không tồn tại');
   }
 
   $transaction = db_transaction();
@@ -767,7 +767,7 @@ function _khach_hang_rest_delete($id) {
       ->condition('hoat_dong', 1)
       ->execute();
 
-    watchdog('khach_hang', 'Xoá (soft) khách hàng #%id: %ten', array(
+    watchdog('khach_hang', 'Xoá (soft) đối tác #%id: %ten', array(
       '%id' => $id,
       '%ten' => $existing->ten,
     ));
@@ -776,8 +776,8 @@ function _khach_hang_rest_delete($id) {
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog('khach_hang', 'Lỗi xoá khách hàng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _khach_hang_error('Lỗi hệ thống khi xoá khách hàng');
+    watchdog('khach_hang', 'Lỗi xoá đối tác #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _khach_hang_error('Lỗi hệ thống khi xoá đối tác');
   }
 }
 
@@ -787,7 +787,7 @@ function _khach_hang_rest_delete($id) {
  ******************************************************************************/
 
 function khach_hang_page_list() {
-  // $with_xlsx = FALSE: XLSX chỉ dùng cho import/export định mức theo khách hàng
+  // $with_xlsx = FALSE: XLSX chỉ dùng cho import/export định mức theo đối tác
   // (đã bỏ, định mức giờ dùng chung toàn hệ thống — xem module dinh_muc_khoan).
   khach_hang_add_modal_assets(FALSE, FALSE);
   return theme('khach_hang_list_page');

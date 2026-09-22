@@ -1,6 +1,6 @@
 <div class="card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <h4 class="card-title">Danh sách khách hàng</h4>
+    <h4 class="card-title">Danh sách đối tác</h4>
   </div>
 
   <div class="card-body">
@@ -85,7 +85,7 @@
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="khach-hang-modal-title">Thêm khách hàng</h5>
+        <h5 class="modal-title" id="khach-hang-modal-title">Thêm đối tác</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" style="position:relative;">
@@ -100,7 +100,7 @@
           <!-- Customer Info -->
           <div class="row g-3">
             <div class="col-lg-6">
-              <label class="form-label">Tên công ty / Khách hàng <span class="text-danger">*</span></label>
+              <label class="form-label">Tên công ty / Đối tác <span class="text-danger">*</span></label>
               <input type="text" class="form-control" name="ten" required placeholder="Công ty TNHH ABC">
               <div class="invalid-feedback">Vui lòng nhập tên</div>
             </div>

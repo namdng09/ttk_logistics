@@ -5,3 +5,10 @@
   text-align: right;
   white-space: nowrap;
 }
+
+/* Ô nhập Trống/Vỏ/Hàng trong modal là tiền — căn phải cho dễ đọc số. */
+#dmk-modal input[name="gia_trong"],
+#dmk-modal input[name="gia_vo"],
+#dmk-modal input[name="gia_hang"] {
+  text-align: right;
+}

@@ -172,7 +172,7 @@ function getMainMenuSoft()
                     <li class="menu-item' . ((strpos(current_path(), 'khach-hang') === 0) ? ' active' : '') . '">
                         <a href="/khach-hang" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-users"></i>
-                            <div data-i18n="Khách hàng">Khách hàng</div>
+                            <div data-i18n="Đối tác">Đối tác</div>
                         </a>
                     </li>
 

@@ -121,16 +121,16 @@
     }
     var modal = ensureModal();
     if (!modal) {
-      if (notyf) notyf.error('Không tải được form tạo khách hàng');
+      if (notyf) notyf.error('Không tải được form tạo đối tác');
       return;
     }
     resetForm();
     setFormMode('create');
-    document.getElementById('khach-hang-modal-title').textContent = config.title || 'Thêm khách hàng';
+    document.getElementById('khach-hang-modal-title').textContent = config.title || 'Thêm đối tác';
     quickCreateCallback = typeof config.onCreated === 'function' ? config.onCreated : null;
     ensureFormSupportData(function () {
       initTagify();
-      setTagifyValue(config.phanLoai || ['Khách hàng']);
+      setTagifyValue(config.phanLoai || ['Đối tác']);
       initRepeater();
       initDatePickers();
     });
@@ -1299,19 +1299,19 @@
     id = parseInt(id, 10) || 0;
     var modal = ensureModal();
     if (!id || !modal) {
-      if (notyf) notyf.error('Không mở được form xem chi tiết khách hàng');
+      if (notyf) notyf.error('Không mở được form xem chi tiết đối tác');
       return;
     }
     var title = modal.querySelector('#khach-hang-modal-title');
     var saveButton = modal.querySelector('.btn-luu-khach-hang');
     if (!title || !saveButton || !modal.querySelector('#form-khach-hang')) {
-      if (notyf) notyf.error('Form xem chi tiết khách hàng chưa sẵn sàng');
+      if (notyf) notyf.error('Form xem chi tiết đối tác chưa sẵn sàng');
       return;
     }
     showLoading(true);
     if (!modalShow('khach-hang-modal')) {
       showLoading(false);
-      if (notyf) notyf.error('Không thể hiển thị modal khách hàng');
+      if (notyf) notyf.error('Không thể hiển thị modal đối tác');
       return;
     }
 
@@ -1321,13 +1321,13 @@
     try {
       resetForm();
       setFormMode('view');
-      title.textContent = 'Chi tiết khách hàng';
+      title.textContent = 'Chi tiết đối tác';
       saveButton.style.display = 'none';
       showLoading(true);
     } catch (err) {
       showLoading(false);
-      if (window.console && console.error) console.error('[Khách hàng] Không khởi tạo được form xem:', err);
-      if (notyf) notyf.error('Không thể chuẩn bị form xem chi tiết khách hàng');
+      if (window.console && console.error) console.error('[Đối tác] Không khởi tạo được form xem:', err);
+      if (notyf) notyf.error('Không thể chuẩn bị form xem chi tiết đối tác');
       return;
     }
 
@@ -1356,7 +1356,7 @@
 
   function openEditModal(id) {
     setFormMode('edit');
-    document.getElementById('khach-hang-modal-title').textContent = 'Cập nhật khách hàng';
+    document.getElementById('khach-hang-modal-title').textContent = 'Cập nhật đối tác';
     document.querySelector('#form-khach-hang input[name="nid"]').value = id;
     var btn = document.querySelector('.btn-luu-khach-hang');
     btn.removeAttribute('disabled');
@@ -1495,7 +1495,7 @@
     document.querySelector('#form-khach-hang input[name="nid"]').value = '';
     var nvSel = document.getElementById('nv-kinh-doanh-select');
     if (nvSel) nvSel.value = '';
-    document.getElementById('khach-hang-modal-title').textContent = 'Thêm khách hàng';
+    document.getElementById('khach-hang-modal-title').textContent = 'Thêm đối tác';
     initRepeater();
     // Reset warehouse list
     var khoList = document.getElementById('kho-list');
@@ -1574,7 +1574,7 @@
     if (typeof Swal !== 'undefined') {
       Swal.fire({
         title: 'Xác nhận xoá',
-        text: 'Bạn có chắc chắn muốn xoá khách hàng này?',
+        text: 'Bạn có chắc chắn muốn xoá đối tác này?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Xoá',
@@ -1588,7 +1588,7 @@
         }
       });
     } else {
-      if (confirm('Xác nhận xoá khách hàng này?')) {
+      if (confirm('Xác nhận xoá đối tác này?')) {
         deleteItem(id);
       }
     }
