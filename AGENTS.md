@@ -27,7 +27,8 @@
 │   ├── ben_thu_ba/
 │   ├── lai_xe/
 │   ├── hop_dong/
-│   ├── cau_hinh_gia_ban/          # Module cấu hình giá bán (bảng giá)
+│   ├── cau_hinh_gia_ban/          # Module cấu hình giá bán (bảng giá) — theo khách hàng
+│   ├── dinh_muc_khoan/           # Định mức khoán lái xe theo tuyến — dùng CHUNG toàn hệ thống
 │   └── ben_thu_ba_api/
 │
 ├── themes/                      # Drupal theme
@@ -211,8 +212,22 @@ function loadList() {
 - **Module xác thực:** `user_login_api` — endpoint `api/auth/user/login`.
 - Login → nhận token.
 - Gọi API → gửi token qua header `Authorization: Bearer {token}` hoặc query param `?token=`.
-- Module `user_login_api` có hàm `api_validate_token($token)` trả về user object.
+- Module `user_login_api` có hàm `api_validate_token($token)` trả về user object; hàm này tự kiểm tra `status` tài khoản (khoá thì trả `FALSE`).
 - Phân quyền qua `user_access()` với các permission đã define trong `hook_permission()`.
+- **`user_access()` mặc định chỉ nhìn phiên đăng nhập trình duyệt (session), không tự đọc header `Authorization`.** Gọi API bằng Bearer token (Postman, app ngoài) mà không có phiên đăng nhập thì Drupal luôn coi là **Anonymous**, bất kể token đó ứng với tài khoản/vai trò nào — nếu chỉ gọi `user_access('quyen')` trơn, bật/tắt quyền theo vai trò sẽ **không có tác dụng** với các request kiểu này.
+- **Mẫu chuẩn để phân quyền đúng cho cả web lẫn API bằng token** (đã áp dụng cho `phuong_tien`, `dinh_muc_khoan` — module mới nên copy đúng mẫu này):
+  ```php
+  function _module_current_account() {
+    global $user;
+    if (!empty($user->uid)) return $user; // web: có phiên đăng nhập, dùng luôn
+    $auth = _module_require_auth();       // không có phiên: thử Bearer token/?token=
+    return is_array($auth) ? NULL : $auth;
+  }
+  // Dùng ở mọi API cần phân quyền:
+  user_access('module_view', _module_current_account());
+  ```
+  `_module_require_auth()` đọc header `Authorization: Bearer` (hoặc `?token=`), gọi `api_validate_token()`, trả về user object hoặc mảng lỗi `{status: fail, message: ...}`. Không bắt buộc phải có token — không có cả phiên lẫn token thì `_module_current_account()` trả `NULL`, `user_access()` tự hiểu là Anonymous như bình thường.
+- Route API `access callback => TRUE` như cũ; việc phân quyền luôn nằm trong callback qua `user_access($quyen, _module_current_account())`, không phải ở `hook_menu()`.
 
 ### Response format
 
@@ -399,6 +414,15 @@ notyf.error('Lỗi');
   - collision detection: flip sang trái nếu gần mép phải, đẩy lên trên nếu gần mép dưới (margin 8px), dùng `position:fixed`.
 - Module JS **không** cần tự bind dropdown — chỉ cần đúng HTML pattern. Nếu dropdown riêng (như thu_chi `tc-function-btn`) thì thêm class riêng để helper skip.
 - Theme `edusoul_preprocess_html()` đã load `function-dropdown.js` toàn cục — không cần `drupal_add_js` lại ở module.
+
+## Định mức khoán lái xe (module `dinh_muc_khoan`) — dùng chung toàn hệ thống
+
+- **Không còn theo từng khách hàng.** Trước đây định mức lưu trong `khach_hang.bang_gia_cuoc.dinh_muc` (JSON riêng mỗi khách hàng), cấu hình qua modal "Định mức khách hàng" ở màn Khách hàng — đã **bỏ hẳn** (route `api/khach-hang/{id}/dinh-muc`, modal, toàn bộ JS liên quan). Dữ liệu cũ không migrate, coi như bỏ. Riêng `bang_gia_cuoc.bang_gia` (giá bán cho khách hàng, module `cau_hinh_gia_ban`) **không đổi**, hai thứ nằm chung 1 cột JSON nhưng là 2 khái niệm khác nhau (giá bán cho khách ≠ định mức trả lái xe).
+- **Giờ là 1 bảng dùng chung** (`dinh_muc_khoan`), mỗi dòng là 1 tuyến: `diem_dau`/`diem_cuoi` (text) kèm `diem_dau_alias`/`diem_cuoi_alias` (mảng JSON các tên gọi khác của cùng điểm, để so khớp đỡ lệch do lập kế hoạch gõ tên hơi khác), 3 mức tiền theo trạng thái xe `gia_vo`/`gia_hang`/`gia_trong` (Vỏ/Hàng/Trống). Trùng cặp điểm đầu-cuối (kể cả qua alias, 2 chiều) bị chặn khi tạo/sửa.
+- UI: `/dinh-muc-khoan`, modal CRUD chuẩn (không có bước import/export Excel như bản cũ theo khách hàng).
+- API: `GET/POST /api/dinh-muc-khoan`, `GET/PUT/DELETE /api/dinh-muc-khoan/{id}`, và `GET /api/dinh-muc-khoan/tuyen` (toàn bộ tuyến đang hoạt động, không phân trang, đúng hình dạng `{routes:[{from,to,km,v,h,t}]}` — cho kế hoạch tải về so khớp, `from`/`to` là tên chính + alias gộp lại).
+- **Kế hoạch hàng cảng và tuyến xa dùng chung 1 nguồn** — `ke_hoach_chi_phi.js` (`loadDinhMucKhoan()`) là chỗ nạp dữ liệu duy nhất, phần so khớp/áp dụng (`findDinhMucAmount()`, `applyDinhMuc()`, cờ `manual`, snapshot lưu vào `thong_tin_json.dinh_muc_khoan_lai_xe` của từng kế hoạch) giữ nguyên như trước, không đổi theo màn.
+- Kế hoạch đã lưu định mức trước đây (snapshot cũ) **không tự đổi** theo bảng giá mới — chỉ áp dụng khi tạo mới hoặc bấm "Tính lại định mức" trong tab Chi phí.
 
 ## TODO
 

@@ -1,0 +1,489 @@
+<?php
+
+/**
+ * @file
+ * Định mức khoán lái xe theo tuyến (điểm đầu → điểm cuối), dùng chung toàn hệ
+ * thống — không theo từng khách hàng như trước (khi đó lưu trong
+ * khach_hang.bang_gia_cuoc.dinh_muc, đã bỏ). Kế hoạch hàng cảng và tuyến xa
+ * đều đọc chung 1 nguồn này (xem ke_hoach_chi_phi.js, hàm loadDinhMucKhoan()).
+ *
+ * Mỗi tuyến có thể có nhiều tên gọi khác nhau cho cùng 1 điểm (diem_dau_alias,
+ * diem_cuoi_alias) để so khớp đỡ bị lệch do lập kế hoạch gõ tên hơi khác nhau.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function dinh_muc_khoan_permission() {
+  return array(
+    'dinh_muc_khoan_view' => array('title' => t('Xem định mức khoán')),
+    'dinh_muc_khoan_create' => array('title' => t('Tạo/sửa định mức khoán')),
+    'dinh_muc_khoan_delete' => array('title' => t('Xoá định mức khoán')),
+  );
+}
+
+/**
+ * Implements hook_init() — CORS cho route API.
+ */
+function dinh_muc_khoan_init() {
+  $path = current_path();
+  if (strpos($path, 'api/dinh-muc-khoan') === 0) {
+    drupal_add_http_header('Access-Control-Allow-Origin', '*');
+    drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    drupal_add_http_header('Access-Control-Max-Age', '86400');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      drupal_add_http_header('Status', '204 No Content');
+      drupal_exit();
+    }
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function dinh_muc_khoan_menu() {
+  $items = array();
+
+  $items['api/dinh-muc-khoan'] = array(
+    'page callback' => 'dinh_muc_khoan_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  // Toàn bộ tuyến đang hoạt động, không phân trang, đúng hình dạng {routes:[{from,to,km,v,h,t}]}
+  // — cho kế hoạch (ke_hoach_chi_phi.js) tải về để so khớp định mức. Đường dẫn literal nên
+  // Drupal ưu tiên khớp route này trước api/dinh-muc-khoan/% dù cùng độ sâu.
+  $items['api/dinh-muc-khoan/tuyen'] = array(
+    'page callback' => 'dinh_muc_khoan_rest_routes_page',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/dinh-muc-khoan/%'] = array(
+    'page callback' => 'dinh_muc_khoan_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  $items['dinh-muc-khoan'] = array(
+    'title' => 'Định mức khoán',
+    'page callback' => 'dinh_muc_khoan_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function dinh_muc_khoan_theme() {
+  $path = drupal_get_path('module', 'dinh_muc_khoan') . '/templates';
+  return array(
+    'dinh_muc_khoan_list_page' => array(
+      'template' => 'dinh-muc-khoan-list',
+      'path' => $path,
+    ),
+  );
+}
+
+/*******************************************************************************
+ * AUTH — giống hệt mẫu đã áp dụng cho module phuong_tien: ưu tiên phiên đăng
+ * nhập trình duyệt (web admin UI), không có phiên thì thử Bearer token/?token=
+ * (Postman, app ngoài). Không bắt buộc phải có token.
+ ******************************************************************************/
+
+function _dinh_muc_khoan_require_auth() {
+  $token = NULL;
+  if (function_exists('getallheaders')) {
+    $headers = getallheaders();
+    if (!empty($headers['Authorization']) && preg_match('/^Bearer\s+(.+)$/i', trim($headers['Authorization']), $matches)) {
+      $token = trim($matches[1]);
+    }
+  }
+  if (!$token && !empty($_GET['token'])) {
+    $token = $_GET['token'];
+  }
+  if (!$token) {
+    drupal_add_http_header('Status', '401 Unauthorized');
+    return array('status' => 'fail', 'message' => 'Thiếu token xác thực');
+  }
+  module_load_include('module', 'user_login_api', 'user_login_api');
+  if (!function_exists('api_validate_token')) {
+    drupal_add_http_header('Status', '500 Internal Server Error');
+    return array('status' => 'error', 'message' => 'Hệ thống xác thực chưa sẵn sàng');
+  }
+  $account = api_validate_token($token);
+  if (!$account) {
+    drupal_add_http_header('Status', '401 Unauthorized');
+    return array('status' => 'fail', 'message' => 'Token không hợp lệ');
+  }
+  return $account;
+}
+
+/**
+ * Tài khoản đang gọi API: ưu tiên phiên trình duyệt, không có thì thử token.
+ * Dùng: user_access('quyen', _dinh_muc_khoan_current_account()).
+ */
+function _dinh_muc_khoan_current_account() {
+  global $user;
+  if (!empty($user->uid)) {
+    return $user;
+  }
+  $auth = _dinh_muc_khoan_require_auth();
+  return is_array($auth) ? NULL : $auth;
+}
+
+/*******************************************************************************
+ * HELPERS
+ ******************************************************************************/
+
+function _dinh_muc_khoan_input() {
+  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+}
+
+function _dinh_muc_khoan_now() {
+  return date('Y-m-d H:i:s', REQUEST_TIME);
+}
+
+function _dinh_muc_khoan_success($data = NULL) {
+  $response = array('status' => 'success');
+  if ($data !== NULL) {
+    $response['data'] = $data;
+  }
+  return $response;
+}
+
+function _dinh_muc_khoan_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _dinh_muc_khoan_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _dinh_muc_khoan_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function _dinh_muc_khoan_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function _dinh_muc_khoan_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+// Tiền trong hệ thống luôn là số nguyên VNĐ (không có phần thập phân), nên bỏ hẳn
+// nhánh is_numeric(): chuỗi kiểu "500.000" (dấu chấm phân tách nghìn) mới đúng ý
+// 500000, còn is_numeric() sẽ hiểu nhầm dấu chấm là số thập phân và ra 500.
+function _dinh_muc_khoan_money_value($value) {
+  $digits = preg_replace('/[^\d]/', '', (string) $value);
+  return $digits === '' ? 0 : (int) $digits;
+}
+
+/** Chuẩn hoá 1 danh sách tên gọi (alias): bỏ rỗng, trim, không trùng nhau. */
+function _dinh_muc_khoan_normalize_alias($value, $primary) {
+  $list = array();
+  if (is_string($value)) {
+    $list = preg_split('/[,\n]+/', $value);
+  }
+  elseif (is_array($value)) {
+    $list = $value;
+  }
+  $primary = trim((string) $primary);
+  $primary_key = mb_strtolower($primary);
+  $clean = array();
+  $seen = array();
+  foreach ($list as $name) {
+    $name = trim((string) $name);
+    if ($name === '') continue;
+    $key = mb_strtolower($name);
+    // So với tên chính không phân biệt hoa/thường — "kho a" cũng là trùng "Kho A".
+    if ($key === $primary_key || isset($seen[$key])) continue;
+    $seen[$key] = TRUE;
+    $clean[] = $name;
+  }
+  return $clean;
+}
+
+function _dinh_muc_khoan_json_decode($value) {
+  if (is_array($value)) return $value;
+  $decoded = json_decode((string) $value, TRUE);
+  return is_array($decoded) ? $decoded : array();
+}
+
+function _dinh_muc_khoan_json_encode($value) {
+  return json_encode(is_array($value) ? $value : array(), JSON_UNESCAPED_UNICODE);
+}
+
+/** Toàn bộ tên gọi (chính + alias) của 1 điểm, đã hạ chữ thường để so khớp. */
+function _dinh_muc_khoan_all_keys($primary, $alias) {
+  $names = array_merge(array($primary), is_array($alias) ? $alias : array());
+  $keys = array();
+  foreach ($names as $name) {
+    $name = trim((string) $name);
+    if ($name !== '') $keys[mb_strtolower($name)] = TRUE;
+  }
+  return array_keys($keys);
+}
+
+function _dinh_muc_khoan_row_to_array($row) {
+  $row = (array) $row;
+  $row['diem_dau_alias'] = _dinh_muc_khoan_json_decode(isset($row['diem_dau_alias']) ? $row['diem_dau_alias'] : '');
+  $row['diem_cuoi_alias'] = _dinh_muc_khoan_json_decode(isset($row['diem_cuoi_alias']) ? $row['diem_cuoi_alias'] : '');
+  $row['gia_vo'] = (int) $row['gia_vo'];
+  $row['gia_hang'] = (int) $row['gia_hang'];
+  $row['gia_trong'] = (int) $row['gia_trong'];
+  $row['nid'] = (int) $row['nid'];
+  return $row;
+}
+
+/**
+ * Có tuyến nào khác (bỏ qua $exclude_id) trùng cặp điểm đầu/điểm cuối theo
+ * BẤT KỲ tổ hợp tên gọi (chính hoặc alias) nào không — 2 chiều (đầu-cuối và
+ * cuối-đầu coi là trùng, vì cùng 1 tuyến vật lý).
+ */
+function _dinh_muc_khoan_find_duplicate($diem_dau, $diem_dau_alias, $diem_cuoi, $diem_cuoi_alias, $exclude_id = 0) {
+  $from_keys = _dinh_muc_khoan_all_keys($diem_dau, $diem_dau_alias);
+  $to_keys = _dinh_muc_khoan_all_keys($diem_cuoi, $diem_cuoi_alias);
+  if (!$from_keys || !$to_keys) return NULL;
+
+  $query = db_select('dinh_muc_khoan', 'd')->fields('d')->condition('d.hoat_dong', 1);
+  if ($exclude_id) $query->condition('d.nid', $exclude_id, '<>');
+  $rows = $query->execute()->fetchAll();
+
+  foreach ($rows as $row) {
+    $row_from = _dinh_muc_khoan_all_keys($row->diem_dau, _dinh_muc_khoan_json_decode($row->diem_dau_alias));
+    $row_to = _dinh_muc_khoan_all_keys($row->diem_cuoi, _dinh_muc_khoan_json_decode($row->diem_cuoi_alias));
+    $forward = array_intersect($from_keys, $row_from) && array_intersect($to_keys, $row_to);
+    $reverse = array_intersect($from_keys, $row_to) && array_intersect($to_keys, $row_from);
+    if ($forward || $reverse) return $row;
+  }
+  return NULL;
+}
+
+/*******************************************************************************
+ * REST — COLLECTION: GET /api/dinh-muc-khoan, POST /api/dinh-muc-khoan
+ ******************************************************************************/
+
+function dinh_muc_khoan_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _dinh_muc_khoan_rest_list();
+    case 'POST':
+      return _dinh_muc_khoan_rest_create();
+    default:
+      return _dinh_muc_khoan_method_not_allowed('GET, POST');
+  }
+}
+
+function _dinh_muc_khoan_rest_list() {
+  if (!user_access('dinh_muc_khoan_view', _dinh_muc_khoan_current_account())) {
+    return _dinh_muc_khoan_unauthorized('Bạn không có quyền xem định mức khoán');
+  }
+  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $limit = isset($_GET['limit']) ? max(1, min(200, (int) $_GET['limit'])) : 50;
+
+  $query = db_select('dinh_muc_khoan', 'd')->condition('d.hoat_dong', 1);
+  if (!empty($_GET['keyword'])) {
+    $like = '%' . db_like(trim($_GET['keyword'])) . '%';
+    $query->condition(db_or()
+      ->condition('d.diem_dau', $like, 'LIKE')
+      ->condition('d.diem_cuoi', $like, 'LIKE')
+      ->condition('d.diem_dau_alias', $like, 'LIKE')
+      ->condition('d.diem_cuoi_alias', $like, 'LIKE')
+    );
+  }
+  $count_query = clone $query;
+  $total = (int) $count_query->fields('d', array('nid'))->countQuery()->execute()->fetchField();
+  $rows = $query->fields('d')->orderBy('d.diem_dau', 'ASC')->orderBy('d.diem_cuoi', 'ASC')
+    ->range(($page - 1) * $limit, $limit)->execute()->fetchAll();
+
+  $items = array();
+  foreach ($rows as $row) $items[] = _dinh_muc_khoan_row_to_array($row);
+
+  return _dinh_muc_khoan_success(array(
+    'items' => $items,
+    'total' => $total,
+    'current_page' => $page,
+    'total_pages' => max(1, (int) ceil($total / $limit)),
+    'limit' => $limit,
+  ));
+}
+
+/** Toàn bộ tuyến đang hoạt động, không phân trang — kế hoạch dùng để so khớp
+ * (xem ke_hoach_chi_phi.js loadDinhMucKhoan()). Cùng quyền xem như danh sách. */
+function dinh_muc_khoan_rest_routes_page() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _dinh_muc_khoan_method_not_allowed('GET');
+  if (!user_access('dinh_muc_khoan_view', _dinh_muc_khoan_current_account())) {
+    return _dinh_muc_khoan_unauthorized('Bạn không có quyền xem định mức khoán');
+  }
+  $rows = db_query("SELECT * FROM {dinh_muc_khoan} WHERE hoat_dong = 1")->fetchAll();
+  $routes = array();
+  foreach ($rows as $row) {
+    $item = _dinh_muc_khoan_row_to_array($row);
+    $routes[] = array(
+      'from' => array_merge(array($item['diem_dau']), $item['diem_dau_alias']),
+      'to' => array_merge(array($item['diem_cuoi']), $item['diem_cuoi_alias']),
+      'km' => $item['khoang_cach'],
+      'v' => $item['gia_vo'],
+      'h' => $item['gia_hang'],
+      't' => $item['gia_trong'],
+    );
+  }
+  return _dinh_muc_khoan_success(array('routes' => $routes));
+}
+
+function _dinh_muc_khoan_build_record($input, $existing = NULL) {
+  $diem_dau = array_key_exists('diem_dau', $input) ? trim((string) $input['diem_dau']) : ($existing ? (string) $existing->diem_dau : '');
+  $diem_cuoi = array_key_exists('diem_cuoi', $input) ? trim((string) $input['diem_cuoi']) : ($existing ? (string) $existing->diem_cuoi : '');
+  $diem_dau_alias = array_key_exists('diem_dau_alias', $input)
+    ? _dinh_muc_khoan_normalize_alias($input['diem_dau_alias'], $diem_dau)
+    : ($existing ? _dinh_muc_khoan_json_decode($existing->diem_dau_alias) : array());
+  $diem_cuoi_alias = array_key_exists('diem_cuoi_alias', $input)
+    ? _dinh_muc_khoan_normalize_alias($input['diem_cuoi_alias'], $diem_cuoi)
+    : ($existing ? _dinh_muc_khoan_json_decode($existing->diem_cuoi_alias) : array());
+
+  return array(
+    'diem_dau' => $diem_dau,
+    'diem_dau_alias' => _dinh_muc_khoan_json_encode($diem_dau_alias),
+    'diem_cuoi' => $diem_cuoi,
+    'diem_cuoi_alias' => _dinh_muc_khoan_json_encode($diem_cuoi_alias),
+    'khoang_cach' => array_key_exists('khoang_cach', $input) ? trim((string) $input['khoang_cach']) : ($existing ? (string) $existing->khoang_cach : ''),
+    'gia_vo' => array_key_exists('gia_vo', $input) ? _dinh_muc_khoan_money_value($input['gia_vo']) : ($existing ? (int) $existing->gia_vo : 0),
+    'gia_hang' => array_key_exists('gia_hang', $input) ? _dinh_muc_khoan_money_value($input['gia_hang']) : ($existing ? (int) $existing->gia_hang : 0),
+    'gia_trong' => array_key_exists('gia_trong', $input) ? _dinh_muc_khoan_money_value($input['gia_trong']) : ($existing ? (int) $existing->gia_trong : 0),
+  );
+}
+
+function _dinh_muc_khoan_validate_record($record) {
+  if ($record['diem_dau'] === '' || $record['diem_cuoi'] === '') {
+    return 'Vui lòng nhập điểm đầu và điểm cuối';
+  }
+  if (mb_strtolower($record['diem_dau']) === mb_strtolower($record['diem_cuoi'])) {
+    return 'Điểm đầu và điểm cuối không được trùng nhau';
+  }
+  return NULL;
+}
+
+function _dinh_muc_khoan_rest_create() {
+  if (!user_access('dinh_muc_khoan_create', _dinh_muc_khoan_current_account())) {
+    return _dinh_muc_khoan_unauthorized('Bạn không có quyền tạo định mức khoán');
+  }
+  $input = _dinh_muc_khoan_input();
+  $record = _dinh_muc_khoan_build_record($input);
+  $error = _dinh_muc_khoan_validate_record($record);
+  if ($error) return _dinh_muc_khoan_fail($error);
+
+  $duplicate = _dinh_muc_khoan_find_duplicate($record['diem_dau'], _dinh_muc_khoan_json_decode($record['diem_dau_alias']), $record['diem_cuoi'], _dinh_muc_khoan_json_decode($record['diem_cuoi_alias']));
+  if ($duplicate) {
+    return _dinh_muc_khoan_fail('Tuyến này đã có định mức (#' . (int) $duplicate->nid . ': ' . $duplicate->diem_dau . ' - ' . $duplicate->diem_cuoi . ')');
+  }
+
+  global $user;
+  $record['uid_nguoi_tao'] = isset($user->uid) ? (int) $user->uid : 0;
+  $record['created'] = _dinh_muc_khoan_now();
+  $record['changed'] = $record['created'];
+  $record['hoat_dong'] = 1;
+
+  $nid = db_insert('dinh_muc_khoan')->fields($record)->execute();
+  $row = db_query("SELECT * FROM {dinh_muc_khoan} WHERE nid = :id", array(':id' => $nid))->fetch();
+  watchdog('dinh_muc_khoan', 'Tạo định mức khoán #%id: %tu → %den', array('%id' => $nid, '%tu' => $record['diem_dau'], '%den' => $record['diem_cuoi']));
+  return _dinh_muc_khoan_success(_dinh_muc_khoan_row_to_array($row));
+}
+
+/*******************************************************************************
+ * REST — ITEM: GET/PUT/DELETE /api/dinh-muc-khoan/{id}
+ ******************************************************************************/
+
+function dinh_muc_khoan_rest_item($id) {
+  $id = (int) $id;
+  if (!$id) {
+    return _dinh_muc_khoan_fail('ID không hợp lệ');
+  }
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _dinh_muc_khoan_rest_get($id);
+    case 'PUT':
+      return _dinh_muc_khoan_rest_update($id);
+    case 'DELETE':
+      return _dinh_muc_khoan_rest_delete($id);
+    default:
+      return _dinh_muc_khoan_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+function _dinh_muc_khoan_rest_get($id) {
+  if (!user_access('dinh_muc_khoan_view', _dinh_muc_khoan_current_account())) {
+    return _dinh_muc_khoan_unauthorized('Bạn không có quyền xem định mức khoán');
+  }
+  $row = db_query("SELECT * FROM {dinh_muc_khoan} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  if (!$row) return _dinh_muc_khoan_not_found('Định mức khoán không tồn tại');
+  return _dinh_muc_khoan_success(_dinh_muc_khoan_row_to_array($row));
+}
+
+function _dinh_muc_khoan_rest_update($id) {
+  if (!user_access('dinh_muc_khoan_create', _dinh_muc_khoan_current_account())) {
+    return _dinh_muc_khoan_unauthorized('Bạn không có quyền sửa định mức khoán');
+  }
+  $existing = db_query("SELECT * FROM {dinh_muc_khoan} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
+  if (!$existing) return _dinh_muc_khoan_not_found('Định mức khoán không tồn tại');
+
+  $input = _dinh_muc_khoan_input();
+  $record = _dinh_muc_khoan_build_record($input, $existing);
+  $error = _dinh_muc_khoan_validate_record($record);
+  if ($error) return _dinh_muc_khoan_fail($error);
+
+  $duplicate = _dinh_muc_khoan_find_duplicate($record['diem_dau'], _dinh_muc_khoan_json_decode($record['diem_dau_alias']), $record['diem_cuoi'], _dinh_muc_khoan_json_decode($record['diem_cuoi_alias']), $id);
+  if ($duplicate) {
+    return _dinh_muc_khoan_fail('Tuyến này đã có định mức (#' . (int) $duplicate->nid . ': ' . $duplicate->diem_dau . ' - ' . $duplicate->diem_cuoi . ')');
+  }
+
+  $record['changed'] = _dinh_muc_khoan_now();
+  db_update('dinh_muc_khoan')->fields($record)->condition('nid', $id)->execute();
+  $row = db_query("SELECT * FROM {dinh_muc_khoan} WHERE nid = :id", array(':id' => $id))->fetch();
+  watchdog('dinh_muc_khoan', 'Cập nhật định mức khoán #%id', array('%id' => $id));
+  return _dinh_muc_khoan_success(_dinh_muc_khoan_row_to_array($row));
+}
+
+function _dinh_muc_khoan_rest_delete($id) {
+  if (!user_access('dinh_muc_khoan_delete', _dinh_muc_khoan_current_account())) {
+    return _dinh_muc_khoan_unauthorized('Bạn không có quyền xoá định mức khoán');
+  }
+  $existing = db_query("SELECT nid FROM {dinh_muc_khoan} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  if (!$existing) return _dinh_muc_khoan_not_found('Định mức khoán không tồn tại');
+
+  db_update('dinh_muc_khoan')->fields(array('hoat_dong' => 0, 'changed' => _dinh_muc_khoan_now()))->condition('nid', $id)->execute();
+  watchdog('dinh_muc_khoan', 'Xoá định mức khoán #%id', array('%id' => $id));
+  return _dinh_muc_khoan_success(array('nid' => $id, 'deleted' => TRUE));
+}
+
+/*******************************************************************************
+ * UI PAGE CALLBACK
+ ******************************************************************************/
+
+function dinh_muc_khoan_page_list() {
+  drupal_add_css(drupal_get_path('module', 'dinh_muc_khoan') . '/assets/css/dinh_muc_khoan.css');
+  drupal_add_js(drupal_get_path('module', 'dinh_muc_khoan') . '/assets/js/dinh_muc_khoan.js');
+
+  drupal_add_js(array('dinh_muc_khoan' => array(
+    'permissions' => array(
+      'dinh_muc_khoan_view' => user_access('dinh_muc_khoan_view'),
+      'dinh_muc_khoan_create' => user_access('dinh_muc_khoan_create'),
+      'dinh_muc_khoan_delete' => user_access('dinh_muc_khoan_delete'),
+    ),
+  )), 'setting');
+
+  return theme('dinh_muc_khoan_list_page');
+}

@@ -46,13 +46,6 @@ function khach_hang_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
-  $items['api/khach-hang/%/dinh-muc'] = array(
-    'page callback' => 'khach_hang_dinh_muc_rest_item',
-    'page arguments' => array(2),
-    'access callback' => TRUE,
-    'type' => MENU_CALLBACK,
-    'delivery callback' => 'drupal_json_output',
-  );
   $items['api/khach-hang/%'] = array(
     'page callback' => 'khach_hang_rest_item',
     'page arguments' => array(2),
@@ -788,168 +781,15 @@ function _khach_hang_rest_delete($id) {
   }
 }
 
-/*******************************************************************************
- * REST: ĐỊNH MỨC KHÁCH HÀNG — GET/PUT /api/khach-hang/{id}/dinh-muc
- ******************************************************************************/
-
-function khach_hang_dinh_muc_rest_item($id) {
-  $id = (int) $id;
-  if (!$id) {
-    return _khach_hang_fail('ID không hợp lệ');
-  }
-
-  switch ($_SERVER['REQUEST_METHOD']) {
-    case 'GET':
-      return _khach_hang_dinh_muc_rest_get($id);
-    case 'PUT':
-      return _khach_hang_dinh_muc_rest_update($id);
-    default:
-      return _khach_hang_method_not_allowed('GET, PUT');
-  }
-}
-
-function _khach_hang_dinh_muc_customer($id) {
-  return db_query("SELECT nid, ten, ma_kh FROM {khach_hang} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
-}
-
-function _khach_hang_dinh_muc_load($id) {
-  $json = db_query("SELECT bang_gia_cuoc FROM {khach_hang} WHERE nid = :id", array(':id' => $id))->fetchField();
-  $bang_gia_cuoc = _khach_hang_bang_gia_decode($json);
-  $data = $bang_gia_cuoc['dinh_muc'];
-  $routes = !empty($data['routes']) && is_array($data['routes']) ? $data['routes'] : array();
-
-  return array(
-    'routes' => $routes,
-  );
-}
-
-function _khach_hang_dinh_muc_rest_get($id) {
-  if (!user_access('khach_hang_view')) {
-    return _khach_hang_unauthorized('Bạn không có quyền xem khách hàng');
-  }
-
-  $customer = _khach_hang_dinh_muc_customer($id);
-  if (!$customer) {
-    return _khach_hang_not_found('Khách hàng không tồn tại');
-  }
-
-  $data = _khach_hang_dinh_muc_load($id);
-  return _khach_hang_success(array(
-    'khach_hang' => array(
-      'nid' => (int) $customer->nid,
-      'ten' => $customer->ten,
-      'ma_kh' => $customer->ma_kh ? $customer->ma_kh : '',
-    ),
-    'routes' => $data['routes'],
-  ));
-}
-
-function _khach_hang_dinh_muc_rest_update($id) {
-  if (!user_access('khach_hang_create')) {
-    return _khach_hang_unauthorized('Bạn không có quyền cấu hình định mức khách hàng');
-  }
-
-  $customer = _khach_hang_dinh_muc_customer($id);
-  if (!$customer) {
-    return _khach_hang_not_found('Khách hàng không tồn tại');
-  }
-
-  $input = _khach_hang_input();
-  $routes = !empty($input['routes']) && is_array($input['routes']) ? $input['routes'] : array();
-
-  $transaction = db_transaction();
-  try {
-    $now = _khach_hang_now();
-    $clean_routes = array();
-    $seen_pairs = array();
-    foreach ($routes as $route) {
-      if (!is_array($route)) continue;
-      $from = !empty($route['from']) && is_array($route['from']) ? $route['from'] : array();
-      $to = !empty($route['to']) && is_array($route['to']) ? $route['to'] : array();
-      $clean_from = array();
-      $clean_to = array();
-
-      foreach ($from as $name) {
-        $name = trim((string) $name);
-        if ($name !== '' && !in_array($name, $clean_from, TRUE)) {
-          $clean_from[] = $name;
-        }
-      }
-      foreach ($to as $name) {
-        $name = trim((string) $name);
-        if ($name !== '' && !in_array($name, $clean_to, TRUE)) {
-          $clean_to[] = $name;
-        }
-      }
-      if (empty($clean_from) || empty($clean_to)) continue;
-
-      $km = _khach_hang_num_or_null(isset($route['km']) ? $route['km'] : NULL);
-      $t = _khach_hang_int_value(isset($route['t']) ? $route['t'] : 0);
-      $v = _khach_hang_int_value(isset($route['v']) ? $route['v'] : 0);
-      $h = _khach_hang_int_value(isset($route['h']) ? $route['h'] : 0);
-
-      $has_duplicate_pair = FALSE;
-      foreach ($clean_from as $from_name) {
-        foreach ($clean_to as $to_name) {
-          $pair_key = drupal_strtolower($from_name) . '=>' . drupal_strtolower($to_name);
-          if (!empty($seen_pairs[$pair_key])) {
-            $has_duplicate_pair = TRUE;
-            break 2;
-          }
-        }
-      }
-      if ($has_duplicate_pair) continue;
-
-      foreach ($clean_from as $from_name) {
-        foreach ($clean_to as $to_name) {
-          $seen_pairs[drupal_strtolower($from_name) . '=>' . drupal_strtolower($to_name)] = TRUE;
-        }
-      }
-
-      $clean_routes[] = array(
-        'from' => $clean_from,
-        'to' => $clean_to,
-        'km' => $km === NULL ? 0 : (float) $km,
-        't' => $t,
-        'v' => $v,
-        'h' => $h,
-      );
-    }
-
-    $current_config = _khach_hang_bang_gia_decode(db_query("SELECT bang_gia_cuoc FROM {khach_hang} WHERE nid = :id", array(':id' => $id))->fetchField());
-    $next_config = _khach_hang_bang_gia_encode($current_config['bang_gia_cuoc'], array('routes' => $clean_routes));
-    db_update('khach_hang')
-      ->fields(array(
-        'bang_gia_cuoc' => json_encode($next_config),
-        'changed' => $now,
-      ))
-      ->condition('nid', $id)
-      ->execute();
-
-    watchdog('khach_hang', 'Cập nhật định mức khách hàng #%id', array('%id' => $id));
-    $data = _khach_hang_dinh_muc_load($id);
-    return _khach_hang_success(array(
-      'khach_hang' => array(
-        'nid' => (int) $customer->nid,
-        'ten' => $customer->ten,
-        'ma_kh' => $customer->ma_kh ? $customer->ma_kh : '',
-      ),
-      'routes' => $data['routes'],
-    ));
-  }
-  catch (Exception $e) {
-    $transaction->rollback();
-    watchdog('khach_hang', 'Lỗi cập nhật định mức khách hàng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _khach_hang_error('Lỗi hệ thống khi cập nhật định mức');
-  }
-}
 
 /*******************************************************************************
  * UI PAGE CALLBACKS
  ******************************************************************************/
 
 function khach_hang_page_list() {
-  khach_hang_add_modal_assets(FALSE, TRUE);
+  // $with_xlsx = FALSE: XLSX chỉ dùng cho import/export định mức theo khách hàng
+  // (đã bỏ, định mức giờ dùng chung toàn hệ thống — xem module dinh_muc_khoan).
+  khach_hang_add_modal_assets(FALSE, FALSE);
   return theme('khach_hang_list_page');
 }
 

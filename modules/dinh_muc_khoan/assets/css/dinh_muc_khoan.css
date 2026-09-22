@@ -1,0 +1,7 @@
+#dmk-table td:nth-child(4),
+#dmk-table td:nth-child(5),
+#dmk-table td:nth-child(6),
+#dmk-table td:nth-child(7) {
+  text-align: right;
+  white-space: nowrap;
+}

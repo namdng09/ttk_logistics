@@ -1,0 +1,4 @@
+name = Định mức khoán
+description = Định mức khoán lái xe theo tuyến — dùng chung toàn hệ thống, không theo từng khách hàng. Custom schema, RESTful API + UI.
+core = 7.x
+package = ANDIN JSC API

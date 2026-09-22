@@ -105,7 +105,7 @@
   function loadCurrentPlanCosts() {
     setBusy(true);
     renderAll();
-    var planChain = loadPlanInfo().then(loadCustomerDinhMuc);
+    var planChain = loadPlanInfo().then(loadDinhMucKhoan);
     return $.when(loadDanhMuc(), loadPresetCosts(), planChain, loadOilRows(), fetchRows())
       .done(function () {
         // Danh mục và mẫu tải song song. Nạp lại tên mẫu sau cùng để không bị
@@ -441,11 +441,13 @@
     });
   }
 
-  function loadCustomerDinhMuc() {
+  // Định mức khoán dùng chung toàn hệ thống, không theo từng khách hàng nữa
+  // (trước lấy theo /api/khach-hang/{id}/dinh-muc — module dinh_muc_khoan thay thế).
+  // Áp dụng như nhau cho cả hàng cảng lẫn tuyến xa vì findDinhMucAmount()/applyDinhMuc()
+  // bên dưới vốn đã dùng chung, chỉ cần đổi đúng chỗ nạp dữ liệu này.
+  function loadDinhMucKhoan() {
     state.dinhMucRoutes = [];
-    var nidKhachHang = state.plan && state.plan.khach_hang && state.plan.khach_hang.nid ? Number(state.plan.khach_hang.nid) : 0;
-    if (!nidKhachHang) return $.Deferred().resolve().promise();
-    return $.getJSON('/api/khach-hang/' + nidKhachHang + '/dinh-muc')
+    return $.getJSON('/api/dinh-muc-khoan/tuyen')
       .done(function (response) {
         state.dinhMucRoutes = response && response.data && response.data.routes ? response.data.routes : [];
       });
@@ -798,7 +800,7 @@
 
   function reloadAndRecalcDinhMuc(rebuildFromPlan, targetRow) {
     setBusy(true);
-    return loadCustomerDinhMuc()
+    return loadDinhMucKhoan()
       .done(function () {
         if (targetRow) {
           applyDinhMuc(targetRow, true);

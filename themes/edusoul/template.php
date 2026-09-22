@@ -231,6 +231,12 @@ function getMainMenuSoft()
                             <div data-i18n="Danh mục">Danh mục</div>
                         </a>
                     </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'dinh-muc-khoan') === 0) ? ' active' : '') . '">
+                        <a href="/dinh-muc-khoan" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-map-dollar"></i>
+                            <div data-i18n="Định mức khoán">Định mức khoán</div>
+                        </a>
+                    </li>
                     <li class="menu-header small">
                         <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
                     </li>
