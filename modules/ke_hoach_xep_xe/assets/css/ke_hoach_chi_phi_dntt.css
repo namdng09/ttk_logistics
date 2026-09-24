@@ -1,0 +1,62 @@
+/* Phần mở rộng "đề nghị thanh toán" cho tab Chi phí hàng cảng (ke_hoach_chi_phi_dntt.js). */
+.khcp-main-card.khcp-has-dntt .khcp-table { min-width: 1380px; }
+.khcp-has-dntt .khcp-col-check { width: 30px; text-align: center; }
+.khcp-has-dntt .khcp-col-ncc { width: 160px; }
+.khcp-has-dntt .khcp-col-dntt { width: 270px; }
+.khcp-dntt-toolbar { padding: 10px 14px; border-bottom: 1px solid #e6e6e8; background: #fff; }
+.khcp-table tbody tr.khcp-row-locked td { background: #f8f8fb; }
+.khcp-table tbody tr.khcp-row-locked .form-control,
+.khcp-table tbody tr.khcp-row-locked .form-select { color: #8a8794; }
+.khcp-act { padding: .15rem .5rem !important; font-size: .72rem !important; }
+.khcp-dn-box { border: 1px solid #e7e9ee; border-radius: .5rem; padding: 12px 14px; margin-bottom: 8px; }
+.khcp-dn-option { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid #e7e9ee; border-radius: .4rem; margin-bottom: 8px; cursor: pointer; }
+.khcp-dn-option input { margin-top: 4px; }
+.khcp-dn-payee { padding: 12px; border: 1px dashed #d8d5f5; border-radius: .5rem; }
+#khcp-dn-modal { z-index: 1090; }
+
+/* Card "Tổng hợp chi phí" (cột bên tab Chi phí) dùng lại .khxh-side-card / .khxh-summary-row của Tóm tắt xếp xe. */
+.khcp-card-group { margin-top: .35rem; padding: .6rem 0 .2rem; border-top: 1px solid #f0f2f4; color: #a1acb8; font-size: .7rem; font-weight: 700; text-transform: uppercase; }
+#khcp-cost-card .khcp-card-paid { color: #29845a; }
+
+/* Select2 chuẩn (SELECT2_PATTERN.md) cho modal tạo đề nghị: chiều cao, vị trí x/mũi tên, dropdown cuộn + min-width. */
+#khcp-dn-modal .select2-container {
+  width: 100% !important;
+  font-family: inherit;
+}
+#khcp-dn-modal .select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+#khcp-dn-modal .select2-container .select2-selection--single .select2-selection__rendered {
+  line-height: 1.5;
+  padding: 0;
+  padding-right: 1.75rem;
+  font-size: 0.85rem;
+}
+#khcp-dn-modal .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+  top: 0;
+  right: 0.375rem;
+  width: 1rem;
+}
+#khcp-dn-modal .select2-container .select2-selection--single .select2-selection__clear {
+  position: relative;
+  z-index: 1;
+  font-size: 0.875rem;
+}
+#khcp-dn-modal .select2-container--default .select2-results > .select2-results__options {
+  max-height: 320px;
+  overflow-y: auto;
+}
+#khcp-dn-modal .select2-container--open .select2-dropdown--below,
+#khcp-dn-modal .select2-container--open .select2-dropdown--above {
+  min-width: 200px !important;
+  max-width: calc(100vw - 1rem);
+}
+
+/* Tiêu đề nhóm + lùi các mục trong dropdown Đối tác nhận tiền / Bên phát hành. */
+#khcp-dn-modal .select2-results__group { display: block; padding: 6px 12px; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #5d5fef; background: #f4f3ff; border-top: 1px solid #e7e9ee; border-bottom: 1px solid #e7e9ee; }
+#khcp-dn-modal .select2-results__options--nested .select2-results__option { padding-left: 20px; }

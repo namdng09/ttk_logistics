@@ -52,6 +52,19 @@
     return 'tmp_' + Date.now() + '_' + state.tempIndex;
   }
 
+  /* Điểm mở rộng: 1 màn (vd hàng cảng) có thể đăng ký Drupal.keHoachChiPhi.extension từ file JS riêng của
+   * màn đó — file này không biết gì về đề nghị thanh toán và không rẽ nhánh theo loại kế hoạch. Màn không
+   * đăng ký thì mọi hook là no-op. Các hook: normalizeRow, leadCell, afterNameCell, beforeActionCell,
+   * isLocked, payload, afterRenderTable, afterRender, afterBusy. */
+  function ext() {
+    return (Drupal.keHoachChiPhi && Drupal.keHoachChiPhi.extension) || null;
+  }
+
+  function isRowLocked(row) {
+    var x = ext();
+    return !!(x && x.isLocked && x.isLocked(row));
+  }
+
   /* Chi phí có thể chạy trong modal riêng cũ hoặc được gắn vào tab của
    * modal xếp xe hàng cảng. Chỉ có một bộ DOM/ID tại một thời điểm để tránh
    * hai bảng cùng ghi vào một state. */
@@ -214,6 +227,13 @@
 
   function formatMoney(value) {
     return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(roundMoney(value));
+  }
+
+  // Ô nhập tiền (định mức, doanh thu khách hàng, đơn giá): bằng 0 thì để trống,
+  // chỉ hiện placeholder "0" — không set sẵn giá trị 0 trong ô (đúng quy ước
+  // number field placeholder="0" của dự án).
+  function formatMoneyOrEmpty(value) {
+    return roundMoney(value) ? formatMoney(value) : '';
   }
 
   function formatMoneyInputKeepingCaret(input) {
@@ -845,7 +865,7 @@
     var source = item.source || fallbackSource || resolveSource($.extend({}, item, { loai_chi_phi: type }));
     if (type === DRIVER_COST_TYPE || type === DRIVER_SALARY_TYPE) source = 'lai_xe';
     else source = 'ke_hoach';
-    return {
+    var normalized = {
       key: item.key || (item.nid ? 'nid_' + item.nid : uid()),
       nid: Number(item.nid) || 0,
       nid_ke_hoach: Number(item.nid_ke_hoach) || state.nidKeHoach,
@@ -863,6 +883,9 @@
       override_before: before > 0 && before !== roundMoney(unitPrice * quantity),
       override_after: after > 0 && after !== roundMoney(before * (1 + vat / 100))
     };
+    var extension = ext();
+    if (extension && extension.normalizeRow) extension.normalizeRow(normalized, item);
+    return normalized;
   }
 
   function createEmptyRow(type) {
@@ -971,7 +994,7 @@
     return '' +
       '<div class="col">' +
         '<label class="form-label small mb-1">' + escHtml(row.ten_chi_phi) + '</label>' +
-        '<input type="text" inputmode="decimal" class="form-control form-control-sm khcp-revenue-field money-input" data-row-key="' + escHtml(row.key) + '" value="' + formatMoney(row.don_gia) + '" placeholder="0">' +
+        '<input type="text" inputmode="decimal" class="form-control form-control-sm khcp-revenue-field money-input" data-row-key="' + escHtml(row.key) + '" value="' + formatMoneyOrEmpty(row.don_gia) + '" placeholder="0">' +
       '</div>';
   }
 
@@ -990,11 +1013,17 @@
       return '<td class="khcp-cost-type-cell is-' + type + '"><label class="khcp-cost-type-toggle' + (active ? ' is-active' : '') + '" title="' + escHtml(title) + '">' +
         '<input type="checkbox" class="khcp-cost-type-check" data-cost-type="' + type + '"' + (active ? ' checked' : '') + '><span>' + short + '</span></label></td>';
     }
+    var extension = ext();
+    var extLead = extension && extension.leadCell ? extension.leadCell(row) : '';
+    var extAfterName = extension && extension.afterNameCell ? extension.afterNameCell(row) : '';
+    var extBeforeAction = extension && extension.beforeActionCell ? extension.beforeActionCell(row) : '';
     return '' +
       '<tr data-row-key="' + escHtml(row.key) + '">' +
+        extLead +
         '<td class="khcp-col-index"><span class="khcp-row-number">' + (index + 1) + '</span></td>' +
         '<td><select class="form-select form-select-sm row-field cost-name cost-name-select" data-field="ten_chi_phi">' + expenseNameOptions(row.ten_chi_phi) + '</select></td>' +
-        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field money-input" data-field="don_gia" value="' + formatMoney(row.don_gia) + '"></td>' +
+        extAfterName +
+        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field money-input" data-field="don_gia" value="' + formatMoneyOrEmpty(row.don_gia) + '" placeholder="0"></td>' +
         '<td><input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control form-control-sm row-field qty-input" data-field="so_luong" value="' + Math.max(1, parseInt(row.so_luong, 10) || 1) + '"></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm money-input calculated-input ' + (row.override_before ? 'is-overridden' : '') + '" data-field="tong_truoc_vat" value="' + formatMoney(row.tong_truoc_vat) + '" readonly disabled></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field decimal-input vat-input" data-field="vat_percent" value="' + formatDecimal(row.vat_percent) + '"></td>' +
@@ -1003,6 +1032,7 @@
         typeCheck('tinh_cho_khach', 'KH', 'Chi hộ khách hàng') +
         typeCheck('cong_ty_chi_tra', 'CT', 'Công ty chi trả') +
         typeCheck(DRIVER_COST_TYPE, 'LX', 'Lái xe chi trả') +
+        extBeforeAction +
         '<td><div class="khcp-row-actions">' +
           '<button type="button" class="btn btn-label-primary btn-sm btn-add-cost-row" title="Thêm dòng"><i class="ti tabler-plus"></i></button>' +
           '<button type="button" class="btn btn-label-danger btn-sm btn-delete-row" title="Xoá dòng"><i class="ti tabler-trash"></i></button>' +
@@ -1037,6 +1067,8 @@
     for (var i = 0; i < rows.length; i++) html += rowTemplate(rows[i], i);
     $('#khcp-cost-table-body').html(html);
     initExpenseSelect2('#khcp-cost-table-body');
+    var extension = ext();
+    if (extension && extension.afterRenderTable) extension.afterRenderTable();
   }
 
   // Debug tạm cho tab Chi phí trong modal xếp xe hàng cảng. Ghi lại toàn bộ
@@ -1088,7 +1120,7 @@
         '<td><select class="form-select form-select-sm khcp-dm-field" data-field="trang_thai_xe" disabled title="Trạng thái xe được xác định theo hình thức vận tải">' + statusOptions(row.trang_thai_xe) + '</select></td>' +
         '<td><select class="form-select form-select-sm khcp-dm-field khcp-dm-place-select" data-field="diem_dau">' + locationOptions(row.diem_dau) + '</select></td>' +
         '<td><select class="form-select form-select-sm khcp-dm-field khcp-dm-place-select" data-field="diem_cuoi">' + locationOptions(row.diem_cuoi) + '</select></td>' +
-        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-dm-field money-input" data-field="dinh_muc" value="' + formatMoney(row.dinh_muc) + '"></td>' +
+        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-dm-field money-input" data-field="dinh_muc" value="' + formatMoneyOrEmpty(row.dinh_muc) + '" placeholder="0"></td>' +
         '<td><div class="khcp-row-actions">' +
           '<button type="button" class="btn btn-label-primary btn-sm btn-dm-recalc-row" title="Tính lại định mức"><i class="ti tabler-refresh"></i></button>' +
           '<button type="button" class="btn btn-label-danger btn-sm btn-dm-delete-row" title="Xoá chặng"><i class="ti tabler-trash"></i></button>' +
@@ -1291,6 +1323,8 @@
     renderOilTable();
     updateSummary();
     setBusy(state.busy);
+    var extension = ext();
+    if (extension && extension.afterRender) extension.afterRender();
   }
 
   function updateRowDom(row, preserveField) {
@@ -1346,6 +1380,8 @@
       : $root.find('input');
     $controls.prop('disabled', state.busy);
     $inputs.not('[readonly]').prop('disabled', state.busy);
+    var extension = ext();
+    if (extension && extension.afterBusy) extension.afterBusy();
   }
 
   function payloadFromRow(row) {
@@ -1357,7 +1393,7 @@
     }
     var json = $.extend({}, row.thong_tin_json || {});
     delete json.nguon_nhap;
-    return {
+    var payload = {
       nid_ke_hoach: state.nidKeHoach,
       loai_ke_hoach: state.loaiKeHoach || 'thuong',
       nid_lai_xe: row.source === 'lai_xe' ? (row.nid_lai_xe || state.nidLaiXe || 0) : (row.nid_lai_xe || 0),
@@ -1371,6 +1407,9 @@
       ghi_chu: String(row.ghi_chu || '').trim(),
       thong_tin_json: json
     };
+    var extension = ext();
+    if (extension && extension.payload) extension.payload(row, payload);
+    return payload;
   }
 
   function loadRows() {
@@ -1576,7 +1615,7 @@
 
   function saveAllRows(options) {
     options = options || {};
-    var rows = $.grep(state.rows, function (row) { return !isBlankRow(row) || row.nid > 0; });
+    var rows = $.grep(state.rows, function (row) { return (!isBlankRow(row) || row.nid > 0) && !isRowLocked(row); });
     var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
     if (invalidRows.length) {
       if (!options.silent) notify('Vui lòng chọn tên chi phí và một phân loại chi trả cho các dòng có số tiền.', 'error');
@@ -1681,7 +1720,7 @@
 
   function validatePortTab() {
     if (!embedded.mounted) return true;
-    var rows = $.grep(state.rows, function (row) { return !isBlankRow(row) || row.nid > 0; });
+    var rows = $.grep(state.rows, function (row) { return (!isBlankRow(row) || row.nid > 0) && !isRowLocked(row); });
     var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
     if (!invalidRows.length) return true;
     notify('Vui lòng chọn tên chi phí và một phân loại chi trả cho các dòng có số tiền.', 'error');
@@ -1802,7 +1841,7 @@
       updateDinhMucSummary();
       if ($.inArray(field, ['diem_dau', 'diem_cuoi', 'trang_thai_xe']) !== -1) {
         var $tr = $input.closest('tr');
-        $tr.find('[data-field="dinh_muc"]').val(formatMoney(row.dinh_muc));
+        $tr.find('[data-field="dinh_muc"]').val(formatMoneyOrEmpty(row.dinh_muc));
       }
     });
     $(document).on('input change', '.khcp-revenue-field', function () {
@@ -1851,7 +1890,9 @@
       this.select();
     });
     $(document).on('blur', '.money-input', function () {
-      $(this).val(formatMoney(toNumber($(this).val())));
+      // Bỏ trống thì giữ trống (chỉ hiện placeholder "0"), không tự điền số 0 vào ô.
+      var raw = String($(this).val() || '').trim();
+      $(this).val(raw === '' ? '' : formatMoney(toNumber(raw)));
     });
     $(document).on('blur', '.decimal-input', function () {
       var val = $(this).hasClass('vat-input') ? clampPercent($(this).val()) : toNumber($(this).val());
@@ -1880,6 +1921,27 @@
   Drupal.keHoachChiPhi.validatePortTab = validatePortTab;
   Drupal.keHoachChiPhi.updatePortPlanDraft = updatePortPlanDraft;
   Drupal.keHoachChiPhi.hasPortTab = function () { return embedded.mounted; };
+
+  // Tiện ích cho phần mở rộng theo màn (Drupal.keHoachChiPhi.extension). Chỉ đọc/gọi lại các hàm sẵn có.
+  Drupal.keHoachChiPhi.api = {
+    state: state,
+    notify: notify,
+    apiMsg: apiMsg,
+    escHtml: escHtml,
+    formatMoney: formatMoney,
+    getRow: getRow,
+    select2Parent: select2DropdownParent,
+    reload: fetchRows,
+    rerender: renderAll,
+    saveAll: function () { return saveAllRows({ allowEmpty: true, silent: true }); },
+    addBlankRow: function () {
+      var row = createEmptyRow();
+      state.rows.push(row);
+      renderTable();
+      updateSummary();
+      $('tr[data-row-key="' + row.key + '"] .cost-name').trigger('focus');
+    }
+  };
 
   Drupal.behaviors.keHoachChiPhi = {
     attach: function (context) {

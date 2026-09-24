@@ -152,6 +152,12 @@ function getMainMenuSoft()
                             <div data-i18n="Duyệt đề nghị chi phí">Duyệt đề nghị chi phí</div>
                         </a>
                     </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'de-nghi-thanh-toan') === 0) ? ' active' : '') . '">
+                        <a href="/de-nghi-thanh-toan" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-receipt-2"></i>
+                            <div data-i18n="Đề nghị thanh toán">Đề nghị thanh toán</div>
+                        </a>
+                    </li>
                     <li class="menu-item' . ((strpos(current_path(), 'luong-lai-xe') === 0) ? ' active' : '') . '">
                         <a href="/luong-lai-xe" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-report-money"></i>

@@ -3342,8 +3342,6 @@
         var normalRoute = [line.bai_lay_cont || '', line.dia_chi_kho || '', line.bai_ha_cont || '', line.cang_xuat || ''].filter(Boolean).join(' → ');
         var normalPlanDatetime = apiToDatetime(line.ngay_gio_ke_hoach || '');
         var normalFilesCount = planFilesFromRow(editData).length;
-        var normalCost = state.costSummary || {};
-        var normalCostText = summaryMoney(normalCost.total);
         var normalNav = $form('.khxh-section-nav[data-line-key="' + line.key + '"]');
         normalNav.find('.khxh-nav-return-count').text(line.ke_hoach_cont_ref_nid ? '1' : '0');
         normalNav.find('.khxh-nav-files-count').text(normalFilesCount + '/25');
@@ -3358,7 +3356,6 @@
           summaryRow('Mooc', normalMooc, '') +
           summaryRow('Lái xe', normalDriver, '') +
           summaryRow('Hình thức', line.hinh_thuc_van_tai ? hinhThucLabel(line.hinh_thuc_van_tai) : '', normalPlanDatetime) +
-          summaryRow('Chi phí', normalCostText, '') +
           summaryRow('Cont kéo về', line.cont_ref ? (line.cont_ref.so_cont || ('#' + line.ke_hoach_cont_ref_nid)) : '', '') +
           summaryRow('Chứng từ', normalFilesCount + '/25 file', '')
         );

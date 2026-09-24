@@ -1,0 +1,7 @@
+name = Đề nghị thanh toán
+description = Đề nghị thanh toán chi phí kế hoạch cho nhà cung cấp/nhân viên: gom chi phí, duyệt 2 bước, thanh toán từng đợt. Custom schema, RESTful API + UI.
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = user_login_api
+dependencies[] = ke_hoach_xep_xe
+dependencies[] = khach_hang

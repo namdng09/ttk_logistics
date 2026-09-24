@@ -29,6 +29,7 @@
 │   ├── hop_dong/
 │   ├── cau_hinh_gia_ban/          # Module cấu hình giá bán (bảng giá) — theo khách hàng
 │   ├── dinh_muc_khoan/           # Định mức khoán lái xe theo tuyến — dùng CHUNG toàn hệ thống
+│   ├── de_nghi_thanh_toan/       # Đề nghị thanh toán chi phí kế hoạch (gom chi phí → duyệt 2 bước → trả từng đợt)
 │   └── ben_thu_ba_api/
 │
 ├── themes/                      # Drupal theme
@@ -423,6 +424,21 @@ notyf.error('Lỗi');
 - API: `GET/POST /api/dinh-muc-khoan`, `GET/PUT/DELETE /api/dinh-muc-khoan/{id}`, và `GET /api/dinh-muc-khoan/tuyen` (toàn bộ tuyến đang hoạt động, không phân trang, đúng hình dạng `{routes:[{from,to,km,v,h,t}]}` — cho kế hoạch tải về so khớp, `from`/`to` là tên chính + alias gộp lại).
 - **Kế hoạch hàng cảng và tuyến xa dùng chung 1 nguồn** — `ke_hoach_chi_phi.js` (`loadDinhMucKhoan()`) là chỗ nạp dữ liệu duy nhất, phần so khớp/áp dụng (`findDinhMucAmount()`, `applyDinhMuc()`, cờ `manual`, snapshot lưu vào `thong_tin_json.dinh_muc_khoan_lai_xe` của từng kế hoạch) giữ nguyên như trước, không đổi theo màn.
 - Kế hoạch đã lưu định mức trước đây (snapshot cũ) **không tự đổi** theo bảng giá mới — chỉ áp dụng khi tạo mới hoặc bấm "Tính lại định mức" trong tab Chi phí.
+
+## Đề nghị thanh toán (module `de_nghi_thanh_toan`)
+
+Trả tiền cho bên ngoài cho các dòng chi phí kế hoạch (`ke_hoach_chi_phi`). Chỉ **kế hoạch hàng cảng**; tuyến xa chưa hỗ trợ (API tạo đề nghị từ chối dòng tuyến xa, vì lưu kế hoạch tuyến xa xoá mềm rồi tạo lại toàn bộ dòng chi phí).
+
+- **1 đề nghị = 1 hoá đơn của 1 bên phát hành** (`nid_ncc`, là `khach_hang` có phân loại Nhà cung cấp). Bên nhận tiền lưu riêng `loai_ben_nhan_tien` (`ncc`|`nhan_vien`) + `id_ben_nhan_tien` (nid khach_hang | uid), luôn lưu đủ, mặc định trùng bên phát hành. **Bên phát hành do người tạo chọn trong modal tạo đề nghị (bắt buộc, gửi `nid_ncc`)**, không phụ thuộc NCC của từng dòng chi phí: dòng chưa có NCC hoặc khác NCC nhau vẫn gom được vào 1 đề nghị (modal gợi ý sẵn khi mọi dòng cùng 1 NCC). Chỉ dòng KH/CT gom được; LX (lái xe tự chịu) không tham gia. Thêm vào đề nghị nháp có sẵn thì bên phát hành lấy theo đề nghị đó.
+- **Mã đề nghị** `DNTT-yymmdd-NNNN` (vd `DNTT-260924-0005`): NNNN tăng dần theo **ngày tạo**, sang ngày mới về 0001; đề nghị đã xoá mềm vẫn giữ số (`_de_nghi_thanh_toan_next_code()`). Mã cũ dạng `DNTT-NNNN` giữ nguyên, không đổi.
+- **Tổng tiền không lưu cột**: tính động từ các dòng chi phí (`_de_nghi_thanh_toan_aggregates()`), đã trả = tổng bảng `de_nghi_thanh_toan_thanh_toan`. Dòng chi phí trỏ về đề nghị bằng `ke_hoach_chi_phi.nid_de_nghi_chi_phi`; `trang_thai_duyet` mirror trạng thái đề nghị (chỉ `_de_nghi_thanh_toan_set_status()` ghi).
+- **Trạng thái**: `nhap → cho_duyet → cho_duyet_thanh_toan → cho_thanh_toan → hoan_thanh`, cộng `tu_choi`/`tu_choi_thanh_toan` (từ chối thì sửa rồi gửi lại, không có trạng thái huỷ). Quyền: `_create` (tạo/sửa/gửi/thu hồi, người tạo hoặc `_view_all`), `_approve`, `_approve_payment`, `_pay`, `_delete` (chỉ nháp), `_view_own`/`_view_all`.
+- **Một nguồn duy nhất** cho hành động hợp lệ: `_de_nghi_thanh_toan_actions()`; giao diện chỉ hiện `hanh_dong` do server trả về, endpoint `POST /api/de-nghi-thanh-toan/{id}/{hanh-dong}` kiểm tra lại bằng đúng hàm này.
+- API: `GET/POST /api/de-nghi-thanh-toan` (POST = tạo từ `chi_phi_ids`, hoặc thêm vào đề nghị nháp bằng `nid_de_nghi`), `GET/PUT/DELETE /api/de-nghi-thanh-toan/{id}`, `GET /api/de-nghi-thanh-toan/tuy-chon` (NCC, nhân viên, hình thức, quỹ, lái xe của chuyến), hành động: `gui-duyet`, `thu-hoi`, `duyet`, `tu-choi`, `duyet-thanh-toan`, `tu-choi-thanh-toan`, `thanh-toan`, `rut-dong`.
+- **Thanh toán**: mỗi đợt chọn hình thức (`CK`/`TM`) + quỹ đúng loại (`ngan_hang`/`tien_mat`, từ `quan_ly_tai_chinh`). Hiện **chỉ lưu `nid_quy`**, chưa tạo giao dịch chi/trừ số dư quỹ (`ke_hoach_chi_phi.nid_ledger` dành cho bước sau).
+- **Chi phí kế hoạch (hàng cảng)**: `ke_hoach_chi_phi` thêm `nid_ncc` (người dùng chọn) và `nid_khach_hang` (server tự điền theo khách hàng của kế hoạch khi dòng là KH). `trang_thai_duyet`/`nid_de_nghi_chi_phi`/`nid_ledger` không nhận từ client. Dòng thuộc đề nghị đã nộp duyệt (`cho_duyet`…`hoan_thanh`) bị **khoá sửa/xoá** ở server (web, bulk, mobile); dòng thuộc đề nghị nháp/từ chối không được chuyển sang LX/xoá (phải rút khỏi đề nghị trước; NCC của dòng vẫn sửa được vì bên phát hành do đề nghị giữ); kế hoạch có dòng đang thuộc đề nghị không xoá được.
+- **Giao diện tab Chi phí hàng cảng** là phần mở rộng tách riêng: `ke_hoach_chi_phi.js` chỉ có điểm mở rộng `Drupal.keHoachChiPhi.extension` (không rẽ nhánh theo loại kế hoạch); `ke_hoach_chi_phi_dntt.js` + `.css` đăng ký extension và chỉ được nạp ở màn hàng cảng (`_ke_hoach_hang_cang_add_dntt_assets()`), khi module đang bật và người dùng có quyền xem đề nghị. Tuyến xa không nạp file này nên giữ nguyên.
+- Nạp code lên: chạy update database (`ke_hoach_xep_xe_update_7027` thêm 2 cột), bật module `de_nghi_thanh_toan` (tạo 2 bảng), gán quyền cho từng vai trò, mục menu "Đề nghị thanh toán" ở sidebar theme.
 
 ## TODO
 

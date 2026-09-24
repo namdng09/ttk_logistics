@@ -271,6 +271,10 @@ function ke_hoach_xep_xe_schema() {
       'tong_truoc_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
       'vat_percent' => array('type' => 'numeric', 'precision' => 5, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
       'tong_sau_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      // Bên phát hành hoá đơn (khach_hang có phân loại Nhà cung cấp). 0 = chưa chọn / không áp dụng.
+      'nid_ncc' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Chi hộ khách hàng nào: server tự điền theo khách hàng của kế hoạch khi loai_chi_phi = tinh_cho_khach, ngược lại 0.
+      'nid_khach_hang' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'trang_thai_duyet' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'khong_can_duyet'),
       'nid_de_nghi_chi_phi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'nid_ledger' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
@@ -288,6 +292,8 @@ function ke_hoach_xep_xe_schema() {
       'loai_ke_hoach' => array('loai_ke_hoach'),
       'nid_lai_xe' => array('nid_lai_xe'),
       'loai_chi_phi' => array('loai_chi_phi'),
+      'nid_ncc' => array('nid_ncc'),
+      'nid_khach_hang' => array('nid_khach_hang'),
       'trang_thai_duyet' => array('trang_thai_duyet'),
       'nid_de_nghi_chi_phi' => array('nid_de_nghi_chi_phi'),
       'nid_ledger' => array('nid_ledger'),
@@ -857,5 +863,29 @@ function ke_hoach_xep_xe_update_7026() {
     db_add_index('ke_hoach_chi_phi', 'uid_nguoi_tao', array('uid_nguoi_tao'));
   }
   return 'Đã thêm cột uid_nguoi_tao cho ke_hoach_chi_phi.';
+}
+
+/**
+ * Thêm nid_ncc (bên phát hành hoá đơn) và nid_khach_hang (chi hộ khách hàng) cho
+ * ke_hoach_chi_phi, phục vụ module de_nghi_thanh_toan. Dòng cũ để mặc định 0.
+ */
+function ke_hoach_xep_xe_update_7027() {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return 'Bảng ke_hoach_chi_phi chưa tồn tại, bỏ qua.';
+  }
+  foreach (array('nid_ncc', 'nid_khach_hang') as $field) {
+    if (!db_field_exists('ke_hoach_chi_phi', $field)) {
+      db_add_field('ke_hoach_chi_phi', $field, array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ));
+    }
+    if (!db_index_exists('ke_hoach_chi_phi', $field)) {
+      db_add_index('ke_hoach_chi_phi', $field, array($field));
+    }
+  }
+  return 'Đã thêm cột nid_ncc, nid_khach_hang cho ke_hoach_chi_phi.';
 }
 
