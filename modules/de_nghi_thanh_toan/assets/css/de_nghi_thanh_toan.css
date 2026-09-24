@@ -3,7 +3,7 @@
 #dn-app .dn-title-icon { color: #7367f0; font-size: 1.35rem; vertical-align: -3px; }
 #dn-app .dn-filter-grid {
   display: grid;
-  grid-template-columns: minmax(200px, 1.3fr) minmax(220px, 1.5fr) minmax(150px, .7fr) max-content;
+  grid-template-columns: minmax(170px, 1.2fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(130px, .7fr) max-content;
   align-items: flex-end;
   gap: .75rem;
   min-width: 0;
@@ -107,3 +107,16 @@
 #dn-edit-modal .select2-container--open .select2-dropdown--above { min-width: 200px !important; max-width: calc(100vw - 1rem); }
 #dn-edit-modal .select2-results__group { display: block; padding: 6px 12px; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #5d5fef; background: #f4f3ff; border-top: 1px solid #e7e9ee; border-bottom: 1px solid #e7e9ee; }
 #dn-edit-modal .select2-results__options--nested .select2-results__option { padding-left: 20px; }
+
+/* Select2 chuẩn (SELECT2_PATTERN.md) cho bộ lọc Bên phát hành / Bên nhận tiền (dropdown gắn trong khung bộ lọc). */
+#dn-app .dn-filter-body { position: relative; }
+#dn-app .dn-filter-grid .select2-container { width: 100% !important; font-family: inherit; }
+#dn-app .dn-filter-grid .select2-container .select2-selection--single { height: calc(1.5em + 0.75rem + 2px); padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-size: 0.85rem; line-height: 1.5; }
+#dn-app .dn-filter-grid .select2-container .select2-selection--single .select2-selection__rendered { line-height: 1.5; padding: 0; padding-right: 1.75rem; font-size: 0.85rem; }
+#dn-app .dn-filter-grid .select2-container .select2-selection--single .select2-selection__arrow { height: 100%; top: 0; right: 0.375rem; width: 1rem; }
+#dn-app .dn-filter-grid .select2-container .select2-selection--single .select2-selection__clear { position: relative; z-index: 1; font-size: 0.875rem; }
+#dn-app .dn-filter-body .select2-container--default .select2-results > .select2-results__options { max-height: 320px; overflow-y: auto; }
+#dn-app .dn-filter-body .select2-container--open .select2-dropdown--below,
+#dn-app .dn-filter-body .select2-container--open .select2-dropdown--above { min-width: 220px !important; max-width: calc(100vw - 1rem); }
+#dn-app .dn-filter-body .select2-results__group { display: block; padding: 6px 12px; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #5d5fef; background: #f4f3ff; border-top: 1px solid #e7e9ee; border-bottom: 1px solid #e7e9ee; }
+#dn-app .dn-filter-body .select2-results__options--nested .select2-results__option { padding-left: 20px; }

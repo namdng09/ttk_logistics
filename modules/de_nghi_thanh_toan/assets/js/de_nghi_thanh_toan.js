@@ -1,19 +1,28 @@
-(function ($, Drupal) {
+(function (Drupal) {
   'use strict';
 
-  // Lưu ý jQuery: Drupal 7 mặc định 1.4.4 nên KHÔNG dùng .on()/.prop()/.done()/.fail() hay $.ajax({method}).
-  // Dùng .live()/.delegate() không cần: ở đây bind trực tiếp lên phần tử tĩnh của template.
-  // Toàn bộ gọi API bằng $.ajax({type, success, error}).
+  // Trang có thể có nhiều bản jQuery (của Drupal và của theme; plugin select2 chỉ gắn vào 1 bản). Sự kiện của plugin
+  // (vd 'change' của Select2) chỉ tới được handler gắn bằng CHÍNH bản jQuery đó, nên toàn bộ code trang chạy trên bản có
+  // plugin, chọn lúc trang khởi tạo. Vẫn giữ cách viết tương thích jQuery cũ: không dùng .on()/.prop()/.done()/.fail().
+  function pickJq() {
+    var list = [window.jQuery, window.$];
+    for (var i = 0; i < list.length; i++) {
+      if (typeof list[i] === 'function' && list[i].fn && typeof list[i].fn.select2 === 'function') return list[i];
+    }
+    return typeof window.jQuery === 'function' ? window.jQuery : null;
+  }
+
+  function DeNghi($) {
 
   var API = '/api/de-nghi-thanh-toan';
-  var settings = (Drupal.settings && Drupal.settings.de_nghi_thanh_toan) || {};
-  var perms = settings.permissions || {};
+  var settings = {};
+  var perms = {};
 
   var notyf;
   var state = {
     page: 1,
     tab: 'all',
-    filters: { keyword: '', nid_ncc: '', hinh_thuc: '' },
+    filters: { keyword: '', nid_ncc_phat_hanh: '', ben_nhan_tien: '', hinh_thuc: '' },
     chips: { qua_han: false, chua_hd: false, khac_ben: false },
     items: {},
     options: null,
@@ -154,7 +163,8 @@
   function listParams() {
     var p = { page: state.page, limit: 20, tab: state.tab };
     if (state.filters.keyword) p.keyword = state.filters.keyword;
-    if (state.filters.nid_ncc) p.nid_ncc = state.filters.nid_ncc;
+    if (state.filters.nid_ncc_phat_hanh) p.nid_ncc_phat_hanh = state.filters.nid_ncc_phat_hanh;
+    if (state.filters.ben_nhan_tien) p.ben_nhan_tien = state.filters.ben_nhan_tien;
     if (state.filters.hinh_thuc) p.hinh_thuc = state.filters.hinh_thuc;
     if (state.chips.qua_han) p.qua_han = 1;
     if (state.chips.chua_hd) p.chua_hd = 1;
@@ -218,9 +228,8 @@
     return html;
   }
 
-  // Loại bên nhận tiền: nhãn ngắn ở danh sách, nhãn dài ở chi tiết.
+  // Loại bên nhận tiền: nhãn ngắn ở danh sách.
   var PAYEE_SHORT = { nhan_vien: 'Nhân viên', lai_xe: 'Lái xe', ncc: 'NCC khác' };
-  var PAYEE_LONG = { nhan_vien: 'nhân viên ứng trước', lai_xe: 'lái xe ứng trước', ncc: 'NCC thu hộ' };
 
   function payeeCell(item) {
     var b = item.ben_nhan_tien || {};
@@ -475,7 +484,8 @@
 
   function renderDetail(d) {
     var b = d.ben_nhan_tien || {};
-    var payee = b.khac_ben_phat_hanh ? esc(b.ten) + ' <span class="small text-muted">(' + (PAYEE_LONG[b.loai] || 'NCC thu hộ') + ')</span>' : 'Trùng bên phát hành (' + esc(d.ncc_ten) + ')';
+    // Chỉ hiển thị tên bên nhận tiền (trùng bên phát hành thì là tên bên phát hành), không kèm ghi chú.
+    var payee = esc(b.ten || d.ncc_ten);
     var han = d.han_thanh_toan ? esc(toView(d.han_thanh_toan)) + (d.qua_han_ngay > 0 ? ' <span class="text-danger fw-semibold">(quá hạn ' + d.qua_han_ngay + ' ngày)</span>' : '') : 'Chưa đặt';
     var html = '';
     if ((d.trang_thai === 'tu_choi' || d.trang_thai === 'tu_choi_thanh_toan') && d.ly_do_tu_choi) {
@@ -735,7 +745,8 @@
 
   function applyFilters() {
     state.filters.keyword = $.trim($('#dn-f-q').val());
-    state.filters.nid_ncc = $('#dn-f-ncc').val();
+    state.filters.nid_ncc_phat_hanh = $('#dn-f-issuer').val() || '';
+    state.filters.ben_nhan_tien = $('#dn-f-payee').val() || '';
     state.filters.hinh_thuc = $('#dn-f-ht').val();
     state.page = 1;
     loadList();
@@ -745,7 +756,7 @@
     $('#dn-btn-search').click(applyFilters);
     $('#dn-f-q').keydown(function (e) { if (e.which === 13) { e.preventDefault(); applyFilters(); } });
     $('#dn-btn-reset').click(function () {
-      $('#dn-f-q').val(''); $('#dn-f-ncc').val(''); $('#dn-f-ht').val('');
+      $('#dn-f-q').val(''); setSelectVal('#dn-f-issuer', ''); setSelectVal('#dn-f-payee', ''); $('#dn-f-ht').val('');
       state.chips = { qua_han: false, chua_hd: false, khac_ben: false };
       syncChips();
       applyFilters();
@@ -850,19 +861,53 @@
     });
   }
 
-  function initFilters() {
-    loadOptions(function (opts) {
-      var html = '<option value="">Tất cả</option>';
-      var nccs = opts.ncc || [];
-      for (var i = 0; i < nccs.length; i++) html += '<option value="' + nccs[i].nid + '">' + esc(nccs[i].ten) + '</option>';
-      $('#dn-f-ncc').html(html);
+  // Select2 chuẩn (SELECT2_PATTERN.md): destroy trước khi tạo lại, dropdown gắn trong khung bộ lọc, focus ô tìm khi mở.
+  function initFilterSelect2($el, placeholder) {
+    if (!$.fn.select2) return;
+    if ($el.data('select2')) $el.select2('destroy');
+    $el.select2({ placeholder: placeholder, allowClear: true, width: '100%', dropdownParent: $('#dn-app .dn-filter-body') });
+    $el.unbind('select2:open.dnFocus').bind('select2:open.dnFocus', function () {
+      window.setTimeout(function () {
+        var search = document.querySelector('.select2-container--open .select2-search__field');
+        if (search) search.focus();
+      }, 0);
     });
   }
 
-  Drupal.behaviors.deNghiThanhToan = {
-    attach: function (context) {
-      if (!$('#dn-app', context).length || Drupal.behaviors.deNghiThanhToan._done) return;
-      Drupal.behaviors.deNghiThanhToan._done = true;
+  function setSelectVal(sel, val) {
+    var $s = $(sel);
+    $s.val(val || '');
+    if ($.fn.select2 && $s.data('select2')) $s.trigger('change');
+  }
+
+  function initFilters() {
+    loadOptions(function (opts) {
+      var i;
+      // Nhà cung cấp hiển thị bằng mã KH (server trả sẵn trong "ten").
+      var issuer = '<option value="">Tất cả</option>';
+      var nccs = opts.ncc || [];
+      for (i = 0; i < nccs.length; i++) issuer += '<option value="' + nccs[i].nid + '">' + esc(nccs[i].ten) + '</option>';
+      $('#dn-f-issuer').html(issuer);
+      initFilterSelect2($('#dn-f-issuer'), 'Tất cả');
+
+      var payee = '<option value="">Tất cả</option><optgroup label="Nhà cung cấp">';
+      for (i = 0; i < nccs.length; i++) payee += '<option value="ncc|' + nccs[i].nid + '">' + esc(payeeLabel(nccs[i])) + '</option>';
+      payee += '</optgroup><optgroup label="Nhân viên">';
+      var staff = opts.nhan_vien || [];
+      for (i = 0; i < staff.length; i++) payee += '<option value="nhan_vien|' + staff[i].uid + '">' + esc(payeeLabel(staff[i])) + '</option>';
+      payee += '</optgroup><optgroup label="Lái xe">';
+      var drivers = opts.lai_xe_ds || [];
+      for (i = 0; i < drivers.length; i++) payee += '<option value="lai_xe|' + drivers[i].nid + '">' + esc(payeeLabel(drivers[i])) + '</option>';
+      payee += '</optgroup>';
+      $('#dn-f-payee').html(payee);
+      initFilterSelect2($('#dn-f-payee'), 'Tất cả');
+    });
+  }
+
+  return {
+    start: function () {
+      settings = (Drupal.settings && Drupal.settings.de_nghi_thanh_toan) || {};
+      perms = settings.permissions || {};
       bind();
       syncChips();
       initFilters();
@@ -876,4 +921,14 @@
       }
     }
   };
-})(jQuery, Drupal);
+  }
+
+  Drupal.behaviors.deNghiThanhToan = {
+    attach: function (context) {
+      var $ = pickJq();
+      if (!$ || !$('#dn-app', context).length || Drupal.behaviors.deNghiThanhToan._done) return;
+      Drupal.behaviors.deNghiThanhToan._done = true;
+      DeNghi($).start();
+    }
+  };
+})(Drupal);

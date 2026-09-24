@@ -4,15 +4,19 @@
       <h4 class="card-title mb-0"><i class="ti tabler-receipt-2 me-2 dn-title-icon"></i>Đề nghị thanh toán</h4>
       <div class="dn-sum-bar" id="dn-sum"></div>
     </div>
-    <div class="card-body">
+    <div class="card-body dn-filter-body">
       <div class="dn-filter-grid">
         <div class="dn-filter-field">
           <label class="form-label" for="dn-f-q">Từ khóa</label>
           <input type="text" class="form-control" id="dn-f-q" placeholder="Mã đề nghị, số hoá đơn">
         </div>
         <div class="dn-filter-field">
-          <label class="form-label" for="dn-f-ncc">Bên phát hành / Bên nhận tiền</label>
-          <select class="form-select" id="dn-f-ncc"><option value="">Tất cả</option></select>
+          <label class="form-label" for="dn-f-issuer">Bên phát hành</label>
+          <select class="form-select" id="dn-f-issuer"><option value="">Tất cả</option></select>
+        </div>
+        <div class="dn-filter-field">
+          <label class="form-label" for="dn-f-payee">Bên nhận tiền</label>
+          <select class="form-select" id="dn-f-payee"><option value="">Tất cả</option></select>
         </div>
         <div class="dn-filter-field">
           <label class="form-label" for="dn-f-ht">Hình thức TT</label>

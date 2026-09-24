@@ -556,8 +556,8 @@ function _do_dau_lookup_names(array $rows) {
     }
   }
   if ($ncc) {
-    foreach (db_query("SELECT nid, ten FROM {khach_hang} WHERE nid IN (:ids)", array(':ids' => $ncc)) as $x) {
-      $out['ncc'][(int) $x->nid] = $x->ten;
+    foreach (db_query("SELECT nid, ten, ma_kh FROM {khach_hang} WHERE nid IN (:ids)", array(':ids' => $ncc)) as $x) {
+      $out['ncc'][(int) $x->nid] = _do_dau_ncc_label($x->ma_kh, $x->ten);
     }
   }
   $out['user'] = _do_dau_user_names($uids);
@@ -992,6 +992,11 @@ function _do_dau_user_phones() {
   return $phones;
 }
 
+/** Nhãn hiển thị của nhà cung cấp (khách hàng): mã KH (tên ngắn gọn), không có mã thì dùng tên. */
+function _do_dau_ncc_label($ma_kh, $ten) {
+  return trim((string) $ma_kh) !== '' ? trim((string) $ma_kh) : (string) $ten;
+}
+
 /** Nhà cung cấp hợp lệ: khach_hang còn hoạt động và có phân loại "Nhà cung cấp" (phan_loai lưu dạng chuỗi ngăn dấu phẩy). */
 function _do_dau_ncc_is_valid($nid) {
   $phan_loai = db_query("SELECT phan_loai FROM {khach_hang} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => (int) $nid))->fetchField();
@@ -1233,8 +1238,10 @@ function do_dau_rest_options() {
   $has_kh_sdt = db_field_exists('khach_hang', 'sdt');
   $nccs = array();
   foreach (db_query("SELECT nid, ten, ma_kh" . ($has_kh_sdt ? ", sdt" : "") . " FROM {khach_hang} WHERE hoat_dong = 1 AND phan_loai LIKE :pl ORDER BY ten ASC", array(':pl' => '%' . db_like('Nhà cung cấp') . '%')) as $n) {
-    $nccs[] = array('nid' => (int) $n->nid, 'ten' => $n->ten, 'ma_kh' => $n->ma_kh, 'sdt' => $has_kh_sdt ? trim((string) $n->sdt) : '');
+    // 'ten' là NHÃN hiển thị (mã KH, không có mã thì tên); tên đầy đủ ở 'ten_day_du'.
+    $nccs[] = array('nid' => (int) $n->nid, 'ten' => _do_dau_ncc_label($n->ma_kh, $n->ten), 'ten_day_du' => $n->ten, 'ma_kh' => $n->ma_kh, 'sdt' => $has_kh_sdt ? trim((string) $n->sdt) : '');
   }
+  usort($nccs, function ($a, $b) { return strcasecmp($a['ten'], $b['ten']); });
   // Nhân viên (nhận tiền ứng trước): tài khoản đang hoạt động, bỏ tài khoản lái xe vì đã có nhóm Lái xe.
   $skip = _do_dau_driver_uids();
   $phones = _do_dau_user_phones();

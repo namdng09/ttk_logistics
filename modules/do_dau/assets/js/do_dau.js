@@ -526,11 +526,10 @@
     return '<div class="col-md-4"><div class="dd-info-label">' + esc(label) + '</div><div class="dd-info-value">' + (value === '' || value === null ? '—' : value) + '</div></div>';
   }
 
+  // Chỉ hiển thị tên bên nhận tiền (trùng bên phát hành thì là tên bên phát hành), không kèm ghi chú.
   function payeeText(d) {
     var b = d.ben_nhan_tien || {};
-    if (!b.khac_ben_phat_hanh) return esc(b.ten || d.ncc_ten) + ' <span class="text-muted">(trùng bên phát hành)</span>';
-    var kind = { lai_xe: 'lái xe ứng tiền', nhan_vien: 'nhân viên ứng tiền', ncc: 'nhà cung cấp thu hộ' }[b.loai] || '';
-    return esc(b.ten) + (kind ? ' <span class="text-muted">(' + kind + ')</span>' : '');
+    return esc(b.ten || d.ncc_ten);
   }
 
   function deNghiDetail(d) {

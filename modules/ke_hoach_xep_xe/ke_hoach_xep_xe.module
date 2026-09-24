@@ -1319,8 +1319,9 @@ function _ke_hoach_chi_phi_decorate_items(array $items) {
   }
   $ncc_names = array();
   if ($ncc_ids) {
-    foreach (db_query("SELECT nid, ten FROM {khach_hang} WHERE nid IN (:ids)", array(':ids' => array_values($ncc_ids))) as $kh) {
-      $ncc_names[(int) $kh->nid] = $kh->ten;
+    foreach (db_query("SELECT nid, ten, ma_kh FROM {khach_hang} WHERE nid IN (:ids)", array(':ids' => array_values($ncc_ids))) as $kh) {
+      // Nhà cung cấp hiển thị bằng mã KH (tên ngắn gọn); không có mã thì dùng tên.
+      $ncc_names[(int) $kh->nid] = trim((string) $kh->ma_kh) !== '' ? trim((string) $kh->ma_kh) : $kh->ten;
     }
   }
   $dntt_map = array();

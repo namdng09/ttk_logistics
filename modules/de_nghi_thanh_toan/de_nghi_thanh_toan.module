@@ -406,12 +406,17 @@ function _de_nghi_thanh_toan_can_delete($row, $account) {
  * TRA CỨU DỮ LIỆU PHỤ (tên NCC, nhân viên, quỹ)
  ******************************************************************************/
 
+/** Nhãn hiển thị của nhà cung cấp (khách hàng): mã KH (tên ngắn gọn), không có mã thì dùng tên. */
+function _de_nghi_thanh_toan_ncc_label($ma_kh, $ten) {
+  return trim((string) $ma_kh) !== '' ? trim((string) $ma_kh) : (string) $ten;
+}
+
 function _de_nghi_thanh_toan_ncc_names(array $ids) {
   $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
   $names = array();
   if ($ids) {
-    foreach (db_query("SELECT nid, ten FROM {khach_hang} WHERE nid IN (:ids)", array(':ids' => $ids)) as $r) {
-      $names[(int) $r->nid] = $r->ten;
+    foreach (db_query("SELECT nid, ten, ma_kh FROM {khach_hang} WHERE nid IN (:ids)", array(':ids' => $ids)) as $r) {
+      $names[(int) $r->nid] = _de_nghi_thanh_toan_ncc_label($r->ma_kh, $r->ten);
     }
   }
   return $names;
@@ -1119,6 +1124,17 @@ function _de_nghi_thanh_toan_list_query(array $f, $account, $tab) {
     $ncc = (int) $f['nid_ncc'];
     $q->condition(db_or()->condition('d.nid_ncc', $ncc)->condition(db_and()->condition('d.loai_ben_nhan_tien', 'ncc')->condition('d.id_ben_nhan_tien', $ncc)));
   }
+  if (!empty($f['ben_nhan_tien']) && preg_match('/^(ncc|nhan_vien|lai_xe)\|(\d+)$/', (string) $f['ben_nhan_tien'], $bm)) {
+    $cond = db_or()->condition(db_and()->condition('d.loai_ben_nhan_tien', $bm[1])->condition('d.id_ben_nhan_tien', (int) $bm[2]));
+    if ($bm[1] === 'lai_xe') {
+      // Lái xe có tài khoản có thể được lưu là nhân viên (uid) ở đề nghị chi phí: khớp cả hai cách lưu.
+      $uid_lx = (int) db_query("SELECT uid_nguoi_dung FROM {lai_xe} WHERE nid = :n", array(':n' => (int) $bm[2]))->fetchField();
+      if ($uid_lx) {
+        $cond->condition(db_and()->condition('d.loai_ben_nhan_tien', 'nhan_vien')->condition('d.id_ben_nhan_tien', $uid_lx));
+      }
+    }
+    $q->condition($cond);
+  }
   if (!empty($f['hinh_thuc'])) {
     $q->condition('d.hinh_thuc_tt', trim((string) $f['hinh_thuc']));
   }
@@ -1146,7 +1162,7 @@ function _de_nghi_thanh_toan_rest_list() {
     return _de_nghi_thanh_toan_unauthorized('Bạn không có quyền xem đề nghị thanh toán');
   }
   $filters = array();
-  foreach (array('keyword', 'nid_ncc', 'nid_ncc_phat_hanh', 'hinh_thuc', 'loai_nguon', 'qua_han', 'chua_hd', 'khac_ben') as $key) {
+  foreach (array('keyword', 'nid_ncc', 'nid_ncc_phat_hanh', 'ben_nhan_tien', 'hinh_thuc', 'loai_nguon', 'qua_han', 'chua_hd', 'khac_ben') as $key) {
     if (isset($_GET[$key]) && $_GET[$key] !== '') $filters[$key] = $_GET[$key];
   }
   $tab = isset($_GET['tab']) ? trim((string) $_GET['tab']) : 'all';
@@ -1383,7 +1399,15 @@ function de_nghi_thanh_toan_rest_options() {
   $has_kh_sdt = db_field_exists('khach_hang', 'sdt');
   $rows = db_query("SELECT nid, ten, ma_kh" . ($has_kh_sdt ? ", sdt" : "") . " FROM {khach_hang} WHERE hoat_dong = 1 AND phan_loai LIKE :pl ORDER BY ten ASC", array(':pl' => '%' . db_like('Nhà cung cấp') . '%'));
   foreach ($rows as $r) {
-    $nccs[] = array('nid' => (int) $r->nid, 'ten' => $r->ten, 'ma_kh' => $r->ma_kh, 'sdt' => $has_kh_sdt ? trim((string) $r->sdt) : '');
+    // 'ten' là NHÃN hiển thị (mã KH, không có mã thì tên); tên đầy đủ ở 'ten_day_du'.
+    $nccs[] = array('nid' => (int) $r->nid, 'ten' => _de_nghi_thanh_toan_ncc_label($r->ma_kh, $r->ten), 'ten_day_du' => $r->ten, 'ma_kh' => $r->ma_kh, 'sdt' => $has_kh_sdt ? trim((string) $r->sdt) : '');
+  }
+  usort($nccs, function ($a, $b) { return strcasecmp($a['ten'], $b['ten']); });
+  // Danh sách lái xe (cho bộ lọc Bên nhận tiền).
+  $lai_xe_ds = array();
+  $has_lx_sdt = db_field_exists('lai_xe', 'sdt');
+  foreach (db_query("SELECT nid, ten" . ($has_lx_sdt ? ", sdt" : "") . " FROM {lai_xe} WHERE hoat_dong = 1 ORDER BY ten ASC") as $lx0) {
+    $lai_xe_ds[] = array('nid' => (int) $lx0->nid, 'ten' => $lx0->ten, 'sdt' => $has_lx_sdt ? trim((string) $lx0->sdt) : '');
   }
   $lai_xe = NULL;
   if (!empty($_GET['nid_lai_xe'])) {
@@ -1418,6 +1442,7 @@ function de_nghi_thanh_toan_rest_options() {
     'hinh_thuc' => $hinh_thuc,
     'quy' => $quy,
     'lai_xe' => $lai_xe,
+    'lai_xe_ds' => $lai_xe_ds,
   ));
 }
 
