@@ -218,11 +218,27 @@
     return html;
   }
 
+  // Loại bên nhận tiền: nhãn ngắn ở danh sách, nhãn dài ở chi tiết.
+  var PAYEE_SHORT = { nhan_vien: 'Nhân viên', lai_xe: 'Lái xe', ncc: 'NCC khác' };
+  var PAYEE_LONG = { nhan_vien: 'nhân viên ứng trước', lai_xe: 'lái xe ứng trước', ncc: 'NCC thu hộ' };
+
   function payeeCell(item) {
     var b = item.ben_nhan_tien || {};
     if (!b.khac_ben_phat_hanh) return '<span class="small text-muted">Trùng bên phát hành</span>';
     return '<div>' + esc(b.ten) + '</div><span class="dn-payee"><i class="ti tabler-user-dollar" style="font-size:11px;"></i>' +
-      (b.loai === 'nhan_vien' ? 'Nhân viên' : 'NCC khác') + '</span>';
+      (PAYEE_SHORT[b.loai] || 'NCC khác') + '</span>';
+  }
+
+  function isDoDau(item) { return item && item.loai_nguon === 'do_dau'; }
+
+  // Cột "Chi phí" ở danh sách: chi phí kế hoạch hiện số dòng / số chuyến, đề nghị đổ dầu hiện mã phiếu + biển số.
+  function sourceCell(it) {
+    var chev = '<i class="ti tabler-chevron-right dn-chevron me-1"></i>';
+    if (isDoDau(it)) {
+      var ref = it.nguon_ref || {};
+      return '<div>' + chev + '<span class="dn-tag dd">ĐD</span> Đổ dầu</div><div class="small text-muted">' + esc(ref.ma || '') + (ref.bks ? ' · ' + esc(ref.bks) : '') + '</div>';
+    }
+    return '<div>' + chev + it.so_dong + ' dòng</div><div class="small text-muted">' + it.so_chuyen + ' chuyến</div>';
   }
 
   function noteHtml(item) {
@@ -243,8 +259,10 @@
     var html = '';
     for (var i = 0; i < lines.length; i++) {
       var l = lines[i];
-      html += '<tr><td>' + esc(l.ke_hoach_label) + '</td><td>' + esc(l.ten_chi_phi) + '</td><td><span class="dn-tag ' + (l.loai_chi_phi === 'tinh_cho_khach' ? 'kh' : 'ct') + '">' +
-        (l.loai_chi_phi === 'tinh_cho_khach' ? 'KH' : 'CT') + '</span></td><td class="text-end">' + money(l.don_gia) + '</td><td class="text-end">' + esc(l.so_luong) +
+      var tagCls = l.loai_chi_phi === 'do_dau' ? 'dd' : (l.loai_chi_phi === 'tinh_cho_khach' ? 'kh' : 'ct');
+      var tagTxt = l.loai_chi_phi === 'do_dau' ? 'ĐD' : (l.loai_chi_phi === 'tinh_cho_khach' ? 'KH' : 'CT');
+      html += '<tr><td>' + esc(l.ke_hoach_label) + '</td><td>' + esc(l.ten_chi_phi) + '</td><td><span class="dn-tag ' + tagCls + '">' +
+        tagTxt + '</span></td><td class="text-end">' + money(l.don_gia) + '</td><td class="text-end">' + esc(l.so_luong) +
         '</td><td class="text-end">' + money(l.tong_truoc_vat) + '</td><td class="text-end">' + esc(l.vat_percent) + '</td><td class="text-end fw-semibold">' + money(l.tong_sau_vat) +
         '</td><td class="text-muted">' + esc(l.ghi_chu) + '</td></tr>';
     }
@@ -255,8 +273,8 @@
 
   function expandHtml(d) {
     var lines = d.dong_chi_phi || [];
-    var html = '<div class="dn-expand-wrap"><div class="dn-expand-title"><i class="ti tabler-list-details me-1"></i>Chi phí trong đề nghị (' + lines.length + ')</div>' +
-      '<table class="table table-sm table-bordered dn-expand-table mb-0"><thead><tr><th>Kế hoạch</th><th>Tên chi phí</th><th style="width:50px;">Loại</th>' +
+    var html = '<div class="dn-expand-wrap"><div class="dn-expand-title"><i class="ti tabler-list-details me-1"></i>' + (isDoDau(d) ? 'Phiếu đổ dầu trong đề nghị' : 'Chi phí trong đề nghị') + ' (' + lines.length + ')</div>' +
+      '<table class="table table-sm table-bordered dn-expand-table mb-0"><thead><tr><th>' + (isDoDau(d) ? 'Phiếu' : 'Kế hoạch') + '</th><th>Tên chi phí</th><th style="width:50px;">Loại</th>' +
       '<th class="text-end">Đơn giá</th><th class="text-end" style="width:50px;">SL</th><th class="text-end">Trước VAT</th><th class="text-end" style="width:60px;">VAT%</th>' +
       '<th class="text-end">Sau VAT</th><th>Ghi chú</th></tr></thead><tbody>';
     html += lines.length ? linesRowsHtml(lines) : '<tr><td colspan="9" class="text-center text-muted">Chưa có dòng chi phí</td></tr>';
@@ -307,7 +325,7 @@
         '<td><div>' + esc(it.ncc_ten) + '</div><div class="small text-muted"><i class="ti tabler-file-invoice me-1"></i>' +
           (it.so_hoa_don ? 'HĐ ' + esc(it.so_hoa_don) + (it.ngay_hoa_don ? ' · ' + esc(toView(it.ngay_hoa_don)) : '') : 'Chưa có số hoá đơn') + '</div></td>' +
         '<td>' + payeeCell(it) + '</td>' +
-        '<td><div><i class="ti tabler-chevron-right dn-chevron me-1"></i>' + it.so_dong + ' dòng</div><div class="small text-muted">' + it.so_chuyen + ' chuyến</div></td>' +
+        '<td>' + sourceCell(it) + '</td>' +
         '<td class="text-end">' + money(it.tong_truoc_vat) + '</td>' +
         '<td class="text-end">' + money(it.tong_vat) + '</td>' +
         '<td class="text-end fw-semibold">' + money(it.tong_sau_vat) + '</td>' +
@@ -320,23 +338,27 @@
     $('#dn-tbody').html(html);
   }
 
+  // Phân trang giống màn /ke-hoach-xep-xe và /theo-doi-do-dau: về đầu, lùi, số trang (±2, có "..."), tiến, về cuối, ô nhập trang.
   function renderPagination(d) {
-    var total = d.total || 0;
-    var totalPages = d.total_pages || 0;
-    var current = d.current_page || 1;
+    var total = d.total_pages || 0;
+    var current = d.current_page || 0;
     $('#dn-pagination').show();
-    var from = total ? (current - 1) * (d.limit || 20) + 1 : 0;
-    var to = Math.min(current * (d.limit || 20), total);
-    $('#dn-pagination-info').text('Hiển thị ' + from + '–' + to + ' / ' + total + ' bản ghi');
-    $('#dn-pagination-total-pages').text('/ ' + Math.max(totalPages, 1));
-    $('#dn-pagination-jump').val(current);
-    var html = '<li class="page-item prev' + (current <= 1 ? ' disabled' : '') + '"><a class="page-link" href="#" data-page="' + (current - 1) + '"><i class="ti tabler-chevron-left"></i></a></li>';
-    var start = Math.max(1, current - 2), end = Math.min(Math.max(totalPages, 1), current + 2);
+    $('#dn-pagination-info').text('Tổng số: ' + (d.total || 0) + ' bản ghi');
+    $('#dn-pagination-total-pages').text('/ ' + total);
+    $('#dn-pagination-jump').val(current).attr('data-total-pages', total);
+    var html = '';
+    html += '<li class="page-item ' + (current <= 1 ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="1"><i class="ti tabler-chevrons-left"></i></a></li>';
+    html += '<li class="page-item ' + (current <= 1 ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="' + (current - 1) + '"><i class="ti tabler-chevron-left"></i></a></li>';
+    var start = Math.max(1, current - 2);
+    var end = Math.min(total, current + 2);
+    if (start > 1) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
     for (var p = start; p <= end; p++) {
-      html += '<li class="page-item' + (p === current ? ' active' : '') + '"><a class="page-link" href="#" data-page="' + p + '">' + p + '</a></li>';
+      html += '<li class="page-item ' + (p === current ? 'active' : '') + '"><a class="page-link" href="#" data-page="' + p + '">' + p + '</a></li>';
     }
-    html += '<li class="page-item next' + (current >= totalPages ? ' disabled' : '') + '"><a class="page-link" href="#" data-page="' + (current + 1) + '"><i class="ti tabler-chevron-right"></i></a></li>';
-    $('#dn-pagination .pagination').html(html);
+    if (end < total) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    html += '<li class="page-item ' + (current >= total ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="' + (current + 1) + '"><i class="ti tabler-chevron-right"></i></a></li>';
+    html += '<li class="page-item ' + (current >= total ? 'disabled' : '') + '"><a class="page-link" href="#" data-page="' + total + '"><i class="ti tabler-chevrons-right"></i></a></li>';
+    $('#dn-pagination ul.pagination').html(html);
   }
 
   /* ─────────── Hành động ─────────── */
@@ -361,10 +383,10 @@
     var ctx = state.rejectCtx;
     if (!ctx) return;
     $('#dn-reject-confirm').attr('disabled', 'disabled');
-    call('POST', API + '/' + ctx.id + '/' + ctx.key, { ly_do: reason }, function () {
+    call('POST', API + '/' + ctx.id + '/' + ctx.key, { ly_do: reason }, function (data) {
       $('#dn-reject-confirm').removeAttr('disabled');
       modalOf('dn-reject-modal').hide();
-      toast('Đã cập nhật đề nghị.');
+      toast(data && data.phieu_do_dau_tu_choi ? 'Đã từ chối: đề nghị bị huỷ và phiếu đổ dầu quay về Từ chối.' : 'Đã cập nhật đề nghị.');
       loadList();
     }, function (jqXHR) {
       $('#dn-reject-confirm').removeAttr('disabled');
@@ -453,7 +475,7 @@
 
   function renderDetail(d) {
     var b = d.ben_nhan_tien || {};
-    var payee = b.khac_ben_phat_hanh ? esc(b.ten) + ' <span class="small text-muted">(' + (b.loai === 'nhan_vien' ? 'nhân viên ứng trước' : 'NCC thu hộ') + ')</span>' : 'Trùng bên phát hành (' + esc(d.ncc_ten) + ')';
+    var payee = b.khac_ben_phat_hanh ? esc(b.ten) + ' <span class="small text-muted">(' + (PAYEE_LONG[b.loai] || 'NCC thu hộ') + ')</span>' : 'Trùng bên phát hành (' + esc(d.ncc_ten) + ')';
     var han = d.han_thanh_toan ? esc(toView(d.han_thanh_toan)) + (d.qua_han_ngay > 0 ? ' <span class="text-danger fw-semibold">(quá hạn ' + d.qua_han_ngay + ' ngày)</span>' : '') : 'Chưa đặt';
     var html = '';
     if ((d.trang_thai === 'tu_choi' || d.trang_thai === 'tu_choi_thanh_toan') && d.ly_do_tu_choi) {
@@ -463,11 +485,11 @@
       field('Bên phát hành', esc(d.ncc_ten)) + field('Bên nhận tiền', payee) +
       field('Số hoá đơn', d.so_hoa_don ? esc(d.so_hoa_don) : 'Chưa có') + field('Ngày hoá đơn', d.ngay_hoa_don ? esc(toView(d.ngay_hoa_don)) : 'Chưa có') +
       field('Hạn thanh toán', han) + field('Hình thức thanh toán', esc(HINH_THUC_LABEL[d.hinh_thuc_tt] || 'Chưa chọn')) +
-      field('Người tạo', esc(d.nguoi_tao)) + field('Ngày tạo', esc(toView(d.created))) +
+      field('Người tạo', esc(d.nguoi_tao)) + field('Ngày tạo', esc(toView(d.created))) + field('Nguồn', esc(d.nguon_label || 'Chi phí kế hoạch')) +
       '<div class="col-12"><div class="dn-info-label">Ghi chú</div><div class="dn-info-value">' + (d.ghi_chu ? esc(d.ghi_chu) : '—') + '</div></div></div>';
 
-    html += '<div class="fw-semibold mt-4 mb-2">Các dòng chi phí trong đề nghị (' + d.so_dong + ')</div>' +
-      '<div class="table-responsive"><table class="table table-sm table-bordered dn-lines mb-0"><thead><tr><th>Kế hoạch</th><th>Tên chi phí</th><th style="width:50px;">Loại</th>' +
+    html += '<div class="fw-semibold mt-4 mb-2">' + (isDoDau(d) ? 'Phiếu đổ dầu trong đề nghị' : 'Các dòng chi phí trong đề nghị') + ' (' + d.so_dong + ')</div>' +
+      '<div class="table-responsive"><table class="table table-sm table-bordered dn-lines mb-0"><thead><tr><th>' + (isDoDau(d) ? 'Phiếu' : 'Kế hoạch') + '</th><th>Tên chi phí</th><th style="width:50px;">Loại</th>' +
       '<th class="text-end">Đơn giá</th><th class="text-end" style="width:50px;">SL</th><th class="text-end">Trước VAT</th><th class="text-end" style="width:60px;">VAT%</th><th class="text-end">Sau VAT</th><th>Ghi chú</th></tr></thead><tbody>';
     html += linesRowsHtml(d.dong_chi_phi || []);
     html += '</tbody><tfoot><tr class="table-light"><td colspan="5" class="text-end fw-semibold">Tổng</td><td class="text-end fw-semibold">' + money(d.tong_truoc_vat) +
@@ -750,7 +772,8 @@
     $('#dn-pagination-jump').keydown(function (e) {
       if (e.which !== 13) return;
       var p = parseInt($(this).val(), 10);
-      if (p > 0) { state.page = p; loadList(); }
+      var totalPages = parseInt($(this).attr('data-total-pages'), 10) || 1;
+      if (p > 0) { state.page = Math.min(p, totalPages); loadList(); }
     });
 
     $('#dn-tbody').delegate('[data-act]', 'click', function (e) {

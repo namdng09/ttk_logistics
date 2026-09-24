@@ -1,0 +1,98 @@
+/* Theo dõi đổ dầu — mọi selector gắn với #dd-app (không dùng chung với màn khác). */
+#dd-app.dd-list-app { display: flex; flex-direction: column; gap: 1rem; }
+#dd-app .dd-title-icon { font-size: 22px; color: #7367f0; }
+
+/* Ô tổng (số lít, tổng sau VAT) ở header card trên. */
+#dd-app .dd-stat { display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 8px; border: 1px solid #e7e9ee; border-radius: .6rem; background: #fbfcfe; }
+#dd-app .dd-stat-ico { width: 34px; height: 34px; border-radius: .5rem; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+#dd-app .dd-stat-ico-lit { background: #e9e7fd; color: #7367f0; }
+#dd-app .dd-stat-ico-tien { background: #dff7e9; color: #28c76f; }
+#dd-app .dd-stat-lbl { font-size: .7rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: #8a8794; line-height: 1.2; }
+#dd-app .dd-stat-val { font-size: 1.05rem; font-weight: 700; color: #444050; line-height: 1.3; white-space: nowrap; }
+#dd-app .dd-stat-val small { font-size: .75rem; font-weight: 500; color: #8a8794; margin-left: 3px; }
+
+/* Bộ lọc: 1 dòng như /ke-hoach-xep-xe, không khung viền. Chỉnh các biến để đổi độ rộng từng ô. */
+#dd-app .dd-filter-bar { position: relative; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+#dd-app .dd-filter-grid {
+  --dd-f-keyword: minmax(150px, 1.1fr);
+  --dd-f-dau-keo: minmax(120px, .8fr);
+  --dd-f-lai-xe: minmax(130px, .9fr);
+  --dd-f-ncc: minmax(150px, 1fr);
+  --dd-f-date: minmax(210px, .9fr);
+  --dd-f-actions: max-content;
+  display: grid;
+  grid-template-columns: var(--dd-f-keyword) var(--dd-f-dau-keo) var(--dd-f-lai-xe) var(--dd-f-ncc) var(--dd-f-date) var(--dd-f-actions);
+  align-items: flex-end;
+  gap: .75rem;
+  min-width: 0;
+}
+#dd-app .dd-filter-field { min-width: 0; }
+#dd-app .dd-filter-field-date { position: relative; }
+#dd-app .dd-filter-grid .form-label { margin-bottom: .35rem; font-size: .76rem; font-weight: 600; color: #566a7f; white-space: nowrap; }
+#dd-app .dd-filter-grid .form-control, #dd-app .dd-filter-grid .form-select { font-size: .85rem; }
+#dd-app #dd-f-date { cursor: pointer; background-color: #fff; }
+#dd-app .dd-filter-actions { display: flex; align-items: center; gap: .5rem; margin-left: 0; }
+#dd-app .dd-filter-reset { display: inline-flex; align-items: center; justify-content: center; width: 38px; min-width: 38px; height: 38px; padding: 0; }
+#dd-app .dd-filter-reset > i { margin: 0 !important; font-size: 1.05rem; line-height: 1; }
+@media (max-width: 1199.98px) {
+  /* Vẫn giữ một dòng; khi thiếu chỗ, các cột co về min-width đã khai báo. */
+  #dd-app .dd-filter-grid { gap: .55rem; }
+}
+/* Bảng chọn khoảng ngày: chỉ giữ nút "Xóa" ở chân (tự áp dụng khi chọn xong). */
+.daterangepicker.dd-filter-daterangepicker .drp-buttons { display: flex !important; align-items: center; justify-content: flex-end; gap: .35rem; }
+.daterangepicker.dd-filter-daterangepicker .drp-selected,
+.daterangepicker.dd-filter-daterangepicker .applyBtn { display: none !important; }
+
+/* Tab trạng thái: bố cục giống màn đề nghị thanh toán. */
+#dd-app .dd-tabs-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .5rem 1rem; border-bottom: 1px solid #eef0f4; background: #fff; }
+#dd-app .dd-tabs { gap: 6px; flex-wrap: wrap; }
+#dd-app .dd-tabs .nav-link { border: 0; cursor: pointer; padding-left: 7px; padding-right: 7px; }
+#dd-app .dd-tabs .nav-link .badge { pointer-events: none; }
+
+/* Bảng */
+#dd-app .dd-table-scroll { min-height: 280px; max-height: min(620px, calc(100vh - 340px)); overflow: auto; }
+#dd-app .dd-table-scroll .table-responsive { overflow: visible; }
+#dd-app .dd-table { min-width: 1250px; }
+#dd-app .dd-table th { white-space: nowrap; }
+#dd-app .dd-table td { vertical-align: middle; }
+#dd-app .dd-table tbody tr { cursor: context-menu; }
+#dd-app .dd-table-scroll .dd-table thead th { position: sticky; top: 0; z-index: 2; background: var(--bs-table-bg, #f8f9fa); }
+#dd-app .dd-stt-btn { border: 0; background: transparent; padding: 2px 6px; border-radius: .25rem; color: #7367f0; font-weight: 600; cursor: pointer; }
+#dd-app .dd-stt-btn:hover { background: #e9e7fd; }
+#dd-app .dd-act { padding: .2rem .55rem !important; font-size: .75rem !important; }
+#dd-app .dd-menu .dropdown-item { cursor: pointer; }
+#dd-app .dd-menu .dropdown-item.disabled { cursor: not-allowed; opacity: .5; }
+
+/* Modal */
+#dd-app .dd-box { padding: 12px 14px; border: 1px solid #e7e9ee; border-radius: .5rem; background: #f6f7f9; }
+#dd-app .dd-warn-icon { font-size: 44px; color: #ff9f43; }
+#dd-app .dd-loading { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; background: rgba(255,255,255,.85); }
+#dd-app .dd-loading[style*="block"] { display: flex !important; }
+#dd-app .dd-info-label { font-size: .78rem; font-weight: 700; color: #566a7f; margin-bottom: .15rem; }
+#dd-app .dd-info-value { font-weight: 400; color: #444050; word-break: break-word; }
+#dd-app .dd-history-icon { flex: 0 0 1rem; width: 1rem; min-width: 1rem; height: 1.2rem; font-size: 1rem; line-height: 1.2rem; text-align: center; margin-top: 1px; }
+#dd-app .dd-history-text { min-width: 0; word-break: break-word; }
+.flatpickr-calendar { z-index: 99999 !important; }
+
+/* Select2 chuẩn (SELECT2_PATTERN.md) */
+#dd-app .select2-container { width: 100% !important; font-family: inherit; }
+#dd-app .select2-container .select2-selection--single { height: calc(1.5em + 0.75rem + 2px); padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-size: 0.85rem; line-height: 1.5; }
+#dd-app .select2-container .select2-selection--single .select2-selection__rendered { line-height: 1.5; padding: 0; padding-right: 1.75rem; font-size: 0.85rem; }
+#dd-app .select2-container .select2-selection--single .select2-selection__arrow { height: 100%; top: 0; right: 0.375rem; width: 1rem; }
+#dd-app .select2-container .select2-selection--single .select2-selection__clear { position: relative; z-index: 1; font-size: 0.875rem; }
+#dd-app .select2-container--default .select2-results > .select2-results__options { max-height: 320px; overflow-y: auto; }
+#dd-app .select2-container--open .select2-dropdown--below,
+#dd-app .select2-container--open .select2-dropdown--above { min-width: 200px !important; max-width: calc(100vw - 1rem); }
+#dd-app select.is-invalid + .select2-container .select2-selection { border-color: #ea5455; }
+
+/* Modal tạo/sửa: thu ngắn khoảng cách trên dưới giữa các dòng ô nhập. */
+#dd-form-modal .modal-body { padding-top: 1rem; padding-bottom: 1rem; }
+#dd-form-modal .form-label { margin-bottom: .25rem; font-size: .8125rem; }
+#dd-form-modal .form-check { margin-top: .35rem !important; }
+#dd-form-modal .modal-footer { padding-top: .5rem; }
+#dd-form-modal .dd-box .row { --bs-gutter-y: .5rem; }
+#dd-form-modal .dd-box .fw-semibold { margin-bottom: .5rem; }
+/* Ô có ký hiệu (đ, lít, km, %) : ô nhập và ký hiệu luôn cùng chiều cao, không xuống dòng. */
+#dd-form-modal .input-group { flex-wrap: nowrap; align-items: stretch; }
+#dd-form-modal .input-group > .form-control { min-width: 0; }
+#dd-form-modal .input-group > .input-group-text { line-height: 1.625; padding-top: .426rem; padding-bottom: .426rem; }

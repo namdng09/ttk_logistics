@@ -32,6 +32,9 @@ function de_nghi_thanh_toan_schema() {
       'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
       // Mảng JSON ảnh chứng từ (dành chỗ; chưa có giao diện tải lên).
       'hinh_anh_chung_tu' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      // Nguồn của các dòng: 'chi_phi' (ke_hoach_chi_phi, mặc định) | 'do_dau' (phiếu đổ dầu, do.nid_de_nghi trỏ về đây).
+      // Mỗi đề nghị chỉ có 1 loại nguồn, không trộn.
+      'loai_nguon' => array('type' => 'varchar', 'length' => 20, 'not null' => TRUE, 'default' => 'chi_phi'),
       'trang_thai' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'nhap'),
       'ly_do_tu_choi' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
       'uid_nguoi_duyet' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
@@ -53,6 +56,7 @@ function de_nghi_thanh_toan_schema() {
       'nid_ncc' => array('nid_ncc'),
       'ben_nhan_tien' => array('loai_ben_nhan_tien', 'id_ben_nhan_tien'),
       'trang_thai' => array('trang_thai'),
+      'loai_nguon' => array('loai_nguon'),
       'uid_nguoi_tao' => array('uid_nguoi_tao'),
       'han_thanh_toan' => array('han_thanh_toan'),
       'hoat_dong' => array('hoat_dong'),
@@ -81,4 +85,16 @@ function de_nghi_thanh_toan_schema() {
   );
 
   return $schema;
+}
+
+/**
+ * Thêm loại nguồn của đề nghị (chi phí kế hoạch | phiếu đổ dầu). Đề nghị đang có mặc định là chi phí kế hoạch.
+ */
+function de_nghi_thanh_toan_update_7001() {
+  if (!db_field_exists('de_nghi_thanh_toan', 'loai_nguon')) {
+    db_add_field('de_nghi_thanh_toan', 'loai_nguon', array('type' => 'varchar', 'length' => 20, 'not null' => TRUE, 'default' => 'chi_phi'));
+  }
+  if (!db_index_exists('de_nghi_thanh_toan', 'loai_nguon')) {
+    db_add_index('de_nghi_thanh_toan', 'loai_nguon', array('loai_nguon'));
+  }
 }

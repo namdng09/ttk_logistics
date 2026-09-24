@@ -1,0 +1,9 @@
+name = Theo dõi đổ dầu
+description = Phiếu đổ dầu của đầu kéo/lái xe tại cây xăng (nhà cung cấp): tạo phiếu, duyệt phiếu, sau đó thanh toán qua đề nghị thanh toán. Custom schema, RESTful API + UI.
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = user_login_api
+dependencies[] = khach_hang
+dependencies[] = phuong_tien
+dependencies[] = lai_xe
+dependencies[] = de_nghi_thanh_toan

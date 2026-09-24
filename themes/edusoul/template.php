@@ -158,6 +158,12 @@ function getMainMenuSoft()
                             <div data-i18n="Đề nghị thanh toán">Đề nghị thanh toán</div>
                         </a>
                     </li>
+                    <li class="menu-item' . ((strpos(current_path(), 'theo-doi-do-dau') === 0) ? ' active' : '') . '">
+                        <a href="/theo-doi-do-dau" class="menu-link">
+                            <i class="menu-icon icon-base ti tabler-gas-station"></i>
+                            <div data-i18n="Theo dõi đổ dầu">Theo dõi đổ dầu</div>
+                        </a>
+                    </li>
                     <li class="menu-item' . ((strpos(current_path(), 'luong-lai-xe') === 0) ? ' active' : '') . '">
                         <a href="/luong-lai-xe" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-report-money"></i>
