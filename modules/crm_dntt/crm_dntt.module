@@ -6,6 +6,16 @@
  */
 
 /**
+ * Load một include của module crm_dntt.
+ *
+ * @param string $name
+ *   Tên include không kèm tiền tố module, ví dụ 'service'.
+ */
+function _crm_dntt_load_include($name) {
+  module_load_include('inc', 'crm_dntt', 'includes/crm_dntt.' . $name);
+}
+
+/**
  * Implements hook_entity_info().
  */
 function crm_dntt_entity_info() {
@@ -147,6 +157,20 @@ function crm_dntt_menu() {
     'delivery callback' => 'drupal_json_output',
   );
 
+  // --- Điều chỉnh (ADR-0011): tạo dùng quyền tạo DNTT, duyệt dùng quyền duyệt DNTT ---
+  $items['api/dntt/create-dieu-chinh'] = array(
+    'page callback' => 'crm_dntt_api_create_dieu_chinh',
+    'access arguments' => array('dntt_create'),
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/dntt/approve-dieu-chinh'] = array(
+    'page callback' => 'crm_dntt_api_approve_dieu_chinh',
+    'access arguments' => array('dntt_approve'),
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
   // --- Find or create DNTT for modal nhập chi phí (Issue 13) ---
   $items['api/dntt/find-or-create'] = array(
     'page callback' => 'crm_dntt_api_find_or_create',
@@ -182,12 +206,20 @@ function crm_dntt_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
-  $items['api/lo-dntt/pay'] = array(
-    'page callback' => 'crm_dntt_lo_pay',
-    'access arguments' => array('dntt_pay'),
+  $items['api/lo-dntt/approve-payment'] = array(
+    'page callback' => 'crm_dntt_lo_approve_payment',
+    'access arguments' => array('dntt_approve_payment'),
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/lo-dntt/reject-payment-approval'] = array(
+    'page callback' => 'crm_dntt_lo_reject_payment_approval',
+    'access arguments' => array('dntt_approve_payment'),
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  // (Issue 07) Route api/lo-dntt/pay đã gỡ: thanh toán ghi nhận qua Sổ thanh toán
+  // Công nợ (cong_no), không còn transition trạng thái lô/DNTT.
   $items['api/lo-dntt/reject-tt'] = array(
     'page callback' => 'crm_dntt_lo_reject_tt',
     'access arguments' => array('dntt_pay'),
@@ -197,6 +229,12 @@ function crm_dntt_menu() {
   $items['api/lo-dntt/remove-dntt'] = array(
     'page callback' => 'crm_dntt_lo_remove_dntt',
     'access arguments' => array('dntt_approve'),
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/lo-dntt/recall'] = array(
+    'page callback' => 'crm_dntt_lo_recall',
+    'access callback' => 'user_is_logged_in',
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
@@ -246,6 +284,9 @@ function crm_dntt_permission() {
     'dntt_approve' => array(
       'title' => t('Duyệt Lô DNTT'),
     ),
+    'dntt_approve_payment' => array(
+      'title' => t('Duyệt thanh toán Lô DNTT'),
+    ),
     'dntt_pay' => array(
       'title' => t('Thanh toán Lô DNTT'),
     ),
@@ -288,17 +329,27 @@ function crm_dntt_page_form($dntt_id = NULL) {
       return;
     }
     $entity = reset($entities);
+    // ADR-0003: mọi user đăng nhập xem được mọi DNTT (minh bạch vận hành).
+    // Mở readonly khi ngoài scope sửa; không chặn truy cập.
     $trang_thai = $entity->trang_thai;
-    $is_editable = crm_dntt_is_editable($trang_thai);
+    $is_editable = crm_dntt_is_editable($trang_thai)
+      && crm_dntt_user_can_edit($entity, $user);
   }
+
+  // ADR-0003 / Issue 01: nhận context khi nhập chi phí từ đơn hàng win.
+  $lo_hang_nid = isset($_GET['lo_hang_nid']) ? (int) $_GET['lo_hang_nid'] : 0;
+  $from = isset($_GET['from']) ? $_GET['from'] : '';
 
   drupal_add_js(array('crm_dntt' => array(
     'dntt_id' => $dntt_id,
     'is_editable' => $is_editable,
     'trang_thai' => $trang_thai,
+    'lo_hang_nid' => $lo_hang_nid,
+    'from' => $from,
     'permissions' => array(
       'dntt_create' => user_access('dntt_create'),
       'dntt_approve' => user_access('dntt_approve'),
+      'dntt_approve_payment' => user_access('dntt_approve_payment'),
       'dntt_pay' => user_access('dntt_pay'),
     ),
   )), 'setting');
@@ -315,6 +366,7 @@ function crm_dntt_page_list() {
       'dntt_view_own' => user_access('dntt_view_own'),
       'dntt_view_all' => user_access('dntt_view_all'),
       'dntt_approve' => user_access('dntt_approve'),
+      'dntt_approve_payment' => user_access('dntt_approve_payment'),
       'dntt_pay' => user_access('dntt_pay'),
     ),
   )), 'setting');
@@ -348,6 +400,105 @@ function _crm_dntt_json_error($message, $code = 400) {
 
 function _crm_dntt_input() {
   return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+}
+
+/**
+ * Resolve DNTT visibility scope using the same role model as views_query_modifier.
+ *
+ * @return array|false
+ *   FALSE means unrestricted. Otherwise an array of user IDs allowed to view.
+ */
+function crm_dntt_visible_uids_for_account($account = NULL) {
+  if (!$account) {
+    global $user;
+    $account = $user;
+  }
+
+  if (empty($account->uid)) {
+    return array();
+  }
+
+  if ((int) $account->uid === 1) {
+    return FALSE;
+  }
+
+  $roles = isset($account->roles) ? $account->roles : array();
+
+  // Giám đốc (rid=10) xem tất cả.
+  if (isset($roles[10])) {
+    return FALSE;
+  }
+
+  // Trưởng nhóm/phòng (rid=9): xem DNTT của mình và thành viên thuộc nhóm mình.
+  if (isset($roles[9])) {
+    $visible_uids = array((int) $account->uid);
+    $loaded = user_load($account->uid);
+    $nhom_ids = array();
+    if ($loaded && !empty($loaded->field_nhom_sale[LANGUAGE_NONE])) {
+      foreach ($loaded->field_nhom_sale[LANGUAGE_NONE] as $item) {
+        if (!empty($item['target_id'])) {
+          $nhom_ids[] = (int) $item['target_id'];
+        }
+      }
+    }
+
+    if (!empty($nhom_ids)) {
+      $member_uids = db_select('field_data_field_nhom_sale', 'fns')
+        ->fields('fns', array('entity_id'))
+        ->condition('fns.entity_type', 'user')
+        ->condition('fns.field_nhom_sale_target_id', $nhom_ids, 'IN')
+        ->execute()
+        ->fetchCol();
+      foreach ($member_uids as $uid) {
+        $visible_uids[] = (int) $uid;
+      }
+    }
+
+    return array_values(array_unique($visible_uids));
+  }
+
+  // Nhân viên/default: chỉ xem DNTT của mình.
+  return array((int) $account->uid);
+}
+
+function crm_dntt_apply_uid_visibility(&$query, $alias = 'd', $account = NULL) {
+  $visible_uids = crm_dntt_visible_uids_for_account($account);
+  if ($visible_uids === FALSE) {
+    return;
+  }
+  if (empty($visible_uids)) {
+    $query->where('1 = 0');
+    return;
+  }
+  $query->condition($alias . '.uid', $visible_uids, 'IN');
+}
+
+function crm_dntt_user_can_view($dntt, $account = NULL) {
+  if (!$dntt) {
+    return FALSE;
+  }
+  $visible_uids = crm_dntt_visible_uids_for_account($account);
+  if ($visible_uids === FALSE) {
+    return TRUE;
+  }
+  return in_array((int) $dntt->uid, $visible_uids);
+}
+
+/**
+ * Whether $account may EDIT (sửa/xóa/trình duyệt) a DNTT.
+ *
+ * ADR-0003: mọi user đăng nhập được XEM mọi DNTT (minh bạch vận hành), nhưng
+ * quyền SỬA vẫn gate theo scope phân quyền — dùng đúng resolver visibility.
+ */
+function crm_dntt_user_can_edit($dntt, $account = NULL) {
+  if (!$dntt) {
+    return FALSE;
+  }
+  $visible_uids = crm_dntt_visible_uids_for_account($account);
+  if ($visible_uids === FALSE) {
+    return TRUE;
+  }
+  return in_array((int) $dntt->uid, $visible_uids);
 }
 
 /**
@@ -406,9 +557,62 @@ function crm_dntt_generate_so_lo() {
 /**
  * Recalculate dntt.tong_tien from SUM of chi tiết.
  */
+function crm_dntt_recalculate_chi_tiet_converted($dntt_id) {
+  $dntt_list = entity_load('dntt', array($dntt_id));
+  if (empty($dntt_list)) {
+    return 0;
+  }
+  $dntt = reset($dntt_list);
+  $rate = isset($dntt->ti_gia) ? (float) $dntt->ti_gia : 1;
+
+  $rows = db_query(
+    "SELECT * FROM {dntt_chi_tiet} WHERE dntt_id = :id ORDER BY thu_tu, chi_tiet_id",
+    array(':id' => $dntt_id)
+  )->fetchAll();
+
+  foreach ($rows as $row) {
+    $calc = crm_dntt_calculate_chi_tiet(array(
+      'don_gia' => isset($row->don_gia) ? $row->don_gia : 0,
+      'loai_tien' => isset($row->loai_tien) ? $row->loai_tien : 'VND',
+      'so_luong' => $row->so_luong,
+      'vat_phan_tram' => $row->vat_phan_tram,
+      'so_tien_vat' => $row->so_tien_vat,
+    ), $rate);
+
+    db_update('dntt_chi_tiet')
+      ->fields(array(
+        'tien_truoc_vat' => $calc['tien_truoc_vat'],
+        'so_tien_vat' => $calc['so_tien_vat'],
+        'tien_sau_vat' => $calc['tien_sau_vat'],
+        'tien_sau_vat_vnd' => $calc['tien_sau_vat_vnd'],
+      ))
+      ->condition('chi_tiet_id', $row->chi_tiet_id)
+      ->execute();
+    entity_get_controller('dntt_chi_tiet')->resetCache(array($row->chi_tiet_id));
+  }
+
+  return crm_dntt_recalculate_tong_tien($dntt_id);
+}
+
+function crm_dntt_recalculate_lo_dntt_tong_tien($lo_dntt_id) {
+  $total = db_query(
+    "SELECT COALESCE(SUM(tong_tien), 0) FROM {dntt} WHERE lo_dntt_id = :id",
+    array(':id' => $lo_dntt_id)
+  )->fetchField();
+
+  db_update('lo_dntt')
+    ->fields(array('tong_tien' => $total))
+    ->condition('lo_dntt_id', $lo_dntt_id)
+    ->execute();
+  entity_get_controller('lo_dntt')->resetCache(array($lo_dntt_id));
+
+  return $total;
+}
+
+
 function crm_dntt_recalculate_tong_tien($dntt_id) {
   $total = db_query(
-    "SELECT COALESCE(SUM(tien_sau_vat), 0) FROM {dntt_chi_tiet} WHERE dntt_id = :id",
+    "SELECT COALESCE(SUM(CASE WHEN tien_sau_vat_vnd > 0 THEN tien_sau_vat_vnd ELSE tien_sau_vat END), 0) FROM {dntt_chi_tiet} WHERE dntt_id = :id",
     array(':id' => $dntt_id)
   )->fetchField();
 
@@ -431,27 +635,54 @@ function crm_dntt_recalculate_tong_tien($dntt_id) {
  * @return array
  *   Computed values: tien_truoc_vat, so_tien_vat, tien_sau_vat.
  */
-function crm_dntt_calculate_chi_tiet(array $values) {
-  $don_gia = isset($values['don_gia']) ? (int) $values['don_gia'] : 0;
-  $so_luong = isset($values['so_luong']) ? (int) $values['so_luong'] : 1;
-  $vat_pct = isset($values['vat_phan_tram']) ? (int) $values['vat_phan_tram'] : 0;
+function crm_dntt_validate_chi_tiet_currency_price(array $values, $ti_gia = 1) {
+  $don_gia = isset($values['don_gia']) ? (float) $values['don_gia'] : 0;
+  $loai_tien = isset($values['loai_tien']) ? strtoupper((string) $values['loai_tien']) : '';
+
+  if ($don_gia <= 0) {
+    return array('success' => FALSE, 'message' => 'Đơn giá bắt buộc và phải lớn hơn 0.');
+  }
+  if (!in_array($loai_tien, array('VND', 'USD'))) {
+    return array('success' => FALSE, 'message' => 'Loại tiền không hợp lệ.');
+  }
+  if ($loai_tien === 'USD' && (float) $ti_gia <= 1) {
+    return array('success' => FALSE, 'message' => 'Dòng USD cần tỉ giá lớn hơn 1.');
+  }
+
+  $so_luong = isset($values['so_luong']) ? (float) $values['so_luong'] : 0;
+  if ($so_luong <= 0) {
+    return array('success' => FALSE, 'message' => 'Số lượng bắt buộc và phải lớn hơn 0.');
+  }
+
+  return array('success' => TRUE);
+}
+
+function crm_dntt_calculate_chi_tiet(array $values, $ti_gia = 1) {
+  $don_gia = isset($values['don_gia']) ? (float) $values['don_gia'] : 0;
+  $loai_tien = isset($values['loai_tien']) ? strtoupper((string) $values['loai_tien']) : 'VND';
+  $rate = $loai_tien === 'USD' ? (float) $ti_gia : 1;
+
+  $so_luong = isset($values['so_luong']) ? (float) $values['so_luong'] : 1;
+  $vat_pct = isset($values['vat_phan_tram']) ? (float) $values['vat_phan_tram'] : 0;
 
   $tien_truoc_vat = $don_gia * $so_luong;
 
   $vat_override = isset($values['so_tien_vat']) && $values['so_tien_vat'] !== '' && $values['so_tien_vat'] !== NULL;
   if ($vat_override) {
-    $so_tien_vat = (int) round((float) $values['so_tien_vat']);
+    $so_tien_vat = round((float) $values['so_tien_vat'], 2);
   }
   else {
-    $so_tien_vat = (int) round($tien_truoc_vat * $vat_pct / 100);
+    $so_tien_vat = round($tien_truoc_vat * $vat_pct / 100, 2);
   }
 
   $tien_sau_vat = $tien_truoc_vat + $so_tien_vat;
+  $tien_sau_vat_vnd = round($tien_sau_vat * $rate, 0);
 
   return array(
     'tien_truoc_vat' => $tien_truoc_vat,
     'so_tien_vat' => $so_tien_vat,
     'tien_sau_vat' => $tien_sau_vat,
+    'tien_sau_vat_vnd' => $tien_sau_vat_vnd,
   );
 }
 
@@ -471,15 +702,18 @@ function crm_dntt_resolve_nhom_chi_phi($loai_chi_phi_id) {
 
 /**
  * Allowed transitions: from → array of to statuses.
+ *
+ * ADR-0004 / Issue 07: `da_tt` không còn là trạng thái workflow. "Đã trả đủ"
+ * dẫn xuất từ Sổ thanh toán + Đối ứng (cong_no), không lưu trên DNTT.
  */
 function crm_dntt_transitions() {
   return array(
     'moi' => array('cho_duyet'),
     'cho_duyet' => array('da_duyet', 'tu_choi', 'moi'),
-    'da_duyet' => array('da_tt', 'tu_choi_tt'),
+    'da_duyet' => array('cho_thanh_toan', 'tu_choi_tt'),
+    'cho_thanh_toan' => array('tu_choi_tt'),
     'tu_choi' => array('moi'),
     'tu_choi_tt' => array('moi'),
-    'da_tt' => array(),
   );
 }
 
@@ -491,8 +725,9 @@ function crm_dntt_transition_permissions() {
     'cho_duyet:da_duyet' => 'dntt_approve',
     'cho_duyet:tu_choi' => 'dntt_approve',
     'cho_duyet:moi' => 'dntt_approve',
-    'da_duyet:da_tt' => 'dntt_pay',
-    'da_duyet:tu_choi_tt' => 'dntt_pay',
+    'da_duyet:cho_thanh_toan' => 'dntt_approve_payment',
+    'da_duyet:tu_choi_tt' => 'dntt_approve_payment',
+    'cho_thanh_toan:tu_choi_tt' => 'dntt_pay',
   );
 }
 
@@ -515,7 +750,17 @@ function crm_dntt_transition($dntt_id, $new_status) {
     return array('success' => FALSE, 'message' => 'DNTT không tồn tại.');
   }
   $entity = reset($entities);
+  if (!crm_dntt_user_can_edit($entity)) {
+    return array('success' => FALSE, 'message' => 'Bạn không có quyền thao tác DNTT này.');
+  }
   $old_status = $entity->trang_thai;
+
+  if ($old_status === 'moi' && $new_status === 'cho_duyet') {
+    return array(
+      'success' => FALSE,
+      'message' => 'Trình duyệt DNTT phải thông qua Lô DNTT. Vui lòng dùng chức năng Trình duyệt để tạo lô.',
+    );
+  }
 
   // Check valid transition.
   $transitions = crm_dntt_transitions();
@@ -553,60 +798,164 @@ function crm_dntt_api_transition() {
  * API: CHI PHÍ LÔ HÀNG (Issue 10)
  ******************************************************************************/
 
+/**
+ * Dòng chi phí phải trả của một lô, kèm cờ sửa-được của DNTT chứa chúng.
+ *
+ * Đường đọc DUY NHẤT của tab "Chi phí (DNTT)" trong modal đơn hàng (ADR-0016
+ * của van-hanh: bảng phẳng chọn-rồi-gộp, thay UI ticket 15). Nó cũng là đường
+ * đọc của panel chi phí ở trang Theo dõi booking.
+ *
+ * LEFT JOIN {dntt} (ADR-0016), không còn INNER JOIN: `ct.dntt_id` giờ NULLABLE
+ * — dòng chi phí độc lập, chưa gộp vào DNTT nào. Dòng đó có `dntt_id`,
+ * `so_dntt`, `trang_thai` NULL và `is_editable` luôn TRUE (chưa ai duyệt gì để
+ * khoá).
+ *
+ * `doi_tac_nhan_tien_id` trả về là NCC HIỆU LỰC của dòng: của DNTT chứa nó nếu
+ * đã gộp, hoặc của riêng dòng (`ct.doi_tac_nhan_tien_id`, ADR-0016) nếu chưa —
+ * client dùng đúng một khoá này để so "cùng NCC" khi tick chọn (ticket 04),
+ * không phải so tên (`doi_tac_ten`) vì tên có thể trùng giữa hai node khác id.
+ *
+ * Các khoá còn lại, và vì sao mỗi cái phải ở đây chứ không suy ở client:
+ *
+ * - `loai_chi_phi_id` / `nhom_chi_phi_id` — `api/dntt-chi-tiet/save` BẮT BUỘC
+ *   `loai_chi_phi_id`. Trả về tên mà không trả id thì tab hiện được bảng nhưng
+ *   không lưu được dòng nào, và lỗi nổi lên ở cú bấm Lưu chứ không ở lúc đọc.
+ * - `is_editable` — cùng một `crm_dntt_is_editable()` mà cổng ghi
+ *   (`crm_dntt_chi_tiet_api_save`) dùng. Client so chuỗi trạng thái là dựng bản
+ *   thứ hai của cổng, và bản thứ hai lệch ngay lần thêm trạng thái sau.
+ * - `tu_chuyen` — dòng gom từ một chuyến vận tải, tức chỉ đọc ở đây (quyết định
+ *   Q13 của ticket 15: quan hệ chuyến → DNTT là một chiều một lần, cho sửa đầu
+ *   dưới mà không ghi ngược là để hai đầu nói hai số).
+ *
+ * `tu_chuyen` phải THOÁI HOÁ ÊM: cột `dntt_chi_tiet.chuyen_id` do ticket 07 của
+ * trucking thêm và nó chưa có ở đây. Kiểm bằng `property_exists()` trên chính
+ * dòng vừa fetch — `SELECT ct.*` chỉ mang cột nào bảng THẬT có, nên phép kiểm
+ * này miễn phí và không bao giờ lệch với schema. `isset()` KHÔNG dùng được:
+ * cột tồn tại mà giá trị NULL (đúng nghĩa "nhập tay") thì isset trả FALSE, và
+ * hai nghĩa "không có cột" với "có cột, giá trị rỗng" gộp lại thành một.
+ *
+ * - `so_cont` — số container của chuyến đã gom dòng, để chip "Nguồn" nói người
+ *   duyệt đang ký tiền cho cont nào (mỗi cont một mức nâng hạ). Cont là NHÃN,
+ *   không phải thực thể: không cột trên `dntt_chi_tiet`, không cộng chi phí
+ *   theo cont — đọc sống qua `chuyen_id`. NULL = chưa biết, gộp cả ba nguyên
+ *   nhân (dòng nhập tay · chuyến chưa nhập cont · không có bảng trucking), vì
+ *   cả ba vẽ ra cùng một chip.
+ *
+ * `so_cont` thoái hoá êm theo CẢ HAI mảnh của đường đọc, và đây là ràng buộc
+ * cứng chứ không phải phòng xa: `crm_dntt.info` khai duy nhất
+ * `dependencies[] = entity`, còn `trucking.info` cố ý không khai ngược (màn vận
+ * tải phải chạy đủ khi module tài chính tắt) — nên "bảng {trucking_chuyen}
+ * vắng mặt" là một trạng thái HỢP LỆ của hệ thống, không phải một cài đặt hỏng.
+ * Fail-OPEN có chủ ý, khác ô Địa chỉ đóng hàng (fail-closed): cont là nhãn để
+ * đọc, không phải căn cứ để ghi. `db_field_exists()` + `db_table_exists()` gác
+ * việc dựng JOIN; `property_exists()` gác việc đọc kết quả, cùng lý do với
+ * `tu_chuyen` ở trên.
+ *
+ * @param int $lo_hang_nid
+ *   nid của lô hàng.
+ *
+ * @return array
+ *   Phong bì {success, lines, subtotals, tong_quy_doi_vnd}. `lines` phẳng, DNTT
+ *   chỉ là nhãn trên mỗi dòng (ADR-0003) — nhóm hiển thị là việc của client.
+ */
 function crm_dntt_chi_phi_lo_hang($lo_hang_nid) {
   $lo_hang_nid = (int) $lo_hang_nid;
   if (!$lo_hang_nid) {
     return array('success' => FALSE, 'message' => 'lo_hang_nid bắt buộc.');
   }
 
+  // ADR-0003: jobfile-centric — flat lines của lô (từ MỌI DNTT, mọi người tạo).
+  // Sắp theo loại phí. KHÔNG group-by-DNTT (DNTT chỉ là nhãn trên mỗi dòng).
+  //
+  // ADR-0016: LEFT JOIN — `ct.dntt_id` có thể NULL. `d.doi_tac_nhan_tien_id`
+  // đặt tên riêng (`dntt_doi_tac_id`) vì `ct.*` đã mang cột cùng tên của riêng
+  // dòng (ADR-0016); hai cột trùng tên không alias thì driver chỉ giữ lại một.
+  // Số cont của chuyến đã gom dòng — xem docblock hàm. JOIN chỉ dựng khi CẢ HAI
+  // mảnh của đường đọc có mặt; thiếu mảnh nào thì cột vắng khỏi hàng vừa fetch
+  // và `property_exists()` bên dưới đọc ra "không biết cont".
+  //
+  // Alias `chuyen_so_cont` vì cùng lý do với `dntt_doi_tac_id` ở trên: `ct.*`
+  // mang mọi cột của `dntt_chi_tiet`, và ngày nào bảng đó có một cột tên
+  // `so_cont` thì hai cột trùng tên sẽ chỉ còn một sau driver — `property_exists()`
+  // vẫn đọc đúng khoá nhưng SAI cột, và im lặng.
+  $co_cont = db_field_exists('dntt_chi_tiet', 'chuyen_id') && db_table_exists('trucking_chuyen');
+  $chon_cont = $co_cont ? ', tc.so_cont AS chuyen_so_cont' : '';
+  $join_cont = $co_cont ? 'LEFT JOIN {trucking_chuyen} tc ON tc.chuyen_id = ct.chuyen_id' : '';
+
   $rows = db_query("
-    SELECT ct.*, d.so_dntt, d.trang_thai, d.loai_tien, d.doi_tac_nhan_tien_id,
+    SELECT ct.*, d.so_dntt, d.trang_thai, d.doi_tac_nhan_tien_id AS dntt_doi_tac_id,
            lcp.ten AS loai_chi_phi_ten,
            ncp.ten AS nhom_chi_phi_ten,
-           dt_node.title AS doi_tac_ten
+           dt_node.title AS doi_tac_ten" . $chon_cont . "
     FROM {dntt_chi_tiet} ct
-    INNER JOIN {dntt} d ON d.dntt_id = ct.dntt_id
+    LEFT JOIN {dntt} d ON d.dntt_id = ct.dntt_id
     LEFT JOIN {loai_chi_phi} lcp ON lcp.id = ct.loai_chi_phi_id
     LEFT JOIN {nhom_chi_phi} ncp ON ncp.id = ct.nhom_chi_phi_id
-    LEFT JOIN {node} dt_node ON dt_node.nid = d.doi_tac_nhan_tien_id
+    LEFT JOIN {node} dt_node ON dt_node.nid = COALESCE(d.doi_tac_nhan_tien_id, ct.doi_tac_nhan_tien_id)
+    " . $join_cont . "
     WHERE ct.lo_hang_nid = :nid
-    ORDER BY d.dntt_id, ct.thu_tu, ct.chi_tiet_id
+    ORDER BY lcp.ten, ct.chi_tiet_id
   ", array(':nid' => $lo_hang_nid))->fetchAll();
 
-  $groups = array();
-  $tong_cong = 0;
+  $lines = array();
+  // ADR-0002: loại tiền per-line, KHÔNG cộng chéo VND + USD.
+  $subtotals = array('VND' => 0, 'USD' => 0);
+  $tong_quy_doi_vnd = 0;
 
   foreach ($rows as $r) {
-    $did = $r->dntt_id;
-    if (!isset($groups[$did])) {
-      $groups[$did] = array(
-        'dntt_id' => (int) $did,
-        'so_dntt' => $r->so_dntt,
-        'trang_thai' => $r->trang_thai,
-        'loai_tien' => $r->loai_tien,
-        'doi_tac_ten' => $r->doi_tac_ten ?: '',
-        'chi_tiets' => array(),
-      );
-    }
-    $groups[$did]['chi_tiets'][] = array(
+    // Per-line currency: đọc thẳng ct.loai_tien (ADR-0004).
+    $loai_tien = strtoupper((string) $r->loai_tien) === 'USD' ? 'USD' : 'VND';
+    $tien_sau_vat = (float) $r->tien_sau_vat;
+    $co_dntt = $r->dntt_id !== NULL;
+    $eff_doi_tac_id = $co_dntt
+      ? (int) $r->dntt_doi_tac_id
+      : ((int) $r->doi_tac_nhan_tien_id ?: NULL);
+
+    $lines[] = array(
       'chi_tiet_id' => (int) $r->chi_tiet_id,
+      // Id của danh mục phí đi cùng tên: đường ghi cần id, người đọc cần tên.
+      'loai_chi_phi_id' => (int) $r->loai_chi_phi_id,
+      'nhom_chi_phi_id' => (int) $r->nhom_chi_phi_id,
       'loai_chi_phi_ten' => $r->loai_chi_phi_ten ?: '',
       'nhom_chi_phi_ten' => $r->nhom_chi_phi_ten ?: '',
       'don_vi' => $r->don_vi,
-      'don_gia' => (int) $r->don_gia,
-      'so_luong' => (int) $r->so_luong,
-      'vat_phan_tram' => (int) $r->vat_phan_tram,
-      'tien_truoc_vat' => (int) $r->tien_truoc_vat,
-      'tien_sau_vat' => (int) $r->tien_sau_vat,
+      'don_gia' => (float) $r->don_gia,
+      'so_luong' => (float) $r->so_luong,
+      'vat_phan_tram' => (float) $r->vat_phan_tram,
+      'so_tien_vat' => (float) $r->so_tien_vat,
+      'tien_truoc_vat' => (float) $r->tien_truoc_vat,
+      'tien_sau_vat' => $tien_sau_vat,
+      'tien_sau_vat_vnd' => (float) $r->tien_sau_vat_vnd,
+      'loai_tien' => $loai_tien,
       'ghi_chu' => $r->ghi_chu,
+      // Nhãn DNTT chứa dòng (link mở form đầy đủ). NULL = chưa gộp (ADR-0016).
+      'dntt_id' => $co_dntt ? (int) $r->dntt_id : NULL,
+      'so_dntt' => $co_dntt ? $r->so_dntt : NULL,
+      'trang_thai' => $co_dntt ? $r->trang_thai : NULL,
+      // NCC hiệu lực — xem docblock hàm. Dùng để so "cùng NCC" (ticket 04).
+      'doi_tac_nhan_tien_id' => $eff_doi_tac_id,
+      'doi_tac_ten' => $r->doi_tac_ten ?: '',
+      // Cờ của SERVER cho cổng sửa — xem docblock hàm. Dòng độc lập luôn sửa
+      // được: chưa ai duyệt gì để khoá.
+      'is_editable' => $co_dntt ? crm_dntt_is_editable($r->trang_thai) : TRUE,
+      'tu_chuyen' => property_exists($r, 'chuyen_id') && $r->chuyen_id !== NULL,
+      // Cont là NHÃN đi kèm `tu_chuyen`, không phải chiều dữ liệu để cộng
+      // theo. Cont rỗng gộp vào NULL: "chuyến chưa nhập cont" và "chưa biết
+      // có chuyến nào" vẽ ra cùng một chip, và client chỉ nhìn khoá này.
+      'so_cont' => property_exists($r, 'chuyen_so_cont') && trim((string) $r->chuyen_so_cont) !== ''
+        ? trim($r->chuyen_so_cont)
+        : NULL,
     );
-    $tong_cong += (float) $r->tien_sau_vat;
+
+    $subtotals[$loai_tien] += $tien_sau_vat;
+    $tong_quy_doi_vnd += (float) $r->tien_sau_vat_vnd;
   }
 
   return array(
     'success' => TRUE,
-    'groups' => array_values($groups),
-    'tong_cong' => $tong_cong,
+    'lines' => $lines,
+    'subtotals' => $subtotals,
+    'tong_quy_doi_vnd' => $tong_quy_doi_vnd,
   );
 }
 
@@ -615,27 +964,188 @@ function crm_dntt_api_chi_phi_lo_hang() {
   return crm_dntt_chi_phi_lo_hang($nid);
 }
 
+/**
+ * Tổng Chi phí (trước VAT, quy đổi VND) ĐÃ LÀ NGHĨA VỤ THẬT của một đơn hàng.
+ *
+ * Khác `crm_dntt_chi_phi_lo_hang()`: hàm đó liệt kê MỌI dòng (kể cả nháp/độc
+ * lập/chờ duyệt) cho tab hiển thị-sửa; hàm này chỉ cộng dòng DNTT từ trạng
+ * thái Đã duyệt trở lên (`da_duyet`, `cho_thanh_toan`), trừ DNTT điều chỉnh
+ * và Hoàn về đã ở trạng thái đó (đối xứng credit note bên Debit Note) — dùng
+ * cho card Doanh thu/Chi phí/Lợi nhuận (ADR-0028, context Vận hành). Dòng độc
+ * lập (`dntt_id` NULL, ADR-0016) không có trạng thái duyệt nào để đọc nên tự
+ * động bị loại qua INNER JOIN.
+ *
+ * Quy đổi VND mirror đúng công thức lúc lưu dòng (`crm_dntt_calculate_chi_tiet()`):
+ * VND dùng rate 1, USD dùng `ti_gia` của DNTT chứa dòng — vì `dntt_chi_tiet`
+ * chỉ lưu sẵn VND cho phần SAU VAT (`tien_sau_vat_vnd`), không có cột trước
+ * VAT quy đổi.
+ *
+ * @param int $lo_hang_nid
+ *   Node ID lô hàng.
+ *
+ * @return float
+ *   Chi phí quy đổi VND. 0.0 nếu lô chưa có DNTT nào đủ điều kiện.
+ */
+function crm_dntt_tong_chi_phi_da_duyet_lo_hang($lo_hang_nid) {
+  $lo_hang_nid = (int) $lo_hang_nid;
+  if (!$lo_hang_nid) {
+    return 0.0;
+  }
+
+  $rows = db_query("
+    SELECT ct.tien_truoc_vat, ct.loai_tien, d.ti_gia, d.loai_dntt
+    FROM {dntt_chi_tiet} ct
+    INNER JOIN {dntt} d ON d.dntt_id = ct.dntt_id
+    WHERE ct.lo_hang_nid = :nid
+      AND d.trang_thai IN (:da_duyet, :cho_thanh_toan)
+  ", array(
+    ':nid' => $lo_hang_nid,
+    ':da_duyet' => 'da_duyet',
+    ':cho_thanh_toan' => 'cho_thanh_toan',
+  ))->fetchAll();
+
+  $tong = 0.0;
+  foreach ($rows as $r) {
+    $rate = strtoupper((string) $r->loai_tien) === 'USD' ? (float) $r->ti_gia : 1;
+    $truoc_vat_vnd = round((float) $r->tien_truoc_vat * $rate, 0);
+    $tong += in_array($r->loai_dntt, array('dieu_chinh', 'hoan_ve')) ? -$truoc_vat_vnd : $truoc_vat_vnd;
+  }
+
+  return $tong;
+}
+
+/**
+ * Adapter đọc trạng thái thanh toán dẫn xuất của một DNTT từ sổ cái Công nợ.
+ *
+ * ADR-0006 boundary exception (Issue 07): bình thường cong_no quan sát crm_dntt
+ * một chiều. Riêng "đã trả đủ" là giá trị dẫn xuất read-only, crm_dntt hỏi
+ * cong_no qua adapter mỏng này thay vì lưu cờ da_tt. Không nhúng nghiệp vụ sổ
+ * cái vào đây.
+ *
+ * @param int $dntt_id
+ *
+ * @return array
+ *   Map loai_tien => trạng thái (gồm da_tra_du, con_lai...). Rỗng nếu chưa ghi
+ *   nợ hoặc module cong_no không khả dụng.
+ */
+function crm_dntt_get_payment_status($dntt_id) {
+  $dntt_id = (int) $dntt_id;
+  if (!$dntt_id || !module_exists('cong_no')) {
+    return array();
+  }
+
+  module_load_include('inc', 'cong_no', 'includes/cong_no.service');
+  if (!function_exists('cong_no_service_get_chung_tu_payment_status')) {
+    return array();
+  }
+
+  return cong_no_service_get_chung_tu_payment_status('dntt', $dntt_id);
+}
+
+/**
+ * DNTT đã trả đủ chưa, dẫn xuất từ Sổ thanh toán + Đối ứng (cong_no).
+ *
+ * Trả TRUE chỉ khi đã ghi nợ và mọi loại tiền đều đối ứng đủ. DNTT chưa ghi nợ
+ * (không có dòng phát sinh nào) coi là chưa trả đủ.
+ *
+ * @param int $dntt_id
+ *
+ * @return bool
+ */
+function crm_dntt_is_fully_paid($dntt_id) {
+  $status = crm_dntt_get_payment_status($dntt_id);
+  if (empty($status)) {
+    return FALSE;
+  }
+
+  foreach ($status as $row) {
+    if (empty($row['da_tra_du'])) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+/**
+ * Public read seam: dòng gắn lô hàng (JobFile) của nhiều DNTT.
+ *
+ * Dùng cho cong_no (ADR-0002) drilldown JobFile từ bút toán phải trả, tham
+ * chiếu DNTT theo ID thay vì truy vấn trực tiếp bảng dntt_chi_tiet. ADR-0004:
+ * lo_hang_nid theo dòng và có thể NULL (dòng chi phí không gắn lô hàng) — giữ
+ * nguyên trạng để bên gọi tự bỏ qua.
+ *
+ * @param array $dntt_ids
+ *   Danh sách dntt_id.
+ *
+ * @return array
+ *   Map dntt_id => mảng dòng object {chi_tiet_id, dntt_id, lo_hang_nid
+ *   (nullable), loai_tien, tien_sau_vat, thu_tu}. Rỗng nếu không có ID.
+ */
+function crm_dntt_get_jobfile_lines(array $dntt_ids) {
+  if (empty($dntt_ids)) {
+    return array();
+  }
+
+  $rows = db_select('dntt_chi_tiet', 'ct')
+    ->fields('ct', array('chi_tiet_id', 'dntt_id', 'lo_hang_nid', 'loai_tien', 'tien_sau_vat', 'thu_tu'))
+    ->condition('dntt_id', $dntt_ids, 'IN')
+    ->orderBy('dntt_id', 'ASC')
+    ->orderBy('thu_tu', 'ASC')
+    ->orderBy('chi_tiet_id', 'ASC')
+    ->execute()
+    ->fetchAll();
+
+  $map = array();
+  foreach ($rows as $row) {
+    $map[(int) $row->dntt_id][] = $row;
+  }
+  return $map;
+}
+
 /*******************************************************************************
  * API: DNTT HOÀN VỀ (Issue 09)
  ******************************************************************************/
 
+/**
+ * API endpoint mỏng: parse input rồi uỷ quyền sang service tạo hoàn về.
+ */
 function crm_dntt_api_create_hoan_ve() {
-  global $user;
   $input = _crm_dntt_input();
 
   if (empty($input['dntt_goc_id'])) {
     return _crm_dntt_json_error('dntt_goc_id bắt buộc.');
   }
 
-  $goc_id = (int) $input['dntt_goc_id'];
+  return crm_dntt_create_hoan_ve((int) $input['dntt_goc_id']);
+}
+
+/**
+ * Tạo DNTT hoàn về từ một DNTT gốc.
+ *
+ * Issue 07: guard "đã trả đủ" dẫn xuất từ Sổ thanh toán + Đối ứng (cong_no),
+ * không còn đọc cờ trang_thai='da_tt'. Hoàn về bị chặn cho tới khi DNTT gốc đã
+ * được đối ứng đủ ở mọi loại tiền.
+ *
+ * @param int $goc_id
+ *
+ * @return array
+ *   JSON-shaped result (success + dntt_id/so_dntt, hoặc error).
+ */
+function crm_dntt_create_hoan_ve($goc_id) {
+  $goc_id = (int) $goc_id;
+  if (!$goc_id) {
+    return _crm_dntt_json_error('dntt_goc_id bắt buộc.');
+  }
+
   $goc_list = entity_load('dntt', array($goc_id));
   if (empty($goc_list)) {
     return _crm_dntt_json_error('DNTT gốc không tồn tại.');
   }
   $goc = reset($goc_list);
 
-  if ($goc->trang_thai !== 'da_tt') {
-    return _crm_dntt_json_error('DNTT gốc phải ở trạng thái "Đã thanh toán" mới tạo hoàn về được.');
+  if (!crm_dntt_is_fully_paid($goc_id)) {
+    return _crm_dntt_json_error('DNTT gốc phải được đối ứng đủ (đã trả đủ trên Công nợ) mới tạo hoàn về được.');
   }
 
   $existing = db_query(
@@ -646,65 +1156,215 @@ function crm_dntt_api_create_hoan_ve() {
     return _crm_dntt_json_error('DNTT gốc này đã có DNTT hoàn về (ID: ' . $existing . ').');
   }
 
+  _crm_dntt_load_include('service');
+  $created = crm_dntt_service_create_dntt(
+    crm_dntt_service_inherit_header_params($goc, 'hoan_ve'),
+    crm_dntt_service_copy_chi_tiet_params($goc_id)
+  );
+  if (empty($created['success'])) {
+    return _crm_dntt_json_error($created['message']);
+  }
+
+  return array('success' => TRUE, 'dntt_id' => $created['dntt_id'], 'so_dntt' => $created['so_dntt']);
+}
+
+/*******************************************************************************
+ * API: DNTT ĐIỀU CHỈNH (Issue 13 — chứng từ điều chỉnh phải trả, ADR-0011)
+ *
+ * Đối xứng credit note phía thu: giảm nghĩa vụ phải trả SAI / giảm trừ khi chưa
+ * trả đủ (duyệt nhầm, trùng, vendor giảm trừ) — KHÁC Hoàn về (refund sau khi đã
+ * trả đủ). Khi duyệt ghi bút toán điều chỉnh ÂM vào sổ cái, DNTT gốc bất biến.
+ ******************************************************************************/
+
+/**
+ * Phần còn được điều chỉnh của một DNTT gốc, theo từng nguyên tệ.
+ *
+ * = phần còn nợ (con_lai, dẫn xuất từ cong_no) TRỪ tổng các DNTT điều chỉnh đã
+ * duyệt trước đó của cùng gốc. Phải trừ tường minh vì bút toán điều chỉnh keyed
+ * theo doc điều chỉnh nên KHÔNG tự giảm con_lai của gốc. Guard "không vượt phần
+ * chưa trả" (ADR-0011) dùng map này; cho nhiều lần điều chỉnh nên phải cộng dồn.
+ *
+ * @param int $goc_id
+ *
+ * @return array
+ *   Map loai_tien => float remaining (>= 0). Rỗng nếu gốc chưa ghi nợ.
+ */
+function crm_dntt_get_dieu_chinh_remaining($goc_id) {
+  $goc_id = (int) $goc_id;
+  $status = crm_dntt_get_payment_status($goc_id);
+  if (empty($status)) {
+    return array();
+  }
+
+  // Tổng điều chỉnh đã duyệt trước đó của cùng gốc, theo nguyên tệ.
+  $prior = db_query(
+    "SELECT ct.loai_tien, SUM(ct.tien_sau_vat) AS tong
+     FROM {dntt_chi_tiet} ct
+     INNER JOIN {dntt} d ON d.dntt_id = ct.dntt_id
+     WHERE d.dntt_goc_id = :goc AND d.loai_dntt = 'dieu_chinh' AND d.trang_thai = 'da_duyet'
+     GROUP BY ct.loai_tien",
+    array(':goc' => $goc_id)
+  )->fetchAllKeyed();
+
+  $remaining = array();
+  foreach ($status as $loai_tien => $row) {
+    $con_lai = (float) $row['con_lai'];
+    $da_dieu_chinh = isset($prior[$loai_tien]) ? (float) $prior[$loai_tien] : 0;
+    $remaining[$loai_tien] = max(0, $con_lai - $da_dieu_chinh);
+  }
+  return $remaining;
+}
+
+/**
+ * Tạo một DNTT điều chỉnh (nháp) trỏ về DNTT gốc, copy chi tiết làm mức khởi
+ * đầu để người dùng chỉnh xuống. Chưa ghi sổ — phải duyệt qua
+ * crm_dntt_approve_dieu_chinh.
+ *
+ * @param int $goc_id
+ *
+ * @return array
+ *   JSON-shaped result (success + dntt_id/so_dntt, hoặc error).
+ */
+function crm_dntt_create_dieu_chinh($goc_id) {
+  $goc_id = (int) $goc_id;
+  if (!$goc_id) {
+    return _crm_dntt_json_error('dntt_goc_id bắt buộc.');
+  }
+
+  $goc_list = entity_load('dntt', array($goc_id));
+  if (empty($goc_list)) {
+    return _crm_dntt_json_error('DNTT gốc không tồn tại.');
+  }
+  $goc = reset($goc_list);
+
+  // Chỉ điều chỉnh DNTT thanh toán thường — không điều chỉnh Hoàn về hoặc một
+  // điều chỉnh khác (giữ cây hai cấp gốc → con, mirror credit note D3).
+  if ($goc->loai_dntt !== 'thanh_toan') {
+    return _crm_dntt_json_error('Chỉ tạo điều chỉnh từ DNTT thanh toán; không điều chỉnh Hoàn về hoặc một DNTT điều chỉnh.');
+  }
+
+  // Gốc phải đã ghi nợ phải trả (đã duyệt) và còn phần để điều chỉnh.
+  $remaining = crm_dntt_get_dieu_chinh_remaining($goc_id);
+  if (empty($remaining)) {
+    return _crm_dntt_json_error('DNTT gốc chưa ghi nợ công nợ (chưa duyệt) nên không thể điều chỉnh.');
+  }
+  $con_dieu_chinh = FALSE;
+  foreach ($remaining as $r) {
+    if ($r > 0.00001) {
+      $con_dieu_chinh = TRUE;
+      break;
+    }
+  }
+  if (!$con_dieu_chinh) {
+    return _crm_dntt_json_error('DNTT gốc không còn phần nào để điều chỉnh (đã trả đủ hoặc đã điều chỉnh hết).');
+  }
+
+  _crm_dntt_load_include('service');
+  $created = crm_dntt_service_create_dntt(
+    crm_dntt_service_inherit_header_params($goc, 'dieu_chinh'),
+    crm_dntt_service_copy_chi_tiet_params($goc_id)
+  );
+  if (empty($created['success'])) {
+    return _crm_dntt_json_error($created['message']);
+  }
+
+  return array('success' => TRUE, 'dntt_id' => $created['dntt_id'], 'so_dntt' => $created['so_dntt']);
+}
+
+/**
+ * Duyệt một DNTT điều chỉnh: guard "không vượt phần còn nợ" rồi bắn dntt_approved
+ * để cong_no ghi bút toán điều chỉnh ÂM (ADR-0011).
+ *
+ * Đường duyệt trực tiếp, KHÔNG qua lô — điều chỉnh là chứng từ sửa sổ, không
+ * phải yêu cầu chi. cong_no thấy loai_dntt='dieu_chinh' trong payload → ghi âm.
+ *
+ * @param int $dntt_id
+ *
+ * @return array
+ */
+function crm_dntt_approve_dieu_chinh($dntt_id) {
+  $dntt_id = (int) $dntt_id;
+  if (!$dntt_id) {
+    return _crm_dntt_json_error('dntt_id bắt buộc.');
+  }
+
+  $list = entity_load('dntt', array($dntt_id));
+  if (empty($list)) {
+    return _crm_dntt_json_error('DNTT điều chỉnh không tồn tại.');
+  }
+  $dc = reset($list);
+
+  if ($dc->loai_dntt !== 'dieu_chinh') {
+    return _crm_dntt_json_error('Chỉ duyệt được DNTT điều chỉnh ở đây.');
+  }
+  if ($dc->trang_thai !== 'moi') {
+    return _crm_dntt_json_error('DNTT điều chỉnh ở trạng thái "' . $dc->trang_thai . '", không thể duyệt.');
+  }
+  if (empty($dc->dntt_goc_id)) {
+    return _crm_dntt_json_error('DNTT điều chỉnh thiếu DNTT gốc.');
+  }
+
+  // Tổng đề xuất điều chỉnh theo nguyên tệ.
+  $proposed = db_query(
+    "SELECT loai_tien, SUM(tien_sau_vat) AS tong FROM {dntt_chi_tiet} WHERE dntt_id = :id GROUP BY loai_tien",
+    array(':id' => $dntt_id)
+  )->fetchAllKeyed();
+  if (empty($proposed)) {
+    return _crm_dntt_json_error('DNTT điều chỉnh chưa có dòng chi phí nào.');
+  }
+
+  // Guard cộng dồn: mỗi nguyên tệ không vượt phần còn được điều chỉnh của gốc.
+  $remaining = crm_dntt_get_dieu_chinh_remaining((int) $dc->dntt_goc_id);
+  foreach ($proposed as $loai_tien => $tong) {
+    $tong = (float) $tong;
+    if ($tong <= 0) {
+      continue;
+    }
+    $con = isset($remaining[$loai_tien]) ? (float) $remaining[$loai_tien] : 0;
+    if ($tong > $con + 0.00001) {
+      return _crm_dntt_json_error(
+        'Số tiền điều chỉnh ' . $loai_tien . ' (' . number_format($tong, 2, '.', '') . ') vượt phần còn nợ của DNTT gốc (' . number_format($con, 2, '.', '') . ').'
+      );
+    }
+  }
+
   $transaction = db_transaction();
   try {
-    $so_dntt = crm_dntt_generate_so_dntt();
+    $dc->trang_thai = 'da_duyet';
+    $dc->changed = REQUEST_TIME;
+    entity_save('dntt', $dc);
 
-    $hoan = entity_create('dntt', array(
-      'so_dntt' => $so_dntt,
-      'loai_dntt' => 'hoan_ve',
-      'dntt_goc_id' => $goc_id,
-      'ben_phat_hanh_id' => $goc->ben_phat_hanh_id,
-      'doi_tac_nhan_tien_id' => $goc->doi_tac_nhan_tien_id,
-      'so_hoa_don' => $goc->so_hoa_don,
-      'ngay_hoa_don' => $goc->ngay_hoa_don,
-      'no_hoa_don' => $goc->no_hoa_don,
-      'hinh_thuc_tt' => $goc->hinh_thuc_tt,
-      'han_thanh_toan' => $goc->han_thanh_toan,
-      'loai_tien' => $goc->loai_tien,
-      'ti_gia' => $goc->ti_gia,
-      'tong_tien' => 0,
-      'trang_thai' => 'moi',
-      'uid' => $user->uid,
-      'created' => REQUEST_TIME,
-      'changed' => REQUEST_TIME,
-    ));
-    entity_save('dntt', $hoan);
-    $new_id = $hoan->dntt_id;
+    module_invoke_all('dntt_approved', crm_dntt_build_approved_event($dc, REQUEST_TIME));
 
-    $chi_tiets = db_query(
-      "SELECT * FROM {dntt_chi_tiet} WHERE dntt_id = :id ORDER BY thu_tu, chi_tiet_id",
-      array(':id' => $goc_id)
-    )->fetchAll();
-
-    foreach ($chi_tiets as $ct) {
-      $new_ct = entity_create('dntt_chi_tiet', array(
-        'dntt_id' => $new_id,
-        'lo_hang_nid' => $ct->lo_hang_nid,
-        'nhom_chi_phi_id' => $ct->nhom_chi_phi_id,
-        'loai_chi_phi_id' => $ct->loai_chi_phi_id,
-        'don_vi' => $ct->don_vi,
-        'don_gia' => $ct->don_gia,
-        'so_luong' => $ct->so_luong,
-        'vat_phan_tram' => $ct->vat_phan_tram,
-        'so_tien_vat' => $ct->so_tien_vat,
-        'tien_truoc_vat' => $ct->tien_truoc_vat,
-        'tien_sau_vat' => $ct->tien_sau_vat,
-        'ghi_chu' => $ct->ghi_chu,
-        'thu_tu' => $ct->thu_tu,
-      ));
-      entity_save('dntt_chi_tiet', $new_ct);
-    }
-
-    crm_dntt_recalculate_tong_tien($new_id);
-
-    return array('success' => TRUE, 'dntt_id' => $new_id, 'so_dntt' => $so_dntt);
+    return array('success' => TRUE, 'dntt_id' => $dntt_id, 'trang_thai' => 'da_duyet');
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog('crm_dntt', 'Lỗi tạo hoàn về: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _crm_dntt_json_error('Lỗi hệ thống khi tạo DNTT hoàn về.');
+    watchdog('crm_dntt', 'Lỗi duyệt điều chỉnh: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _crm_dntt_json_error('Lỗi hệ thống khi duyệt DNTT điều chỉnh.');
   }
+}
+
+/**
+ * API endpoint mỏng: tạo DNTT điều chỉnh từ dntt_goc_id.
+ */
+function crm_dntt_api_create_dieu_chinh() {
+  $input = _crm_dntt_input();
+  if (empty($input['dntt_goc_id'])) {
+    return _crm_dntt_json_error('dntt_goc_id bắt buộc.');
+  }
+  return crm_dntt_create_dieu_chinh((int) $input['dntt_goc_id']);
+}
+
+/**
+ * API endpoint mỏng: duyệt DNTT điều chỉnh.
+ */
+function crm_dntt_api_approve_dieu_chinh() {
+  $input = _crm_dntt_input();
+  if (empty($input['dntt_id'])) {
+    return _crm_dntt_json_error('dntt_id bắt buộc.');
+  }
+  return crm_dntt_approve_dieu_chinh((int) $input['dntt_id']);
 }
 
 /*******************************************************************************
@@ -712,12 +1372,10 @@ function crm_dntt_api_create_hoan_ve() {
  ******************************************************************************/
 
 function crm_dntt_api_find_or_create() {
-  global $user;
   $input = _crm_dntt_input();
 
   $doi_tac_id = isset($input['doi_tac_nhan_tien_id']) ? (int) $input['doi_tac_nhan_tien_id'] : 0;
   $lo_hang_nid = isset($input['lo_hang_nid']) ? (int) $input['lo_hang_nid'] : 0;
-  $loai_tien = isset($input['loai_tien']) && in_array($input['loai_tien'], array('VND', 'USD')) ? $input['loai_tien'] : 'VND';
   $ben_phat_hanh_id = isset($input['ben_phat_hanh_id']) ? (int) $input['ben_phat_hanh_id'] : 0;
 
   if (!$doi_tac_id) {
@@ -732,31 +1390,29 @@ function crm_dntt_api_find_or_create() {
     return _crm_dntt_json_error('Lô hàng không tồn tại.');
   }
 
-  // 1) Find DNTT moi that already has chi tiết for this (đối tác + lô hàng + loại tiền).
+  // 1) Find DNTT moi that already has chi tiết for this (đối tác + lô hàng). Currency no longer splits DNTT.
   $dntt_id = db_query_range(
     "SELECT DISTINCT d.dntt_id FROM {dntt} d
      INNER JOIN {dntt_chi_tiet} ct ON ct.dntt_id = d.dntt_id
      WHERE d.doi_tac_nhan_tien_id = :doi_tac
        AND d.trang_thai = 'moi'
-       AND d.loai_tien = :loai_tien
        AND ct.lo_hang_nid = :lo_hang
      ORDER BY d.created DESC",
     0, 1,
-    array(':doi_tac' => $doi_tac_id, ':lo_hang' => $lo_hang_nid, ':loai_tien' => $loai_tien)
+    array(':doi_tac' => $doi_tac_id, ':lo_hang' => $lo_hang_nid)
   )->fetchField();
 
-  // 2) Fallback: find empty DNTT moi for this (đối tác + loại tiền) with no chi tiết.
+  // 2) Fallback: find empty DNTT moi for this đối tác. Currency no longer splits DNTT.
   if (!$dntt_id) {
     $dntt_id = db_query_range(
       "SELECT d.dntt_id FROM {dntt} d
        LEFT JOIN {dntt_chi_tiet} ct ON ct.dntt_id = d.dntt_id
        WHERE d.doi_tac_nhan_tien_id = :doi_tac
          AND d.trang_thai = 'moi'
-         AND d.loai_tien = :loai_tien
          AND ct.chi_tiet_id IS NULL
        ORDER BY d.created DESC",
       0, 1,
-      array(':doi_tac' => $doi_tac_id, ':loai_tien' => $loai_tien)
+      array(':doi_tac' => $doi_tac_id)
     )->fetchField();
   }
 
@@ -764,22 +1420,16 @@ function crm_dntt_api_find_or_create() {
 
   // 3) Auto-create if not found.
   if (!$dntt_id) {
-    $so_dntt = crm_dntt_generate_so_dntt();
-    $entity = entity_create('dntt', array(
-      'so_dntt' => $so_dntt,
-      'loai_dntt' => 'thanh_toan',
+    _crm_dntt_load_include('service');
+    $created = crm_dntt_service_create_dntt(array(
       'ben_phat_hanh_id' => $ben_phat_hanh_id ? $ben_phat_hanh_id : $doi_tac_id,
       'doi_tac_nhan_tien_id' => $doi_tac_id,
-      'trang_thai' => 'moi',
-      'loai_tien' => $loai_tien,
-      'ti_gia' => 1,
-      'tong_tien' => 0,
-      'uid' => $user->uid,
-      'created' => REQUEST_TIME,
-      'changed' => REQUEST_TIME,
+      'ti_gia' => isset($input['ti_gia']) ? $input['ti_gia'] : 1,
     ));
-    entity_save('dntt', $entity);
-    $dntt_id = $entity->dntt_id;
+    if (empty($created['success'])) {
+      return _crm_dntt_json_error($created['message']);
+    }
+    $dntt_id = $created['dntt_id'];
     $is_new = TRUE;
   }
 
@@ -847,6 +1497,9 @@ function crm_dntt_lo_create_batch() {
   }
 
   foreach ($entities as $e) {
+    if (!crm_dntt_user_can_edit($e, $user)) {
+      return _crm_dntt_json_error('Bạn không có quyền trình duyệt DNTT ' . $e->so_dntt . '.');
+    }
     if ($e->trang_thai !== 'moi') {
       return _crm_dntt_json_error('DNTT ' . $e->so_dntt . ' đang ở trạng thái "' . $e->trang_thai . '", phải là "Mới".');
     }
@@ -931,6 +1584,16 @@ function crm_dntt_lo_transition($lo_dntt_id, $expected_status, $new_lo_status, $
     return array('success' => FALSE, 'message' => 'Lô đang ở trạng thái "' . $lo->trang_thai . '", không thể thực hiện.');
   }
 
+  $dntts = entity_load('dntt', FALSE, array('lo_dntt_id' => $lo_dntt_id));
+  $visible_uids = crm_dntt_visible_uids_for_account();
+  if ($visible_uids !== FALSE) {
+    foreach ($dntts as $dntt) {
+      if (!in_array((int) $dntt->uid, $visible_uids)) {
+        return array('success' => FALSE, 'message' => 'Bạn không có quyền thao tác toàn bộ DNTT trong lô này.');
+      }
+    }
+  }
+
   $transaction = db_transaction();
   try {
     $lo->trang_thai = $new_lo_status;
@@ -941,6 +1604,7 @@ function crm_dntt_lo_transition($lo_dntt_id, $expected_status, $new_lo_status, $
 
     $dntts = entity_load('dntt', FALSE, array('lo_dntt_id' => $lo_dntt_id));
     $count = 0;
+    $approved_at = !empty($meta_fields['ngay_duyet']) ? (int) $meta_fields['ngay_duyet'] : REQUEST_TIME;
     foreach ($dntts as $d) {
       $d->trang_thai = $new_dntt_status;
       $d->changed = REQUEST_TIME;
@@ -948,6 +1612,11 @@ function crm_dntt_lo_transition($lo_dntt_id, $expected_status, $new_lo_status, $
         $d->lo_dntt_id = NULL;
       }
       entity_save('dntt', $d);
+
+      if ($new_dntt_status === 'da_duyet') {
+        module_invoke_all('dntt_approved', crm_dntt_build_approved_event($d, $approved_at));
+      }
+
       $count++;
     }
 
@@ -958,6 +1627,49 @@ function crm_dntt_lo_transition($lo_dntt_id, $expected_status, $new_lo_status, $
     watchdog('crm_dntt', 'Lo transition failed: @msg', array('@msg' => $ex->getMessage()), WATCHDOG_ERROR);
     return _crm_dntt_json_error('Lỗi hệ thống: ' . $ex->getMessage());
   }
+}
+
+/**
+ * Build payload sự kiện DNTT đã duyệt cho sổ cái công nợ lắng nghe.
+ *
+ * Boundary một chiều (ADR-0006): crm_dntt chỉ mô tả "DNTT này đã duyệt" kèm
+ * dòng chi tiết theo nguyên tệ; cong_no tự quyết cách ghi bút toán phải trả.
+ *
+ * @param object $dntt
+ *   Entity DNTT vừa chuyển sang da_duyet.
+ * @param int $approved_at
+ *   Mốc thời gian duyệt.
+ *
+ * @return array
+ *   Payload sự kiện dntt_approved.
+ */
+function crm_dntt_build_approved_event($dntt, $approved_at) {
+  $rows = db_select('dntt_chi_tiet', 'ct')
+    ->fields('ct', array('loai_tien', 'tien_sau_vat', 'tien_sau_vat_vnd'))
+    ->condition('dntt_id', (int) $dntt->dntt_id)
+    ->execute()
+    ->fetchAll();
+
+  $lines = array();
+  foreach ($rows as $row) {
+    $lines[] = array(
+      'loai_tien' => !empty($row->loai_tien) ? $row->loai_tien : 'VND',
+      'tien_sau_vat' => $row->tien_sau_vat,
+      'tien_sau_vat_vnd' => $row->tien_sau_vat_vnd,
+    );
+  }
+
+  return array(
+    'dntt_id' => (int) $dntt->dntt_id,
+    'doi_tac_nhan_tien_id' => (int) $dntt->doi_tac_nhan_tien_id,
+    // Để sổ cái biết duyệt này là phát sinh (thanh_toan/hoan_ve) hay điều chỉnh
+    // — cong_no tự quyết dấu bút toán (ADR-0011). Đối xứng phía thu.
+    'loai_dntt' => isset($dntt->loai_dntt) ? $dntt->loai_dntt : 'thanh_toan',
+    'dntt_goc_id' => !empty($dntt->dntt_goc_id) ? (int) $dntt->dntt_goc_id : NULL,
+    'ti_gia' => isset($dntt->ti_gia) ? $dntt->ti_gia : '1.0000',
+    'ngay_duyet' => (int) $approved_at,
+    'lines' => $lines,
+  );
 }
 
 function crm_dntt_lo_approve() {
@@ -990,7 +1702,7 @@ function crm_dntt_lo_reject() {
   );
 }
 
-function crm_dntt_lo_pay() {
+function crm_dntt_lo_approve_payment() {
   global $user;
   $input = _crm_dntt_input();
   if (empty($input['lo_dntt_id'])) {
@@ -999,13 +1711,13 @@ function crm_dntt_lo_pay() {
   return crm_dntt_lo_transition(
     (int) $input['lo_dntt_id'],
     'da_duyet',
-    'da_tt',
-    'da_tt',
-    array('nguoi_thanh_toan' => $user->uid, 'ngay_thanh_toan' => REQUEST_TIME)
+    'cho_thanh_toan',
+    'cho_thanh_toan',
+    array()
   );
 }
 
-function crm_dntt_lo_reject_tt() {
+function crm_dntt_lo_reject_payment_approval() {
   $input = _crm_dntt_input();
   if (empty($input['lo_dntt_id'])) {
     return _crm_dntt_json_error('lo_dntt_id bắt buộc.');
@@ -1018,6 +1730,94 @@ function crm_dntt_lo_reject_tt() {
     array(),
     TRUE
   );
+}
+
+function crm_dntt_lo_reject_tt() {
+  $input = _crm_dntt_input();
+  if (empty($input['lo_dntt_id'])) {
+    return _crm_dntt_json_error('lo_dntt_id bắt buộc.');
+  }
+  return crm_dntt_lo_transition(
+    (int) $input['lo_dntt_id'],
+    'cho_thanh_toan',
+    'tu_choi_tt',
+    'tu_choi_tt',
+    array(),
+    TRUE
+  );
+}
+
+function crm_dntt_lo_account_is_admin($account = NULL) {
+  if (!$account) {
+    global $user;
+    $account = $user;
+  }
+
+  if (empty($account->uid)) {
+    return FALSE;
+  }
+  if ((int) $account->uid === 1) {
+    return TRUE;
+  }
+  if (user_access('administer site configuration', $account)) {
+    return TRUE;
+  }
+
+  return !empty($account->roles) && in_array('administrator', $account->roles);
+}
+
+function crm_dntt_lo_recall_batch($lo_dntt_id, $account = NULL) {
+  if (!$account) {
+    global $user;
+    $account = $user;
+  }
+
+  $lo_list = entity_load('lo_dntt', array($lo_dntt_id));
+  if (empty($lo_list)) {
+    return _crm_dntt_json_error('Lô DNTT không tồn tại.');
+  }
+  $lo = reset($lo_list);
+
+  if ($lo->trang_thai !== 'cho_duyet') {
+    return _crm_dntt_json_error('Lô DNTT không còn ở trạng thái Chờ duyệt nên không thể thu hồi.');
+  }
+
+  $is_submitter = !empty($account->uid) && (int) $lo->nguoi_trinh === (int) $account->uid;
+  if (!$is_submitter && !crm_dntt_lo_account_is_admin($account)) {
+    return _crm_dntt_json_error('Bạn không có quyền thu hồi lô DNTT này.');
+  }
+
+  $transaction = db_transaction();
+  try {
+    $dntts = entity_load('dntt', FALSE, array('lo_dntt_id' => $lo_dntt_id));
+    $count = 0;
+    foreach ($dntts as $dntt) {
+      $dntt->trang_thai = 'moi';
+      $dntt->lo_dntt_id = NULL;
+      $dntt->changed = REQUEST_TIME;
+      entity_save('dntt', $dntt);
+      $count++;
+    }
+
+    entity_delete('lo_dntt', $lo_dntt_id);
+
+    return array('success' => TRUE, 'lo_dntt_id' => $lo_dntt_id, 'dntt_count' => $count);
+  }
+  catch (Exception $ex) {
+    $transaction->rollback();
+    watchdog('crm_dntt', 'Recall lo DNTT failed: @msg', array('@msg' => $ex->getMessage()), WATCHDOG_ERROR);
+    return _crm_dntt_json_error('Lỗi hệ thống khi thu hồi lô: ' . $ex->getMessage());
+  }
+}
+
+function crm_dntt_lo_recall() {
+  global $user;
+  $input = _crm_dntt_input();
+  if (empty($input['lo_dntt_id'])) {
+    return _crm_dntt_json_error('lo_dntt_id bắt buộc.');
+  }
+
+  return crm_dntt_lo_recall_batch((int) $input['lo_dntt_id'], $user);
 }
 
 function crm_dntt_lo_remove_dntt() {
@@ -1091,12 +1891,39 @@ function crm_dntt_lo_api_list() {
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
   $limit = 20;
   $offset = ($page - 1) * $limit;
+  $tab = isset($_GET['tab']) ? $_GET['tab'] : '';
+  $trang_thai = isset($_GET['trang_thai']) ? $_GET['trang_thai'] : '';
+
+  // Tab → trạng thái mặc định (chỉ để lọc hiển thị, không chặn quyền xem;
+  // quyền thực thi nằm ở các action endpoint approve/pay).
+  $tab_status = array(
+    'approve' => 'cho_duyet',
+    'payment_approve' => 'da_duyet',
+    'pay' => 'cho_thanh_toan',
+  );
+  if (isset($tab_status[$tab]) && $trang_thai === '') {
+    $trang_thai = $tab_status[$tab];
+  }
 
   $query = db_select('lo_dntt', 'l');
   $query->fields('l');
 
-  if (!empty($_GET['trang_thai'])) {
-    $query->condition('l.trang_thai', $_GET['trang_thai']);
+  if ($trang_thai !== '') {
+    $query->condition('l.trang_thai', $trang_thai);
+  }
+
+  $visible_uids = crm_dntt_visible_uids_for_account();
+  if ($visible_uids !== FALSE) {
+    if (empty($visible_uids)) {
+      $query->where('1 = 0');
+    }
+    else {
+      $visible_lo_subquery = db_select('dntt', 'd_vis')
+        ->fields('d_vis', array('lo_dntt_id'))
+        ->condition('d_vis.uid', $visible_uids, 'IN')
+        ->isNotNull('d_vis.lo_dntt_id');
+      $query->condition('l.lo_dntt_id', $visible_lo_subquery, 'IN');
+    }
   }
 
   $count = clone $query;
@@ -1142,11 +1969,12 @@ function crm_dntt_lo_api_list() {
   }
 
   $dntts_by_lo = array();
-  $dntt_rows = db_select('dntt', 'd')
-    ->fields('d', array('dntt_id', 'lo_dntt_id', 'so_dntt', 'tong_tien', 'trang_thai', 'loai_tien'))
+  $dntt_query = db_select('dntt', 'd')
+    ->fields('d', array('dntt_id', 'lo_dntt_id', 'so_dntt', 'tong_tien', 'trang_thai'))
     ->condition('d.lo_dntt_id', $lo_ids, 'IN')
-    ->orderBy('d.dntt_id')
-    ->execute();
+    ->orderBy('d.dntt_id');
+  crm_dntt_apply_uid_visibility($dntt_query, 'd');
+  $dntt_rows = $dntt_query->execute();
   foreach ($dntt_rows as $dr) {
     $dntts_by_lo[$dr->lo_dntt_id][] = $dr;
   }
@@ -1170,8 +1998,20 @@ function crm_dntt_lo_api_list() {
  * API: DNTT HEADER (Issue 02)
  ******************************************************************************/
 
-function crm_dntt_api_save() {
-  $input = _crm_dntt_input();
+/**
+ * Cửa ghi header DNTT (tạo mới, hoặc sửa của trang /quan-ly/dntt VÀ bảng DNTT
+ * của tab Chi phí trong modal đơn hàng, ticket 05/ADR-0016).
+ *
+ * @param array|null $input
+ *   Payload; NULL (mặc định, cách hook_menu gọi) thì đọc thân request. Truyền
+ *   tường minh để test được — cùng lý do với `crm_dntt_chi_tiet_api_save()`:
+ *   `php://input` rỗng dưới SimpleTest.
+ *
+ * @return array
+ *   Phong bì {success, ...}.
+ */
+function crm_dntt_api_save($input = NULL) {
+  $input = $input === NULL ? _crm_dntt_input() : $input;
   global $user;
 
   $is_update = !empty($input['dntt_id']);
@@ -1183,14 +2023,26 @@ function crm_dntt_api_save() {
     }
     $entity = reset($entities);
 
+    if (!crm_dntt_user_can_edit($entity, $user)) {
+      return _crm_dntt_json_error('Bạn không có quyền sửa DNTT này.');
+    }
     if (!crm_dntt_is_editable($entity->trang_thai)) {
       return _crm_dntt_json_error('DNTT ở trạng thái "' . $entity->trang_thai . '", không thể sửa.');
     }
 
+    // Ticket 05 (ADR-0016): "Hạn thanh toán" bắt buộc khi sửa header từ bảng
+    // DNTT của tab Chi phí — CHỈ kiểm khi lượt gọi có gửi khoá này (client
+    // luôn gửi cả bốn field sửa nhanh cùng lúc), không chặn lượt sửa các field
+    // khác mà không đụng tới ô này.
+    if (array_key_exists('han_thanh_toan', $input) && empty($input['han_thanh_toan'])) {
+      return _crm_dntt_json_error('Hạn thanh toán bắt buộc.');
+    }
+
+    $old_ti_gia = isset($entity->ti_gia) ? (float) $entity->ti_gia : 1;
     $fields = array(
       'ben_phat_hanh_id', 'doi_tac_nhan_tien_id', 'so_hoa_don',
       'ngay_hoa_don', 'no_hoa_don', 'hinh_thuc_tt', 'han_thanh_toan',
-      'loai_tien', 'ti_gia',
+      'ti_gia',
     );
     foreach ($fields as $f) {
       if (array_key_exists($f, $input)) {
@@ -1200,41 +2052,32 @@ function crm_dntt_api_save() {
     $entity->changed = REQUEST_TIME;
     entity_save('dntt', $entity);
 
+    if (isset($input['ti_gia']) && (float) $input['ti_gia'] != $old_ti_gia) {
+      crm_dntt_recalculate_chi_tiet_converted($entity->dntt_id);
+    }
+
     return array('success' => TRUE, 'dntt_id' => $entity->dntt_id, 'so_dntt' => $entity->so_dntt);
   }
 
   // --- Create ---
-  if (empty($input['ben_phat_hanh_id'])) {
-    return _crm_dntt_json_error('Bên phát hành bắt buộc.');
-  }
-  if (empty($input['doi_tac_nhan_tien_id'])) {
-    return _crm_dntt_json_error('Đối tác nhận tiền bắt buộc.');
-  }
-
-  $so_dntt = crm_dntt_generate_so_dntt();
-
-  $entity = entity_create('dntt', array(
-    'so_dntt' => $so_dntt,
+  _crm_dntt_load_include('service');
+  $created = crm_dntt_service_create_dntt(array(
     'loai_dntt' => isset($input['loai_dntt']) ? $input['loai_dntt'] : 'thanh_toan',
     'dntt_goc_id' => isset($input['dntt_goc_id']) ? $input['dntt_goc_id'] : NULL,
-    'ben_phat_hanh_id' => $input['ben_phat_hanh_id'],
-    'doi_tac_nhan_tien_id' => $input['doi_tac_nhan_tien_id'],
+    'ben_phat_hanh_id' => isset($input['ben_phat_hanh_id']) ? $input['ben_phat_hanh_id'] : 0,
+    'doi_tac_nhan_tien_id' => isset($input['doi_tac_nhan_tien_id']) ? $input['doi_tac_nhan_tien_id'] : 0,
     'so_hoa_don' => isset($input['so_hoa_don']) ? $input['so_hoa_don'] : NULL,
     'ngay_hoa_don' => isset($input['ngay_hoa_don']) ? $input['ngay_hoa_don'] : NULL,
     'no_hoa_don' => isset($input['no_hoa_don']) ? $input['no_hoa_don'] : 0,
     'hinh_thuc_tt' => isset($input['hinh_thuc_tt']) ? $input['hinh_thuc_tt'] : 'CK',
     'han_thanh_toan' => isset($input['han_thanh_toan']) ? $input['han_thanh_toan'] : NULL,
-    'loai_tien' => isset($input['loai_tien']) ? $input['loai_tien'] : 'VND',
     'ti_gia' => isset($input['ti_gia']) ? $input['ti_gia'] : 1,
-    'tong_tien' => 0,
-    'trang_thai' => 'moi',
-    'uid' => $user->uid,
-    'created' => REQUEST_TIME,
-    'changed' => REQUEST_TIME,
   ));
-  entity_save('dntt', $entity);
+  if (empty($created['success'])) {
+    return _crm_dntt_json_error($created['message']);
+  }
 
-  return array('success' => TRUE, 'dntt_id' => $entity->dntt_id, 'so_dntt' => $so_dntt);
+  return array('success' => TRUE, 'dntt_id' => $created['dntt_id'], 'so_dntt' => $created['so_dntt']);
 }
 
 function crm_dntt_api_get($dntt_id) {
@@ -1244,6 +2087,8 @@ function crm_dntt_api_get($dntt_id) {
     return _crm_dntt_json_error('DNTT không tồn tại.');
   }
   $entity = reset($entities);
+  // ADR-0003: mọi user đăng nhập xem được mọi DNTT (minh bạch vận hành).
+  // Quyền sửa gate riêng qua crm_dntt_user_can_edit ở save/delete/transition.
 
   $data = (array) $entity;
 
@@ -1258,8 +2103,8 @@ function crm_dntt_api_get($dntt_id) {
   $dtntt = node_load($entity->doi_tac_nhan_tien_id);
   $data['doi_tac_nhan_tien_ten'] = $dtntt ? $dtntt->title : '';
 
-  // Hoàn về: resolve gốc → hoàn links.
-  if ($entity->loai_dntt === 'hoan_ve' && !empty($entity->dntt_goc_id)) {
+  // Hoàn về / Điều chỉnh: resolve gốc → link ngược về chứng từ gốc.
+  if (($entity->loai_dntt === 'hoan_ve' || $entity->loai_dntt === 'dieu_chinh') && !empty($entity->dntt_goc_id)) {
     $goc = db_query(
       "SELECT so_dntt FROM {dntt} WHERE dntt_id = :id",
       array(':id' => $entity->dntt_goc_id)
@@ -1276,6 +2121,36 @@ function crm_dntt_api_get($dntt_id) {
     $data['dntt_hoan_ve'][] = array('dntt_id' => $hr->dntt_id, 'so_dntt' => $hr->so_dntt);
   }
 
+  // Các DNTT điều chỉnh con của gốc này (nhiều lần — ADR-0011), kèm trạng thái
+  // để UI phân biệt nháp/đã duyệt.
+  $dc_rows = db_query(
+    "SELECT dntt_id, so_dntt, trang_thai FROM {dntt} WHERE dntt_goc_id = :id AND loai_dntt = 'dieu_chinh'",
+    array(':id' => $dntt_id)
+  )->fetchAll();
+  $data['dntt_dieu_chinh'] = array();
+  foreach ($dc_rows as $dr) {
+    $data['dntt_dieu_chinh'][] = array('dntt_id' => $dr->dntt_id, 'so_dntt' => $dr->so_dntt, 'trang_thai' => $dr->trang_thai);
+  }
+
+  // Issue 07: trạng thái thanh toán dẫn xuất từ cong_no (không lưu cờ da_tt).
+  // UI dùng co_the_tao_hoan_ve để quyết định hiện nút "Tạo DNTT hoàn về".
+  $da_tra_du = ($entity->loai_dntt !== 'hoan_ve') ? crm_dntt_is_fully_paid($dntt_id) : FALSE;
+  $data['thanh_toan_da_tra_du'] = $da_tra_du;
+  $data['co_the_tao_hoan_ve'] = ($entity->loai_dntt !== 'hoan_ve' && $da_tra_du && empty($data['dntt_hoan_ve']));
+
+  // Điều chỉnh (ADR-0011): chỉ từ DNTT thanh toán đã ghi nợ và còn phần điều
+  // chỉnh > 0 ở ít nhất một nguyên tệ (đã trừ các điều chỉnh đã duyệt trước đó).
+  $co_the_tao_dieu_chinh = FALSE;
+  if ($entity->loai_dntt === 'thanh_toan') {
+    foreach (crm_dntt_get_dieu_chinh_remaining($dntt_id) as $r) {
+      if ($r > 0.00001) {
+        $co_the_tao_dieu_chinh = TRUE;
+        break;
+      }
+    }
+  }
+  $data['co_the_tao_dieu_chinh'] = $co_the_tao_dieu_chinh;
+
   return array('success' => TRUE, 'data' => $data);
 }
 
@@ -1291,6 +2166,9 @@ function crm_dntt_api_delete() {
   }
   $entity = reset($entities);
 
+  if (!crm_dntt_user_can_edit($entity)) {
+    return _crm_dntt_json_error('Bạn không có quyền xóa DNTT này.');
+  }
   if (!crm_dntt_is_editable($entity->trang_thai)) {
     return _crm_dntt_json_error('DNTT ở trạng thái "' . $entity->trang_thai . '", không thể xóa.');
   }
@@ -1309,16 +2187,23 @@ function crm_dntt_api_list() {
   $query = db_select('dntt', 'd');
   $query->fields('d');
 
-  // Filter theo quyền.
-  $tab = isset($_GET['tab']) ? $_GET['tab'] : '';
-  if ($tab === 'approve' && user_access('dntt_approve')) {
-    // Approver sees all DNTT with cho_duyet status.
+  // Ticket 05 (ADR-0016): lọc theo lô hàng — bảng "Đề nghị thanh toán (DNTT)"
+  // của tab Chi phí trong modal đơn hàng dùng chính tham số này, không viết
+  // endpoint mới. Một DNTT có dòng thuộc lô này thì DNTT đó vào danh sách.
+  $lo_hang_nid = !empty($_GET['lo_hang_nid']) ? (int) $_GET['lo_hang_nid'] : 0;
+  if ($lo_hang_nid) {
+    $query->where(
+      "EXISTS (SELECT 1 FROM {dntt_chi_tiet} ct_lo_filter WHERE ct_lo_filter.dntt_id = d.dntt_id AND ct_lo_filter.lo_hang_nid = :lo_hang_nid)",
+      array(':lo_hang_nid' => $lo_hang_nid)
+    );
   }
-  elseif ($tab === 'pay' && user_access('dntt_pay')) {
-    // Payer sees all DNTT with da_duyet status.
-  }
-  elseif (!user_access('dntt_view_all')) {
-    $query->condition('d.uid', $user->uid);
+  else {
+    // Phân quyền xem giống views_query_modifier — CHỈ khi KHÔNG lọc theo lô:
+    // lọc theo lô là bề mặt jobfile-centric của ADR-0003 (như
+    // crm_dntt_chi_phi_lo_hang(), không scope theo uid), còn danh sách chung
+    // ở trang /quan-ly/dntt vẫn theo đúng phân quyền cũ. Nhân viên xem của
+    // mình; trưởng nhóm xem mình + thành viên nhóm; giám đốc xem tất cả.
+    crm_dntt_apply_uid_visibility($query, 'd', $user);
   }
 
   if (!empty($_GET['trang_thai'])) {
@@ -1329,6 +2214,9 @@ function crm_dntt_api_list() {
   }
   if (!empty($_GET['loai_dntt'])) {
     $query->condition('d.loai_dntt', $_GET['loai_dntt']);
+  }
+  if (!empty($_GET['loai_tien']) && in_array($_GET['loai_tien'], array('VND', 'USD'))) {
+    $query->where("EXISTS (SELECT 1 FROM {dntt_chi_tiet} ct_currency_filter WHERE ct_currency_filter.dntt_id = d.dntt_id AND ct_currency_filter.loai_tien = :loai_tien)", array(':loai_tien' => $_GET['loai_tien']));
   }
 
   $count = clone $query;
@@ -1377,7 +2265,9 @@ function crm_dntt_api_list() {
   $chi_tiet_map = array();
   $ct_rows = db_query("
     SELECT ct.dntt_id, COUNT(*) AS ct_count,
-           GROUP_CONCAT(DISTINCT lcp.ten ORDER BY lcp.ten SEPARATOR ', ') AS loai_phi_list
+           GROUP_CONCAT(DISTINCT lcp.ten ORDER BY lcp.ten SEPARATOR ', ') AS loai_phi_list,
+           MAX(CASE WHEN ct.loai_tien = 'VND' THEN 1 ELSE 0 END) AS has_vnd,
+           MAX(CASE WHEN ct.loai_tien = 'USD' THEN 1 ELSE 0 END) AS has_usd
     FROM {dntt_chi_tiet} ct
     LEFT JOIN {loai_chi_phi} lcp ON ct.loai_chi_phi_id = lcp.id
     WHERE ct.dntt_id IN (:ids)
@@ -1387,13 +2277,51 @@ function crm_dntt_api_list() {
     $chi_tiet_map[$ct->dntt_id] = $ct;
   }
 
+  // Ticket 05: "Số dòng"/"Quy đổi VND" của bảng DNTT trong tab Chi phí phải
+  // tính CHỈ trên các dòng thuộc LÔ ĐANG MỞ, không phải tổng toàn DNTT — một
+  // DNTT về nguyên tắc có thể mang dòng của nhiều lô hàng (`lo_hang_nid` là
+  // field của DÒNG, không của header). Tách riêng khỏi `chi_tiet_count` ở
+  // trên (tổng toàn DNTT, dùng cho trang /quan-ly/dntt) để không đổi hành vi
+  // đang chạy của trang đó.
+  $lo_scope_map = array();
+  if ($lo_hang_nid) {
+    $lo_rows = db_query("
+      SELECT dntt_id, COUNT(*) AS so_dong, COALESCE(SUM(tien_sau_vat_vnd), 0) AS quy_doi_vnd
+      FROM {dntt_chi_tiet}
+      WHERE dntt_id IN (:ids) AND lo_hang_nid = :lo_hang_nid
+      GROUP BY dntt_id
+    ", array(':ids' => $dntt_ids, ':lo_hang_nid' => $lo_hang_nid));
+    foreach ($lo_rows as $lr) {
+      $lo_scope_map[$lr->dntt_id] = $lr;
+    }
+  }
+
   foreach ($rows as &$r) {
     $r->doi_tac_nhan_tien_ten = isset($node_names[$r->doi_tac_nhan_tien_id]) ? $node_names[$r->doi_tac_nhan_tien_id] : '';
     $r->ben_phat_hanh_ten = isset($node_names[$r->ben_phat_hanh_id]) ? $node_names[$r->ben_phat_hanh_id] : '';
     $r->nguoi_tao_ten = isset($user_names[$r->uid]) ? $user_names[$r->uid] : '';
+    // Ticket 05 (ADR-0016): bảng DNTT của tab Chi phí sửa nhanh tại chỗ và cần
+    // đúng MỘT cờ này — cùng crm_dntt_is_editable() mà cổng ghi dùng, không so
+    // chuỗi trạng thái ở client.
+    $r->is_editable = crm_dntt_is_editable($r->trang_thai);
     $ct = isset($chi_tiet_map[$r->dntt_id]) ? $chi_tiet_map[$r->dntt_id] : NULL;
     $r->chi_tiet_count = $ct ? (int) $ct->ct_count : 0;
     $r->loai_phi_list = $ct ? $ct->loai_phi_list : '';
+    if ($ct && !empty($ct->has_vnd) && !empty($ct->has_usd)) {
+      $r->loai_tien = 'VND + USD';
+    }
+    elseif ($ct && !empty($ct->has_usd)) {
+      $r->loai_tien = 'USD';
+    }
+    else {
+      $r->loai_tien = 'VND';
+    }
+
+    if ($lo_hang_nid) {
+      $lr = isset($lo_scope_map[$r->dntt_id]) ? $lo_scope_map[$r->dntt_id] : NULL;
+      $r->so_dong_lo = $lr ? (int) $lr->so_dong : 0;
+      $r->quy_doi_vnd_lo = $lr ? (float) $lr->quy_doi_vnd : 0;
+    }
   }
 
   return array(
@@ -1408,24 +2336,66 @@ function crm_dntt_api_list() {
  * API: DNTT CHI TIẾT (Issue 03)
  ******************************************************************************/
 
-function crm_dntt_chi_tiet_api_save() {
-  $input = _crm_dntt_input();
+/**
+ * Cửa ghi một dòng chi tiết DNTT.
+ *
+ * @param array|null $input
+ *   Payload. NULL (mặc định, và là cách hook_menu gọi) thì đọc thân request qua
+ *   `_crm_dntt_input()`. Truyền tường minh để gọi được cửa này ở nơi không có
+ *   thân request — `php://input` rỗng dưới SimpleTest, nên không có tham số này
+ *   thì phép thử buộc phải đi vòng qua `entity_save()` và bỏ qua đúng phần đáng
+ *   đo: cổng trạng thái + phép tính tiền + việc KHÔNG ghi bút toán.
+ *
+ * @return array
+ *   Phong bì {success, ...}.
+ */
+function crm_dntt_chi_tiet_api_save($input = NULL) {
+  $input = $input === NULL ? _crm_dntt_input() : $input;
 
-  if (empty($input['dntt_id'])) {
-    return _crm_dntt_json_error('dntt_id bắt buộc.');
-  }
   if (empty($input['loai_chi_phi_id'])) {
     return _crm_dntt_json_error('loai_chi_phi_id bắt buộc.');
   }
 
-  // Check DNTT exists and is editable.
-  $dntt_list = entity_load('dntt', array($input['dntt_id']));
-  if (empty($dntt_list)) {
-    return _crm_dntt_json_error('DNTT không tồn tại.');
+  $is_update = !empty($input['chi_tiet_id']);
+  $ct = NULL;
+  if ($is_update) {
+    $ct_list = entity_load('dntt_chi_tiet', array($input['chi_tiet_id']));
+    if (empty($ct_list)) {
+      return _crm_dntt_json_error('Chi tiết không tồn tại.');
+    }
+    $ct = reset($ct_list);
   }
-  $dntt = reset($dntt_list);
-  if (!crm_dntt_is_editable($dntt->trang_thai)) {
-    return _crm_dntt_json_error('DNTT ở trạng thái "' . $dntt->trang_thai . '", không thể sửa chi tiết.');
+
+  // ADR-0016: dntt_id KHÔNG còn bắt buộc — thiếu/rỗng/0 = dòng độc lập, chưa
+  // gộp vào DNTT nào. Không gửi khoá này ở một lượt update thì giữ nguyên
+  // dntt_id hiện có (sửa field khác của một dòng, không đụng chỗ gộp).
+  $target_dntt_id = array_key_exists('dntt_id', $input)
+    ? (!empty($input['dntt_id']) ? (int) $input['dntt_id'] : NULL)
+    : ($ct ? $ct->dntt_id : NULL);
+
+  // Check DNTT exists and is editable — CHỈ khi dòng đang/sẽ thuộc một DNTT
+  // thật. Dòng độc lập không có header nào để kiểm và luôn sửa được (chưa ai
+  // duyệt gì để khoá).
+  $dntt = NULL;
+  if ($target_dntt_id !== NULL) {
+    $dntt_list = entity_load('dntt', array($target_dntt_id));
+    if (empty($dntt_list)) {
+      return _crm_dntt_json_error('DNTT không tồn tại.');
+    }
+    $dntt = reset($dntt_list);
+    if (!crm_dntt_is_editable($dntt->trang_thai)) {
+      return _crm_dntt_json_error('DNTT ở trạng thái "' . $dntt->trang_thai . '", không thể sửa chi tiết.');
+    }
+  }
+
+  // NCC của riêng dòng (ADR-0016) — bắt buộc CHỈ khi dòng còn độc lập: đó là
+  // chỗ DUY NHẤT giữ NCC lúc chưa có header DNTT nào. Không gửi lại field này
+  // ở một lượt update thì giữ giá trị cũ trên dòng.
+  $doi_tac_row_id = array_key_exists('doi_tac_nhan_tien_id', $input)
+    ? (!empty($input['doi_tac_nhan_tien_id']) ? (int) $input['doi_tac_nhan_tien_id'] : NULL)
+    : (($ct && isset($ct->doi_tac_nhan_tien_id)) ? (int) $ct->doi_tac_nhan_tien_id : NULL);
+  if ($target_dntt_id === NULL && !$doi_tac_row_id) {
+    return _crm_dntt_json_error('Đối tác nhận tiền (NCC) bắt buộc cho dòng chưa gộp vào DNTT.');
   }
 
   // Auto-fill nhom_chi_phi_id.
@@ -1437,28 +2407,44 @@ function crm_dntt_chi_tiet_api_save() {
     return _crm_dntt_json_error('Không tìm thấy nhóm chi phí cho loại chi phí đã chọn.');
   }
 
-  // Auto-calculate.
-  $calc = crm_dntt_calculate_chi_tiet($input);
+  // Tỉ giá: của DNTT chứa dòng nếu đã gộp (như cũ). Dòng còn độc lập không có
+  // header nào để lấy — dùng `ti_gia` của CHÍNH lượt gọi này (ô "Tỉ giá xem
+  // trước" của tab, ADR-0016): số ước tính, không phải tỉ giá chính thức, và
+  // KHÔNG lưu vào đâu ngoài việc tính `tien_sau_vat_vnd` của dòng này.
+  $rate = $dntt ? (isset($dntt->ti_gia) ? $dntt->ti_gia : 1)
+    : (isset($input['ti_gia']) ? (float) $input['ti_gia'] : 1);
+  $validation = crm_dntt_validate_chi_tiet_currency_price($input, $rate);
+  if (!$validation['success']) {
+    return _crm_dntt_json_error($validation['message']);
+  }
 
-  $is_update = !empty($input['chi_tiet_id']);
+  // Auto-calculate. USD detail lines use the DNTT header exchange rate.
+  $calc = crm_dntt_calculate_chi_tiet($input, $rate);
+
+  $loai_tien = strtoupper((string) $input['loai_tien']) === 'USD' ? 'USD' : 'VND';
+  $don_gia = (float) $input['don_gia'];
+  $old_dntt_id = NULL;
 
   if ($is_update) {
-    $ct_list = entity_load('dntt_chi_tiet', array($input['chi_tiet_id']));
-    if (empty($ct_list)) {
-      return _crm_dntt_json_error('Chi tiết không tồn tại.');
-    }
-    $ct = reset($ct_list);
+    $old_dntt_id = $ct->dntt_id;
 
+    // ADR-0016: cho phép gán lại dntt_id khi update — cửa DUY NHẤT "gộp dòng
+    // độc lập vào một DNTT vừa tạo/tìm được" (ticket 04's "Tạo DNTT từ dòng đã
+    // chọn"), tái dùng chính cửa này thay vì viết endpoint gộp hàng loạt mới.
+    $ct->dntt_id = $target_dntt_id;
+    $ct->doi_tac_nhan_tien_id = $doi_tac_row_id;
     $ct->lo_hang_nid = isset($input['lo_hang_nid']) ? $input['lo_hang_nid'] : $ct->lo_hang_nid;
     $ct->nhom_chi_phi_id = $nhom_id;
     $ct->loai_chi_phi_id = $input['loai_chi_phi_id'];
     $ct->don_vi = isset($input['don_vi']) ? $input['don_vi'] : $ct->don_vi;
-    $ct->don_gia = isset($input['don_gia']) ? (int) $input['don_gia'] : $ct->don_gia;
-    $ct->so_luong = isset($input['so_luong']) ? (int) $input['so_luong'] : $ct->so_luong;
-    $ct->vat_phan_tram = isset($input['vat_phan_tram']) ? (int) $input['vat_phan_tram'] : $ct->vat_phan_tram;
+    $ct->don_gia = $don_gia;
+    $ct->loai_tien = $loai_tien;
+    $ct->so_luong = isset($input['so_luong']) ? (float) $input['so_luong'] : $ct->so_luong;
+    $ct->vat_phan_tram = isset($input['vat_phan_tram']) ? (float) $input['vat_phan_tram'] : $ct->vat_phan_tram;
     $ct->so_tien_vat = $calc['so_tien_vat'];
     $ct->tien_truoc_vat = $calc['tien_truoc_vat'];
     $ct->tien_sau_vat = $calc['tien_sau_vat'];
+    $ct->tien_sau_vat_vnd = $calc['tien_sau_vat_vnd'];
     $ct->ghi_chu = isset($input['ghi_chu']) ? $input['ghi_chu'] : $ct->ghi_chu;
     $ct->thu_tu = isset($input['thu_tu']) ? $input['thu_tu'] : $ct->thu_tu;
 
@@ -1466,25 +2452,37 @@ function crm_dntt_chi_tiet_api_save() {
   }
   else {
     $ct = entity_create('dntt_chi_tiet', array(
-      'dntt_id' => $input['dntt_id'],
+      'dntt_id' => $target_dntt_id,
+      'doi_tac_nhan_tien_id' => $doi_tac_row_id,
       'lo_hang_nid' => isset($input['lo_hang_nid']) ? $input['lo_hang_nid'] : NULL,
       'nhom_chi_phi_id' => $nhom_id,
       'loai_chi_phi_id' => $input['loai_chi_phi_id'],
       'don_vi' => isset($input['don_vi']) ? $input['don_vi'] : '',
-      'don_gia' => isset($input['don_gia']) ? (int) $input['don_gia'] : 0,
-      'so_luong' => isset($input['so_luong']) ? (int) $input['so_luong'] : 1,
-      'vat_phan_tram' => isset($input['vat_phan_tram']) ? (int) $input['vat_phan_tram'] : 0,
+      'don_gia' => $don_gia,
+      'loai_tien' => $loai_tien,
+      'so_luong' => isset($input['so_luong']) ? (float) $input['so_luong'] : 1,
+      'vat_phan_tram' => isset($input['vat_phan_tram']) ? (float) $input['vat_phan_tram'] : 0,
       'so_tien_vat' => $calc['so_tien_vat'],
       'tien_truoc_vat' => $calc['tien_truoc_vat'],
       'tien_sau_vat' => $calc['tien_sau_vat'],
+      'tien_sau_vat_vnd' => $calc['tien_sau_vat_vnd'],
       'ghi_chu' => isset($input['ghi_chu']) ? $input['ghi_chu'] : NULL,
       'thu_tu' => isset($input['thu_tu']) ? $input['thu_tu'] : 0,
     ));
     entity_save('dntt_chi_tiet', $ct);
   }
 
-  // Recalculate header total.
-  $tong_tien = crm_dntt_recalculate_tong_tien($input['dntt_id']);
+  // Recalculate header total(s). ADR-0016: dòng độc lập không có header nào
+  // để tính — chỉ gọi khi có dntt_id thật. Dòng vừa ĐỔI dntt_id (ticket 04:
+  // gộp dòng độc lập vào một DNTT) thì $old_dntt_id luôn NULL trong luồng đó;
+  // vẫn recalc cả hai đầu khi khác nhau để đúng cho cả ca tổng quát hơn.
+  $tong_tien = NULL;
+  if ($target_dntt_id !== NULL) {
+    $tong_tien = crm_dntt_recalculate_tong_tien($target_dntt_id);
+  }
+  if ($old_dntt_id !== NULL && $target_dntt_id !== (int) $old_dntt_id) {
+    crm_dntt_recalculate_tong_tien($old_dntt_id);
+  }
 
   return array(
     'success' => TRUE,
@@ -1492,35 +2490,99 @@ function crm_dntt_chi_tiet_api_save() {
     'tien_truoc_vat' => $calc['tien_truoc_vat'],
     'so_tien_vat' => $calc['so_tien_vat'],
     'tien_sau_vat' => $calc['tien_sau_vat'],
+    'tien_sau_vat_vnd' => $calc['tien_sau_vat_vnd'],
+    'dntt_id' => $target_dntt_id,
     'dntt_tong_tien' => $tong_tien,
   );
 }
 
+/**
+ * Cửa đọc dòng chi tiết của MỘT DNTT — bảng chi tiết trang `quan-ly/dntt/{id}`.
+ *
+ * Trả `ct.*` thô cộng vài tên đã giải, và đúng MỘT khoá dẫn xuất:
+ *
+ * - `so_cont` — số container của chuyến đã gom dòng, để người **ký trả tiền**
+ *   biết đang trả cho container nào (mỗi cont một mức nâng hạ). Đây là màn của
+ *   kế toán, khác chip "Nguồn" ở tab Chi phí trong modal (màn của điều độ/CS) —
+ *   nên trang này KHÔNG có khái niệm "nguồn": dòng nhập tay để trống, không dấu
+ *   gạch, không chữ "Nhập tay". NULL = chưa biết cont, gộp cả ba nguyên nhân
+ *   (dòng nhập tay · chuyến chưa nhập cont · không có bảng trucking) vì cả ba
+ *   vẽ ra cùng một ô trống.
+ *
+ * Cont là NHÃN, không phải thực thể: không cột trên `dntt_chi_tiet`, không cộng
+ * chi phí theo cont — đọc sống qua `chuyen_id`. Cùng đường đọc, cùng cặp cửa
+ * kiểm, cùng lý do fail-OPEN với `crm_dntt_chi_phi_lo_hang()`; xem docblock hàm
+ * đó cho ràng buộc liên module đầy đủ.
+ *
+ * @return array
+ *   Phong bì {success, data} — `data` là mảng dòng, mỗi dòng một stdClass.
+ */
 function crm_dntt_chi_tiet_api_list() {
   $dntt_id = isset($_GET['dntt_id']) ? (int) $_GET['dntt_id'] : 0;
   if (!$dntt_id) {
     return _crm_dntt_json_error('dntt_id bắt buộc.');
   }
 
+  $dntt_list = entity_load('dntt', array($dntt_id));
+  if (empty($dntt_list)) {
+    return _crm_dntt_json_error('DNTT không tồn tại.');
+  }
+  // ADR-0003: xem được mọi DNTT; quyền sửa gate riêng qua crm_dntt_user_can_edit.
+
+  // Số cont — xem docblock hàm. JOIN chỉ dựng khi CẢ HAI mảnh của đường đọc có
+  // mặt; thiếu mảnh nào thì cột vắng khỏi hàng vừa fetch và vòng chuẩn hoá bên
+  // dưới đọc ra "không biết cont". `db_table_exists()` một mình KHÔNG đủ: mệnh
+  // đề `ON` tham chiếu `ct.chuyen_id`, nên thiếu cột thì nó vẫn ném.
+  //
+  // Alias `chuyen_so_cont` vì `ct.*` đã mang mọi cột của `dntt_chi_tiet`: ngày
+  // nào bảng đó có một cột trùng tên thì hai cột chỉ còn một sau driver, và
+  // khoá đọc đúng nhưng SAI cột, im lặng.
+  $co_cont = db_field_exists('dntt_chi_tiet', 'chuyen_id') && db_table_exists('trucking_chuyen');
+  $chon_cont = $co_cont ? ', tc.so_cont AS chuyen_so_cont' : '';
+  $join_cont = $co_cont ? 'LEFT JOIN {trucking_chuyen} tc ON tc.chuyen_id = ct.chuyen_id' : '';
+
   $rows = db_query("
     SELECT ct.*,
            lcp.ten AS loai_chi_phi_ten, lcp.ma AS loai_chi_phi_ma,
            ncp.ten AS nhom_chi_phi_ten,
-           COALESCE(jf.field_jobfile_value, n.title) AS lo_hang_ten
+           COALESCE(jf.field_jobfile_value, n.title) AS lo_hang_ten" . $chon_cont . "
     FROM {dntt_chi_tiet} ct
     LEFT JOIN {loai_chi_phi} lcp ON ct.loai_chi_phi_id = lcp.id
     LEFT JOIN {nhom_chi_phi} ncp ON ct.nhom_chi_phi_id = ncp.id
     LEFT JOIN {node} n ON ct.lo_hang_nid = n.nid
     LEFT JOIN {field_data_field_jobfile} jf ON ct.lo_hang_nid = jf.entity_id AND jf.entity_type = 'node'
+    " . $join_cont . "
     WHERE ct.dntt_id = :dntt_id
     ORDER BY ct.thu_tu, ct.chi_tiet_id
   ", array(':dntt_id' => $dntt_id))->fetchAll();
 
+  // Chuẩn hoá thành ĐÚNG MỘT khoá, có mặt trên MỌI dòng. Cố ý không để client
+  // đọc thẳng cột JOIN: một khoá VẮNG MẶT (bảng trucking không có) và một khoá
+  // NULL (chuyến chưa nhập cont) là hai hình dạng payload khác nhau cho cùng
+  // một câu trả lời, và client nào cũng sẽ chỉ nhớ một trong hai. `$r` là
+  // handle tới object nên gán trong vòng lặp ghi thẳng vào hàng.
+  foreach ($rows as $r) {
+    $r->so_cont = property_exists($r, 'chuyen_so_cont') && trim((string) $r->chuyen_so_cont) !== ''
+      ? trim($r->chuyen_so_cont)
+      : NULL;
+    unset($r->chuyen_so_cont);
+  }
+
   return array('success' => TRUE, 'data' => $rows);
 }
 
-function crm_dntt_chi_tiet_api_delete() {
-  $input = _crm_dntt_input();
+/**
+ * Cửa xoá một dòng chi tiết DNTT.
+ *
+ * @param array|null $input
+ *   Payload; NULL thì đọc thân request. Xem docblock
+ *   crm_dntt_chi_tiet_api_save() cho lý do tham số này tồn tại.
+ *
+ * @return array
+ *   Phong bì {success, ...}.
+ */
+function crm_dntt_chi_tiet_api_delete($input = NULL) {
+  $input = $input === NULL ? _crm_dntt_input() : $input;
   if (empty($input['chi_tiet_id'])) {
     return _crm_dntt_json_error('chi_tiet_id bắt buộc.');
   }
@@ -1532,18 +2594,21 @@ function crm_dntt_chi_tiet_api_delete() {
   $ct = reset($ct_list);
   $dntt_id = $ct->dntt_id;
 
-  // Check DNTT is editable.
-  $dntt_list = entity_load('dntt', array($dntt_id));
-  if (!empty($dntt_list)) {
-    $dntt = reset($dntt_list);
-    if (!crm_dntt_is_editable($dntt->trang_thai)) {
-      return _crm_dntt_json_error('DNTT ở trạng thái "' . $dntt->trang_thai . '", không thể xóa chi tiết.');
+  // Check DNTT is editable. ADR-0016: dntt_id NULL = dòng độc lập, không có
+  // header nào để kiểm — luôn xoá được (chưa ai duyệt gì để khoá).
+  if ($dntt_id !== NULL) {
+    $dntt_list = entity_load('dntt', array($dntt_id));
+    if (!empty($dntt_list)) {
+      $dntt = reset($dntt_list);
+      if (!crm_dntt_is_editable($dntt->trang_thai)) {
+        return _crm_dntt_json_error('DNTT ở trạng thái "' . $dntt->trang_thai . '", không thể xóa chi tiết.');
+      }
     }
   }
 
   entity_delete('dntt_chi_tiet', $ct->chi_tiet_id);
 
-  $tong_tien = crm_dntt_recalculate_tong_tien($dntt_id);
+  $tong_tien = $dntt_id !== NULL ? crm_dntt_recalculate_tong_tien($dntt_id) : NULL;
 
   return array('success' => TRUE, 'dntt_tong_tien' => $tong_tien);
 }
@@ -1593,24 +2658,32 @@ function crm_dntt_search_jobfile() {
   }
 
   $q = isset($_GET['term']) ? trim($_GET['term']) : '';
+  // ADR-0003 / Issue 01: prefill Jobfile dòng đầu khi tạo DNTT từ đơn hàng win
+  // → lookup trực tiếp theo nid (term rỗng). KHÔNG lọc status (node lo_hang
+  // custom type thường status=0; lô đang xem chắc chắn tồn tại).
+  $nid = isset($_GET['nid']) ? (int) $_GET['nid'] : 0;
 
-  if (empty($q)) {
+  if (empty($q) && !$nid) {
     return array('results' => array());
   }
-
-  $like = '%' . db_like($q) . '%';
 
   $query = db_select('node', 'n');
   $query->fields('n', array('nid', 'title'));
   $query->leftJoin('field_data_field_jobfile', 'jf', 'n.nid = jf.entity_id AND jf.entity_type = :type_jf', array(':type_jf' => 'node'));
   $query->addField('jf', 'field_jobfile_value', 'jobfile');
   $query->condition('n.type', 'lo_hang');
-  $query->condition('n.status', 1);
 
-  $or = db_or()
-    ->condition('n.title', $like, 'LIKE')
-    ->condition('jf.field_jobfile_value', $like, 'LIKE');
-  $query->condition($or);
+  if ($nid) {
+    $query->condition('n.nid', $nid);
+  }
+  else {
+    $like = '%' . db_like($q) . '%';
+    $query->condition('n.status', 1);
+    $or = db_or()
+      ->condition('n.title', $like, 'LIKE')
+      ->condition('jf.field_jobfile_value', $like, 'LIKE');
+    $query->condition($or);
+  }
   $query->range(0, 20);
 
   $result = $query->execute();

@@ -1,0 +1,4 @@
+name = "API Common"
+description = "Tiện ích dùng chung cho các API danh mục: tham số select (chọn/loại trừ trường) và trần limit."
+core = 7.x
+package = ANDIN JSC API

@@ -5,20 +5,20 @@
   var selectedIds = [];
 
   var STATUS_LABELS = {
-    moi:         {text: 'Mới',        cls: 'bg-label-secondary'},
-    cho_duyet:   {text: 'Chờ duyệt',  cls: 'bg-label-warning'},
-    da_duyet:    {text: 'Đã duyệt',   cls: 'bg-label-info'},
-    tu_choi:     {text: 'Từ chối',     cls: 'bg-label-danger'},
-    da_tt:       {text: 'Đã TT',       cls: 'bg-label-success'},
-    tu_choi_tt:  {text: 'Từ chối TT',  cls: 'bg-label-danger'}
+    moi:             {text: 'Mới',             cls: 'bg-label-secondary'},
+    cho_duyet:       {text: 'Chờ duyệt',       cls: 'bg-label-warning'},
+    da_duyet:        {text: 'Chờ duyệt TT',    cls: 'bg-label-info'},
+    cho_thanh_toan:  {text: 'Chờ thanh toán',  cls: 'bg-label-primary'},
+    tu_choi:         {text: 'Từ chối',         cls: 'bg-label-danger'},
+    tu_choi_tt:      {text: 'Từ chối TT',      cls: 'bg-label-danger'}
   };
 
   var LO_STATUS_LABELS = {
-    cho_duyet:   {text: 'Chờ duyệt',  cls: 'bg-label-warning'},
-    da_duyet:    {text: 'Đã duyệt',   cls: 'bg-label-info'},
-    tu_choi:     {text: 'Từ chối',     cls: 'bg-label-danger'},
-    da_tt:       {text: 'Đã TT',       cls: 'bg-label-success'},
-    tu_choi_tt:  {text: 'Từ chối TT',  cls: 'bg-label-danger'}
+    cho_duyet:       {text: 'Chờ duyệt',       cls: 'bg-label-warning'},
+    da_duyet:        {text: 'Chờ duyệt TT',    cls: 'bg-label-info'},
+    cho_thanh_toan:  {text: 'Chờ thanh toán',  cls: 'bg-label-primary'},
+    tu_choi:         {text: 'Từ chối',         cls: 'bg-label-danger'},
+    tu_choi_tt:      {text: 'Từ chối TT',      cls: 'bg-label-danger'}
   };
 
   $(function () {
@@ -43,12 +43,9 @@
     if (perms.dntt_view_own || perms.dntt_create) {
       tabs.push({id: 'cua-toi', label: 'Của tôi', params: {tab: 'own'}});
     }
-    if (perms.dntt_approve) {
-      tabs.push({id: 'cho-duyet', label: 'Chờ duyệt', params: {trang_thai: 'cho_duyet', tab: 'approve'}});
-    }
-    if (perms.dntt_pay) {
-      tabs.push({id: 'cho-tt', label: 'Chờ TT', params: {trang_thai: 'da_duyet', tab: 'pay'}});
-    }
+    tabs.push({id: 'cho-duyet', label: 'Chờ duyệt', mode: 'lo', params: {trang_thai: 'cho_duyet', tab: 'approve'}});
+    tabs.push({id: 'cho-duyet-tt', label: 'Chờ duyệt TT', mode: 'lo', params: {trang_thai: 'da_duyet', tab: 'payment_approve'}});
+    tabs.push({id: 'cho-thanh-toan', label: 'Chờ thanh toán', mode: 'lo', params: {trang_thai: 'cho_thanh_toan', tab: 'pay'}});
     if (perms.dntt_view_all) {
       tabs.push({id: 'tat-ca', label: 'Tất cả', params: {}});
     }
@@ -117,7 +114,7 @@
     });
 
     // Filter change
-    $('#filter-doi-tac, #filter-trang-thai').on('change', function () {
+    $('#filter-doi-tac, #filter-trang-thai, #filter-loai-tien').on('change', function () {
       currentPage = 1;
       loadCurrentTab();
     });
@@ -126,6 +123,7 @@
     $('#btn-filter-clear').on('click', function () {
       $('#filter-doi-tac').val(null).trigger('change');
       $('#filter-trang-thai').val('');
+      $('#filter-loai-tien').val('');
       var fp = document.querySelector('#filter-daterange')._flatpickr;
       if (fp) fp.clear();
       currentPage = 1;
@@ -245,14 +243,19 @@
     // DNTT inline actions (approve/pay tabs)
     $('#dntt-tbody').on('click', '.btn-dntt-approve', function (e) { e.stopPropagation(); dnttAction($(this).closest('tr').data('dntt-id'), 'da_duyet', 'Duyệt DNTT này?', 'Đã duyệt DNTT.'); });
     $('#dntt-tbody').on('click', '.btn-dntt-reject', function (e) { e.stopPropagation(); dnttAction($(this).closest('tr').data('dntt-id'), 'tu_choi', 'Từ chối DNTT này?', 'Đã từ chối DNTT.'); });
-    $('#dntt-tbody').on('click', '.btn-dntt-pay', function (e) { e.stopPropagation(); dnttAction($(this).closest('tr').data('dntt-id'), 'da_tt', 'Thanh toán DNTT này?', 'Đã thanh toán DNTT.'); });
+    $('#dntt-tbody').on('click', '.btn-dntt-approve-payment', function (e) { e.stopPropagation(); dnttAction($(this).closest('tr').data('dntt-id'), 'cho_thanh_toan', 'Duyệt thanh toán DNTT này?', 'Đã duyệt thanh toán DNTT.'); });
+    $('#dntt-tbody').on('click', '.btn-dntt-reject-payment-approval', function (e) { e.stopPropagation(); dnttAction($(this).closest('tr').data('dntt-id'), 'tu_choi_tt', 'Từ chối duyệt thanh toán DNTT này?', 'Đã từ chối duyệt thanh toán.'); });
     $('#dntt-tbody').on('click', '.btn-dntt-reject-tt', function (e) { e.stopPropagation(); dnttAction($(this).closest('tr').data('dntt-id'), 'tu_choi_tt', 'Từ chối thanh toán DNTT này?', 'Đã từ chối thanh toán.'); });
 
     // Lô actions
+    $('#dntt-tbody').on('click', '.btn-lo-recall', function (e) { e.preventDefault(); e.stopPropagation(); loAction($(this).closest('tr').data('lo-id'), '/api/lo-dntt/recall', 'Thu hồi lô DNTT này? Tất cả DNTT trong lô sẽ quay về trạng thái Mới.', 'Đã thu hồi lô DNTT.'); });
     $('#dntt-tbody').on('click', '.btn-lo-approve', function (e) { e.stopPropagation(); loAction($(this).closest('tr').data('lo-id'), '/api/lo-dntt/approve', 'Duyệt lô này?', 'Đã duyệt lô thành công.'); });
     $('#dntt-tbody').on('click', '.btn-lo-reject', function (e) { e.stopPropagation(); loAction($(this).closest('tr').data('lo-id'), '/api/lo-dntt/reject', 'Từ chối lô này?', 'Đã từ chối lô.'); });
-    $('#dntt-tbody').on('click', '.btn-lo-pay', function (e) { e.stopPropagation(); loAction($(this).closest('tr').data('lo-id'), '/api/lo-dntt/pay', 'Thanh toán lô này?', 'Đã thanh toán lô thành công.'); });
+    $('#dntt-tbody').on('click', '.btn-lo-approve-payment', function (e) { e.stopPropagation(); loAction($(this).closest('tr').data('lo-id'), '/api/lo-dntt/approve-payment', 'Duyệt thanh toán lô này?', 'Đã duyệt thanh toán lô.'); });
+    $('#dntt-tbody').on('click', '.btn-lo-reject-payment-approval', function (e) { e.stopPropagation(); loAction($(this).closest('tr').data('lo-id'), '/api/lo-dntt/reject-payment-approval', 'Từ chối duyệt thanh toán lô này?', 'Đã từ chối duyệt thanh toán.'); });
     $('#dntt-tbody').on('click', '.btn-lo-reject-tt', function (e) { e.stopPropagation(); loAction($(this).closest('tr').data('lo-id'), '/api/lo-dntt/reject-tt', 'Từ chối thanh toán lô này?', 'Đã từ chối thanh toán.'); });
+    // Link "Lập phiếu chi" (Issue 07) chỉ điều hướng sang Sổ thanh toán; chặn lan ra row (khỏi toggle mở lô).
+    $('#dntt-tbody').on('click', '.lo-pay-link', function (e) { e.stopPropagation(); });
     $('#dntt-tbody').on('click', '.btn-lo-remove', function (e) {
       e.stopPropagation();
       var $tr = $(this).closest('tr');
@@ -285,6 +288,9 @@
     var trangThai = $('#filter-trang-thai').val();
     if (trangThai) params.trang_thai = trangThai;
 
+    var loaiTien = $('#filter-loai-tien').val();
+    if (loaiTien) params.loai_tien = loaiTien;
+
     $.ajax({
       url: '/api/dntt/list',
       data: params,
@@ -306,8 +312,11 @@
 
     var perms = CFG.permissions || {};
     var isApproveTab = currentTab === 'cho-duyet';
-    var isPayTab = currentTab === 'cho-tt';
-    var hasActions = (isApproveTab && perms.dntt_approve) || (isPayTab && perms.dntt_pay);
+    var isPaymentApproveTab = currentTab === 'cho-duyet-tt';
+    var isPayTab = currentTab === 'cho-thanh-toan';
+    var hasActions = (isApproveTab && perms.dntt_approve) ||
+      (isPaymentApproveTab && perms.dntt_approve_payment) ||
+      (isPayTab && perms.dntt_pay);
 
     // Restore DNTT thead
     var thead = '<tr>' +
@@ -366,10 +375,16 @@
           '<button class="btn btn-sm btn-success btn-dntt-approve me-1" title="Duyệt"><i class="ti tabler-check"></i></button>' +
           '<button class="btn btn-sm btn-danger btn-dntt-reject" title="Từ chối"><i class="ti tabler-x"></i></button>' +
           '</td>';
-      } else if (isPayTab && perms.dntt_pay) {
+      } else if (isPaymentApproveTab && perms.dntt_approve_payment) {
         actions = '<td class="text-center">' +
-          '<button class="btn btn-sm btn-success btn-dntt-pay me-1" title="Thanh toán"><i class="ti tabler-cash"></i></button>' +
-          '<button class="btn btn-sm btn-danger btn-dntt-reject-tt" title="Từ chối TT"><i class="ti tabler-x"></i></button>' +
+          '<button class="btn btn-sm btn-success btn-dntt-approve-payment me-1" title="Duyệt TT"><i class="ti tabler-checkup-list"></i></button>' +
+          '<button class="btn btn-sm btn-danger btn-dntt-reject-payment-approval" title="Từ chối duyệt TT"><i class="ti tabler-x"></i></button>' +
+          '</td>';
+      } else if (isPayTab && perms.dntt_pay) {
+        // Issue 07: thanh toán ghi nhận ở Công nợ, không đổi trạng thái DNTT.
+        // Tab "Chờ thanh toán" chỉ còn hành động từ chối (trả về).
+        actions = '<td class="text-center">' +
+          '<button class="btn btn-sm btn-danger btn-dntt-reject-tt" title="Từ chối thanh toán"><i class="ti tabler-x"></i></button>' +
           '</td>';
       }
 
@@ -487,7 +502,8 @@
 
     var perms = CFG.permissions || {};
     var isApproveTab = currentTab === 'cho-duyet';
-    var isPayTab = currentTab === 'cho-tt';
+    var isPaymentApproveTab = currentTab === 'cho-duyet-tt';
+    var isPayTab = currentTab === 'cho-thanh-toan';
 
     $.each(rows, function (i, lo) {
       var sl = LO_STATUS_LABELS[lo.trang_thai] || {text: lo.trang_thai, cls: 'bg-label-secondary'};
@@ -495,12 +511,35 @@
       var tongTien = parseFloat(lo.tong_tien || 0).toLocaleString('vi-VN', {maximumFractionDigits: 2});
 
       var actions = '';
-      if (isApproveTab && perms.dntt_approve) {
-        actions = '<button class="btn btn-sm btn-success btn-lo-approve me-1" title="Duyệt"><i class="ti tabler-check"></i></button>' +
-                  '<button class="btn btn-sm btn-danger btn-lo-reject" title="Từ chối"><i class="ti tabler-x"></i></button>';
+      var logistics = Drupal.settings.logistics || {};
+      var roles = logistics.userRoles || [];
+      var userRoleIds = logistics.userRoleIds || [];
+      var userUid = parseInt(logistics.userUid || 0, 10);
+      var isAdmin = roles.indexOf('administrator') !== -1 || roles.indexOf('admin') !== -1 || userRoleIds.indexOf('3') !== -1 || userRoleIds.indexOf(3) !== -1 || userUid === 1;
+      var canRecall = isApproveTab && lo.trang_thai === 'cho_duyet' && (parseInt(lo.nguoi_trinh_id || 0, 10) === userUid || isAdmin);
+      if (isApproveTab) {
+        if (canRecall) {
+          actions += '<button class="btn btn-sm btn-label-warning btn-lo-recall me-1" title="Thu hồi Trình Duyệt"><i class="ti tabler-rotate-2"></i></button>';
+        }
+        if (perms.dntt_approve) {
+          actions += '<button class="btn btn-sm btn-success btn-lo-approve me-1" title="Duyệt"><i class="ti tabler-check"></i></button>' +
+                     '<button class="btn btn-sm btn-danger btn-lo-reject" title="Từ chối"><i class="ti tabler-x"></i></button>';
+        }
+      } else if (isPaymentApproveTab && perms.dntt_approve_payment) {
+        actions = '<button class="btn btn-sm btn-success btn-lo-approve-payment me-1" title="Duyệt TT"><i class="ti tabler-checkup-list"></i></button>' +
+                  '<button class="btn btn-sm btn-danger btn-lo-reject-payment-approval" title="Từ chối duyệt TT"><i class="ti tabler-x"></i></button>';
       } else if (isPayTab && perms.dntt_pay) {
-        actions = '<button class="btn btn-sm btn-success btn-lo-pay me-1" title="Thanh toán"><i class="ti tabler-cash"></i></button>' +
-                  '<button class="btn btn-sm btn-danger btn-lo-reject-tt" title="Từ chối TT"><i class="ti tabler-x"></i></button>';
+        // Issue 07: thanh toán ghi nhận ở Sổ thanh toán Công nợ — link prefill
+        // vendor + phải trả; không đổi trạng thái lô. Vẫn còn nút từ chối (trả về).
+        // loai_tien mặc định VND (lô có thể đa nguyên tệ — nếu khác, kế toán chọn
+        // lại đúng vị thế ở picker bên Sổ thanh toán).
+        var ttBase = Drupal.settings.basePath || '/';
+        var loLoaiTien = (lo.dntts && lo.dntts[0] && lo.dntts[0].loai_tien) ? lo.dntts[0].loai_tien : 'VND';
+        var payUrl = ttBase + 'quan-ly/so-thanh-toan?party_loai=doi_tac&party_id=' + encodeURIComponent(lo.doi_tac_nhan_tien_id) +
+          '&chieu=phai_tra&loai_tien=' + encodeURIComponent(loLoaiTien) +
+          '&ten_party=' + encodeURIComponent(lo.doi_tac_nhan_tien_ten || '');
+        actions = '<a href="' + payUrl + '" class="btn btn-sm btn-primary me-1 lo-pay-link" title="Lập phiếu chi tại Sổ thanh toán"><i class="ti tabler-cash"></i></a>' +
+          '<button class="btn btn-sm btn-danger btn-lo-reject-tt" title="Từ chối thanh toán"><i class="ti tabler-x"></i></button>';
       }
 
       $tbody.append(

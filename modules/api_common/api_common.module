@@ -1,0 +1,115 @@
+<?php
+
+/**
+ * @file
+ * Tiện ích dùng chung cho các API GET danh sách (khách hàng, nhân viên, phương tiện, lái xe...).
+ *
+ * Tham số `select` (kiểu Express/Mongoose), ví dụ GET /api/khach-hang?select=nid,ma_kh,ten hoặc ?select=-sdt,-email:
+ * - Không có select (hoặc rỗng): API chạy như cũ, module gọi không đụng gì tới file này.
+ * - `a,b`   → chỉ các trường dương (a, b).
+ * - `-a,-b` → mọi trường trong danh sách trắng của module, trừ a, b.
+ * - Trộn (`a,b,-c`): lấy các trường dương, trường có `-` luôn bị loại (thắng trường dương).
+ * - Khoá chính (id) luôn được kèm, không loại được.
+ * - Trường không nằm trong danh sách trắng → lỗi (module trả 400 kèm danh sách trường hợp lệ).
+ * - Tên trường là tên trong JSON trả về, không phải tên cột DB. Chỉ trường cấp một, chưa hỗ trợ "a.b".
+ *
+ * Module không bao giờ đưa chuỗi của client vào SQL: mỗi module tự khai báo danh sách trắng (trường → cột / trường tính thêm)
+ * rồi chỉ SELECT đúng các cột cần và chỉ tính các trường tính thêm khi được chọn (đây mới là chỗ giảm việc cho server).
+ */
+
+/** Trần limit mỗi lần gọi khi dùng select: 100 dòng/lần cho mọi API (cần nhiều hơn thì gọi tiếp page=2, 3... theo total_pages). */
+define('API_SELECT_MAX_LIMIT', 100);
+
+/**
+ * Phân tích tham số select.
+ *
+ * @param string|array $raw  Giá trị của $_GET['select'] ("a,b,-c" hoặc mảng).
+ * @param string[] $fields   Danh sách trắng các trường, theo thứ tự hiển thị chuẩn.
+ * @param string $id_field   Khoá chính, luôn được kèm.
+ * @return array array('active' => FALSE) nếu không có select; array('active' => TRUE, 'fields' => string[]) nếu hợp lệ;
+ *               array('error' => string) nếu sai.
+ */
+function api_select_parse($raw, array $fields, $id_field) {
+  $tokens = array();
+  foreach ((array) $raw as $part) {
+    foreach (explode(',', (string) $part) as $t) {
+      $t = trim($t);
+      if ($t !== '') {
+        $tokens[] = $t;
+      }
+    }
+  }
+  if (!$tokens) {
+    return array('active' => FALSE);
+  }
+  $include = array();
+  $exclude = array();
+  $unknown = array();
+  foreach ($tokens as $t) {
+    $neg = $t[0] === '-';
+    $name = $neg ? trim(substr($t, 1)) : $t;
+    if ($name === '' || !in_array($name, $fields, TRUE)) {
+      $unknown[] = $t;
+      continue;
+    }
+    if ($neg) {
+      $exclude[$name] = TRUE;
+    }
+    else {
+      $include[$name] = TRUE;
+    }
+  }
+  if ($unknown) {
+    return array('error' => 'Trường select không hợp lệ: ' . implode(', ', $unknown) . '. Trường hợp lệ: ' . implode(', ', $fields) . '.');
+  }
+  $chosen = array();
+  foreach ($fields as $f) {
+    if ($f === $id_field) {
+      $chosen[] = $f;
+      continue;
+    }
+    $wanted = $include ? isset($include[$f]) : TRUE;
+    if ($wanted && !isset($exclude[$f])) {
+      $chosen[] = $f;
+    }
+  }
+  return array('active' => TRUE, 'fields' => $chosen);
+}
+
+/**
+ * limit hiệu lực: mặc định $default; có select thì trần luôn là API_SELECT_MAX_LIMIT (100), không thì trần $max của API.
+ */
+function api_select_limit($active, $max, $default = 20) {
+  $cap = $active ? API_SELECT_MAX_LIMIT : (int) $max;
+  return isset($_GET['limit']) ? max(1, min($cap, (int) $_GET['limit'])) : (int) $default;
+}
+
+/**
+ * Lọc các cột thực sự có trong bảng (bảng cũ chưa chạy update có thể thiếu cột thêm sau).
+ * Cột nằm trong hook_schema thì tin luôn, chỉ cột ngoài schema (vd users.sdt) mới hỏi db_field_exists.
+ */
+function api_select_existing_columns($table, array $columns) {
+  static $cache = array();
+  $schema = drupal_get_schema($table);
+  $out = array();
+  foreach ($columns as $c) {
+    $key = $table . '.' . $c;
+    if (!isset($cache[$key])) {
+      $cache[$key] = ($schema && isset($schema['fields'][$c])) ? TRUE : db_field_exists($table, $c);
+    }
+    if ($cache[$key]) {
+      $out[] = $c;
+    }
+  }
+  return $out;
+}
+
+/** Giữ đúng các trường được chọn (theo thứ tự $fields); trường thiếu trong $row nhận NULL. */
+function api_select_pick($row, array $fields) {
+  $row = (array) $row;
+  $out = array();
+  foreach ($fields as $f) {
+    $out[$f] = array_key_exists($f, $row) ? $row[$f] : NULL;
+  }
+  return $out;
+}

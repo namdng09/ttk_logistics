@@ -275,6 +275,10 @@ function ke_hoach_xep_xe_schema() {
       'nid_ncc' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       // Chi hộ khách hàng nào: server tự điền theo khách hàng của kế hoạch khi loai_chi_phi = tinh_cho_khach, ngược lại 0.
       'nid_khach_hang' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Bên nhận tiền của dòng: '' + 0 = trùng nhà cung cấp (nid_ncc, đi theo khi đổi NCC); còn lại là
+      // 'ncc' (nid khach_hang) | 'nhan_vien' (uid Drupal) | 'lai_xe' (nid lai_xe). Chỉ dòng KH/CT mới có.
+      'loai_ben_nhan_tien' => array('type' => 'varchar', 'length' => 20, 'not null' => TRUE, 'default' => ''),
+      'id_ben_nhan_tien' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'trang_thai_duyet' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'khong_can_duyet'),
       'nid_de_nghi_chi_phi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'nid_ledger' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
@@ -294,6 +298,7 @@ function ke_hoach_xep_xe_schema() {
       'loai_chi_phi' => array('loai_chi_phi'),
       'nid_ncc' => array('nid_ncc'),
       'nid_khach_hang' => array('nid_khach_hang'),
+      'ben_nhan_tien' => array('loai_ben_nhan_tien', 'id_ben_nhan_tien'),
       'trang_thai_duyet' => array('trang_thai_duyet'),
       'nid_de_nghi_chi_phi' => array('nid_de_nghi_chi_phi'),
       'nid_ledger' => array('nid_ledger'),
@@ -889,3 +894,32 @@ function ke_hoach_xep_xe_update_7027() {
   return 'Đã thêm cột nid_ncc, nid_khach_hang cho ke_hoach_chi_phi.';
 }
 
+/**
+ * Thêm bên nhận tiền vào từng dòng chi phí (loai_ben_nhan_tien + id_ben_nhan_tien), làm căn cứ để gom
+ * dòng vào đề nghị thanh toán. Dòng cũ để rỗng = trùng nhà cung cấp của dòng.
+ */
+function ke_hoach_xep_xe_update_7028() {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return 'Bảng ke_hoach_chi_phi chưa tồn tại, bỏ qua.';
+  }
+  if (!db_field_exists('ke_hoach_chi_phi', 'loai_ben_nhan_tien')) {
+    db_add_field('ke_hoach_chi_phi', 'loai_ben_nhan_tien', array(
+      'type' => 'varchar',
+      'length' => 20,
+      'not null' => TRUE,
+      'default' => '',
+    ));
+  }
+  if (!db_field_exists('ke_hoach_chi_phi', 'id_ben_nhan_tien')) {
+    db_add_field('ke_hoach_chi_phi', 'id_ben_nhan_tien', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 0,
+    ));
+  }
+  if (!db_index_exists('ke_hoach_chi_phi', 'ben_nhan_tien')) {
+    db_add_index('ke_hoach_chi_phi', 'ben_nhan_tien', array('loai_ben_nhan_tien', 'id_ben_nhan_tien'));
+  }
+  return 'Đã thêm cột loai_ben_nhan_tien, id_ben_nhan_tien cho ke_hoach_chi_phi.';
+}

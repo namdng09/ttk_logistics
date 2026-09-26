@@ -435,12 +435,20 @@
   display: none;
 }
 
+/* Cuộn giống bảng danh sách hàng cảng (.khxh-port-table-scroll): một vùng cuộn duy nhất
+ * cho cả 2 chiều, cao theo viewport, header dính (th sticky ở trên). */
 #ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-table-wrap {
-  /* Không dùng vh: zoom làm viewport CSS thay đổi và bảng co đột ngột.
-   * Danh sách chi phí tự cuộn trong vùng cố định; modal vẫn có thể cuộn khi
-   * màn hình thấp. */
-  height: 620px;
-  max-height: none;
+  min-height: 280px;
+  max-height: min(620px, calc(100vh - 310px));
+  height: auto;
+  overflow: auto;
+}
+
+/* Card bọc bảng không được tự cuộn (focus/scrollIntoView làm nội dung card bị dịch lên). */
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-main-card,
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-dm-card {
+  overflow: hidden;
+  overflow: clip;
 }
 
 @media (max-width: 1199.98px) {

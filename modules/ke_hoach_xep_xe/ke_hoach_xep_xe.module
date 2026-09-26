@@ -1133,6 +1133,43 @@ function ke_hoach_chi_phi_mau_rest_item($nid) {
   return _ke_hoach_xep_xe_method_not_allowed('GET, PUT, DELETE');
 }
 
+/**
+ * Chuẩn hoá bên nhận tiền của dòng chi phí. Trả array('loai' => , 'id' => ); '' + 0 nghĩa là trùng
+ * nhà cung cấp (đi theo nid_ncc, không lưu lặp). Về '' + 0 khi: loại/id không hợp lệ, dòng là lái xe tự chịu /
+ * doanh thu / lương lái xe, hoặc chọn đúng nhà cung cấp của dòng.
+ */
+function _ke_hoach_chi_phi_payee_normalize($loai, $id, $nid_ncc, $loai_chi_phi) {
+  $loai = trim((string) $loai);
+  $id = (int) $id;
+  $none = array('loai' => '', 'id' => 0);
+  if (!in_array($loai, array('ncc', 'nhan_vien', 'lai_xe'), TRUE) || $id <= 0) {
+    return $none;
+  }
+  // Dòng chưa chọn loại chi trả (đang nhập dở) vẫn giữ được bên nhận; chỉ các loại không trả tiền cho bên ngoài thì bỏ.
+  if (in_array($loai_chi_phi, array('lai_xe_tu_chiu', 'doanh_thu', 'luong_lai_xe'), TRUE)) {
+    return $none;
+  }
+  if ($loai === 'ncc' && $id === (int) $nid_ncc) {
+    return $none;
+  }
+  return array('loai' => $loai, 'id' => $id);
+}
+
+/** Bên nhận tiền phải tồn tại: ncc = nhà cung cấp hợp lệ, nhan_vien = tài khoản đang mở, lai_xe = lái xe đang hoạt động. */
+function _ke_hoach_chi_phi_payee_is_valid($loai, $id) {
+  $id = (int) $id;
+  if ($loai === 'ncc') {
+    return _ke_hoach_chi_phi_ncc_is_valid($id);
+  }
+  if ($loai === 'nhan_vien') {
+    return (bool) db_query("SELECT uid FROM {users} WHERE uid = :id AND status = 1", array(':id' => $id))->fetchField();
+  }
+  if ($loai === 'lai_xe') {
+    return (bool) db_query("SELECT nid FROM {lai_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
+  }
+  return FALSE;
+}
+
 function _ke_hoach_chi_phi_build_record(array $input, $existing = NULL) {
   static $parents = array();
   $nid_ke_hoach = !empty($input['nid_ke_hoach']) ? (int) $input['nid_ke_hoach'] : ($existing && !empty($existing->nid_ke_hoach) ? (int) $existing->nid_ke_hoach : 0);
@@ -1146,6 +1183,15 @@ function _ke_hoach_chi_phi_build_record(array $input, $existing = NULL) {
   $vat_percent = array_key_exists('vat_percent', $input) && $input['vat_percent'] !== '' ? _ke_hoach_xep_xe_normalize_percent($input['vat_percent']) : ($existing && isset($existing->vat_percent) ? _ke_hoach_xep_xe_normalize_percent($existing->vat_percent) : 0);
   $tong_sau_vat = array_key_exists('tong_sau_vat', $input) ? _ke_hoach_xep_xe_parse_money($input['tong_sau_vat']) : (int) round($tong_truoc_vat * (1 + ($vat_percent / 100)));
   $json = array_key_exists('thong_tin_json', $input) && is_array($input['thong_tin_json']) ? $input['thong_tin_json'] : ($existing && !empty($existing->thong_tin_json) ? _ke_hoach_xep_xe_json_decode($existing->thong_tin_json) : array());
+  $loai_chi_phi = isset($input['loai_chi_phi']) ? trim((string) $input['loai_chi_phi']) : ($existing && isset($existing->loai_chi_phi) ? (string) $existing->loai_chi_phi : '');
+  $nid_ncc = array_key_exists('nid_ncc', $input) ? (int) $input['nid_ncc'] : ($existing && !empty($existing->nid_ncc) ? (int) $existing->nid_ncc : 0);
+  // Bên nhận tiền: chỉ đổi khi client gửi key (giữ giá trị cũ nếu không gửi, vd app lái xe).
+  $payee = _ke_hoach_chi_phi_payee_normalize(
+    array_key_exists('loai_ben_nhan_tien', $input) ? $input['loai_ben_nhan_tien'] : ($existing && isset($existing->loai_ben_nhan_tien) ? $existing->loai_ben_nhan_tien : ''),
+    array_key_exists('id_ben_nhan_tien', $input) ? $input['id_ben_nhan_tien'] : ($existing && isset($existing->id_ben_nhan_tien) ? $existing->id_ben_nhan_tien : 0),
+    $nid_ncc,
+    $loai_chi_phi
+  );
 
   return array(
     'nid_ke_hoach' => $nid_ke_hoach,
@@ -1159,9 +1205,12 @@ function _ke_hoach_chi_phi_build_record(array $input, $existing = NULL) {
     'vat_percent' => $vat_percent,
     'tong_sau_vat' => $tong_sau_vat,
     // Nhà cung cấp phát hành hoá đơn: chỉ nhận từ client khi có key (giữ giá trị cũ nếu không gửi).
-    'nid_ncc' => array_key_exists('nid_ncc', $input) ? (int) $input['nid_ncc'] : ($existing && !empty($existing->nid_ncc) ? (int) $existing->nid_ncc : 0),
+    'nid_ncc' => $nid_ncc,
     // Chi hộ khách hàng: luôn do server suy ra từ loại chi phí + khách hàng của kế hoạch, không tin client.
-    'nid_khach_hang' => (isset($input['loai_chi_phi']) ? trim((string) $input['loai_chi_phi']) : ($existing && isset($existing->loai_chi_phi) ? (string) $existing->loai_chi_phi : '')) === 'tinh_cho_khach' && $parent && !empty($parent->nid_khach_hang) ? (int) $parent->nid_khach_hang : 0,
+    'nid_khach_hang' => $loai_chi_phi === 'tinh_cho_khach' && $parent && !empty($parent->nid_khach_hang) ? (int) $parent->nid_khach_hang : 0,
+    // Bên nhận tiền ('' + 0 = trùng nhà cung cấp), xem _ke_hoach_chi_phi_payee_normalize().
+    'loai_ben_nhan_tien' => $payee['loai'],
+    'id_ben_nhan_tien' => $payee['id'],
     // 3 field dưới thuộc quy trình đề nghị thanh toán/sổ quỹ: chỉ module de_nghi_thanh_toan ghi, không nhận từ client.
     'trang_thai_duyet' => $existing && !empty($existing->trang_thai_duyet) ? (string) $existing->trang_thai_duyet : 'khong_can_duyet',
     'nid_de_nghi_chi_phi' => $existing && !empty($existing->nid_de_nghi_chi_phi) ? (int) $existing->nid_de_nghi_chi_phi : 0,
@@ -1188,8 +1237,8 @@ function _ke_hoach_chi_phi_is_locked($row) {
 
 /**
  * Dòng đã gắn vào đề nghị (kể cả nháp/từ chối) thì không được chuyển sang "Lái xe chi trả" —
- * đề nghị không nhận dòng LX. Muốn đổi phải rút dòng khỏi đề nghị trước. NCC của dòng không ràng buộc:
- * bên phát hành do đề nghị tự lưu (chọn khi tạo đề nghị).
+ * đề nghị không nhận dòng LX, và không đổi bên nhận tiền. Muốn đổi phải rút dòng khỏi đề nghị trước.
+ * NCC của dòng không ràng buộc: bên phát hành do đề nghị tự lưu (chọn khi tạo đề nghị).
  */
 function _ke_hoach_chi_phi_assert_linked_change($existing, array $record) {
   if (!$existing || empty($existing->nid_de_nghi_chi_phi)) {
@@ -1197,6 +1246,10 @@ function _ke_hoach_chi_phi_assert_linked_change($existing, array $record) {
   }
   if ($record['loai_chi_phi'] === 'lai_xe_tu_chiu') {
     throw new Exception('Dòng chi phí đang thuộc đề nghị thanh toán, hãy rút khỏi đề nghị trước khi chuyển sang Lái xe chi trả');
+  }
+  // Bên nhận tiền đã được đề nghị dùng để gom nên không đổi khi dòng còn nằm trong đề nghị.
+  if ((string) $existing->loai_ben_nhan_tien !== (string) $record['loai_ben_nhan_tien'] || (int) $existing->id_ben_nhan_tien !== (int) $record['id_ben_nhan_tien']) {
+    throw new Exception('Dòng chi phí đang thuộc đề nghị thanh toán, hãy rút khỏi đề nghị trước khi đổi bên nhận tiền');
   }
 }
 
@@ -1214,6 +1267,9 @@ function _ke_hoach_chi_phi_ncc_is_valid($nid_ncc) {
 function _ke_hoach_chi_phi_validate_record(array $record) {
   if (!empty($record['nid_ncc']) && !_ke_hoach_chi_phi_ncc_is_valid($record['nid_ncc'])) {
     throw new Exception('Nhà cung cấp không hợp lệ (phải là đối tác có phân loại Nhà cung cấp)');
+  }
+  if (!empty($record['loai_ben_nhan_tien']) && !_ke_hoach_chi_phi_payee_is_valid($record['loai_ben_nhan_tien'], $record['id_ben_nhan_tien'])) {
+    throw new Exception('Bên nhận tiền không hợp lệ hoặc đã bị khoá/ngưng hoạt động');
   }
   if (in_array($record['loai_chi_phi'], array('doanh_thu', 'luong_lai_xe'), TRUE)) {
     return;
@@ -1317,6 +1373,19 @@ function _ke_hoach_chi_phi_decorate_items(array $items) {
       $dntt_ids[(int) $item['nid_de_nghi_chi_phi']] = (int) $item['nid_de_nghi_chi_phi'];
     }
   }
+  // Bên nhận tiền khác nhà cung cấp: gom id theo loại để tra tên 1 lần.
+  $payee_ids = array('ncc' => array(), 'nhan_vien' => array(), 'lai_xe' => array());
+  foreach ($items as $item) {
+    $pl = isset($item['loai_ben_nhan_tien']) ? (string) $item['loai_ben_nhan_tien'] : '';
+    $pi = !empty($item['id_ben_nhan_tien']) ? (int) $item['id_ben_nhan_tien'] : 0;
+    if ($pl !== '' && $pi && isset($payee_ids[$pl])) {
+      $payee_ids[$pl][$pi] = $pi;
+    }
+  }
+  foreach ($payee_ids['ncc'] as $pid) {
+    $ncc_ids[$pid] = $pid;
+  }
+  $payee_names = _ke_hoach_chi_phi_payee_names($payee_ids);
   $ncc_names = array();
   if ($ncc_ids) {
     foreach (db_query("SELECT nid, ten, ma_kh FROM {khach_hang} WHERE nid IN (:ids)", array(':ids' => array_values($ncc_ids))) as $kh) {
@@ -1331,12 +1400,50 @@ function _ke_hoach_chi_phi_decorate_items(array $items) {
   foreach ($items as &$item) {
     $ncc = !empty($item['nid_ncc']) ? (int) $item['nid_ncc'] : 0;
     $item['ncc_ten'] = $ncc && isset($ncc_names[$ncc]) ? $ncc_names[$ncc] : '';
+    // Bên nhận tiền hiệu lực: chưa chọn riêng thì trùng nhà cung cấp của dòng.
+    $pl = isset($item['loai_ben_nhan_tien']) ? (string) $item['loai_ben_nhan_tien'] : '';
+    $pi = !empty($item['id_ben_nhan_tien']) ? (int) $item['id_ben_nhan_tien'] : 0;
+    if ($pl !== '' && $pi) {
+      $pname = $pl === 'ncc' ? (isset($ncc_names[$pi]) ? $ncc_names[$pi] : '') : (isset($payee_names[$pl][$pi]) ? $payee_names[$pl][$pi] : '');
+      $item['ben_nhan_tien'] = array('loai' => $pl, 'id' => $pi, 'ten' => $pname, 'tu_dong' => FALSE);
+    }
+    else {
+      $item['ben_nhan_tien'] = array('loai' => $ncc ? 'ncc' : '', 'id' => $ncc, 'ten' => $item['ncc_ten'], 'tu_dong' => TRUE);
+    }
     $item['khoa_sua'] = _ke_hoach_chi_phi_is_locked($item);
     $dn = !empty($item['nid_de_nghi_chi_phi']) ? (int) $item['nid_de_nghi_chi_phi'] : 0;
     $item['de_nghi'] = $dn && isset($dntt_map[$dn]) ? $dntt_map[$dn] : NULL;
   }
   unset($item);
   return $items;
+}
+
+/**
+ * Tên bên nhận tiền theo loại (nhan_vien, lai_xe; ncc lấy chung với tên NCC ở decorate).
+ * Tên tài khoản dùng lại logic của module de_nghi_thanh_toan (users.ten, rồi tên lái xe gắn tài khoản, rồi tên đăng nhập)
+ * để 1 người hiện cùng 1 tên ở mọi màn; module đó chưa bật thì dùng tên đăng nhập.
+ * @param array $ids array('nhan_vien' => uid[], 'lai_xe' => nid[], ...)
+ * @return array array('nhan_vien' => array(uid => tên), 'lai_xe' => array(nid => tên))
+ */
+function _ke_hoach_chi_phi_payee_names(array $ids) {
+  $out = array('nhan_vien' => array(), 'lai_xe' => array());
+  if (!empty($ids['lai_xe'])) {
+    foreach (db_query("SELECT nid, ten FROM {lai_xe} WHERE nid IN (:ids)", array(':ids' => array_values($ids['lai_xe']))) as $r) {
+      $out['lai_xe'][(int) $r->nid] = $r->ten;
+    }
+  }
+  if (!empty($ids['nhan_vien'])) {
+    $uids = array_values($ids['nhan_vien']);
+    if (function_exists('_de_nghi_thanh_toan_user_names')) {
+      $out['nhan_vien'] = _de_nghi_thanh_toan_user_names($uids);
+    }
+    else {
+      foreach (db_query("SELECT uid, name FROM {users} WHERE uid IN (:ids)", array(':ids' => $uids)) as $r) {
+        $out['nhan_vien'][(int) $r->uid] = $r->name;
+      }
+    }
+  }
+  return $out;
 }
 
 function _ke_hoach_chi_phi_rest_get($id) {
@@ -1637,10 +1744,35 @@ function _ke_hoach_chi_phi_rest_bulk_save() {
     return _ke_hoach_xep_xe_fail($e->getMessage());
   }
 
-  return _ke_hoach_xep_xe_success(array(
+  $data = array(
     'items' => $saved,
     'total' => count($saved),
-  ));
+  );
+  // Trả luôn danh sách chi phí của kế hoạch sau khi lưu (cùng dạng GET /api/ke-hoach-chi-phi?nid_ke_hoach=...) để client
+  // khỏi gọi thêm 1 request tải lại. Cần quyền xem; không có thì bỏ trường này và client tự tải như cũ.
+  $plan_id = !empty($input['nid_ke_hoach']) ? (int) $input['nid_ke_hoach'] : (!empty($items[0]['nid_ke_hoach']) ? (int) $items[0]['nid_ke_hoach'] : 0);
+  if ($plan_id && user_access('ke_hoach_xep_xe_view')) {
+    $data['rows'] = _ke_hoach_chi_phi_plan_items($plan_id, 100);
+  }
+  return _ke_hoach_xep_xe_success($data);
+}
+
+/** Các dòng chi phí đang hoạt động của 1 kế hoạch, đã bổ sung thông tin đi kèm; đúng thứ tự/dạng của _ke_hoach_chi_phi_rest_list(). */
+function _ke_hoach_chi_phi_plan_items($nid_ke_hoach, $limit = 100) {
+  $rows = db_select('ke_hoach_chi_phi', 'c')
+    ->fields('c')
+    ->condition('c.hoat_dong', 1)
+    ->condition('c.nid_ke_hoach', (int) $nid_ke_hoach)
+    ->orderBy('c.created', 'ASC')
+    ->orderBy('c.nid', 'ASC')
+    ->range(0, (int) $limit)
+    ->execute()
+    ->fetchAll();
+  $items = array();
+  foreach ($rows as $row) {
+    $items[] = (array) $row;
+  }
+  return _ke_hoach_chi_phi_decorate_items($items);
 }
 
 function _ke_hoach_chi_phi_rest_delete($id) {
@@ -3411,6 +3543,11 @@ function ke_hoach_xep_xe_dinh_muc_rest($id) {
     ->fields(array('thong_tin_json' => _ke_hoach_xep_xe_json_encode($json), 'changed' => _ke_hoach_xep_xe_now()))
     ->condition('nid', $id)
     ->execute();
+  // ?response=min: chỉ trả phần vừa lưu (tab Chi phí chỉ cần bảng định mức đã chuẩn hoá) thay vì dựng lại cả kế hoạch
+  // cùng các kế hoạch/cont liên quan — phần đó chậm và client không dùng tới.
+  if (isset($_GET['response']) && $_GET['response'] === 'min') {
+    return _ke_hoach_xep_xe_success(array('nid' => $id, 'dinh_muc_khoan_lai_xe' => $json['dinh_muc_khoan_lai_xe']));
+  }
   $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetch();
   return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_enrich_row($row));
 }
@@ -4381,9 +4518,18 @@ function _ke_hoach_hang_cang_add_dntt_assets() {
   )), 'setting');
 }
 
+/**
+ * Nguồn dữ liệu danh mục dùng chung của các màn hàng cảng (khách hàng, lái xe, phương tiện, kho/bãi/cảng): mỗi API gọi 1 lần
+ * với select gọn rồi dùng chung cho bộ lọc, modal xếp xe, phiếu trả khách hàng, danh sách cont. Tuyến xa không gọi hàm này.
+ */
+function _ke_hoach_hang_cang_add_master_assets() {
+  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_hang_cang_master.js', array('group' => JS_THEME, 'weight' => 1));
+}
+
 function ke_hoach_xep_xe_page_list() {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_hang_cang.css');
+  _ke_hoach_hang_cang_add_master_assets();
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_chi_phi.js', array('group' => JS_THEME, 'weight' => 3));
   _ke_hoach_hang_cang_add_dntt_assets();
@@ -4415,6 +4561,7 @@ function ke_hoach_xep_xe_page_list() {
 function ke_hoach_cont_page_list() {
   $mode = 'overall';
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
+  _ke_hoach_hang_cang_add_master_assets();
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
 
   if (module_exists('danh_muc') && function_exists('danh_muc_add_modal_assets')) {
@@ -4435,6 +4582,7 @@ function ke_hoach_cont_page_list() {
 function ke_hoach_cat_mooc_page_list() {
   $module_path = drupal_get_path('module', 'ke_hoach_xep_xe');
   drupal_add_css($module_path . '/assets/css/ke_hoach_cat_mooc.css');
+  _ke_hoach_hang_cang_add_master_assets();
   drupal_add_js($module_path . '/assets/js/ke_hoach_cat_mooc.js', array('group' => JS_THEME, 'weight' => 2));
   return theme('ke_hoach_cat_mooc_list_page');
 }
@@ -4466,6 +4614,10 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
   }
   $data = _ke_hoach_xep_xe_enrich_row($row);
   $mode = 'edit';
+  // Trang sửa dùng chung cho cả 2 loại kế hoạch: chỉ kế hoạch hàng cảng mới dùng nguồn danh mục dùng chung.
+  if (empty($data['loai_ke_hoach']) || $data['loai_ke_hoach'] !== 'tuyen_xa') {
+    _ke_hoach_hang_cang_add_master_assets();
+  }
 
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'mode' => $mode,

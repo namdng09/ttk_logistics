@@ -362,20 +362,146 @@ function nhan_vien_rest_collection() {
   }
 }
 
+/**
+ * Danh sách trắng cho ?select=: trường trong JSON → cột SQL của {users} (NULL = trường tính thêm, chỉ tính khi được chọn).
+ * phong_ban / chuc_vu / role là trường tính thêm (tra danh_muc, role), gom 1 truy vấn cho cả trang.
+ */
+function _nhan_vien_select_map() {
+  return array(
+    'uid' => 'uid',
+    'name' => 'name',
+    'mail' => 'mail',
+    'status' => 'status',
+    'ma_nhan_vien' => 'ma_nhan_vien',
+    'ten' => 'ten',
+    'dob' => 'dob',
+    'cccd' => 'cccd',
+    'sdt' => 'sdt',
+    'dia_chi' => 'dia_chi',
+    'so_tk_ngan_hang' => 'so_tk_ngan_hang',
+    'ngan_hang' => 'ngan_hang',
+    'phong_ban' => NULL,
+    'chuc_vu' => NULL,
+    'role' => NULL,
+  );
+}
+
+function _nhan_vien_select_request() {
+  $raw = isset($_GET['select']) ? $_GET['select'] : '';
+  if (is_array($raw) ? !$raw : trim((string) $raw) === '') {
+    return array('active' => FALSE);
+  }
+  // Module api_common chưa bật (vd đưa JS lên trước khi bật module): bỏ qua select, trả như cũ thay vì làm hỏng màn hình.
+  if (!function_exists('api_select_parse')) {
+    return array('active' => FALSE);
+  }
+  return api_select_parse($raw, array_keys(_nhan_vien_select_map()), 'uid');
+}
+
+function _nhan_vien_select_columns(array $fields) {
+  $map = _nhan_vien_select_map();
+  $cols = array('uid');
+  foreach ($fields as $f) {
+    if (!empty($map[$f])) {
+      $cols[] = $map[$f];
+    }
+  }
+  foreach (array('phong_ban', 'chuc_vu') as $f) {
+    if (in_array($f, $fields, TRUE)) {
+      $cols[] = $f;
+    }
+  }
+  return api_select_existing_columns('users', array_values(array_unique($cols)));
+}
+
+/** Dựng dòng theo ?select=; giá trị giống list không select (phong_ban/chuc_vu/role là object {nid, ten} hoặc NULL). */
+function _nhan_vien_select_rows(array $rows, array $fields) {
+  $uids = array();
+  $dm_ids = array();
+  foreach ($rows as $u) {
+    $uids[] = (int) $u->uid;
+    foreach (array('phong_ban', 'chuc_vu') as $f) {
+      if (in_array($f, $fields, TRUE) && !empty($u->$f)) {
+        $dm_ids[(int) $u->$f] = (int) $u->$f;
+      }
+    }
+  }
+  $dm_names = array();
+  if ($dm_ids) {
+    foreach (db_query("SELECT nid, ten FROM {danh_muc} WHERE nid IN (:ids)", array(':ids' => array_values($dm_ids))) as $d) {
+      $dm_names[(int) $d->nid] = $d->ten;
+    }
+  }
+  $first_rid = array();
+  $role_names = array();
+  if ($uids && in_array('role', $fields, TRUE)) {
+    foreach (db_query("SELECT ur.uid, ur.rid FROM {users_roles} ur WHERE ur.uid IN (:uids) AND ur.rid > :auth ORDER BY ur.rid ASC", array(':uids' => $uids, ':auth' => DRUPAL_AUTHENTICATED_RID)) as $r) {
+      if (!isset($first_rid[(int) $r->uid])) {
+        $first_rid[(int) $r->uid] = (int) $r->rid;
+      }
+    }
+    if ($first_rid) {
+      foreach (db_query("SELECT rid, name FROM {role} WHERE rid IN (:rids)", array(':rids' => array_values(array_unique($first_rid)))) as $ro) {
+        $role_names[(int) $ro->rid] = $ro->name;
+      }
+    }
+  }
+  $items = array();
+  foreach ($rows as $u) {
+    $row = array();
+    foreach ($fields as $f) {
+      switch ($f) {
+        case 'uid':
+        case 'status':
+          $row[$f] = (int) $u->$f;
+          break;
+
+        case 'phong_ban':
+        case 'chuc_vu':
+          $row[$f] = !empty($u->$f) ? array('nid' => (int) $u->$f, 'ten' => isset($dm_names[(int) $u->$f]) ? $dm_names[(int) $u->$f] : '') : NULL;
+          break;
+
+        case 'role':
+          $rid = isset($first_rid[(int) $u->uid]) ? $first_rid[(int) $u->uid] : 0;
+          $row[$f] = $rid ? array('nid' => $rid, 'ten' => isset($role_names[$rid]) ? $role_names[$rid] : '') : NULL;
+          break;
+
+        default:
+          $row[$f] = isset($u->$f) ? $u->$f : '';
+      }
+    }
+    $items[] = $row;
+  }
+  return $items;
+}
+
 function _nhan_vien_rest_list() {
   
   if (!user_access('nhan_vien_view')) {
     return _nhan_vien_unauthorized('Bạn không có quyền xem danh sách nhân viên');
   }
 
+  // select=a,b,-c (module api_common): chỉ lấy/loại trừ trường; không có thì trả như cũ.
+  $sel = _nhan_vien_select_request();
+  if (!empty($sel['error'])) {
+    return _nhan_vien_fail($sel['error']);
+  }
+  $select = !empty($sel['active']) ? $sel['fields'] : NULL;
+
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $limit = $select !== NULL ? api_select_limit(TRUE, 100) : (isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20);
   $offset = ($page - 1) * $limit;
 
-  $query = db_select('users', 'u');
-  $query->fields('u');
-  $query->condition('u.uid', 0, '!=');
   _nhan_vien_ensure_sdt_field();
+  $query = db_select('users', 'u');
+  if ($select !== NULL) {
+    // Chỉ các cột được chọn: bảng users còn có pass, init... không bao giờ được chọn theo tên client gửi.
+    $query->fields('u', _nhan_vien_select_columns($select));
+  }
+  else {
+    $query->fields('u');
+  }
+  $query->condition('u.uid', 0, '!=');
   // Driver accounts are managed only from the Lái xe screen, never as staff.
   $query->leftJoin('users_roles', 'ur_driver', 'ur_driver.uid = u.uid AND ur_driver.rid = :driver_rid', array(':driver_rid' => 7));
   $query->isNull('ur_driver.uid');
@@ -414,6 +540,17 @@ function _nhan_vien_rest_list() {
   $query->orderBy('u.uid', 'DESC');
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();
+
+  if ($select !== NULL) {
+    $total_pages = (int) ceil($total / $limit);
+    return _nhan_vien_success(array(
+      'items' => _nhan_vien_select_rows($rows, $select),
+      'total' => (int) $total,
+      'current_page' => $total_pages > 0 ? $page : 0,
+      'total_pages' => $total_pages,
+      'limit' => $limit,
+    ));
+  }
 
   // Build response items with role + danh_muc ten
   $items = array();

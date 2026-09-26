@@ -442,28 +442,109 @@ function phuong_tien_rest_collection() {
   }
 }
 
+/**
+ * Danh sách trắng cho ?select=: trường trong JSON → cột SQL (NULL = trường tính thêm, chỉ tính khi được chọn).
+ * `lai_xe` (object lái xe đang gán, cần join), `files` và `thong_tin_json` (giải mã JSON nặng) là trường tính thêm.
+ */
+function _phuong_tien_select_map() {
+  $map = array();
+  foreach (array('nid', 'bks', 'ma_tai_san', 'loai_phuong_tien', 'hang_xe', 'mau_sac', 'nam_san_xuat', 'nuoc_san_xuat', 'so_khung', 'so_may',
+      'tai_trong', 'tu_trong', 'so_cau', 'loai_mooc', 'so_truc', 'chieu_dai_mooc', 'gia_mua', 'ngay_mua', 'so_dang_kiem', 'ngay_dang_kiem',
+      'nien_han_su_dung', 'so_phu_hieu', 'han_dang_kiem', 'so_bao_hiem_than_vo', 'han_bao_hiem_than_vo', 'so_bao_hiem_tnds', 'han_bao_hiem_tnds',
+      'ngay_phu_hieu', 'han_phu_hieu', 'so_giay_phep_lien_van', 'han_giay_phep_lien_van') as $c) {
+    $map[$c] = $c;
+  }
+  $map['lai_xe'] = NULL;
+  $map['files'] = NULL;
+  $map['thong_tin_json'] = NULL;
+  $map['hoat_dong'] = 'hoat_dong';
+  $map['created'] = 'created';
+  $map['changed'] = 'changed';
+  return $map;
+}
+
+function _phuong_tien_select_request() {
+  $raw = isset($_GET['select']) ? $_GET['select'] : '';
+  if (is_array($raw) ? !$raw : trim((string) $raw) === '') {
+    return array('active' => FALSE);
+  }
+  // Module api_common chưa bật (vd đưa JS lên trước khi bật module): bỏ qua select, trả như cũ thay vì làm hỏng màn hình.
+  if (!function_exists('api_select_parse')) {
+    return array('active' => FALSE);
+  }
+  return api_select_parse($raw, array_keys(_phuong_tien_select_map()), 'nid');
+}
+
+function _phuong_tien_select_columns(array $fields) {
+  $map = _phuong_tien_select_map();
+  $cols = array('nid');
+  foreach ($fields as $f) {
+    if (!empty($map[$f])) {
+      $cols[] = $map[$f];
+    }
+  }
+  if (in_array('files', $fields, TRUE) || in_array('thong_tin_json', $fields, TRUE)) {
+    $cols[] = 'thong_tin_json';
+  }
+  return api_select_existing_columns('phuong_tien', array_values(array_unique($cols)));
+}
+
+/** Dựng dòng theo ?select=; giá trị các trường giống list không select (cột giữ nguyên kiểu, files/thong_tin_json qua normalize). */
+function _phuong_tien_select_rows(array $rows, array $fields) {
+  $need_json = in_array('files', $fields, TRUE) || in_array('thong_tin_json', $fields, TRUE);
+  $items = array();
+  foreach ($rows as $row) {
+    if (in_array('lai_xe', $fields, TRUE)) {
+      $row->lai_xe = !empty($row->nid_lai_xe) ? (object) array(
+        'nid' => (int) $row->nid_lai_xe,
+        'ten' => $row->lai_xe_ten,
+        'sdt' => $row->lai_xe_sdt,
+        'so_bang_lai' => $row->lai_xe_bang_lai,
+      ) : NULL;
+    }
+    if ($need_json) {
+      _phuong_tien_normalize_record($row);
+    }
+    $items[] = api_select_pick($row, $fields);
+  }
+  return $items;
+}
+
 function _phuong_tien_rest_list() {
   if (!user_access('phuong_tien_view', _phuong_tien_current_account())) {
     return _phuong_tien_unauthorized('Bạn không có quyền xem danh sách phương tiện');
   }
   _phuong_tien_ensure_extended_fields();
+  // select=a,b,-c (module api_common): chỉ lấy/loại trừ trường; không có thì trả như cũ.
+  $sel = _phuong_tien_select_request();
+  if (!empty($sel['error'])) {
+    return _phuong_tien_fail($sel['error']);
+  }
+  $select = !empty($sel['active']) ? $sel['fields'] : NULL;
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(500, (int) $_GET['limit'])) : 20;
+  $limit = $select !== NULL ? api_select_limit(TRUE, 500) : (isset($_GET['limit']) ? max(1, min(500, (int) $_GET['limit'])) : 20);
   $offset = ($page - 1) * $limit;
 
   $query = db_select('phuong_tien', 'pt');
-  $query->fields('pt');
+  if ($select !== NULL) {
+    $query->fields('pt', _phuong_tien_select_columns($select));
+  }
+  else {
+    $query->fields('pt');
+  }
 
-  // Join active driver assignment
-  $query->leftJoin('phuong_tien_lai_xe', 'ptlx', 'pt.nid = ptlx.nid_phuong_tien AND ptlx.hoat_dong = 1');
-  $query->addField('ptlx', 'id', 'ptlx_id');
-  $query->addField('ptlx', 'nid_lai_xe', 'nid_lai_xe');
+  // Join lái xe đang gán + tên lái xe: chỉ khi cần (không select, hoặc select có lai_xe).
+  $with_driver = $select === NULL || in_array('lai_xe', $select, TRUE);
+  if ($with_driver) {
+    $query->leftJoin('phuong_tien_lai_xe', 'ptlx', 'pt.nid = ptlx.nid_phuong_tien AND ptlx.hoat_dong = 1');
+    $query->addField('ptlx', 'id', 'ptlx_id');
+    $query->addField('ptlx', 'nid_lai_xe', 'nid_lai_xe');
 
-  // Join lai_xe for name
-  $query->leftJoin('lai_xe', 'lx', 'ptlx.nid_lai_xe = lx.nid');
-  $query->addField('lx', 'ten', 'lai_xe_ten');
-  $query->addField('lx', 'sdt', 'lai_xe_sdt');
-  $query->addField('lx', 'so_bang_lai', 'lai_xe_bang_lai');
+    $query->leftJoin('lai_xe', 'lx', 'ptlx.nid_lai_xe = lx.nid');
+    $query->addField('lx', 'ten', 'lai_xe_ten');
+    $query->addField('lx', 'sdt', 'lai_xe_sdt');
+    $query->addField('lx', 'so_bang_lai', 'lai_xe_bang_lai');
+  }
 
   $query->condition('pt.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
@@ -487,6 +568,18 @@ function _phuong_tien_rest_list() {
   $query->orderBy('pt.nid', 'DESC');
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();
+
+  if ($select !== NULL) {
+    $items = _phuong_tien_select_rows($rows, $select);
+    $total_pages = (int) ceil($total / $limit);
+    return _phuong_tien_success(array(
+      'items' => $items,
+      'total' => (int) $total,
+      'current_page' => $total_pages > 0 ? $page : 0,
+      'total_pages' => $total_pages,
+      'limit' => $limit,
+    ));
+  }
 
   // Build nested lai_xe object
   foreach ($rows as &$row) {

@@ -496,7 +496,7 @@
       field('Số hoá đơn', d.so_hoa_don ? esc(d.so_hoa_don) : 'Chưa có') + field('Ngày hoá đơn', d.ngay_hoa_don ? esc(toView(d.ngay_hoa_don)) : 'Chưa có') +
       field('Hạn thanh toán', han) + field('Hình thức thanh toán', esc(HINH_THUC_LABEL[d.hinh_thuc_tt] || 'Chưa chọn')) +
       field('Người tạo', esc(d.nguoi_tao)) + field('Ngày tạo', esc(toView(d.created))) + field('Nguồn', esc(d.nguon_label || 'Chi phí kế hoạch')) +
-      '<div class="col-12"><div class="dn-info-label">Ghi chú</div><div class="dn-info-value">' + (d.ghi_chu ? esc(d.ghi_chu) : '—') + '</div></div></div>';
+      '<div class="col-md-9"><div class="dn-info-label">Ghi chú</div><div class="dn-info-value">' + (d.ghi_chu ? esc(d.ghi_chu) : '—') + '</div></div></div>';
 
     html += '<div class="fw-semibold mt-4 mb-2">' + (isDoDau(d) ? 'Phiếu đổ dầu trong đề nghị' : 'Các dòng chi phí trong đề nghị') + ' (' + d.so_dong + ')</div>' +
       '<div class="table-responsive"><table class="table table-sm table-bordered dn-lines mb-0"><thead><tr><th>' + (isDoDau(d) ? 'Phiếu' : 'Kế hoạch') + '</th><th>Tên chi phí</th><th style="width:50px;">Loại</th>' +

@@ -527,13 +527,140 @@ function lai_xe_rest_collection() {
   }
 }
 
+/**
+ * Danh sách trắng cho ?select=: trường trong JSON → cột SQL (NULL = trường tính thêm, chỉ tính khi được chọn).
+ * `files` / `thong_tin_json` (giải mã JSON nặng), `thong_tin_ngan_hang` (giải mã) và `tai_khoan_app` (tra bảng users) là trường tính thêm
+ * hoặc có xử lý riêng; các cột còn lại trả nguyên giá trị.
+ */
+function _lai_xe_select_map() {
+  $map = array();
+  foreach (array('nid', 'ten', 'ma_nhan_vien', 'sdt', 'cccd', 'ngay_cap', 'noi_cap', 'han_cccd', 'so_bang_lai', 'loai_bang_lai', 'han_bang_lai', 'ngay_nhan_viec', 'dod') as $c) {
+    $map[$c] = $c;
+  }
+  $map['thong_tin_ngan_hang'] = 'thong_tin_ngan_hang';
+  $map['thong_tin_json'] = 'thong_tin_json';
+  $map['files'] = NULL;
+  $map['uid_nguoi_dung'] = 'uid_nguoi_dung';
+  $map['tai_khoan_app'] = NULL;
+  foreach (array('hoat_dong', 'phuong_tien_lai_xe_id', 'created', 'changed') as $c) {
+    $map[$c] = $c;
+  }
+  return $map;
+}
+
+function _lai_xe_select_request() {
+  $raw = isset($_GET['select']) ? $_GET['select'] : '';
+  if (is_array($raw) ? !$raw : trim((string) $raw) === '') {
+    return array('active' => FALSE);
+  }
+  // Module api_common chưa bật (vd đưa JS lên trước khi bật module): bỏ qua select, trả như cũ thay vì làm hỏng màn hình.
+  if (!function_exists('api_select_parse')) {
+    return array('active' => FALSE);
+  }
+  return api_select_parse($raw, array_keys(_lai_xe_select_map()), 'nid');
+}
+
+function _lai_xe_select_columns(array $fields) {
+  $map = _lai_xe_select_map();
+  $cols = array('nid');
+  foreach ($fields as $f) {
+    if (!empty($map[$f])) {
+      $cols[] = $map[$f];
+    }
+  }
+  if (in_array('files', $fields, TRUE)) {
+    $cols[] = 'thong_tin_json';
+  }
+  if (in_array('tai_khoan_app', $fields, TRUE)) {
+    $cols[] = 'uid_nguoi_dung';
+  }
+  return api_select_existing_columns('lai_xe', array_values(array_unique($cols)));
+}
+
+/** Dựng dòng theo ?select=; giá trị giống _lai_xe_normalize_record() nhưng chỉ tính phần được chọn (tài khoản app tra 1 lần cho cả trang). */
+function _lai_xe_select_rows(array $rows, array $fields) {
+  $accounts = array();
+  if (in_array('tai_khoan_app', $fields, TRUE)) {
+    $uids = array();
+    foreach ($rows as $r) {
+      if (!empty($r->uid_nguoi_dung)) {
+        $uids[(int) $r->uid_nguoi_dung] = (int) $r->uid_nguoi_dung;
+      }
+    }
+    if ($uids) {
+      foreach (db_query("SELECT uid, name, status FROM {users} WHERE uid IN (:uids)", array(':uids' => array_values($uids))) as $a) {
+        $accounts[(int) $a->uid] = $a;
+      }
+    }
+  }
+  $items = array();
+  foreach ($rows as $r) {
+    $row = array();
+    $json = NULL;
+    foreach ($fields as $f) {
+      switch ($f) {
+        case 'thong_tin_ngan_hang':
+          $decoded = !empty($r->thong_tin_ngan_hang) ? json_decode($r->thong_tin_ngan_hang, TRUE) : NULL;
+          $row[$f] = is_array($decoded) ? $decoded : array();
+          break;
+
+        case 'thong_tin_json':
+        case 'files':
+          if ($json === NULL) {
+            $json = _lai_xe_json_decode(isset($r->thong_tin_json) ? $r->thong_tin_json : '');
+            if (empty($json['files']) || !is_array($json['files'])) {
+              $json['files'] = array();
+            }
+            foreach ($json['files'] as &$file) {
+              if (!empty($file['uri'])) {
+                $file['url'] = file_create_url($file['uri']);
+              }
+            }
+            unset($file);
+          }
+          $row[$f] = $f === 'files' ? $json['files'] : $json;
+          break;
+
+        case 'uid_nguoi_dung':
+          $row[$f] = isset($r->uid_nguoi_dung) ? (int) $r->uid_nguoi_dung : 0;
+          break;
+
+        case 'tai_khoan_app':
+          $uid = isset($r->uid_nguoi_dung) ? (int) $r->uid_nguoi_dung : 0;
+          $row[$f] = array('co_tai_khoan' => FALSE, 'kich_hoat' => FALSE, 'username' => '');
+          if ($uid && isset($accounts[$uid])) {
+            $row[$f] = array('co_tai_khoan' => TRUE, 'kich_hoat' => (bool) $accounts[$uid]->status, 'username' => (string) $accounts[$uid]->name);
+          }
+          break;
+
+        default:
+          $row[$f] = isset($r->$f) ? $r->$f : NULL;
+      }
+    }
+    $items[] = $row;
+  }
+  return $items;
+}
+
 function _lai_xe_rest_list() {
+  // select=a,b,-c (module api_common): chỉ lấy/loại trừ trường; không có thì trả như cũ.
+  $sel = _lai_xe_select_request();
+  if (!empty($sel['error'])) {
+    return _lai_xe_fail($sel['error']);
+  }
+  $select = !empty($sel['active']) ? $sel['fields'] : NULL;
+
   $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $limit = $select !== NULL ? api_select_limit(TRUE, 100) : (isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20);
   $offset = ($page - 1) * $limit;
 
   $query = db_select('lai_xe', 'lx');
-  $query->fields('lx');
+  if ($select !== NULL) {
+    $query->fields('lx', _lai_xe_select_columns($select));
+  }
+  else {
+    $query->fields('lx');
+  }
 
   $query->condition('lx.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
@@ -572,7 +699,10 @@ function _lai_xe_rest_list() {
   $total_pages = (int) ceil($total / $limit);
 
   $items = array();
-  if ($rows) {
+  if ($select !== NULL) {
+    $items = _lai_xe_select_rows($rows, $select);
+  }
+  elseif ($rows) {
     foreach ($rows as $row) {
       $items[] = _lai_xe_normalize_record($row);
     }

@@ -2,19 +2,22 @@
   'use strict';
 
   var CFG, notyf, rowCounter = 0;
+  var currentDntt = null;
+  var SIDEBAR_COLLAPSE_KEY = 'crmDnttSidebarCollapsed';
 
   var STATUS_LABELS = {
-    moi:         {text: 'Mới',        cls: 'bg-label-secondary'},
-    cho_duyet:   {text: 'Chờ duyệt',  cls: 'bg-label-warning'},
-    da_duyet:    {text: 'Đã duyệt',   cls: 'bg-label-info'},
-    tu_choi:     {text: 'Từ chối',     cls: 'bg-label-danger'},
-    da_tt:       {text: 'Đã TT',       cls: 'bg-label-success'},
-    tu_choi_tt:  {text: 'Từ chối TT',  cls: 'bg-label-danger'}
+    moi:             {text: 'Mới',             cls: 'bg-label-secondary'},
+    cho_duyet:       {text: 'Chờ duyệt',       cls: 'bg-label-warning'},
+    da_duyet:        {text: 'Chờ duyệt TT',    cls: 'bg-label-info'},
+    cho_thanh_toan:  {text: 'Chờ thanh toán',  cls: 'bg-label-primary'},
+    tu_choi:         {text: 'Từ chối',         cls: 'bg-label-danger'},
+    tu_choi_tt:      {text: 'Từ chối TT',      cls: 'bg-label-danger'}
   };
 
   var LOAI_LABELS = {
     thanh_toan: 'Thanh toán',
-    hoan_ve:    'Hoàn về'
+    hoan_ve:    'Hoàn về',
+    dieu_chinh: 'Điều chỉnh'
   };
 
   // =========================================================================
@@ -27,7 +30,7 @@
 
     initFlatpickr();
     initEvents();
-    initCurrencyToggle();
+    initSidebarCollapse();
 
     setTimeout(function () {
       initHeaderSelects();
@@ -44,6 +47,7 @@
         }
 
         renderActionButtons();
+        setupBackToWin();
       });
     }, 100);
   });
@@ -103,8 +107,7 @@
         if (d.han_thanh_toan) setFlatpickrVal('#dntt-han-thanh-toan', d.han_thanh_toan);
 
         $('#dntt-hinh-thuc-tt').val(d.hinh_thuc_tt);
-        $('#dntt-loai-tien').val(d.loai_tien).trigger('change');
-        $('#dntt-ti-gia').val(d.ti_gia);
+        $('#dntt-ti-gia').val(d.ti_gia || 1);
 
         var sl = STATUS_LABELS[d.trang_thai] || {text: d.trang_thai, cls: 'bg-label-secondary'};
         $('#badge-trang-thai').attr('class', 'badge ' + sl.cls).text(sl.text);
@@ -112,8 +115,18 @@
 
         CFG.trang_thai = d.trang_thai;
         CFG.loai_dntt = d.loai_dntt;
+        // Issue 07: trạng thái "đã trả đủ" + cho phép tạo hoàn về là giá trị
+        // dẫn xuất từ Công nợ, backend trả về trong /api/dntt/get.
+        CFG.thanh_toan_da_tra_du = !!d.thanh_toan_da_tra_du;
+        CFG.co_the_tao_hoan_ve = !!d.co_the_tao_hoan_ve;
+        // ADR-0011: cho phép tạo DNTT điều chỉnh là cờ dẫn xuất từ Công nợ
+        // (gốc thanh toán đã ghi nợ + còn phần điều chỉnh > 0).
+        CFG.co_the_tao_dieu_chinh = !!d.co_the_tao_dieu_chinh;
+        currentDntt = d;
         renderActionButtons();
         renderHoanVeLinks(d);
+        renderStickyMeta(d);
+        renderSummary(d);
 
         loadChiTiet(id);
       }
@@ -136,19 +149,22 @@
           if (ct.lo_hang_nid && ct.lo_hang_ten) {
             setSelect2Val($row.find('.ct-lo-hang'), ct.lo_hang_nid, ct.lo_hang_ten);
           }
+          setSoCont($row, ct.so_cont);
           if (ct.loai_chi_phi_id) {
-            var loaiLabel = ct.loai_chi_phi_ma || ct.loai_chi_phi_ten;
+            var loaiLabel = ct.loai_chi_phi_ten || ct.loai_chi_phi_ma;
             setSelect2Val($row.find('.ct-loai-chi-phi'), ct.loai_chi_phi_id, loaiLabel);
           }
 
           $row.find('.ct-nhom-chi-phi').text(ct.nhom_chi_phi_ten || '');
           if (ct.don_vi) setSelect2Val($row.find('.ct-don-vi'), ct.don_vi, ct.don_vi);
-          $row.find('.ct-don-gia').val(formatNum(ct.don_gia));
-          $row.find('.ct-so-luong').val(formatNum(ct.so_luong));
+          $row.find('.ct-don-gia').val(formatNum(ct.don_gia || 0));
+          $row.find('.ct-loai-tien').val((ct.loai_tien || 'VND').toUpperCase());
+          $row.find('.ct-so-luong').val(ct.so_luong ? formatNum(ct.so_luong) : '');
           $row.find('.ct-vat-pct').val(Math.round(parseFloat(ct.vat_phan_tram) || 0));
           $row.find('.ct-vat-amount').val(formatNum(ct.so_tien_vat));
           $row.find('.ct-truoc-vat').text(formatNum(ct.tien_truoc_vat));
           $row.find('.ct-sau-vat').text(formatNum(ct.tien_sau_vat));
+          $row.find('.ct-sau-vat-vnd').text(formatNum(ct.tien_sau_vat_vnd || ct.tien_sau_vat));
           $row.find('.ct-ghi-chu').val(ct.ghi_chu || '');
         });
         recalcTotal();
@@ -169,14 +185,6 @@
   function initHeaderSelects() {
     $('#dntt-ben-phat-hanh').select2(doiTacSelect2Opts());
     $('#dntt-doi-tac-nhan-tien').select2(doiTacSelect2Opts());
-  }
-
-  function initCurrencyToggle() {
-    $('#dntt-loai-tien').on('change', function () {
-      var isUSD = $(this).val() === 'USD';
-      $('#dntt-ti-gia-wrap').toggle(isUSD);
-      if (!isUSD) $('#dntt-ti-gia').val(1);
-    });
   }
 
   function initEvents() {
@@ -222,9 +230,19 @@
       var raw = parseNum($(this).val());
       $(this).val(raw ? formatNum(raw) : '0');
     });
-    $('#table-chi-tiet').on('input', '.ct-don-gia, .ct-so-luong, .ct-vat-pct', function () {
+    $('#table-chi-tiet').on('input', '.ct-don-gia', function () {
       calcRow($(this).closest('tr'), false);
     });
+    $('#table-chi-tiet').on('change', '.ct-loai-tien', function () {
+      calcRow($(this).closest('tr'), false);
+    });
+    $('#table-chi-tiet').on('input', '.ct-so-luong, .ct-vat-pct', function () {
+      calcRow($(this).closest('tr'), false);
+    });
+    $('#dntt-ti-gia').on('input', function () {
+      $('#chi-tiet-body .chi-tiet-row').each(function () { calcRow($(this), false); });
+    });
+    initTyGiaChungCheckbox();
     $('#table-chi-tiet').on('input', '.ct-vat-amount', function () {
       calcRow($(this).closest('tr'), true);
     });
@@ -232,6 +250,26 @@
     $(document).on('click', '#btn-save-dntt', saveDntt);
     $(document).on('click', '#btn-delete-dntt', deleteDntt);
     $(document).on('click', '#btn-trinh-duyet', function () { transitionDntt('cho_duyet'); });
+
+    $('#dntt-sidebar-tabs').on('click', '.sidebar-tab', function () {
+      var tab = $(this).data('tab');
+      $('#dntt-sidebar-tabs .sidebar-tab').removeClass('active');
+      $(this).addClass('active');
+      $('.sidebar-panel').hide();
+      $('#dntt-panel-' + tab).show();
+
+      if ($('.crm-dntt-workspace').hasClass('sidebar-collapsed') && !isSidebarMobile()) {
+        setSidebarCollapsed(false, true);
+      }
+    });
+
+    $('#dntt-sidebar-toggle').on('click', function () {
+      setSidebarCollapsed(!$('.crm-dntt-workspace').hasClass('sidebar-collapsed'), true);
+    });
+
+    $('#dntt-lo-hang-wrap').on('click', '.dntt-acc-header', function () {
+      $(this).closest('.dntt-acc-item').toggleClass('open');
+    });
 
     $(document).on('click', '#btn-create-hoan-ve', function () {
       Swal.fire({
@@ -261,6 +299,66 @@
         });
       });
     });
+
+    // ADR-0011: tạo DNTT điều chỉnh từ DNTT gốc (copy chi tiết làm mức khởi đầu).
+    $(document).on('click', '#btn-create-dieu-chinh', function () {
+      Swal.fire({
+        title: 'Tạo DNTT điều chỉnh?',
+        text: 'Tạo chứng từ điều chỉnh từ DNTT này; chỉnh dòng xuống rồi duyệt để giảm số dư phải trả.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Tạo điều chỉnh',
+        cancelButtonText: 'Hủy'
+      }).then(function (r) {
+        if (!r.isConfirmed) return;
+        $.ajax({
+          url: '/api/dntt/create-dieu-chinh',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({dntt_goc_id: CFG.dntt_id}),
+          dataType: 'json',
+          success: function (res) {
+            if (res.success) {
+              notyf.success('Đã tạo ' + res.so_dntt);
+              window.location.href = '/quan-ly/dntt/' + res.dntt_id;
+            } else {
+              Swal.fire('Lỗi', res.message, 'error');
+            }
+          },
+          error: function () { Swal.fire('Lỗi', 'Không thể kết nối server.', 'error'); }
+        });
+      });
+    });
+
+    // ADR-0011: duyệt DNTT điều chỉnh trực tiếp → ghi bút toán âm vào sổ cái.
+    $(document).on('click', '#btn-approve-dieu-chinh', function () {
+      Swal.fire({
+        title: 'Duyệt DNTT điều chỉnh?',
+        text: 'Hệ thống sẽ ghi bút toán điều chỉnh ÂM, giảm số dư phải trả của DNTT gốc. Không thể sửa sau khi duyệt.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Duyệt điều chỉnh',
+        cancelButtonText: 'Hủy'
+      }).then(function (r) {
+        if (!r.isConfirmed) return;
+        $.ajax({
+          url: '/api/dntt/approve-dieu-chinh',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({dntt_id: CFG.dntt_id}),
+          dataType: 'json',
+          success: function (res) {
+            if (res.success) {
+              notyf.success('Đã duyệt điều chỉnh');
+              window.location.reload();
+            } else {
+              Swal.fire('Lỗi', res.message, 'error');
+            }
+          },
+          error: function () { Swal.fire('Lỗi', 'Không thể kết nối server.', 'error'); }
+        });
+      });
+    });
   }
 
   function syncDoiTac() {
@@ -279,16 +377,22 @@
     var rid = 'r' + rowCounter;
     var html = '<tr class="chi-tiet-row" data-chi-tiet-id="" data-row-id="' + rid + '">' +
       '<td class="text-center row-stt">' + rowCounter + '</td>' +
-      '<td><select class="ct-lo-hang w-100" id="lo-hang-' + rid + '"></select></td>' +
+      // Số cont nằm TRONG ô Jobfile, không phải cột thứ 16 — lý lẽ ở nhan đề
+      // cột trong `crm-dntt-form.tpl.php`. `d-none` cho tới khi có cont thật,
+      // để dòng không cont giữ đúng chiều cao cũ.
+      '<td><select class="ct-lo-hang w-100" id="lo-hang-' + rid + '"></select>' +
+      '<div class="ct-so-cont small text-muted d-none"></div></td>' +
       '<td><select class="ct-loai-chi-phi w-100" id="loai-phi-' + rid + '"></select></td>' +
       '<td class="ct-nhom-chi-phi text-muted small"></td>' +
       '<td><input type="text" class="form-control form-control-sm text-end ct-don-gia num-fmt" name="don_gia" value="0"></td>' +
-      '<td><input type="text" class="form-control form-control-sm text-end ct-so-luong num-fmt" name="so_luong" value="1"></td>' +
+      '<td><select class="form-select form-select-sm ct-loai-tien" name="loai_tien"><option value="VND" selected>VND</option><option value="USD">USD</option></select></td>' +
+      '<td><input type="text" class="form-control form-control-sm text-end ct-so-luong num-fmt" name="so_luong" value=""></td>' +
       '<td><select class="ct-don-vi w-100" id="don-vi-' + rid + '"></select></td>' +
       '<td><input type="number" class="form-control form-control-sm text-end ct-vat-pct" name="vat_phan_tram" value="0" step="1"></td>' +
       '<td><input type="text" class="form-control form-control-sm text-end ct-vat-amount num-fmt" name="so_tien_vat" value="0"></td>' +
       '<td class="text-end ct-truoc-vat">0</td>' +
       '<td class="text-end ct-sau-vat fw-semibold">0</td>' +
+      '<td class="text-end ct-sau-vat-vnd fw-semibold text-primary">0</td>' +
       '<td><input type="text" class="form-control form-control-sm ct-ghi-chu" name="ghi_chu" placeholder="..."></td>' +
       '<td class="text-center"><button type="button" class="btn btn-sm btn-icon btn-label-danger btn-delete-row" title="Xóa"><i class="ti tabler-trash"></i></button></td>' +
       '</tr>';
@@ -298,6 +402,32 @@
     setTimeout(function () { initRowSelect2($row); }, 100);
 
     return $row;
+  }
+
+  /**
+   * Số cont của chuyến đã gom dòng, dưới ô Jobfile.
+   *
+   * Dòng nhập tay để TRỐNG — không dấu gạch, không chữ "Nhập tay": trang này
+   * là màn của người ký trả tiền và nó không có khái niệm "nguồn" như tab Chi
+   * phí trong modal đơn hàng. Cả bốn hình dạng của "chưa biết cont" (khoá
+   * vắng mặt vì module trucking tắt · NULL · chuỗi rỗng · dòng nhập tay) vẽ ra
+   * cùng một ô trống, nên không ca nào được ném lỗi.
+   *
+   * `.text()` chứ không phải chuỗi HTML ghép tay: số cont là dữ liệu người
+   * dùng gõ, và nó cũng đi vào `title`. Không qua `Drupal.t()` — placeholder
+   * `@` của nó chạy `checkPlain()` rồi lớp escape sau escape lần nữa.
+   */
+  function setSoCont($row, soCont) {
+    var $oCont = $row.find('.ct-so-cont');
+    var cont = soCont === null || soCont === undefined ? '' : String(soCont).trim();
+
+    $oCont.text(cont).toggleClass('d-none', cont === '');
+    if (cont === '') {
+      $oCont.removeAttr('title');
+    }
+    else {
+      $oCont.attr('title', 'Số cont: ' + cont);
+    }
   }
 
   var donViOptions = [];
@@ -330,7 +460,7 @@
       allowClear: true,
       width: '100%',
       dropdownParent: $('body')
-    }).val(null).trigger('change');
+    });
 
     $loHang.select2({
       ajax: {
@@ -347,6 +477,8 @@
       width: '100%',
       minimumInputLength: 1,
       dropdownParent: $('body')
+    }).on('select2:select select2:clear', function () {
+      renderLoHangRelated();
     });
 
     $loaiPhi.select2({
@@ -384,16 +516,21 @@
       }
       if (e.params.data.gia_mac_dinh) {
         $tr.find('.ct-don-gia').val(formatNum(e.params.data.gia_mac_dinh));
+        $tr.find('.ct-loai-tien').val('VND');
         calcRow($tr, false);
       }
+      renderLoHangRelated();
     });
     $loaiPhi.on('select2:clear', function () {
       $(this).closest('tr').find('.ct-nhom-chi-phi').text('');
+      renderLoHangRelated();
     });
   }
 
   function calcRow($row, vatOverride) {
     var donGia = parseNum($row.find('.ct-don-gia').val());
+    var loaiTien = ($row.find('.ct-loai-tien').val() || 'VND').toUpperCase();
+    var rate = loaiTien === 'USD' ? (parseFloat($('#dntt-ti-gia').val()) || 1) : 1;
     var soLuong = parseNum($row.find('.ct-so-luong').val());
     var vatPct = parseInt($row.find('.ct-vat-pct').val(), 10) || 0;
 
@@ -406,18 +543,23 @@
       $row.find('.ct-vat-amount').val(formatNum(tienVat));
     }
     var sauVat = truocVat + tienVat;
+    var sauVatVnd = Math.round(sauVat * rate);
 
     $row.find('.ct-truoc-vat').text(formatNum(truocVat));
     $row.find('.ct-sau-vat').text(formatNum(sauVat));
+    $row.find('.ct-sau-vat-vnd').text(formatNum(sauVatVnd));
     recalcTotal();
   }
 
   function recalcTotal() {
     var total = 0;
-    $('#chi-tiet-body .chi-tiet-row').each(function () {
-      total += parseNum($(this).find('.ct-sau-vat').text());
+    var rows = $('#chi-tiet-body .chi-tiet-row');
+    rows.each(function () {
+      total += parseNum($(this).find('.ct-sau-vat-vnd').text());
     });
     $('#dntt-tong-tien').text(formatNum(total));
+    $('#sticky-so-dong').text(rows.length);
+    renderLoHangRelated();
   }
 
   function renumberRows() {
@@ -431,7 +573,7 @@
   // Save
   // =========================================================================
 
-  function saveDntt() {
+  function saveDntt(callback) {
     var bph = $('#dntt-ben-phat-hanh').val();
     var dtntt = $('#dntt-doi-tac-nhan-tien').val();
     if (!bph) { notyf.error('Chọn Bên phát hành.'); return; }
@@ -445,7 +587,6 @@
       no_hoa_don: $('#dntt-no-hoa-don').is(':checked') ? 1 : 0,
       hinh_thuc_tt: $('#dntt-hinh-thuc-tt').val(),
       han_thanh_toan: fpToTimestamp('#dntt-han-thanh-toan'),
-      loai_tien: $('#dntt-loai-tien').val(),
       ti_gia: parseFloat($('#dntt-ti-gia').val()) || 1
     };
 
@@ -469,7 +610,19 @@
 
         saveAllChiTiet(res.dntt_id, function () {
           notyf.success('Đã lưu DNTT ' + res.so_dntt);
+
+          // ADR-0003 / Issue 01: quay lại đơn hàng win sau khi lưu.
+          if (CFG.from === 'don-hang-win') {
+            var back = '/quan-ly/don-hang-win';
+            if (CFG.lo_hang_nid) back += '?open_chi_phi=' + CFG.lo_hang_nid;
+            window.location.href = back;
+            return;
+          }
+
           if (!dnttId) loadDntt(res.dntt_id);
+          if (typeof callback === 'function') {
+            callback(res.dntt_id, res);
+          }
         });
       }
     });
@@ -496,7 +649,8 @@
         lo_hang_nid: loHangVal || null,
         don_vi: $row.find('.ct-don-vi').val() || '',
         don_gia: parseNum($row.find('.ct-don-gia').val()),
-        so_luong: parseNum($row.find('.ct-so-luong').val()) || 1,
+        loai_tien: ($row.find('.ct-loai-tien').val() || 'VND').toUpperCase(),
+        so_luong: parseNum($row.find('.ct-so-luong').val()),
         vat_phan_tram: parseInt($row.find('.ct-vat-pct').val(), 10) || 0,
         ghi_chu: $row.find('.ct-ghi-chu').val(),
         thu_tu: i + 1
@@ -520,6 +674,7 @@
             $row.attr('data-chi-tiet-id', res.chi_tiet_id);
             $row.find('.ct-truoc-vat').text(formatNum(res.tien_truoc_vat));
             $row.find('.ct-sau-vat').text(formatNum(res.tien_sau_vat));
+            $row.find('.ct-sau-vat-vnd').text(formatNum(res.tien_sau_vat_vnd));
             $row.find('.ct-vat-amount').val(formatNum(res.so_tien_vat));
             if (res.dntt_tong_tien !== undefined) {
               $('#dntt-tong-tien').text(formatNum(res.dntt_tong_tien));
@@ -595,14 +750,34 @@
     var dnttId = $('#dntt-id').val();
     if (!dnttId) { notyf.error('Lưu DNTT trước khi trình duyệt.'); return; }
 
-    saveDntt();
+    if (newStatus === 'cho_duyet') {
+      saveDntt(function (savedDnttId) {
+        $.ajax({
+          url: '/api/lo-dntt/create-batch',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({dntt_ids: [parseInt(savedDnttId, 10)]}),
+          dataType: 'json',
+          success: function (res) {
+            if (res.success) {
+              notyf.success('Đã tạo lô và trình duyệt DNTT.');
+              window.location.reload();
+            } else {
+              notyf.error(res.message || 'Không thể trình duyệt DNTT.');
+            }
+          },
+          error: function () { notyf.error('Lỗi kết nối server.'); }
+        });
+      });
+      return;
+    }
 
-    setTimeout(function () {
+    saveDntt(function (savedDnttId) {
       $.ajax({
         url: '/api/dntt/transition',
         type: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({dntt_id: parseInt(dnttId), new_status: newStatus}),
+        data: JSON.stringify({dntt_id: parseInt(savedDnttId, 10), new_status: newStatus}),
         dataType: 'json',
         success: function (res) {
           if (res.success) {
@@ -611,9 +786,10 @@
           } else {
             notyf.error(res.message);
           }
-        }
+        },
+        error: function () { notyf.error('Lỗi kết nối server.'); }
       });
-    }, 500);
+    });
   }
 
   // =========================================================================
@@ -624,28 +800,44 @@
     var $wrap = $('#action-buttons').empty();
     var status = CFG.trang_thai || 'moi';
     var isNew = !CFG.dntt_id;
+    // ADR-0003 / Issue 03: readonly do trạng thái HOẶC do phân quyền (CFG.is_editable
+    // đã gộp cả hai) → khóa Lưu/Xóa/Trình duyệt, chỉ hiện badge trạng thái.
+    var editable = isNew || CFG.is_editable !== false;
 
-    if (isNew || status === 'moi' || status === 'tu_choi' || status === 'tu_choi_tt') {
+    if (editable && (isNew || status === 'moi' || status === 'tu_choi' || status === 'tu_choi_tt')) {
       $wrap.append('<button class="btn btn-primary" id="btn-save-dntt"><i class="ti tabler-device-floppy me-1"></i>Lưu</button>');
       if (!isNew) {
         $wrap.append('<button class="btn btn-outline-danger" id="btn-delete-dntt"><i class="ti tabler-trash me-1"></i>Xóa</button>');
-        $wrap.append('<button class="btn btn-warning" id="btn-trinh-duyet"><i class="ti tabler-send me-1"></i>Trình duyệt</button>');
-      }
-    } else if (status === 'da_tt') {
-      var sl = STATUS_LABELS[status];
-      $wrap.append('<span class="badge ' + sl.cls + ' fs-6">' + sl.text + '</span>');
-      if (CFG.loai_dntt !== 'hoan_ve') {
-        $wrap.append('<button class="btn btn-primary" id="btn-create-hoan-ve"><i class="ti tabler-receipt-refund me-1"></i>Tạo DNTT hoàn về</button>');
+        // ADR-0011: DNTT điều chỉnh duyệt trực tiếp (chứng từ sửa sổ), KHÔNG đi
+        // đường lô "Trình duyệt" như DNTT thanh toán/Hoàn về.
+        if (CFG.loai_dntt === 'dieu_chinh') {
+          $wrap.append('<button class="btn btn-success" id="btn-approve-dieu-chinh"><i class="ti tabler-check me-1"></i>Duyệt điều chỉnh</button>');
+        } else {
+          $wrap.append('<button class="btn btn-warning" id="btn-trinh-duyet"><i class="ti tabler-send me-1"></i>Trình duyệt</button>');
+        }
       }
     } else {
-      var sl2 = STATUS_LABELS[status] || {text: status, cls: 'bg-label-secondary'};
-      $wrap.append('<span class="badge ' + sl2.cls + ' fs-6">' + sl2.text + '</span>');
+      var sl = STATUS_LABELS[status] || {text: status, cls: 'bg-label-secondary'};
+      $wrap.append('<span class="badge ' + sl.cls + ' fs-6">' + sl.text + '</span>');
+    }
+
+    // Issue 07: nút "Tạo DNTT hoàn về" hiện theo cờ dẫn xuất từ backend
+    // (đã trả đủ trên Công nợ + chưa có hoàn về), không còn gắn với da_tt.
+    if (!isNew && CFG.loai_dntt !== 'hoan_ve' && CFG.co_the_tao_hoan_ve) {
+      $wrap.append('<button class="btn btn-primary" id="btn-create-hoan-ve"><i class="ti tabler-receipt-refund me-1"></i>Tạo DNTT hoàn về</button>');
+    }
+
+    // ADR-0011: nút "Tạo DNTT điều chỉnh" trên DNTT thanh toán đã ghi nợ và còn
+    // phần điều chỉnh — giảm nghĩa vụ phải trả sai khi chưa/đang trả dở.
+    if (!isNew && CFG.loai_dntt === 'thanh_toan' && CFG.co_the_tao_dieu_chinh) {
+      $wrap.append('<button class="btn btn-outline-primary" id="btn-create-dieu-chinh"><i class="ti tabler-pencil-minus me-1"></i>Tạo DNTT điều chỉnh</button>');
     }
   }
 
   function renderHoanVeLinks(d) {
     var $el = $('#dntt-hoan-ve-links').empty();
-    if (d.loai_dntt === 'hoan_ve' && d.dntt_goc_id && d.dntt_goc_so_dntt) {
+    // Hoàn về và Điều chỉnh đều trỏ về một DNTT gốc.
+    if ((d.loai_dntt === 'hoan_ve' || d.loai_dntt === 'dieu_chinh') && d.dntt_goc_id && d.dntt_goc_so_dntt) {
       $el.append('<a href="/quan-ly/dntt/' + d.dntt_goc_id + '" class="badge bg-label-warning">Gốc: ' + d.dntt_goc_so_dntt + '</a>');
     }
     if (d.dntt_hoan_ve && d.dntt_hoan_ve.length) {
@@ -653,6 +845,241 @@
         $el.append(' <a href="/quan-ly/dntt/' + hv.dntt_id + '" class="badge bg-label-info">Hoàn: ' + hv.so_dntt + '</a>');
       });
     }
+    // Các DNTT điều chỉnh con (ADR-0011): xanh = đã duyệt, xám = còn nháp.
+    if (d.dntt_dieu_chinh && d.dntt_dieu_chinh.length) {
+      $.each(d.dntt_dieu_chinh, function (i, dc) {
+        var cls = dc.trang_thai === 'da_duyet' ? 'bg-label-success' : 'bg-label-secondary';
+        $el.append(' <a href="/quan-ly/dntt/' + dc.dntt_id + '" class="badge ' + cls + '">ĐC: ' + dc.so_dntt + '</a>');
+      });
+    }
+  }
+
+  // =========================================================================
+  // Sidebar + sticky bar (Issue 16)
+  // =========================================================================
+
+  function renderStickyMeta(d) {
+    if (!d) return;
+    $('#sticky-so-dntt').text(d.so_dntt || '');
+    var sl = STATUS_LABELS[d.trang_thai] || {text: d.trang_thai, cls: 'bg-label-secondary'};
+    var loai = LOAI_LABELS[d.loai_dntt] || d.loai_dntt || '';
+    $('#sticky-badges').html(
+      '<span class="badge bg-label-primary me-1">' + loai + '</span>' +
+      '<span class="badge ' + sl.cls + '">' + sl.text + '</span>'
+    );
+  }
+
+  function summaryRow(label, value) {
+    return '<div class="dntt-summary-row"><span class="lbl">' + label + '</span>' +
+           '<span class="val">' + (value || '—') + '</span></div>';
+  }
+
+  function renderSummary(d) {
+    var $wrap = $('#dntt-summary-wrap');
+    if (!d) {
+      $wrap.html('<div class="text-muted small">Lưu DNTT để xem tổng hợp.</div>');
+      return;
+    }
+    var sl = STATUS_LABELS[d.trang_thai] || {text: d.trang_thai, cls: 'bg-label-secondary'};
+    var loai = LOAI_LABELS[d.loai_dntt] || d.loai_dntt || '';
+    var hinhThuc = d.hinh_thuc_tt === 'TM' ? 'Tiền mặt (TM)' : 'Chuyển khoản (CK)';
+    var ngayHd = d.ngay_hoa_don ? new Date(d.ngay_hoa_don * 1000).toLocaleDateString('vi-VN') : '';
+    var hanTt = d.han_thanh_toan ? new Date(d.han_thanh_toan * 1000).toLocaleDateString('vi-VN') : '';
+
+    var html = '';
+    html += summaryRow('Số DNTT', d.so_dntt);
+    html += summaryRow('Trạng thái', '<span class="badge ' + sl.cls + '">' + sl.text + '</span>');
+    html += summaryRow('Loại DNTT', '<span class="badge bg-label-primary">' + loai + '</span>');
+    html += summaryRow('Đối tác nhận tiền', d.doi_tac_nhan_tien_ten);
+    html += summaryRow('Bên phát hành', d.ben_phat_hanh_ten);
+    html += summaryRow('Số hóa đơn', d.no_hoa_don == 1 ? 'Nợ HĐ' : (d.so_hoa_don || '—'));
+    html += summaryRow('Ngày hóa đơn', ngayHd);
+    html += summaryRow('Hạn thanh toán', hanTt);
+    html += summaryRow('Hình thức TT', hinhThuc);
+    html += summaryRow('Tỉ giá USD', formatNum(d.ti_gia || 1));
+    $wrap.html('<div class="p-3">' + html + '</div>');
+  }
+
+  function renderLoHangRelated() {
+    var $wrap = $('#dntt-lo-hang-wrap');
+    if (!$wrap.length) return;
+
+    var groups = {};
+    var order = [];
+    var VP_KEY = '__vp__';
+
+    $('#chi-tiet-body .chi-tiet-row').each(function () {
+      var $row = $(this);
+      var loaiSel = $row.find('.ct-loai-chi-phi');
+      var loaiText = select2Text(loaiSel);
+
+      var loHangSel = $row.find('.ct-lo-hang');
+      var loHang = select2Selection(loHangSel);
+      var jobKey = VP_KEY, jobText = 'Chi phí VP / Chung';
+      if (loHang.id) {
+        jobKey = String(loHang.id);
+        jobText = loHang.text || jobKey;
+      }
+
+      var nhom = $row.find('.ct-nhom-chi-phi').text() || '';
+      var vnd = parseNum($row.find('.ct-sau-vat-vnd').text());
+      var isUsd = ($row.find('.ct-loai-tien').val() || 'VND').toUpperCase() === 'USD';
+
+      if (!groups[jobKey]) {
+        groups[jobKey] = {text: jobText, lines: [], total: 0, isVp: jobKey === VP_KEY};
+        order.push(jobKey);
+      }
+      groups[jobKey].lines.push({loai: loaiText || '(chưa chọn loại phí)', nhom: nhom, vnd: vnd, isUsd: isUsd});
+      groups[jobKey].total += vnd;
+    });
+
+    // VP nhóm xuống cuối
+    order.sort(function (a, b) {
+      if (a === VP_KEY) return 1;
+      if (b === VP_KEY) return -1;
+      return 0;
+    });
+
+    $('#dntt-lo-hang-count').text(order.length);
+
+    if (!order.length) {
+      $wrap.html('<div class="p-3 text-muted small">Chưa có dòng chi phí.</div>');
+      return;
+    }
+
+    var html = '';
+    $.each(order, function (i, key) {
+      var g = groups[key];
+      var lines = '';
+      $.each(g.lines, function (j, ln) {
+        var badge = ln.isUsd ? '<span class="badge bg-label-info ms-1" style="font-size:9px;">USD</span>'
+                             : '<span class="badge bg-label-secondary ms-1" style="font-size:9px;">VND</span>';
+        lines += '<div class="dntt-acc-line">' +
+          '<span class="ten">' + escapeHtml(ln.loai) + badge +
+          (ln.nhom ? '<div class="nhom">' + escapeHtml(ln.nhom) + '</div>' : '') +
+          '</span>' +
+          '<span class="amt">' + formatNum(ln.vnd) + '</span>' +
+          '</div>';
+      });
+      var icon = g.isVp ? 'ti tabler-building-warehouse' : 'ti tabler-package';
+      html += '<div class="dntt-acc-item' + (i === 0 ? ' open' : '') + '">' +
+        '<div class="dntt-acc-header">' +
+          '<i class="ti tabler-chevron-down dntt-acc-chevron"></i>' +
+          '<i class="' + icon + '" style="font-size:13px;color:#7367f0;"></i>' +
+          '<span class="dntt-acc-id">' + escapeHtml(g.text) + '</span>' +
+          '<span class="text-muted ms-1" style="font-size:10px;">(' + g.lines.length + ')</span>' +
+          '<span class="dntt-acc-amount">' + formatNum(g.total) + '</span>' +
+        '</div>' +
+        '<div class="dntt-acc-body">' + lines + '</div>' +
+        '</div>';
+    });
+    $wrap.html(html);
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // Đọc text/selection từ Select2 an toàn (Select2 có thể chưa init lúc gọi sớm).
+  function select2Selection($el) {
+    try {
+      if ($el.data('select2')) {
+        var data = $el.select2('data') || [];
+        if (data.length && data[0].id) {
+          return {id: data[0].id, text: data[0].text || ''};
+        }
+        return {id: '', text: ''};
+      }
+    } catch (e) {}
+    var val = $el.val();
+    var text = $el.find('option:selected').text();
+    return {id: val || '', text: text || ''};
+  }
+
+  function select2Text($el) {
+    return select2Selection($el).text;
+  }
+
+  function isSidebarMobile() {
+    return window.matchMedia && window.matchMedia('(max-width: 991.98px)').matches;
+  }
+
+  function sidebarStorage(value) {
+    try {
+      if (value === undefined) {
+        return window.localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+      }
+      window.localStorage.setItem(SIDEBAR_COLLAPSE_KEY, value);
+    } catch (e) {}
+    return null;
+  }
+
+  function setSidebarCollapsed(collapsed, persist) {
+    if (isSidebarMobile()) {
+      collapsed = false;
+    }
+
+    $('.crm-dntt-workspace').toggleClass('sidebar-collapsed', collapsed);
+
+    var $toggle = $('#dntt-sidebar-toggle');
+    var label = collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar';
+    var icon = collapsed ? 'ti tabler-layout-sidebar-right-expand' : 'ti tabler-layout-sidebar-right-collapse';
+    $toggle.attr({
+      'aria-expanded': collapsed ? 'false' : 'true',
+      'aria-label': label,
+      title: label
+    }).find('i').attr('class', icon);
+
+    if (persist !== false && !isSidebarMobile()) {
+      sidebarStorage(collapsed ? '1' : '0');
+    }
+  }
+
+  function initSidebarCollapse() {
+    setSidebarCollapsed(sidebarStorage() === '1', false);
+    $(window).on('resize.crmDnttSidebar', function () {
+      setSidebarCollapsed(!isSidebarMobile() && sidebarStorage() === '1', false);
+    });
+  }
+
+
+  // =========================================================================
+  // Checkbox "Dùng tỷ giá hiện tại" (ticket 04, ADR-0004)
+  // =========================================================================
+
+  /**
+   * Gắn checkbox `#dntt-dung-ty-gia-chung` vào helper dùng chung của
+   * `cau_hinh_ty_gia` (ticket 02) — module MỀM, `template.php` tự
+   * `module_exists()` trước khi nạp file helper.
+   *
+   * Chỉ gắn khi phiếu còn sửa được (`CFG.is_editable`): form Xem (readonly)
+   * disable hẳn checkbox thay vì gắn helper — cố ý KHÔNG đụng `lockForm()`
+   * (nó khoá `#dntt-ti-gia` theo lý do riêng, trạng thái phiếu), để hai cơ chế
+   * khoá không dẫm lên nhau; nếu gắn helper trong ca readonly, untick checkbox
+   * sẽ mở khoá lại `#dntt-ti-gia` mà `lockForm()` vừa khoá.
+   */
+  function initTyGiaChungCheckbox() {
+    var $checkbox = $('#dntt-dung-ty-gia-chung');
+    if (!CFG.is_editable || typeof window.attachTyGiaChungCheckbox !== 'function') {
+      $checkbox.prop('disabled', true);
+      return;
+    }
+
+    window.attachTyGiaChungCheckbox($checkbox, '#dntt-ti-gia');
+
+    // `dntt.ti_gia` là numeric(15,2) — làm tròn về 2 chữ số thập phân, khớp
+    // step="0.01" của input, khác precision numeric(18,4) của tỷ giá chung
+    // (helper dùng chung set nguyên giá trị 4 chữ số, không tự làm tròn theo
+    // từng nơi tiêu thụ).
+    $checkbox.on('change.tyGiaChungLamTron', function () {
+      if (!$(this).is(':checked')) return;
+      var v = parseFloat($('#dntt-ti-gia').val());
+      if (!isNaN(v)) {
+        $('#dntt-ti-gia').val(v.toFixed(2));
+      }
+    });
   }
 
   // =========================================================================
@@ -663,6 +1090,7 @@
     $('.crm-dntt-form').addClass('locked');
     $('#dntt-ben-phat-hanh, #dntt-doi-tac-nhan-tien').prop('disabled', true);
     $('#chi-tiet-body .ct-lo-hang, #chi-tiet-body .ct-loai-chi-phi, #chi-tiet-body .ct-don-vi').prop('disabled', true);
+    $('#chi-tiet-body input, #chi-tiet-body button, #dntt-ti-gia').prop('disabled', true);
   }
 
   // =========================================================================
@@ -700,9 +1128,21 @@
     return null;
   }
 
+  function setupBackToWin() {
+    // ADR-0003 / Issue 01: khi mở từ đơn hàng win, nút "Quay lại" trỏ về view win.
+    if (CFG.from !== 'don-hang-win') return;
+    var back = '/quan-ly/don-hang-win';
+    if (CFG.lo_hang_nid) back += '?open_chi_phi=' + CFG.lo_hang_nid;
+    $('#action-bar a.btn-label-secondary').attr('href', back)
+      .html('<i class="bx bx-arrow-back me-1"></i>Quay lại đơn hàng win');
+  }
+
   function prefillLoHang() {
-    var params = new URLSearchParams(window.location.search);
-    var loHang = params.get('lo_hang');
+    var loHang = CFG.lo_hang_nid || null;
+    if (!loHang) {
+      var params = new URLSearchParams(window.location.search);
+      loHang = params.get('lo_hang_nid');
+    }
     if (!loHang) return;
     var $row = $('#chi-tiet-body .chi-tiet-row').first();
     if (!$row.length) return;

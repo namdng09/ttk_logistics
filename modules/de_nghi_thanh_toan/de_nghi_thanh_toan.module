@@ -1406,8 +1406,10 @@ function de_nghi_thanh_toan_rest_options() {
   // Danh sách lái xe (cho bộ lọc Bên nhận tiền).
   $lai_xe_ds = array();
   $has_lx_sdt = db_field_exists('lai_xe', 'sdt');
-  foreach (db_query("SELECT nid, ten" . ($has_lx_sdt ? ", sdt" : "") . " FROM {lai_xe} WHERE hoat_dong = 1 ORDER BY ten ASC") as $lx0) {
-    $lai_xe_ds[] = array('nid' => (int) $lx0->nid, 'ten' => $lx0->ten, 'sdt' => $has_lx_sdt ? trim((string) $lx0->sdt) : '');
+  $has_lx_uid = db_field_exists('lai_xe', 'uid_nguoi_dung');
+  foreach (db_query("SELECT nid, ten" . ($has_lx_sdt ? ", sdt" : "") . ($has_lx_uid ? ", uid_nguoi_dung" : "") . " FROM {lai_xe} WHERE hoat_dong = 1 ORDER BY ten ASC") as $lx0) {
+    // uid = tài khoản đăng nhập của lái xe (0 nếu chưa có): client tự suy ra "lái xe của chuyến" từ danh sách này, khỏi gọi lại theo từng lái xe.
+    $lai_xe_ds[] = array('nid' => (int) $lx0->nid, 'ten' => $lx0->ten, 'sdt' => $has_lx_sdt ? trim((string) $lx0->sdt) : '', 'uid' => $has_lx_uid ? (int) $lx0->uid_nguoi_dung : 0);
   }
   $lai_xe = NULL;
   if (!empty($_GET['nid_lai_xe'])) {
