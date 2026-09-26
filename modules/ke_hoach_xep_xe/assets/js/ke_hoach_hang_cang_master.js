@@ -51,6 +51,13 @@
     return window.jQuery;
   }
 
+  // Endpoint gộp: 1 request trả cả 4 nguồn (chỉ trường màn hình dùng, không phân trang, không truy vấn theo dòng).
+  // Lỗi/không có endpoint (vd server chưa cập nhật) thì tự dùng đường cũ: gọi riêng + phân trang từng API.
+  var COMBINED_URL = '/api/ke-hoach-xep-xe/tuy-chon';
+  var COMBINED_KEYS = { customers: 'customers', drivers: 'drivers', vehicles: 'vehicles', diaDiem: 'dia_diem' };
+  var combinedPromise = null;
+  var combinedFailed = false;
+
   var data = { customers: null, drivers: null, vehicles: null, diaDiem: null };
   var stamps = {};      // kind => thời điểm tải (ms) để tính hạn cache
   var pending = {};     // kind => promise đang chạy (dùng chung cho mọi nơi gọi cùng lúc)
@@ -174,21 +181,67 @@
     return deferred.promise();
   }
 
+  // Tải endpoint gộp 1 lần (mọi nơi gọi cùng lúc dùng chung 1 request); nguồn nào bị thiếu quyền (`denied`) hoặc vượt trần
+  // (`truncated`) thì để trống để loadKind gọi đường riêng như trước.
+  function loadCombined() {
+    if (combinedPromise) return combinedPromise;
+    var $ = J();
+    var deferred = $.Deferred();
+    combinedPromise = deferred.promise();
+    $.ajax({ url: COMBINED_URL, type: 'GET', dataType: 'json' }).done(function (res) {
+      var payload = res && res.status === 'success' && res.data ? res.data : null;
+      if (!payload) {
+        deferred.reject();
+        return;
+      }
+      var skip = {};
+      $.each((payload.denied || []).concat(payload.truncated || []), function (_, kind) { skip[kind] = true; });
+      var now = new Date().getTime();
+      Object.keys(COMBINED_KEYS).forEach(function (kind) {
+        var value = payload[COMBINED_KEYS[kind]];
+        if (skip[kind] || data[kind] || value === undefined || value === null) return;
+        data[kind] = value;
+        stamps[kind] = now;
+      });
+      persist();
+      deferred.resolve();
+    }).fail(function () {
+      deferred.reject();
+    }).always(function () {
+      combinedPromise = null;
+    });
+    return deferred.promise();
+  }
+
   function loadKind(kind) {
     var $ = J();
     if (data[kind]) return $.Deferred().resolve().promise();
     if (pending[kind]) return pending[kind];
     var deferred = $.Deferred();
     pending[kind] = deferred.promise();
-    fetchAllPages(SOURCES[kind])
-      .done(function (items) {
-        data[kind] = normalize(kind, items);
-        stamps[kind] = new Date().getTime();
-        persist();
-        deferred.resolve();
-      })
-      .fail(function (reason) { deferred.reject(reason); })
-      .always(function () { delete pending[kind]; });
+    var viaPages = function () {
+      fetchAllPages(SOURCES[kind])
+        .done(function (items) {
+          data[kind] = normalize(kind, items);
+          stamps[kind] = new Date().getTime();
+          persist();
+          deferred.resolve();
+        })
+        .fail(function (reason) { deferred.reject(reason); });
+    };
+    if (combinedFailed) {
+      viaPages();
+    }
+    else {
+      loadCombined().done(function () {
+        if (data[kind]) deferred.resolve();
+        else viaPages();
+      }).fail(function () {
+        combinedFailed = true;
+        viaPages();
+      });
+    }
+    deferred.always(function () { delete pending[kind]; });
     return deferred.promise();
   }
 

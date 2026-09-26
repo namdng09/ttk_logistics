@@ -114,6 +114,13 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  // Đường tĩnh nên thắng api/ke-hoach-xep-xe/% (chi tiết kế hoạch).
+  $items['api/ke-hoach-xep-xe/tuy-chon'] = array(
+    'page callback' => 'ke_hoach_xep_xe_rest_options',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/ke-hoach-xep-xe/%/file'] = array(
     'page callback' => 'ke_hoach_xep_xe_file_collection',
     'page arguments' => array(2),
@@ -3517,6 +3524,111 @@ function _ke_hoach_xep_xe_rest_create() {
  *
  * Endpoint riêng của hàng cảng, không đi qua /api/quan-ly-cont (màn quản lý cont).
  */
+/** Trần số dòng mỗi loại của GET api/ke-hoach-xep-xe/tuy-chon; vượt trần thì loại đó nằm trong `truncated` và client tải theo trang. */
+define('KE_HOACH_XEP_XE_OPTIONS_MAX', 5000);
+
+/**
+ * GET api/ke-hoach-xep-xe/tuy-chon — toàn bộ danh mục cho màn hàng cảng / tuyến xa (bộ lọc, modal xếp xe/tạo, phiếu trả khách hàng,
+ * chi phí, cont) trong MỘT request: mỗi loại 1 câu SQL cố định, chỉ các cột màn hình dùng, không phân trang, không truy vấn theo dòng.
+ * Giá trị và thứ tự giữ đúng như các API riêng mà màn hình từng gọi (khach-hang, lai-xe, phuong-tien, danh-muc):
+ *   customers: {nid, ma_kh, ten}                        — khách hàng đang hoạt động, nid giảm dần
+ *   drivers:   {nid, ten, ma_nhan_vien, sdt}            — lái xe đang hoạt động, nid tăng dần
+ *   vehicles:  {nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat, lai_xe: {nid, ten, sdt}|null} — nid giảm dần,
+ *              lai_xe = lái xe đang được gán (bản gán mới nhất còn hoạt động)
+ *   dia_diem:  {kho, bai, cang, loaiHang, chiPhi}       — tên danh mục theo loại, nid giảm dần
+ * Quyền: cần xem kế hoạch; khách hàng cần `khach_hang_view`, phương tiện cần `phuong_tien_view` như API riêng của chúng — thiếu thì loại
+ * đó rỗng và tên loại nằm trong `denied` (client xử lý như API riêng trả 401).
+ */
+function ke_hoach_xep_xe_rest_options() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    return _ke_hoach_xep_xe_method_not_allowed('GET');
+  }
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
+    return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem kế hoạch');
+  }
+  $max = KE_HOACH_XEP_XE_OPTIONS_MAX;
+  $data = array('customers' => array(), 'drivers' => array(), 'vehicles' => array(), 'dia_diem' => array('kho' => array(), 'bai' => array(), 'cang' => array(), 'loaiHang' => array(), 'chiPhi' => array()));
+  $denied = array();
+  $truncated = array();
+
+  if (api_has_permission('khach_hang_view')) {
+    $rows = db_query_range("SELECT nid, ma_kh, ten FROM {khach_hang} WHERE hoat_dong = 1 ORDER BY nid DESC", 0, $max + 1)->fetchAll();
+    if (count($rows) > $max) {
+      $truncated[] = 'customers';
+      $rows = array();
+    }
+    foreach ($rows as $r) {
+      $data['customers'][] = array('nid' => (int) $r->nid, 'ma_kh' => $r->ma_kh ? $r->ma_kh : '', 'ten' => $r->ten);
+    }
+  }
+  else {
+    $denied[] = 'customers';
+  }
+
+  $rows = db_query_range("SELECT nid, ten, ma_nhan_vien, sdt FROM {lai_xe} WHERE hoat_dong = 1 ORDER BY nid ASC", 0, $max + 1)->fetchAll();
+  if (count($rows) > $max) {
+    $truncated[] = 'drivers';
+    $rows = array();
+  }
+  foreach ($rows as $r) {
+    $data['drivers'][] = array('nid' => (int) $r->nid, 'ten' => $r->ten, 'ma_nhan_vien' => (string) $r->ma_nhan_vien, 'sdt' => (string) $r->sdt);
+  }
+
+  if (api_has_permission('phuong_tien_view')) {
+    _phuong_tien_ensure_extended_fields();
+    $rows = db_query_range("SELECT nid, bks, ma_tai_san, loai_phuong_tien, hang_xe, nam_san_xuat FROM {phuong_tien} WHERE hoat_dong = 1 ORDER BY nid DESC", 0, $max + 1)->fetchAll();
+    if (count($rows) > $max) {
+      $truncated[] = 'vehicles';
+      $rows = array();
+    }
+    $assigned = array();
+    foreach (db_query("SELECT nid_phuong_tien, nid_lai_xe FROM {phuong_tien_lai_xe} WHERE hoat_dong = 1 ORDER BY id ASC") as $a) {
+      $assigned[(int) $a->nid_phuong_tien] = (int) $a->nid_lai_xe;
+    }
+    $driver_info = array();
+    if ($rows && $assigned) {
+      // Kể cả lái xe đã ngưng hoạt động vẫn hiện tên trên xe (như API phương tiện cũ join thẳng bảng lai_xe).
+      foreach (db_query("SELECT nid, ten, sdt FROM {lai_xe} WHERE nid IN (:ids)", array(':ids' => array_values(array_unique($assigned)))) as $d) {
+        $driver_info[(int) $d->nid] = array('nid' => (int) $d->nid, 'ten' => $d->ten, 'sdt' => (string) $d->sdt);
+      }
+    }
+    foreach ($rows as $r) {
+      $lx_id = isset($assigned[(int) $r->nid]) ? $assigned[(int) $r->nid] : 0;
+      $data['vehicles'][] = array(
+        'nid' => (int) $r->nid,
+        'bks' => $r->bks,
+        'ma_tai_san' => $r->ma_tai_san,
+        'loai_phuong_tien' => $r->loai_phuong_tien,
+        'hang_xe' => $r->hang_xe,
+        'nam_san_xuat' => $r->nam_san_xuat,
+        'lai_xe' => ($lx_id && isset($driver_info[$lx_id])) ? $driver_info[$lx_id] : NULL,
+      );
+    }
+  }
+  else {
+    $denied[] = 'vehicles';
+  }
+
+  $rows = db_query_range("SELECT ten, phan_loai FROM {danh_muc} WHERE hoat_dong = 1 AND phan_loai IN (:pl) ORDER BY nid DESC", 0, $max + 1, array(':pl' => array('Kho', 'Bãi', 'Cảng', 'Loại hàng', 'Chi phí')))->fetchAll();
+  if (count($rows) > $max) {
+    $truncated[] = 'diaDiem';
+    $rows = array();
+  }
+  $by_type = array('kho' => 'kho', 'bãi' => 'bai', 'cảng' => 'cang', 'loại hàng' => 'loaiHang', 'chi phí' => 'chiPhi');
+  foreach ($rows as $r) {
+    // Giữ nguyên tên như trong DB (không trim): giá trị này được so khớp với dữ liệu kế hoạch đã lưu (kho, bãi...).
+    $ten = (string) $r->ten;
+    $key = drupal_strtolower(trim((string) $r->phan_loai));
+    if (trim($ten) !== '' && isset($by_type[$key])) {
+      $data['dia_diem'][$by_type[$key]][] = $ten;
+    }
+  }
+
+  $data['denied'] = $denied;
+  $data['truncated'] = $truncated;
+  return _ke_hoach_xep_xe_success($data);
+}
+
 function ke_hoach_xep_xe_dinh_muc_rest($id) {
   if ($_SERVER['REQUEST_METHOD'] !== 'PUT') {
     return _ke_hoach_xep_xe_method_not_allowed('PUT');
