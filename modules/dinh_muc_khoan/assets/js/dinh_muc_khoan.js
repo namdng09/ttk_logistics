@@ -66,6 +66,47 @@
 
   /** Tải 1 lần danh sách Bãi/Kho/Cảng từ danh mục làm gợi ý cho Tagify; các lần
    * gọi sau dùng luôn cache, không gọi lại API. */
+  // Tải đủ mọi trang của 1 API danh sách: trang 1 cho biết total_pages, các trang còn lại gọi song song (mỗi lần tối đa 100 dòng
+  // khi dùng select, tối đa 50 trang). done(items) khi đủ, fail(jqXHR|undefined) nếu có trang lỗi.
+  function fetchAllPages(url, params, done, fail) {
+    function request(page) {
+      return $.ajax({ url: url, type: 'GET', dataType: 'json', data: $.extend({ page: page }, params) });
+    }
+    request(1).done(function (res) {
+      if (!(res && res.status === 'success' && res.data && res.data.items)) {
+        fail();
+        return;
+      }
+      var first = res.data.items;
+      var pages = Math.min(50, Math.max(1, parseInt(res.data.total_pages, 10) || 1));
+      if (pages === 1) {
+        done(first);
+        return;
+      }
+      var chunks = [];
+      var left = pages - 1;
+      var failed = false;
+      for (var page = 2; page <= pages; page++) {
+        (function (p) {
+          request(p).done(function (r) {
+            if (r && r.status === 'success' && r.data && r.data.items) chunks[p - 2] = r.data.items; else failed = true;
+          }).fail(function () {
+            failed = true;
+          }).always(function () {
+            left -= 1;
+            if (left > 0) return;
+            if (failed) { fail(); return; }
+            var all = first;
+            for (var c = 0; c < chunks.length; c++) all = all.concat(chunks[c]);
+            done(all);
+          });
+        })(page);
+      }
+    }).fail(function (jqXHR) {
+      fail(jqXHR);
+    });
+  }
+
   function loadLocationWhitelist(callback) {
     if (LOCATION_LOADED) {
       if (callback) callback();
@@ -74,33 +115,29 @@
     if (callback) LOCATION_CALLBACKS.push(callback);
     if (LOCATION_LOADING) return;
     LOCATION_LOADING = true;
-    $.ajax({
-      url: '/api/danh-muc',
-      dataType: 'json',
-      data: { phan_loai: 'Bãi,Kho,Cảng', limit: 1000 },
-      success: function (res) {
-        var items = (res && res.status === 'success' && res.data && res.data.items) || [];
-        var seen = {};
-        var names = [];
-        for (var i = 0; i < items.length; i++) {
-          var ten = String((items[i] && items[i].ten) || '').trim();
-          var key = ten.toLowerCase();
-          if (ten === '' || seen[key]) continue;
-          seen[key] = true;
-          names.push(ten);
-        }
-        LOCATION_WHITELIST = names;
-      },
-      error: function (jqXHR) {
-        if (notyf) notyf.error(apiMsg(jqXHR));
-      },
-      complete: function () {
-        LOCATION_LOADED = true;
-        LOCATION_LOADING = false;
-        var callbacks = LOCATION_CALLBACKS.splice(0);
-        for (var i = 0; i < callbacks.length; i++) callbacks[i]();
+    // Chỉ lấy nid + tên địa điểm; tải đủ mọi trang, mỗi lần 100 dòng.
+    fetchAllPages('/api/danh-muc', { phan_loai: 'Bãi,Kho,Cảng', limit: 100, select: 'nid,ten' }, function (items) {
+      var seen = {};
+      var names = [];
+      for (var i = 0; i < items.length; i++) {
+        var ten = String((items[i] && items[i].ten) || '').trim();
+        var key = ten.toLowerCase();
+        if (ten === '' || seen[key]) continue;
+        seen[key] = true;
+        names.push(ten);
       }
+      LOCATION_WHITELIST = names;
+      finishLocations();
+    }, function (jqXHR) {
+      if (notyf) notyf.error(jqXHR ? apiMsg(jqXHR) : 'Không tải đủ danh sách địa điểm');
+      finishLocations();
     });
+    function finishLocations() {
+      LOCATION_LOADED = true;
+      LOCATION_LOADING = false;
+      var callbacks = LOCATION_CALLBACKS.splice(0);
+      for (var i = 0; i < callbacks.length; i++) callbacks[i]();
+    }
   }
 
   function tagifyDropdownOptions(closeOnSelect) {

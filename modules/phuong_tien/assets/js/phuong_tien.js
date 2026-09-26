@@ -449,7 +449,8 @@
       url: '/api/phuong-tien',
       type: 'GET',
       dataType: 'json',
-      data: { page: currentPage, keyword: currentKeyword, loai_phuong_tien: currentLoai },
+      // Danh sách chỉ lấy các cột hiển thị (kèm lai_xe cho cột lái xe và hộp gán lái xe); xem/sửa gọi GET /api/phuong-tien/{id} riêng.
+      data: { page: currentPage, keyword: currentKeyword, loai_phuong_tien: currentLoai, select: 'nid,bks,ma_tai_san,loai_phuong_tien,hang_xe,mau_sac,tai_trong,tu_trong,so_cau,loai_mooc,so_truc,chieu_dai_mooc,lai_xe' },
       success: function (res) {
         $('#loading-row').remove();
 

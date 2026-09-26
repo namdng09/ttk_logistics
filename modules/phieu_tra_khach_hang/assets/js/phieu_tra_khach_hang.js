@@ -161,9 +161,50 @@
     });
   }
 
+  // Tải đủ mọi trang của 1 API danh sách: trang 1 cho biết total_pages, các trang còn lại gọi song song (mỗi lần tối đa 100 dòng
+  // khi dùng select, tối đa 50 trang). done(items) khi đủ, fail(jqXHR|undefined) nếu có trang lỗi.
+  function fetchAllPages(url, params, done, fail) {
+    function request(page) {
+      return $.ajax({ url: url, type: 'GET', dataType: 'json', data: $.extend({ page: page }, params) });
+    }
+    request(1).done(function (res) {
+      if (!(res && res.status === 'success' && res.data && res.data.items)) {
+        fail();
+        return;
+      }
+      var first = res.data.items;
+      var pages = Math.min(50, Math.max(1, parseInt(res.data.total_pages, 10) || 1));
+      if (pages === 1) {
+        done(first);
+        return;
+      }
+      var chunks = [];
+      var left = pages - 1;
+      var failed = false;
+      for (var page = 2; page <= pages; page++) {
+        (function (p) {
+          request(p).done(function (r) {
+            if (r && r.status === 'success' && r.data && r.data.items) chunks[p - 2] = r.data.items; else failed = true;
+          }).fail(function () {
+            failed = true;
+          }).always(function () {
+            left -= 1;
+            if (left > 0) return;
+            if (failed) { fail(); return; }
+            var all = first;
+            for (var c = 0; c < chunks.length; c++) all = all.concat(chunks[c]);
+            done(all);
+          });
+        })(page);
+      }
+    }).fail(function (jqXHR) {
+      fail(jqXHR);
+    });
+  }
+
   function loadCustomers() {
-    $.getJSON('/api/khach-hang', { limit: 500 }).done(function (res) {
-      var items = res && res.data ? (res.data.items || []) : [];
+    // Chỉ lấy nid, tên, mã KH (đủ để dựng ô chọn); tải đủ mọi trang.
+    fetchAllPages('/api/khach-hang', { limit: 100, select: 'nid,ten,ma_kh' }, function (items) {
       var html = '<option value="">Tất cả</option>';
       var createHtml = '<option value="">Chọn khách hàng</option>';
       $.each(items, function (_, item) {
@@ -175,7 +216,7 @@
       $('#ptkh-create-customer').html(createHtml);
       initSelect2($('#ptkh-filter-customer'), 'Tất cả');
       initSelect2($('#ptkh-create-customer'), 'Chọn khách hàng', $('#ptkh-create-modal'));
-    });
+    }, function () {});
   }
 
   function loadList() {

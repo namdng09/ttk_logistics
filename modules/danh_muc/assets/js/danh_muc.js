@@ -493,7 +493,8 @@
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
 
-    var params = { page: currentPage, keyword: currentKeyword };
+    // Danh sách chỉ lấy các cột hiển thị (thong_tin = phụ phí, cột "Phụ phí"); xem/sửa gọi GET /api/danh-muc/{id} riêng.
+    var params = { page: currentPage, keyword: currentKeyword, select: 'nid,ten,phan_loai,thong_tin' };
     if (currentPhanLoai) {
       params.phan_loai = currentPhanLoai;
     }

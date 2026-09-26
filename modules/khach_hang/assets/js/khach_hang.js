@@ -24,7 +24,6 @@
   var BANK_LIST_LOADED = false;
   var DIADIEM_LIST = [];
   var NV_KINH_DOANH_LOADED = false;
-  var DIADIEM_LIST_LOADED = false;
   var FORM_SUPPORT_DATA_LOADED = false;
   var FORM_SUPPORT_DATA_LOADING = false;
   var FORM_SUPPORT_DATA_CALLBACKS = [];
@@ -430,43 +429,7 @@
     return moneyFormatter.format(n);
   }
 
-  /* =====================================================
-     NV Kinh Doanh
-     ===================================================== */
 
-  function loadNvKinhDoanh() {
-    if (NV_KINH_DOANH_LOADED) return;
-    $.ajax({
-      url: '/api/nhan-vien',
-      type: 'GET',
-      dataType: 'json',
-      data: { limit: 100, chuc_vu: 28 },
-      success: function (res) {
-        if (res.status === 'success' && res.data) {
-          var items = res.data.items || [];
-          var map = {};
-          var sel = document.getElementById('nv-kinh-doanh-select');
-          if (!sel) return;
-          sel.innerHTML = '<option value="">Chọn nhân viên</option>';
-          for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            var text = item.ten || item.name || '';
-            if (item.ma_nhan_vien) text += ' - ' + item.ma_nhan_vien;
-            map[String(item.uid)] = text;
-            var opt = document.createElement('option');
-            opt.value = item.uid;
-            opt.textContent = text;
-            sel.appendChild(opt);
-          }
-          NV_KINH_DOANH_MAP = map;
-          NV_KINH_DOANH_LOADED = true;
-        }
-      },
-      error: function (jqXHR) {
-        if (notyf) notyf.error(apiMsg(jqXHR));
-      }
-    });
-  }
 
   /* =====================================================
      Tagify (Phân loại)
@@ -720,36 +683,7 @@
     }
   }
 
-  /* =====================================================
-     Dia Diem (for warehouse address selects)
-     ===================================================== */
 
-  function loadDiaDiem() {
-    if (DIADIEM_LIST_LOADED) return;
-    $.ajax({
-      url: '/api/danh-muc',
-      type: 'GET',
-      dataType: 'json',
-      data: { phan_loai: 'Kho', limit: 500 },
-      success: function (res) {
-        if (res.status === 'success' && res.data && res.data.items) {
-          var names = [];
-          for (var i = 0; i < res.data.items.length; i++) {
-            var ten = res.data.items[i].ten;
-            if (ten) names.push(ten);
-          }
-          DIADIEM_LIST = names;
-          DIADIEM_LIST_LOADED = true;
-          var selects = document.querySelectorAll('.kho-dia-chi');
-          for (var j = 0; j < selects.length; j++) {
-            var curVal = selects[j].value;
-            initDiaDiemSelect(selects[j], curVal || null);
-          }
-        }
-      },
-      error: function () {}
-    });
-  }
 
   function ensureFormSupportData(callback) {
     if (FORM_SUPPORT_DATA_LOADED) {
@@ -767,7 +701,8 @@
 
     FORM_SUPPORT_DATA_LOADING = true;
 
-    var remaining = 3;
+    // Ngân hàng + NV kinh doanh. (Danh mục Kho không tải nữa: mục Địa chỉ kho & Bảng giá đang ẩn; giá trị kho đã lưu vẫn hiện được.)
+    var remaining = 2;
     function finishOne() {
       remaining--;
       if (remaining > 0) return;
@@ -803,7 +738,8 @@
         url: '/api/nhan-vien',
         type: 'GET',
         dataType: 'json',
-        data: { limit: 100, chuc_vu: 28 },
+        // Chỉ các trường dùng để dựng ô chọn: uid, tên, tên đăng nhập, mã nhân viên.
+        data: { limit: 100, chuc_vu: 28, select: 'uid,ten,name,ma_nhan_vien' },
         success: function (res) {
           if (res.status === 'success' && res.data) {
             var items = res.data.items || [];
@@ -833,34 +769,9 @@
       });
     }
 
-    function finishDiaDiem() {
-      if (DIADIEM_LIST_LOADED) {
-        finishOne();
-        return;
-      }
-      $.ajax({
-        url: '/api/danh-muc',
-        type: 'GET',
-        dataType: 'json',
-        data: { phan_loai: 'Kho', limit: 500 },
-        success: function (res) {
-          if (res.status === 'success' && res.data && res.data.items) {
-            var names = [];
-            for (var i = 0; i < res.data.items.length; i++) {
-              var ten = res.data.items[i].ten;
-              if (ten) names.push(ten);
-            }
-            DIADIEM_LIST = names;
-            DIADIEM_LIST_LOADED = true;
-          }
-        },
-        complete: finishOne
-      });
-    }
 
     loadBankList(finishOne);
     finishNv();
-    finishDiaDiem();
   }
 
   function initDiaDiemSelect(selEl, value) {
@@ -1160,7 +1071,8 @@
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
 
-    var params = { page: currentPage, keyword: currentKeyword };
+    // Danh sách chỉ lấy các cột hiển thị; xem/sửa gọi GET /api/khach-hang/{id} riêng.
+    var params = { page: currentPage, keyword: currentKeyword, select: 'nid,ten,ma_kh,cccd_mst,sdt,dia_chi,phan_loai,ghi_chu' };
     if (currentPhanLoai) {
       params.phan_loai = currentPhanLoai;
     }

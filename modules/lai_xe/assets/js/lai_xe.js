@@ -388,7 +388,8 @@
       url: '/api/lai-xe',
       type: 'GET',
       dataType: 'json',
-      data: { page: currentPage, keyword: currentKeyword },
+      // Danh sách chỉ lấy các cột hiển thị; xem/sửa gọi GET /api/lai-xe/{id} riêng.
+      data: { page: currentPage, keyword: currentKeyword, select: 'nid,ten,ma_nhan_vien,sdt,cccd,so_bang_lai,loai_bang_lai,dod,tai_khoan_app' },
       success: function (res) {
         $('#loading-row').remove();
 

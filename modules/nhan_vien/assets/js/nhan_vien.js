@@ -296,7 +296,8 @@
       url: '/api/danh-muc',
       type: 'GET',
       dataType: 'json',
-      data: { phan_loai: phanLoai, limit: 100 },
+      // Ô chọn chỉ cần nid + tên.
+      data: { phan_loai: phanLoai, limit: 100, select: 'nid,ten' },
       success: function (res) {
         if (res.status === 'success' && res.data) {
           var select = document.querySelector('#form-nhan-vien select[name="' + fieldName + '"]');
@@ -445,7 +446,8 @@
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
 
-    var params = { page: currentPage, keyword: currentKeyword };
+    // Danh sách chỉ lấy các cột hiển thị; xem/sửa gọi GET /api/nhan-vien/{uid} riêng.
+    var params = { page: currentPage, keyword: currentKeyword, select: 'uid,status,ma_nhan_vien,ten,name,sdt,mail,phong_ban,chuc_vu,role' };
     if (currentRoleRid) {
       params.role_rid = currentRoleRid;
     }
