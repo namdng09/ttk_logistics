@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Phiếu trả khách hàng.
@@ -73,49 +79,40 @@ function phieu_tra_khach_hang_page_list() {
   drupal_add_js($js_path, array('type' => 'file', 'group' => JS_THEME, 'weight' => 4, 'preprocess' => FALSE, 'version' => $js_version));
   drupal_add_js(array('phieu_tra_khach_hang' => array(
     'permissions' => array(
-      'view' => user_access('phieu_tra_khach_hang_view'),
-      'create' => user_access('phieu_tra_khach_hang_create'),
-      'approve' => user_access('phieu_tra_khach_hang_approve'),
+      'view' => api_has_permission('phieu_tra_khach_hang_view'),
+      'create' => api_has_permission('phieu_tra_khach_hang_create'),
+      'approve' => api_has_permission('phieu_tra_khach_hang_approve'),
     ),
   )), 'setting');
   return theme('phieu_tra_khach_hang_list_page');
 }
 
 function _ptkh_input() {
-  $data = json_decode(file_get_contents('php://input'), TRUE);
-  return is_array($data) ? $data : array();
+  return api_request_input();
 }
 
 function _ptkh_success($data = NULL) {
-  $res = array('status' => 'success');
-  if ($data !== NULL) $res['data'] = $data;
-  return $res;
+  return api_response_success($data);
 }
 
 function _ptkh_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _ptkh_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _ptkh_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _ptkh_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _ptkh_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 function _ptkh_now() {
@@ -480,7 +477,7 @@ function phieu_tra_khach_hang_rest_item($id) {
 
 function phieu_tra_khach_hang_candidates_api() {
   if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _ptkh_method_not_allowed('GET');
-  if (!user_access('phieu_tra_khach_hang_view')) return _ptkh_unauthorized('Bạn không có quyền xem kế hoạch xuất phiếu');
+  if (!api_has_permission('phieu_tra_khach_hang_view')) return _ptkh_unauthorized('Bạn không có quyền xem kế hoạch xuất phiếu');
   if (empty($_GET['nid_khach_hang'])) return _ptkh_fail('Vui lòng chọn khách hàng');
   $filters = array(
     'nid_khach_hang' => !empty($_GET['nid_khach_hang']) ? (int) $_GET['nid_khach_hang'] : 0,
@@ -491,9 +488,9 @@ function phieu_tra_khach_hang_candidates_api() {
 }
 
 function _ptkh_rest_list() {
-  if (!user_access('phieu_tra_khach_hang_view')) return _ptkh_unauthorized('Bạn không có quyền xem phiếu trả khách hàng');
-  $page = !empty($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = !empty($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  if (!api_has_permission('phieu_tra_khach_hang_view')) return _ptkh_unauthorized('Bạn không có quyền xem phiếu trả khách hàng');
+  $page = api_page_number();
+  $limit = api_page_limit(20, 100);
   $query = db_select('phieu_tra_khach_hang', 'p')->fields('p')->condition('p.hoat_dong', 1);
   if (!empty($_GET['nid_khach_hang'])) $query->condition('p.nid_khach_hang', (int) $_GET['nid_khach_hang']);
   if (!empty($_GET['trang_thai_duyet'])) $query->condition('p.trang_thai_duyet', trim((string) $_GET['trang_thai_duyet']));
@@ -521,14 +518,14 @@ function _ptkh_rest_list() {
 }
 
 function _ptkh_rest_get($id) {
-  if (!user_access('phieu_tra_khach_hang_view')) return _ptkh_unauthorized('Bạn không có quyền xem phiếu trả khách hàng');
+  if (!api_has_permission('phieu_tra_khach_hang_view')) return _ptkh_unauthorized('Bạn không có quyền xem phiếu trả khách hàng');
   $row = _ptkh_load((int) $id, TRUE);
   return $row ? _ptkh_success($row) : _ptkh_not_found('Phiếu trả khách hàng không tồn tại');
 }
 
 function _ptkh_rest_create() {
   global $user;
-  if (!user_access('phieu_tra_khach_hang_create')) return _ptkh_unauthorized('Bạn không có quyền tạo phiếu trả khách hàng');
+  if (!api_has_permission('phieu_tra_khach_hang_create')) return _ptkh_unauthorized('Bạn không có quyền tạo phiếu trả khách hàng');
   $input = _ptkh_input();
   $plan_ids = !empty($input['nid_ke_hoach']) && is_array($input['nid_ke_hoach']) ? array_values(array_unique(array_filter(array_map('intval', $input['nid_ke_hoach'])))) : array();
   if (empty($plan_ids)) return _ptkh_fail('Vui lòng chọn kế hoạch cần xuất phiếu');
@@ -625,7 +622,7 @@ function _ptkh_rest_create() {
 
 function _ptkh_rest_update_status($id) {
   global $user;
-  if (!user_access('phieu_tra_khach_hang_approve')) return _ptkh_unauthorized('Bạn không có quyền duyệt phiếu trả khách hàng');
+  if (!api_has_permission('phieu_tra_khach_hang_approve')) return _ptkh_unauthorized('Bạn không có quyền duyệt phiếu trả khách hàng');
   $row = _ptkh_load_raw((int) $id);
   if (!$row) return _ptkh_not_found('Phiếu trả khách hàng không tồn tại');
   $input = _ptkh_input();
@@ -660,7 +657,7 @@ function _ptkh_rest_update_status($id) {
 }
 
 function phieu_tra_khach_hang_download($id) {
-  if (!user_access('phieu_tra_khach_hang_view')) {
+  if (!api_has_permission('phieu_tra_khach_hang_view')) {
     drupal_access_denied();
     return;
   }

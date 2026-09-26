@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 define('CAU_HINH_GIA_BAN_PER_PAGE', 20);
 
 /*******************************************************************************
@@ -73,9 +79,9 @@ function cau_hinh_gia_ban_page_list() {
   // Pass permissions
   drupal_add_js(array('cau_hinh_gia_ban' => array(
     'permissions' => array(
-      'view' => user_access('cau_hinh_gia_ban_view'),
-      'create' => user_access('cau_hinh_gia_ban_create'),
-      'delete' => user_access('cau_hinh_gia_ban_delete'),
+      'view' => api_has_permission('cau_hinh_gia_ban_view'),
+      'create' => api_has_permission('cau_hinh_gia_ban_create'),
+      'delete' => api_has_permission('cau_hinh_gia_ban_delete'),
     ),
   )), 'setting');
   return theme('cau_hinh_gia_ban_list_page');
@@ -115,25 +121,23 @@ function cau_hinh_gia_ban_rest_item($id) {
  * HELPERS
  ******************************************************************************/
 function _cau_hinh_gia_ban_success($data) {
-  return array('status' => 'success', 'data' => $data);
+  return api_response_success($data);
 }
 function _cau_hinh_gia_ban_fail($msg) {
-  return array('status' => 'fail', 'message' => $msg);
+  return api_response_fail($msg);
 }
 function _cau_hinh_gia_ban_error($msg) {
-  return array('status' => 'error', 'message' => $msg);
+  return api_response_error($msg);
 }
 function _cau_hinh_gia_ban_not_found($msg = 'Không tìm thấy') {
-  return array('status' => 'fail', 'message' => $msg);
+  return api_response_not_found($msg);
 }
 function _cau_hinh_gia_ban_unauthorized($msg = 'Không có quyền') {
-  return array('status' => 'fail', 'message' => $msg);
+  return api_response_denied($msg);
 }
 
 function _cau_hinh_gia_ban_input() {
-  $body = file_get_contents('php://input');
-  $data = json_decode($body, TRUE);
-  return $data ? $data : array();
+  return api_request_input();
 }
 
 /*******************************************************************************
@@ -190,7 +194,7 @@ function _cau_hinh_gia_ban_load_row($nid) {
  * REST: LIST — GET /api/cau-hinh-gia-ban
  ******************************************************************************/
 function _cau_hinh_gia_ban_rest_list() {
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $page = api_page_number();
   $keyword = isset($_GET['keyword']) ? trim($_GET['keyword']) : '';
   $khach_hang_id = isset($_GET['khach_hang_id']) ? (int) $_GET['khach_hang_id'] : 0;
   $limit = CAU_HINH_GIA_BAN_PER_PAGE;
@@ -290,7 +294,7 @@ function _cau_hinh_gia_ban_rest_list() {
  * REST: CREATE — POST /api/cau-hinh-gia-ban
  ******************************************************************************/
 function _cau_hinh_gia_ban_rest_create() {
-  if (!user_access('cau_hinh_gia_ban_create')) {
+  if (!api_has_permission('cau_hinh_gia_ban_create')) {
     return _cau_hinh_gia_ban_unauthorized('Bạn không có quyền tạo cấu hình giá bán');
   }
 
@@ -360,7 +364,7 @@ function _cau_hinh_gia_ban_rest_detail($id) {
  * REST: UPDATE — PUT /api/cau-hinh-gia-ban/{id}
  ******************************************************************************/
 function _cau_hinh_gia_ban_rest_update($id) {
-  if (!user_access('cau_hinh_gia_ban_create')) {
+  if (!api_has_permission('cau_hinh_gia_ban_create')) {
     return _cau_hinh_gia_ban_unauthorized('Bạn không có quyền sửa cấu hình giá bán');
   }
 
@@ -427,7 +431,7 @@ function _cau_hinh_gia_ban_rest_update($id) {
  * REST: DELETE — DELETE /api/cau-hinh-gia-ban/{id}
  ******************************************************************************/
 function _cau_hinh_gia_ban_rest_delete($id) {
-  if (!user_access('cau_hinh_gia_ban_delete')) {
+  if (!api_has_permission('cau_hinh_gia_ban_delete')) {
     return _cau_hinh_gia_ban_unauthorized('Bạn không có quyền xoá');
   }
 

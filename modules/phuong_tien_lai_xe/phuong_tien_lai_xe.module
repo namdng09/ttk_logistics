@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Phương Tiện - Lái Xe — Gán tài xế cho xe. Custom schema, RESTful API.
@@ -61,39 +67,31 @@ function phuong_tien_lai_xe_menu() {
  ******************************************************************************/
 
 function _ptlx_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _ptlx_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) { $response['data'] = $data; }
-  return $response;
+  return api_response_success($data);
 }
 
 function _ptlx_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _ptlx_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _ptlx_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _ptlx_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _ptlx_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 /*******************************************************************************
@@ -194,7 +192,7 @@ function _ptlx_deactivate_old($nid_phuong_tien, $exclude_id = 0) {
 }
 
 function _ptlx_rest_create() {
-  if (!user_access('ptlx_create')) {
+  if (!api_has_permission('ptlx_create')) {
     return _ptlx_unauthorized('Bạn không có quyền gán lái xe');
   }
 
@@ -300,7 +298,7 @@ function _ptlx_rest_get($id) {
 }
 
 function _ptlx_rest_update($id) {
-  if (!user_access('ptlx_create')) {
+  if (!api_has_permission('ptlx_create')) {
     return _ptlx_unauthorized('Bạn không có quyền cập nhật');
   }
 
@@ -345,7 +343,7 @@ function _ptlx_rest_update($id) {
 }
 
 function _ptlx_rest_delete($id) {
-  if (!user_access('ptlx_delete')) {
+  if (!api_has_permission('ptlx_delete')) {
     return _ptlx_unauthorized('Bạn không có quyền xoá');
   }
 

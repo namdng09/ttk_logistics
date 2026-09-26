@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Định mức khoán lái xe theo tuyến (điểm đầu → điểm cuối), dùng chung toàn hệ
@@ -97,53 +103,14 @@ function dinh_muc_khoan_theme() {
  * (Postman, app ngoài). Không bắt buộc phải có token.
  ******************************************************************************/
 
-function _dinh_muc_khoan_require_auth() {
-  $token = NULL;
-  if (function_exists('getallheaders')) {
-    $headers = getallheaders();
-    if (!empty($headers['Authorization']) && preg_match('/^Bearer\s+(.+)$/i', trim($headers['Authorization']), $matches)) {
-      $token = trim($matches[1]);
-    }
-  }
-  if (!$token && !empty($_GET['token'])) {
-    $token = $_GET['token'];
-  }
-  if (!$token) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Thiếu token xác thực');
-  }
-  module_load_include('module', 'user_login_api', 'user_login_api');
-  if (!function_exists('api_validate_token')) {
-    drupal_add_http_header('Status', '500 Internal Server Error');
-    return array('status' => 'error', 'message' => 'Hệ thống xác thực chưa sẵn sàng');
-  }
-  $account = api_validate_token($token);
-  if (!$account) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Token không hợp lệ');
-  }
-  return $account;
-}
 
-/**
- * Tài khoản đang gọi API: ưu tiên phiên trình duyệt, không có thì thử token.
- * Dùng: user_access('quyen', _dinh_muc_khoan_current_account()).
- */
-function _dinh_muc_khoan_current_account() {
-  global $user;
-  if (!empty($user->uid)) {
-    return $user;
-  }
-  $auth = _dinh_muc_khoan_require_auth();
-  return is_array($auth) ? NULL : $auth;
-}
 
 /*******************************************************************************
  * HELPERS
  ******************************************************************************/
 
 function _dinh_muc_khoan_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _dinh_muc_khoan_now() {
@@ -151,37 +118,27 @@ function _dinh_muc_khoan_now() {
 }
 
 function _dinh_muc_khoan_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _dinh_muc_khoan_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _dinh_muc_khoan_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _dinh_muc_khoan_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _dinh_muc_khoan_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _dinh_muc_khoan_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 // Tiền trong hệ thống luôn là số nguyên VNĐ (không có phần thập phân), nên bỏ hẳn
@@ -289,11 +246,11 @@ function dinh_muc_khoan_rest_collection() {
 }
 
 function _dinh_muc_khoan_rest_list() {
-  if (!user_access('dinh_muc_khoan_view', _dinh_muc_khoan_current_account())) {
+  if (!api_has_permission('dinh_muc_khoan_view')) {
     return _dinh_muc_khoan_unauthorized('Bạn không có quyền xem định mức khoán');
   }
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(200, (int) $_GET['limit'])) : 50;
+  $page = api_page_number();
+  $limit = api_page_limit(50, 200);
 
   $query = db_select('dinh_muc_khoan', 'd')->condition('d.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
@@ -326,7 +283,7 @@ function _dinh_muc_khoan_rest_list() {
  * (xem ke_hoach_chi_phi.js loadDinhMucKhoan()). Cùng quyền xem như danh sách. */
 function dinh_muc_khoan_rest_routes_page() {
   if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _dinh_muc_khoan_method_not_allowed('GET');
-  if (!user_access('dinh_muc_khoan_view', _dinh_muc_khoan_current_account())) {
+  if (!api_has_permission('dinh_muc_khoan_view')) {
     return _dinh_muc_khoan_unauthorized('Bạn không có quyền xem định mức khoán');
   }
   $rows = db_query("SELECT * FROM {dinh_muc_khoan} WHERE hoat_dong = 1")->fetchAll();
@@ -378,7 +335,7 @@ function _dinh_muc_khoan_validate_record($record) {
 }
 
 function _dinh_muc_khoan_rest_create() {
-  if (!user_access('dinh_muc_khoan_create', _dinh_muc_khoan_current_account())) {
+  if (!api_has_permission('dinh_muc_khoan_create')) {
     return _dinh_muc_khoan_unauthorized('Bạn không có quyền tạo định mức khoán');
   }
   $input = _dinh_muc_khoan_input();
@@ -425,7 +382,7 @@ function dinh_muc_khoan_rest_item($id) {
 }
 
 function _dinh_muc_khoan_rest_get($id) {
-  if (!user_access('dinh_muc_khoan_view', _dinh_muc_khoan_current_account())) {
+  if (!api_has_permission('dinh_muc_khoan_view')) {
     return _dinh_muc_khoan_unauthorized('Bạn không có quyền xem định mức khoán');
   }
   $row = db_query("SELECT * FROM {dinh_muc_khoan} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
@@ -434,7 +391,7 @@ function _dinh_muc_khoan_rest_get($id) {
 }
 
 function _dinh_muc_khoan_rest_update($id) {
-  if (!user_access('dinh_muc_khoan_create', _dinh_muc_khoan_current_account())) {
+  if (!api_has_permission('dinh_muc_khoan_create')) {
     return _dinh_muc_khoan_unauthorized('Bạn không có quyền sửa định mức khoán');
   }
   $existing = db_query("SELECT * FROM {dinh_muc_khoan} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
@@ -458,7 +415,7 @@ function _dinh_muc_khoan_rest_update($id) {
 }
 
 function _dinh_muc_khoan_rest_delete($id) {
-  if (!user_access('dinh_muc_khoan_delete', _dinh_muc_khoan_current_account())) {
+  if (!api_has_permission('dinh_muc_khoan_delete')) {
     return _dinh_muc_khoan_unauthorized('Bạn không có quyền xoá định mức khoán');
   }
   $existing = db_query("SELECT nid FROM {dinh_muc_khoan} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
@@ -479,9 +436,9 @@ function dinh_muc_khoan_page_list() {
 
   drupal_add_js(array('dinh_muc_khoan' => array(
     'permissions' => array(
-      'dinh_muc_khoan_view' => user_access('dinh_muc_khoan_view'),
-      'dinh_muc_khoan_create' => user_access('dinh_muc_khoan_create'),
-      'dinh_muc_khoan_delete' => user_access('dinh_muc_khoan_delete'),
+      'dinh_muc_khoan_view' => api_has_permission('dinh_muc_khoan_view'),
+      'dinh_muc_khoan_create' => api_has_permission('dinh_muc_khoan_create'),
+      'dinh_muc_khoan_delete' => api_has_permission('dinh_muc_khoan_delete'),
     ),
   )), 'setting');
 

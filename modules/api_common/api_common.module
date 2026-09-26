@@ -2,7 +2,18 @@
 
 /**
  * @file
- * Tiện ích dùng chung cho các API GET danh sách (khách hàng, nhân viên, phương tiện, lái xe...).
+ * Tiện ích dùng chung cho các API của hệ thống (khách hàng, nhân viên, phương tiện, lái xe, kế hoạch...).
+ *
+ * 1. XÁC THỰC + PHÂN QUYỀN CHUẨN (api_common_init, api_current_account, api_require_permission)
+ *    - Gọi API bằng Bearer token (Authorization: Bearer ... hoặc ?token=) mà không có phiên đăng nhập: hook_init của module này
+ *      đặt $user của Drupal thành tài khoản của token cho riêng request đó (không tạo phiên). Nhờ vậy MỌI chỗ gọi
+ *      user_access('quyen') trong các module đều tính theo đúng vai trò của tài khoản, giống người dùng đăng nhập trên web.
+ *      Trước đây user_access() trơn luôn coi request token là Anonymous nên bật/tắt quyền theo vai trò không có tác dụng.
+ *    - Có phiên đăng nhập thì dùng phiên (không đổi hành vi cũ). Token sai/không có thì giữ Anonymous.
+ *    - Module mới chỉ cần user_access('module_view') / api_require_permission('module_view'), không tự đọc token.
+ * 2. KHUÔN PHẢN HỒI + ĐẦU VÀO + PHÂN TRANG (api_response_*, api_request_input, api_page_params, api_page_result).
+ *    Mỗi module giữ tên hàm cũ (_module_success, _module_fail...) là lớp mỏng gọi các hàm ở đây, không phải sửa chỗ gọi.
+ * 3. THAM SỐ select cho API GET danh sách (bên dưới).
  *
  * Tham số `select` (kiểu Express/Mongoose), ví dụ GET /api/khach-hang?select=nid,ma_kh,ten hoặc ?select=-sdt,-email:
  * - Không có select (hoặc rỗng): API chạy như cũ, module gọi không đụng gì tới file này.
@@ -112,4 +123,180 @@ function api_select_pick($row, array $fields) {
     $out[$f] = array_key_exists($f, $row) ? $row[$f] : NULL;
   }
   return $out;
+}
+
+/*******************************************************************************
+ * XÁC THỰC + PHÂN QUYỀN
+ ******************************************************************************/
+
+/** Bearer token của request: header Authorization (kể cả khi máy chủ đổi tên biến) rồi tới ?token=. Rỗng nếu không có. */
+function api_bearer_token() {
+  $header = '';
+  foreach (array('HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION') as $key) {
+    if (!empty($_SERVER[$key])) {
+      $header = (string) $_SERVER[$key];
+      break;
+    }
+  }
+  if ($header === '' && function_exists('getallheaders')) {
+    foreach ((array) getallheaders() as $name => $value) {
+      if (strcasecmp($name, 'Authorization') === 0) {
+        $header = (string) $value;
+        break;
+      }
+    }
+  }
+  if ($header !== '' && preg_match('/^Bearer\s+(.+)$/i', trim($header), $matches)) {
+    return trim($matches[1]);
+  }
+  if (!empty($_GET['token'])) {
+    return trim((string) $_GET['token']);
+  }
+  return '';
+}
+
+/** Tài khoản ứng với token của request (đã kiểm tra khoá tài khoản), hoặc FALSE. Nhớ kết quả trong 1 request. */
+function api_token_account() {
+  static $cache = array();
+  $token = api_bearer_token();
+  if ($token === '') {
+    return FALSE;
+  }
+  if (!array_key_exists($token, $cache)) {
+    module_load_include('module', 'user_login_api', 'user_login_api');
+    $cache[$token] = function_exists('api_validate_token') ? api_validate_token($token) : FALSE;
+  }
+  return $cache[$token];
+}
+
+/**
+ * Implements hook_init().
+ * Request tới api/* không có phiên đăng nhập nhưng có token hợp lệ: coi như tài khoản của token cho request này.
+ */
+function api_common_init() {
+  global $user;
+  if (!empty($user->uid)) {
+    return;
+  }
+  $path = isset($_GET['q']) ? $_GET['q'] : '';
+  if (strpos($path, 'api/') !== 0) {
+    return;
+  }
+  $account = api_token_account();
+  if ($account && !empty($account->uid)) {
+    $user = $account;
+    // Request bằng token không tạo/ghi phiên đăng nhập.
+    drupal_save_session(FALSE);
+  }
+}
+
+/** Tài khoản đang gọi API (phiên hoặc token), hoặc NULL nếu là khách vãng lai. */
+function api_current_account() {
+  global $user;
+  if (!empty($user->uid)) {
+    return $user;
+  }
+  $account = api_token_account();
+  return ($account && !empty($account->uid)) ? $account : NULL;
+}
+
+/** Tài khoản đang gọi có quyền $permission không (phiên hoặc token). */
+function api_has_permission($permission) {
+  return user_access($permission, api_current_account());
+}
+
+/**
+ * Kiểm tra quyền ở đầu callback API: trả NULL nếu được phép, không thì trả sẵn phản hồi lỗi (401 nếu chưa đăng nhập,
+ * 403 nếu đã đăng nhập mà thiếu quyền). Dùng: if ($deny = api_require_permission('x_view')) return $deny;
+ */
+function api_require_permission($permission, $message = 'Bạn không có quyền thực hiện thao tác này') {
+  return api_has_permission($permission) ? NULL : api_response_denied($message);
+}
+
+/*******************************************************************************
+ * KHUÔN PHẢN HỒI + ĐẦU VÀO + PHÂN TRANG
+ ******************************************************************************/
+
+/** 2xx: {status: success, data?}. */
+function api_response_success($data = NULL) {
+  $response = array('status' => 'success');
+  if ($data !== NULL) {
+    $response['data'] = $data;
+  }
+  return $response;
+}
+
+/** 4xx lỗi do client (dữ liệu sai, thiếu...). */
+function api_response_fail($message) {
+  drupal_add_http_header('Status', '400 Bad Request');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function api_response_unauthorized($message) {
+  drupal_add_http_header('Status', '401 Unauthorized');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+function api_response_forbidden($message) {
+  drupal_add_http_header('Status', '403 Forbidden');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+/** Từ chối truy cập: 401 nếu chưa đăng nhập (client nên đăng nhập lại), 403 nếu đã đăng nhập mà không đủ quyền. */
+function api_response_denied($message) {
+  global $user;
+  return empty($user->uid) ? api_response_unauthorized($message) : api_response_forbidden($message);
+}
+
+function api_response_not_found($message) {
+  drupal_add_http_header('Status', '404 Not Found');
+  return array('status' => 'fail', 'message' => $message);
+}
+
+/** 5xx lỗi phía server. */
+function api_response_error($message) {
+  drupal_add_http_header('Status', '500 Internal Server Error');
+  return array('status' => 'error', 'message' => $message);
+}
+
+function api_response_method_not_allowed($allowed) {
+  drupal_add_http_header('Status', '405 Method Not Allowed');
+  drupal_add_http_header('Allow', $allowed);
+  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+}
+
+/** Thân request JSON (POST/PUT) thành mảng; rỗng nếu không có/không hợp lệ. */
+function api_request_input() {
+  $data = json_decode(file_get_contents('php://input'), TRUE);
+  return is_array($data) ? $data : array();
+}
+
+/** Số trang từ ?page= (>= 1, mặc định 1). */
+function api_page_number() {
+  return isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+}
+
+/** Số dòng mỗi trang từ ?limit=: trong 1..$max; thiếu/rỗng/0 thì dùng $default. */
+function api_page_limit($default = 20, $max = 100) {
+  $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 0;
+  return $limit > 0 ? min((int) $max, $limit) : (int) $default;
+}
+
+/** Tham số phân trang chuẩn: page (>=1), limit (1..$max, mặc định $default) và offset. */
+function api_page_params($default = 20, $max = 100) {
+  $page = api_page_number();
+  $limit = api_page_limit($default, $max);
+  return array('page' => $page, 'limit' => $limit, 'offset' => ($page - 1) * $limit);
+}
+
+/** Khuôn danh sách phân trang chuẩn: {items, total, current_page, total_pages, limit}. */
+function api_page_result(array $items, $total, $page, $limit) {
+  $total_pages = (int) ceil($total / max(1, (int) $limit));
+  return array(
+    'items' => $items,
+    'total' => (int) $total,
+    'current_page' => $total_pages > 0 ? (int) $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => (int) $limit,
+  );
 }

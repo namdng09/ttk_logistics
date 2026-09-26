@@ -5,3 +5,4 @@ package = ANDIN JSC API
 dependencies[] = user_login_api
 dependencies[] = danh_muc
 dependencies[] = nhan_vien
+dependencies[] = api_common

@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Danh Mục — Catalog management (Danh mục chung + địa điểm/phụ phí).
@@ -87,7 +93,7 @@ function danh_muc_theme() {
  ******************************************************************************/
 
 function _danh_muc_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _danh_muc_now() {
@@ -95,37 +101,27 @@ function _danh_muc_now() {
 }
 
 function _danh_muc_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _danh_muc_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _danh_muc_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _danh_muc_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _danh_muc_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _danh_muc_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 /**
@@ -337,8 +333,8 @@ function _danh_muc_rest_list() {
   }
   $select = !empty($sel['active']) ? $sel['fields'] : NULL;
 
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = $select !== NULL ? api_select_limit(TRUE, 500) : (isset($_GET['limit']) ? max(1, min(500, (int) $_GET['limit'])) : 20);
+  $page = api_page_number();
+  $limit = $select !== NULL ? api_select_limit(TRUE, 500) : api_page_limit(20, 500);
   $offset = ($page - 1) * $limit;
 
   $query = db_select('danh_muc', 'dm');
@@ -412,7 +408,7 @@ function _danh_muc_rest_list() {
 }
 
 function _danh_muc_rest_create() {
-  if (!user_access('danh_muc_create')) {
+  if (!api_has_permission('danh_muc_create')) {
     return _danh_muc_unauthorized('Bạn không có quyền tạo danh mục');
   }
 
@@ -496,7 +492,7 @@ function _danh_muc_rest_get($id) {
 }
 
 function _danh_muc_rest_update($id) {
-  if (!user_access('danh_muc_create')) {
+  if (!api_has_permission('danh_muc_create')) {
     return _danh_muc_unauthorized('Bạn không có quyền sửa danh mục');
   }
 
@@ -555,7 +551,7 @@ function _danh_muc_rest_update($id) {
 }
 
 function _danh_muc_rest_delete($id) {
-  if (!user_access('danh_muc_delete')) {
+  if (!api_has_permission('danh_muc_delete')) {
     return _danh_muc_unauthorized('Bạn không có quyền xoá danh mục');
   }
 
@@ -605,9 +601,9 @@ function danh_muc_add_modal_assets() {
 
   drupal_add_js(array('danh_muc' => array(
     'permissions' => array(
-      'danh_muc_view' => user_access('danh_muc_view'),
-      'danh_muc_create' => user_access('danh_muc_create'),
-      'danh_muc_delete' => user_access('danh_muc_delete'),
+      'danh_muc_view' => api_has_permission('danh_muc_view'),
+      'danh_muc_create' => api_has_permission('danh_muc_create'),
+      'danh_muc_delete' => api_has_permission('danh_muc_delete'),
     ),
     'phan_loai_options' => _danh_muc_phan_loai_options(),
     'phan_loai_co_phu_phi' => _danh_muc_phan_loai_co_phu_phi(),

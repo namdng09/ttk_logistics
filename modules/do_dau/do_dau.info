@@ -7,3 +7,4 @@ dependencies[] = khach_hang
 dependencies[] = phuong_tien
 dependencies[] = lai_xe
 dependencies[] = de_nghi_thanh_toan
+dependencies[] = api_common

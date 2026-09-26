@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Kế hoạch xếp xe — Cargo loading plan management.
@@ -343,7 +349,7 @@ function ke_hoach_xep_xe_theme() {
 }
 
 function _ke_hoach_xep_xe_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _ke_hoach_xep_xe_now() {
@@ -368,37 +374,27 @@ function _ke_hoach_xep_xe_money_value($value) {
 }
 
 function _ke_hoach_xep_xe_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _ke_hoach_xep_xe_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _ke_hoach_xep_xe_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _ke_hoach_xep_xe_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _ke_hoach_xep_xe_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _ke_hoach_xep_xe_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 /** Return the API token, prioritising Authorization: Bearer <token>. */
@@ -413,13 +409,13 @@ function _ke_hoach_xep_xe_mobile_token(array $input = array()) {
 /** Authenticate the token and resolve its active linked driver. */
 function _ke_hoach_xep_xe_mobile_driver(array $input = array()) {
   $token = _ke_hoach_xep_xe_mobile_token($input);
-  if ($token === '') return _ke_hoach_xep_xe_unauthorized('Thiếu token xác thực');
+  if ($token === '') return api_response_unauthorized('Thiếu token xác thực');
   module_load_include('module', 'user_login_api', 'user_login_api');
   if (!function_exists('api_validate_token')) return _ke_hoach_xep_xe_error('Hệ thống xác thực chưa sẵn sàng');
   $account = api_validate_token($token);
-  if (!$account || empty($account->uid) || empty($account->status)) return _ke_hoach_xep_xe_unauthorized('Token không hợp lệ hoặc tài khoản đã bị khóa');
+  if (!$account || empty($account->uid) || empty($account->status)) return api_response_unauthorized('Token không hợp lệ hoặc tài khoản đã bị khóa');
   $driver = db_query("SELECT nid, ten, sdt, ma_nhan_vien, uid_nguoi_dung FROM {lai_xe} WHERE uid_nguoi_dung = :uid AND hoat_dong = 1", array(':uid' => (int) $account->uid))->fetch();
-  if (!$driver) return _ke_hoach_xep_xe_unauthorized('Tài khoản này chưa được liên kết với lái xe đang hoạt động');
+  if (!$driver) return api_response_unauthorized('Tài khoản này chưa được liên kết với lái xe đang hoạt động');
   return array('account' => $account, 'driver' => $driver);
 }
 
@@ -467,8 +463,8 @@ function ke_hoach_xep_xe_mobile_my_trips() {
   if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _ke_hoach_xep_xe_method_not_allowed('GET');
   $identity = _ke_hoach_xep_xe_mobile_driver();
   if (!is_array($identity) || empty($identity['driver'])) return $identity;
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $page = api_page_number();
+  $limit = api_page_limit(20, 100);
   $query = db_select('ke_hoach_xep_xe', 'kh')->fields('kh')->condition('kh.hoat_dong', 1)->condition('kh.nid_lai_xe', (int) $identity['driver']->nid)->condition('kh.trang_thai_van_chuyen', 'Chờ duyệt', '<>');
   if (!empty($_GET['trang_thai_van_chuyen'])) {
     $status = trim((string) $_GET['trang_thai_van_chuyen']);
@@ -697,7 +693,7 @@ function _ke_hoach_xep_xe_mobile_port_response($plan, array $identity, array $in
     }
   }
   elseif ($accepted_uid && $accepted_uid !== $uid) {
-    return _ke_hoach_xep_xe_unauthorized('Chỉ lái xe đã nhận chuyến mới có thể thực hiện bước này');
+    return api_response_unauthorized('Chỉ lái xe đã nhận chuyến mới có thể thực hiện bước này');
   }
 
   $history = $json;
@@ -779,7 +775,7 @@ function ke_hoach_xep_xe_mobile_complete_trip($id) {
   if ($plan->trang_thai_van_chuyen === 'Hoàn thành') return _ke_hoach_xep_xe_fail('Chuyến xe đã hoàn thành');
   $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
   if (empty($json['uid_nhan_chuyen'])) return _ke_hoach_xep_xe_fail('Bạn cần nhận chuyến trước khi báo hoàn thành');
-  if ((int) $json['uid_nhan_chuyen'] !== (int) $identity['account']->uid) return _ke_hoach_xep_xe_unauthorized('Chỉ lái xe đã nhận chuyến mới có thể báo hoàn thành');
+  if ((int) $json['uid_nhan_chuyen'] !== (int) $identity['account']->uid) return api_response_unauthorized('Chỉ lái xe đã nhận chuyến mới có thể báo hoàn thành');
   $now = _ke_hoach_xep_xe_now();
   $json['uid_hoan_thanh_chuyen'] = (int) $identity['account']->uid;
   $json['nid_lai_xe_hoan_thanh'] = (int) $identity['driver']->nid;
@@ -1093,12 +1089,12 @@ function _ke_hoach_chi_phi_mau_build_record(array $input, $existing = NULL) {
 function ke_hoach_chi_phi_mau_rest_collection() {
   if (!db_table_exists('ke_hoach_chi_phi_mau')) return _ke_hoach_xep_xe_error('Bảng chi phí mặc định chưa được tạo. Hãy chạy update database.');
   if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    if (!user_access('ke_hoach_xep_xe_view')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem chi phí mặc định');
+    if (!api_has_permission('ke_hoach_xep_xe_view')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem chi phí mặc định');
     $items = db_select('ke_hoach_chi_phi_mau', 'm')->fields('m')->condition('m.hoat_dong', 1)->orderBy('m.thu_tu', 'ASC')->orderBy('m.nid', 'ASC')->execute()->fetchAll();
     return _ke_hoach_xep_xe_success(array('items' => array_values($items), 'total' => count($items)));
   }
   if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _ke_hoach_xep_xe_method_not_allowed('GET, POST');
-  if (!user_access('ke_hoach_xep_xe_create')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền tạo chi phí mặc định');
+  if (!api_has_permission('ke_hoach_xep_xe_create')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền tạo chi phí mặc định');
   $input = _ke_hoach_xep_xe_input();
   $record = _ke_hoach_chi_phi_mau_build_record($input);
   if ($record['ten'] === '') return _ke_hoach_xep_xe_fail('Vui lòng nhập tên chi phí mặc định');
@@ -1114,10 +1110,10 @@ function ke_hoach_chi_phi_mau_rest_item($nid) {
   $nid = (int) $nid;
   $item = $nid ? db_query("SELECT * FROM {ke_hoach_chi_phi_mau} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => $nid))->fetch() : FALSE;
   if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    if (!user_access('ke_hoach_xep_xe_view')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem chi phí mặc định');
+    if (!api_has_permission('ke_hoach_xep_xe_view')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem chi phí mặc định');
     return $item ? _ke_hoach_xep_xe_success((array) $item) : _ke_hoach_xep_xe_not_found('Chi phí mặc định không tồn tại');
   }
-  if (!user_access('ke_hoach_xep_xe_create')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật chi phí mặc định');
+  if (!api_has_permission('ke_hoach_xep_xe_create')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật chi phí mặc định');
   if (!$item) return _ke_hoach_xep_xe_not_found('Chi phí mặc định không tồn tại');
   if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $record = _ke_hoach_chi_phi_mau_build_record(_ke_hoach_xep_xe_input(), $item);
@@ -1326,11 +1322,11 @@ function ke_hoach_chi_phi_rest_bulk() {
 }
 
 function _ke_hoach_chi_phi_rest_list() {
-  if (!user_access('ke_hoach_xep_xe_view')) {
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem chi phí kế hoạch');
   }
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
+  $page = api_page_number();
+  $limit = api_page_limit(50, 100);
   $query = db_select('ke_hoach_chi_phi', 'c')->fields('c')->condition('c.hoat_dong', 1);
   if (!empty($_GET['nid_ke_hoach'])) {
     $query->condition('c.nid_ke_hoach', (int) $_GET['nid_ke_hoach']);
@@ -1447,7 +1443,7 @@ function _ke_hoach_chi_phi_payee_names(array $ids) {
 }
 
 function _ke_hoach_chi_phi_rest_get($id) {
-  if (!user_access('ke_hoach_xep_xe_view')) {
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem chi phí kế hoạch');
   }
   $row = db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
@@ -1455,7 +1451,7 @@ function _ke_hoach_chi_phi_rest_get($id) {
 }
 
 function _ke_hoach_chi_phi_rest_create() {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền tạo chi phí kế hoạch');
   }
   $input = _ke_hoach_xep_xe_input();
@@ -1653,7 +1649,7 @@ function _ke_hoach_xep_xe_mobile_chi_phi_delete($id, $chi_phi_id) {
 }
 
 function _ke_hoach_chi_phi_rest_update($id) {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật chi phí kế hoạch');
   }
   $existing = db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
@@ -1678,7 +1674,7 @@ function _ke_hoach_chi_phi_rest_update($id) {
 }
 
 function _ke_hoach_chi_phi_rest_bulk_save() {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền lưu chi phí kế hoạch');
   }
   $input = _ke_hoach_xep_xe_input();
@@ -1751,7 +1747,7 @@ function _ke_hoach_chi_phi_rest_bulk_save() {
   // Trả luôn danh sách chi phí của kế hoạch sau khi lưu (cùng dạng GET /api/ke-hoach-chi-phi?nid_ke_hoach=...) để client
   // khỏi gọi thêm 1 request tải lại. Cần quyền xem; không có thì bỏ trường này và client tự tải như cũ.
   $plan_id = !empty($input['nid_ke_hoach']) ? (int) $input['nid_ke_hoach'] : (!empty($items[0]['nid_ke_hoach']) ? (int) $items[0]['nid_ke_hoach'] : 0);
-  if ($plan_id && user_access('ke_hoach_xep_xe_view')) {
+  if ($plan_id && api_has_permission('ke_hoach_xep_xe_view')) {
     $data['rows'] = _ke_hoach_chi_phi_plan_items($plan_id, 100);
   }
   return _ke_hoach_xep_xe_success($data);
@@ -1776,7 +1772,7 @@ function _ke_hoach_chi_phi_plan_items($nid_ke_hoach, $limit = 100) {
 }
 
 function _ke_hoach_chi_phi_rest_delete($id) {
-  if (!user_access('ke_hoach_xep_xe_delete')) {
+  if (!api_has_permission('ke_hoach_xep_xe_delete')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá chi phí kế hoạch');
   }
   $existing = db_query("SELECT nid, nid_de_nghi_chi_phi FROM {ke_hoach_chi_phi} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
@@ -3064,7 +3060,7 @@ function _ke_hoach_xep_xe_file_upload_core($id, $uid) {
 }
 
 function _ke_hoach_xep_xe_file_upload($id) {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền upload chứng từ kế hoạch');
   }
   global $user;
@@ -3105,7 +3101,7 @@ function _ke_hoach_xep_xe_file_delete_core($id, $file_id, $owner_uid = NULL) {
 }
 
 function _ke_hoach_xep_xe_file_delete($id, $file_id) {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá chứng từ kế hoạch');
   }
   return _ke_hoach_xep_xe_file_delete_core($id, $file_id, NULL);
@@ -3245,8 +3241,8 @@ function _ke_hoach_xep_xe_like_condition($query, $field, $param) {
 }
 
 function _ke_hoach_xep_xe_rest_list() {
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $page = api_page_number();
+  $limit = api_page_limit(20, 100);
   $offset = ($page - 1) * $limit;
   $loai_ke_hoach = !empty($_GET['loai_ke_hoach']) && $_GET['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
 
@@ -3399,7 +3395,7 @@ function _ke_hoach_xep_xe_rest_list() {
   $enrich_options = array('cache' => _ke_hoach_xep_xe_enrich_cache($rows));
   // Hàng cảng: người có quyền tạo/sửa nhận thêm thao tác đổi Đã cắt mooc <-> Đủ hàng để thẻ
   // trạng thái cont bấm được. Server quyết định, JS không tự kiểm tra quyền.
-  $can_toggle_cont = $loai_ke_hoach === 'thuong' && user_access('ke_hoach_xep_xe_create');
+  $can_toggle_cont = $loai_ke_hoach === 'thuong' && api_has_permission('ke_hoach_xep_xe_create');
   foreach ($rows as $row) {
     $item = _ke_hoach_xep_xe_enrich_row($row, TRUE, $enrich_options);
     if ($can_toggle_cont) {
@@ -3421,7 +3417,7 @@ function _ke_hoach_xep_xe_rest_list() {
 }
 
 function _ke_hoach_xep_xe_rest_create() {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền tạo kế hoạch');
   }
 
@@ -3525,7 +3521,7 @@ function ke_hoach_xep_xe_dinh_muc_rest($id) {
   if ($_SERVER['REQUEST_METHOD'] !== 'PUT') {
     return _ke_hoach_xep_xe_method_not_allowed('PUT');
   }
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật định mức');
   }
   $id = (int) $id;
@@ -3583,7 +3579,7 @@ function _ke_hoach_xep_xe_rest_get($id) {
 }
 
 function _ke_hoach_xep_xe_rest_update($id) {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch');
   }
 
@@ -3731,7 +3727,7 @@ function _ke_hoach_xep_xe_rest_update($id) {
 }
 
 function _ke_hoach_xep_xe_rest_delete($id) {
-  if (!user_access('ke_hoach_xep_xe_delete')) {
+  if (!api_has_permission('ke_hoach_xep_xe_delete')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá kế hoạch');
   }
 
@@ -3940,7 +3936,7 @@ function _ke_hoach_xep_xe_normalize_dinh_muc_khoan($dm) {
  * nên mỗi loại có hàm cập nhật riêng; hàm này chỉ kiểm tra quyền và điều hướng.
  */
 function _ke_hoach_cont_rest_update($id) {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật quản lý cont');
   }
   $existing_plan = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
@@ -4267,6 +4263,16 @@ function _ke_hoach_tuyen_xa_cont_rest_update($id, $existing_plan) {
     return _ke_hoach_xep_xe_fail($e->getMessage());
   }
   $row = db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id", array(':id' => $id))->fetch();
+  // ?response=min: tab Chi phí tuyến xa chỉ cần định mức và hình thức tính lương vừa lưu, không cần dựng lại cả kế hoạch
+  // cùng các kế hoạch/cont liên quan (phần chậm nhất của phản hồi).
+  if (isset($_GET['response']) && $_GET['response'] === 'min') {
+    $saved_json = _ke_hoach_xep_xe_json_decode($row->thong_tin_json);
+    return _ke_hoach_xep_xe_success(array(
+      'nid' => $id,
+      'dinh_muc_khoan_lai_xe' => isset($saved_json['dinh_muc_khoan_lai_xe']) ? $saved_json['dinh_muc_khoan_lai_xe'] : NULL,
+      'hinh_thuc_tinh_luong_lai_xe' => isset($saved_json['hinh_thuc_tinh_luong_lai_xe']) ? $saved_json['hinh_thuc_tinh_luong_lai_xe'] : 'khoan',
+    ));
+  }
   return _ke_hoach_xep_xe_success(_ke_hoach_xep_xe_enrich_row($row));
 }
 
@@ -4385,14 +4391,14 @@ function _ke_hoach_cat_mooc_apply_filters($query) {
 }
 
 function _ke_hoach_cat_mooc_rest_list() {
-  if (!user_access('ke_hoach_xep_xe_view')) {
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem danh sách cont');
   }
   if (!_ke_hoach_xep_xe_has_cont_status_field()) {
     return _ke_hoach_xep_xe_error('Chưa chạy update database cho trạng thái cont. Hãy chạy update.php.');
   }
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
+  $page = api_page_number();
+  $limit = api_page_limit(50, 100);
   $groups = _ke_hoach_cat_mooc_groups();
   $group = !empty($_GET['nhom']) ? (string) $_GET['nhom'] : 'o_kho';
 
@@ -4433,7 +4439,7 @@ function _ke_hoach_cat_mooc_rest_list() {
 
   $cache = _ke_hoach_xep_xe_enrich_cache($rows);
   // Chỉ người có quyền tạo/sửa mới nhận được thao tác đổi trạng thái cont; JS không tự kiểm tra quyền.
-  $can_edit = user_access('ke_hoach_xep_xe_create');
+  $can_edit = api_has_permission('ke_hoach_xep_xe_create');
   $items = array();
   foreach ($rows as $row) {
     $plan = _ke_hoach_xep_xe_enrich_row($row, TRUE, array('cache' => $cache));
@@ -4511,8 +4517,8 @@ function _ke_hoach_hang_cang_add_dntt_assets() {
   drupal_add_js($path . '/assets/js/ke_hoach_chi_phi_dntt.js', array('group' => JS_THEME, 'weight' => 4));
   drupal_add_js(array('ke_hoach_chi_phi_dntt' => array(
     'permissions' => array(
-      'view' => user_access('de_nghi_thanh_toan_view_own') || user_access('de_nghi_thanh_toan_view_all'),
-      'create' => user_access('de_nghi_thanh_toan_create'),
+      'view' => api_has_permission('de_nghi_thanh_toan_view_own') || api_has_permission('de_nghi_thanh_toan_view_all'),
+      'create' => api_has_permission('de_nghi_thanh_toan_create'),
     ),
     'page_url' => '/de-nghi-thanh-toan',
   )), 'setting');
@@ -4549,9 +4555,9 @@ function ke_hoach_xep_xe_page_list() {
     'statuses' => _ke_hoach_xep_xe_statuses('thuong'),
     'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
-      'view' => user_access('ke_hoach_xep_xe_view'),
-      'create' => user_access('ke_hoach_xep_xe_create'),
-      'delete' => user_access('ke_hoach_xep_xe_delete'),
+      'view' => api_has_permission('ke_hoach_xep_xe_view'),
+      'create' => api_has_permission('ke_hoach_xep_xe_create'),
+      'delete' => api_has_permission('ke_hoach_xep_xe_delete'),
     ),
   )), 'setting');
 
@@ -4618,6 +4624,9 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
   if (empty($data['loai_ke_hoach']) || $data['loai_ke_hoach'] !== 'tuyen_xa') {
     _ke_hoach_hang_cang_add_master_assets();
   }
+  else {
+    _ke_hoach_tuyen_xa_add_master_assets();
+  }
 
   drupal_add_js(array('ke_hoach_xep_xe' => array(
     'mode' => $mode,
@@ -4626,9 +4635,9 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
     'statuses' => _ke_hoach_xep_xe_statuses(!empty($data['loai_ke_hoach']) && $data['loai_ke_hoach'] === 'tuyen_xa' ? 'tuyen_xa' : 'thuong'),
     'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
-      'view' => user_access('ke_hoach_xep_xe_view'),
-      'create' => user_access('ke_hoach_xep_xe_create'),
-      'delete' => user_access('ke_hoach_xep_xe_delete'),
+      'view' => api_has_permission('ke_hoach_xep_xe_view'),
+      'create' => api_has_permission('ke_hoach_xep_xe_create'),
+      'delete' => api_has_permission('ke_hoach_xep_xe_delete'),
     ),
   )), 'setting');
 
@@ -4665,8 +4674,8 @@ function ke_hoach_xep_xe_page_detail($id) {
     'data' => $data,
     'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
-      'create' => user_access('ke_hoach_xep_xe_create'),
-      'delete' => user_access('ke_hoach_xep_xe_delete'),
+      'create' => api_has_permission('ke_hoach_xep_xe_create'),
+      'delete' => api_has_permission('ke_hoach_xep_xe_delete'),
     ),
   )), 'setting');
 
@@ -4915,7 +4924,7 @@ function ke_hoach_tuyen_xa_dau_rest_collection() {
 }
 
 function _ke_hoach_tuyen_xa_dau_rest_list() {
-  if (!user_access('ke_hoach_xep_xe_view')) {
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem nhật ký dầu');
   }
   $nid_ke_hoach = !empty($_GET['nid_ke_hoach']) ? (int) $_GET['nid_ke_hoach'] : 0;
@@ -4936,7 +4945,7 @@ function _ke_hoach_tuyen_xa_dau_rest_list() {
 }
 
 function _ke_hoach_tuyen_xa_dau_rest_save() {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền lưu nhật ký dầu');
   }
   $input = _ke_hoach_xep_xe_input();
@@ -5212,7 +5221,7 @@ function ke_hoach_tuyen_xa_ket_hop_rest_collection($source_id) {
     return _ke_hoach_xep_xe_success(array('items' => $items, 'source_nid' => $source_id));
   }
   if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _ke_hoach_xep_xe_method_not_allowed('GET, POST');
-  if (!user_access('ke_hoach_xep_xe_create')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền tạo kế hoạch kết hợp');
+  if (!api_has_permission('ke_hoach_xep_xe_create')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền tạo kế hoạch kết hợp');
   $input = _ke_hoach_xep_xe_input();
   $validation = _ke_hoach_tuyen_xa_ket_hop_validate($input);
   if ($validation) return $validation;
@@ -5235,7 +5244,7 @@ function ke_hoach_tuyen_xa_ket_hop_rest_item($source_id, $id) {
   if (!$source || !$existing) return _ke_hoach_xep_xe_not_found('Kế hoạch kết hợp không tồn tại');
   if ($_SERVER['REQUEST_METHOD'] === 'GET') return _ke_hoach_xep_xe_success(_ke_hoach_tuyen_xa_enrich_row($existing, FALSE));
   if ($_SERVER['REQUEST_METHOD'] !== 'PUT') return _ke_hoach_xep_xe_method_not_allowed('GET, PUT');
-  if (!user_access('ke_hoach_xep_xe_create')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch kết hợp');
+  if (!api_has_permission('ke_hoach_xep_xe_create')) return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch kết hợp');
   $input = _ke_hoach_xep_xe_input();
   $validation = _ke_hoach_tuyen_xa_ket_hop_validate($input);
   if ($validation) return $validation;
@@ -5247,8 +5256,8 @@ function ke_hoach_tuyen_xa_ket_hop_rest_item($source_id, $id) {
 }
 
 function _ke_hoach_tuyen_xa_rest_list() {
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $page = api_page_number();
+  $limit = api_page_limit(20, 100);
   $offset = ($page - 1) * $limit;
 
   $query = db_select('ke_hoach_xep_xe', 'kh');
@@ -5287,7 +5296,7 @@ function _ke_hoach_tuyen_xa_rest_list() {
 }
 
 function _ke_hoach_tuyen_xa_rest_create() {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền tạo kế hoạch tuyến xa');
   }
   $input = _ke_hoach_xep_xe_input();
@@ -5364,7 +5373,7 @@ function _ke_hoach_tuyen_xa_rest_get($id) {
 }
 
 function _ke_hoach_tuyen_xa_rest_update($id) {
-  if (!user_access('ke_hoach_xep_xe_create')) {
+  if (!api_has_permission('ke_hoach_xep_xe_create')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền sửa kế hoạch tuyến xa');
   }
   $existing = db_query("SELECT nid, trang_thai_van_chuyen, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':id' => $id, ':loai' => 'tuyen_xa'))->fetch();
@@ -5425,7 +5434,7 @@ function _ke_hoach_tuyen_xa_rest_update($id) {
 }
 
 function _ke_hoach_tuyen_xa_rest_delete($id) {
-  if (!user_access('ke_hoach_xep_xe_delete')) {
+  if (!api_has_permission('ke_hoach_xep_xe_delete')) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xoá kế hoạch tuyến xa');
   }
   $existing = db_query("SELECT nid FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1 AND loai_ke_hoach = :loai", array(':id' => $id, ':loai' => 'tuyen_xa'))->fetchField();
@@ -5444,9 +5453,18 @@ function _ke_hoach_tuyen_xa_rest_delete($id) {
   return _ke_hoach_xep_xe_success(array('nid' => $id, 'deleted' => TRUE));
 }
 
+/**
+ * Nguồn dữ liệu danh mục dùng chung của các màn tuyến xa (bản riêng, tách khỏi hàng cảng): mỗi API gọi 1 lần với select gọn
+ * rồi dùng chung cho bộ lọc, modal xếp xe, modal chi phí, phiếu trả khách hàng. Hàng cảng không gọi hàm này.
+ */
+function _ke_hoach_tuyen_xa_add_master_assets() {
+  drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_tuyen_xa_master.js', array('group' => JS_THEME, 'weight' => 1));
+}
+
 function ke_hoach_tuyen_xa_page_list() {
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_tuyen_xa_screen.css');
+  _ke_hoach_tuyen_xa_add_master_assets();
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_xep_xe.js', array('group' => JS_THEME, 'weight' => 2));
   drupal_add_js(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/js/ke_hoach_chi_phi.js', array('group' => JS_THEME, 'weight' => 3));
 
@@ -5465,9 +5483,9 @@ function ke_hoach_tuyen_xa_page_list() {
     'statuses' => _ke_hoach_xep_xe_statuses('tuyen_xa'),
     'khach_hang_quick_create' => _ke_hoach_xep_xe_khach_hang_quick_create_settings(),
     'permissions' => array(
-      'view' => user_access('ke_hoach_xep_xe_view'),
-      'create' => user_access('ke_hoach_xep_xe_create'),
-      'delete' => user_access('ke_hoach_xep_xe_delete'),
+      'view' => api_has_permission('ke_hoach_xep_xe_view'),
+      'create' => api_has_permission('ke_hoach_xep_xe_create'),
+      'delete' => api_has_permission('ke_hoach_xep_xe_delete'),
     ),
   )), 'setting');
   return theme('ke_hoach_tuyen_xa_screen_list_page');

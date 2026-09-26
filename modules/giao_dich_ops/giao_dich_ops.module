@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Giao dịch OPS - ledger and advance request API.
@@ -107,64 +113,37 @@ function giao_dich_ops_theme() {
 }
 
 function _giao_dich_ops_input() {
-  $raw = file_get_contents('php://input');
-  $data = json_decode($raw, TRUE);
-  return is_array($data) ? $data : array();
+  return api_request_input();
 }
 
 function _giao_dich_ops_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) $response['data'] = $data;
-  return $response;
+  return api_response_success($data);
 }
 
 function _giao_dich_ops_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _giao_dich_ops_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _giao_dich_ops_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _giao_dich_ops_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _giao_dich_ops_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
+/** Tài khoản đang gọi (phiên hoặc Bearer token) hoặc FALSE. Dùng chung api_common. */
 function _giao_dich_ops_auth_user() {
-  global $user;
-  if (!empty($user->uid)) return $user;
-
-  $token = '';
-  if (function_exists('getallheaders')) {
-    $headers = getallheaders();
-    if (!empty($headers['Authorization']) && preg_match('/Bearer\s+(.*)$/i', $headers['Authorization'], $matches)) {
-      $token = trim($matches[1]);
-    }
-  }
-  if ($token === '' && !empty($_GET['token'])) {
-    $token = trim($_GET['token']);
-  }
-  if ($token === '') return FALSE;
-
-  module_load_include('module', 'user_login_api', 'user_login_api');
-  if (function_exists('api_validate_token')) {
-    return api_validate_token($token);
-  }
-  return FALSE;
+  $account = api_current_account();
+  return $account ? $account : FALSE;
 }
 
 function _giao_dich_ops_require_permission($permission) {
@@ -386,8 +365,8 @@ function giao_dich_ops_rest_collection() {
 function _giao_dich_ops_rest_list() {
   if (($auth = _giao_dich_ops_require_permission('giao_dich_ops_view')) && is_array($auth)) return $auth;
 
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(200, (int) $_GET['limit'])) : 20;
+  $page = api_page_number();
+  $limit = api_page_limit(20, 200);
   $offset = ($page - 1) * $limit;
 
   $query = db_select('giao_dich_ops_ledger', 'gd');
@@ -518,8 +497,8 @@ function giao_dich_ops_advance_collection() {
 function _giao_dich_ops_advance_list() {
   if (($auth = _giao_dich_ops_require_permission('giao_dich_ops_view')) && is_array($auth)) return $auth;
 
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(200, (int) $_GET['limit'])) : 20;
+  $page = api_page_number();
+  $limit = api_page_limit(20, 200);
   $query = db_select('giao_dich_ops_de_nghi_ung', 'dn');
   $query->fields('dn');
   $query->leftJoin('lai_xe', 'lx', 'lx.nid = dn.nid_lai_xe');
@@ -869,10 +848,10 @@ function giao_dich_ops_page_list() {
   ));
   drupal_add_js(array('giao_dich_ops' => array(
     'permissions' => array(
-      'giao_dich_ops_view' => user_access('giao_dich_ops_view'),
-      'giao_dich_ops_create' => user_access('giao_dich_ops_create'),
-      'giao_dich_ops_delete' => user_access('giao_dich_ops_delete'),
-      'giao_dich_ops_approve' => user_access('giao_dich_ops_approve'),
+      'giao_dich_ops_view' => api_has_permission('giao_dich_ops_view'),
+      'giao_dich_ops_create' => api_has_permission('giao_dich_ops_create'),
+      'giao_dich_ops_delete' => api_has_permission('giao_dich_ops_delete'),
+      'giao_dich_ops_approve' => api_has_permission('giao_dich_ops_approve'),
     ),
   )), 'setting');
 
@@ -893,9 +872,9 @@ function giao_dich_ops_approve_page() {
   ));
   drupal_add_js(array('giao_dich_ops_approve' => array(
     'permissions' => array(
-      'giao_dich_ops_view' => user_access('giao_dich_ops_view'),
-      'giao_dich_ops_approve' => user_access('giao_dich_ops_approve') || user_access('administer permissions'),
-      'giao_dich_ops_delete' => user_access('giao_dich_ops_delete'),
+      'giao_dich_ops_view' => api_has_permission('giao_dich_ops_view'),
+      'giao_dich_ops_approve' => api_has_permission('giao_dich_ops_approve') || api_has_permission('administer permissions'),
+      'giao_dich_ops_delete' => api_has_permission('giao_dich_ops_delete'),
     ),
   )), 'setting');
 

@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Nhân Viên — Employee management.
@@ -91,73 +97,33 @@ function nhan_vien_theme() {
  ******************************************************************************/
 
 function _nhan_vien_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _nhan_vien_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _nhan_vien_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _nhan_vien_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _nhan_vien_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _nhan_vien_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _nhan_vien_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
-/**
- * Require auth via Bearer token. Returns user object or fail response.
- */
-function _nhan_vien_require_auth() {
-  $token = NULL;
-  if (function_exists('getallheaders')) {
-    $headers = getallheaders();
-    if (!empty($headers['Authorization'])) {
-      $token = str_replace('Bearer ', '', $headers['Authorization']);
-    }
-  }
-  if (!$token && !empty($_GET['token'])) {
-    $token = $_GET['token'];
-  }
-  if (!$token) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Thiếu token xác thực');
-  }
-  module_load_include('module', 'user_login_api', 'user_login_api');
-  if (!function_exists('api_validate_token')) {
-    drupal_add_http_header('Status', '500 Internal Server Error');
-    return array('status' => 'error', 'message' => 'Hệ thống xác thực chưa sẵn sàng');
-  }
-  $user = api_validate_token($token);
-  if (!$user) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Token không hợp lệ');
-  }
-  return $user;
-}
 
 /**
  * Load full nhan_vien record including custom fields and role.
@@ -326,7 +292,7 @@ function nhan_vien_rest_roles() {
   }
 
   
-  if (!user_access('nhan_vien_view')) {
+  if (!api_has_permission('nhan_vien_view')) {
     return _nhan_vien_unauthorized('Bạn không có quyền xem danh sách role');
   }
 
@@ -477,7 +443,7 @@ function _nhan_vien_select_rows(array $rows, array $fields) {
 
 function _nhan_vien_rest_list() {
   
-  if (!user_access('nhan_vien_view')) {
+  if (!api_has_permission('nhan_vien_view')) {
     return _nhan_vien_unauthorized('Bạn không có quyền xem danh sách nhân viên');
   }
 
@@ -488,8 +454,8 @@ function _nhan_vien_rest_list() {
   }
   $select = !empty($sel['active']) ? $sel['fields'] : NULL;
 
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = $select !== NULL ? api_select_limit(TRUE, 100) : (isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20);
+  $page = api_page_number();
+  $limit = $select !== NULL ? api_select_limit(TRUE, 100) : api_page_limit(20, 100);
   $offset = ($page - 1) * $limit;
 
   _nhan_vien_ensure_sdt_field();
@@ -605,7 +571,7 @@ function _nhan_vien_rest_list() {
 
 function _nhan_vien_rest_create() {
   
-  if (!user_access('nhan_vien_create')) {
+  if (!api_has_permission('nhan_vien_create')) {
     return _nhan_vien_unauthorized('Bạn không có quyền tạo nhân viên');
   }
 
@@ -724,7 +690,7 @@ function nhan_vien_rest_item($id) {
 
 function _nhan_vien_rest_get($id) {
   
-  if (!user_access('nhan_vien_view')) {
+  if (!api_has_permission('nhan_vien_view')) {
     return _nhan_vien_unauthorized('Bạn không có quyền xem nhân viên');
   }
 
@@ -737,7 +703,7 @@ function _nhan_vien_rest_get($id) {
 
 function _nhan_vien_rest_update($id) {
   
-  if (!user_access('nhan_vien_create')) {
+  if (!api_has_permission('nhan_vien_create')) {
     return _nhan_vien_unauthorized('Bạn không có quyền sửa nhân viên');
   }
 
@@ -840,7 +806,7 @@ function _nhan_vien_rest_update($id) {
 
 function _nhan_vien_rest_delete($id) {
   
-  if (!user_access('nhan_vien_delete')) {
+  if (!api_has_permission('nhan_vien_delete')) {
     return _nhan_vien_unauthorized('Bạn không có quyền xoá nhân viên');
   }
 
@@ -886,9 +852,9 @@ function nhan_vien_page_list() {
 
   drupal_add_js(array('nhan_vien' => array(
     'permissions' => array(
-      'nhan_vien_view' => user_access('nhan_vien_view'),
-      'nhan_vien_create' => user_access('nhan_vien_create'),
-      'nhan_vien_delete' => user_access('nhan_vien_delete'),
+      'nhan_vien_view' => api_has_permission('nhan_vien_view'),
+      'nhan_vien_create' => api_has_permission('nhan_vien_create'),
+      'nhan_vien_delete' => api_has_permission('nhan_vien_delete'),
     ),
   )), 'setting');
 

@@ -111,6 +111,7 @@
     state.dinhMucSavedSig = null;
     state.dinhMucRoutes = [];
     state.oilRows = [];
+    state.oilSavedSig = null;
     state.driverPayMode = 'khoan';
     $('#khcp-plan-code').text('#' + state.nidKeHoach);
     clearPlanInfo();
@@ -402,14 +403,15 @@
   // Nguồn danh mục dùng chung của màn hàng cảng (ke_hoach_hang_cang_master.js, chỉ nạp ở màn hàng cảng; tuyến xa không có
   // nên vẫn dùng loadDanhMucOwn). Bộ lọc/modal xếp xe đã nạp sẵn kho/bãi/cảng/chi phí nên tab Chi phí không gọi lại.
   function danhMucMaster() {
-    var master = window.Drupal && Drupal.keHoachHangCangMaster;
+    // Mỗi màn có nguồn riêng (hàng cảng / tuyến xa), một trang chỉ nạp 1 trong 2.
+    var master = window.Drupal && (Drupal.keHoachHangCangMaster || Drupal.keHoachTuyenXaMaster);
     if (master && master.use) master.use($);
     return master || null;
   }
 
   // Vừa tạo danh mục mới trong tab: bỏ bản dùng chung để lần mở sau tải lại (có tên mới).
   function invalidateDanhMucMaster() {
-    var master = window.Drupal && Drupal.keHoachHangCangMaster;
+    var master = window.Drupal && (Drupal.keHoachHangCangMaster || Drupal.keHoachTuyenXaMaster);
     if (master && master.invalidate) master.invalidate('diaDiem');
   }
 
@@ -1406,6 +1408,8 @@
     state.plan = plan || {};
     state.driverPayMode = state.plan.hinh_thuc_tinh_luong_lai_xe || (state.plan.thong_tin_json && state.plan.thong_tin_json.hinh_thuc_tinh_luong_lai_xe) || 'khoan';
     if ($.inArray(state.driverPayMode, ['khoan', 'theo_chuyen']) === -1) state.driverPayMode = 'khoan';
+    // Hình thức tính lương đang lưu ở DB (tuyến xa: so với bản đang chọn để biết có cần lưu lại không).
+    state.driverPayModeSaved = state.driverPayMode;
     var customer = state.plan.khach_hang && state.plan.khach_hang.ten ? state.plan.khach_hang.ten : '';
     var vehicle = state.plan.phuong_tien && state.plan.phuong_tien.bks ? state.plan.phuong_tien.bks : '';
     var driver = state.plan.lai_xe && state.plan.lai_xe.ten ? state.plan.lai_xe.ten : '';
@@ -1611,6 +1615,8 @@
       .done(function (response) {
         var items = response && response.data && response.data.items ? response.data.items : [];
         state.oilRows = $.map(items, function (item) { return normalizeOilRow(item); });
+        // Bản đang lưu ở DB, để lần lưu sau biết nhật ký dầu có đổi không.
+        state.oilSavedSig = JSON.stringify(oilPayload());
       });
   }
 
@@ -1680,16 +1686,32 @@
   // Tuyến xa: giữ nguyên đường lưu hiện có (kèm hình thức tính lương lái xe).
   function persistTuyenXaDinhMucRows() {
     if (!state.nidKeHoach) return resolvedNoop();
+    var payload = dinhMucPayload();
+    // Chữ ký gồm cả hình thức tính lương (lưu cùng lệnh). Không đổi so với bản đang lưu thì không gọi lại.
+    var signature = dinhMucSignature(payload) + '|' + state.driverPayMode;
+    if (state.dinhMucSavedSig !== null && state.dinhMucSavedSig !== undefined && (state.dinhMucSavedSig + '|' + state.driverPayModeSaved) === signature) return resolvedNoop();
     return $.ajax({
-      url: '/api/quan-ly-cont/' + state.nidKeHoach,
+      url: '/api/quan-ly-cont/' + state.nidKeHoach + '?response=min',
       method: 'PUT',
       contentType: 'application/json; charset=utf-8',
       dataType: 'json',
       data: JSON.stringify({
-        dinh_muc_khoan_lai_xe: dinhMucPayload(),
+        dinh_muc_khoan_lai_xe: payload,
         hinh_thuc_tinh_luong_lai_xe: state.driverPayMode
       })
-    }).done(applyPlanResponse);
+    }).done(function (response) {
+      state.dinhMucSavedSig = dinhMucSignature(payload);
+      state.driverPayModeSaved = state.driverPayMode;
+      // Chỉ nhận lại phần vừa lưu và ghép vào state.plan (server không dựng lại cả kế hoạch).
+      var data = response && response.status === 'success' && response.data ? response.data : null;
+      if (data && state.plan) {
+        var json = parseJson(state.plan.thong_tin_json);
+        if (data.dinh_muc_khoan_lai_xe) json.dinh_muc_khoan_lai_xe = data.dinh_muc_khoan_lai_xe;
+        if (data.hinh_thuc_tinh_luong_lai_xe) json.hinh_thuc_tinh_luong_lai_xe = data.hinh_thuc_tinh_luong_lai_xe;
+        state.plan.thong_tin_json = json;
+        if (data.hinh_thuc_tinh_luong_lai_xe) state.plan.hinh_thuc_tinh_luong_lai_xe = data.hinh_thuc_tinh_luong_lai_xe;
+      }
+    });
   }
 
   function persistDinhMucRows() {
@@ -1718,6 +1740,9 @@
   // Nhật ký dầu chỉ có ở tuyến xa; hàng cảng không gọi hàm này.
   function persistOilRows() {
     if (!state.nidKeHoach) return resolvedNoop();
+    // Nhật ký dầu không đổi so với bản đang lưu thì không gọi lại (lệnh này ghi đè cả danh sách).
+    var oilSignature = JSON.stringify(oilPayload());
+    if (state.oilSavedSig === oilSignature) return resolvedNoop();
     return $.ajax({
       url: '/api/ke-hoach-tuyen-xa-dau',
       method: 'POST',
@@ -1727,6 +1752,7 @@
     }).done(function (response) {
       var items = response && response.data && response.data.items ? response.data.items : [];
       state.oilRows = $.map(items, function (item) { return normalizeOilRow(item); });
+      state.oilSavedSig = JSON.stringify(oilPayload());
     });
   }
 

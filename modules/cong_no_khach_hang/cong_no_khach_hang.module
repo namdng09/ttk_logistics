@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Công nợ khách hàng.
@@ -64,8 +70,8 @@ function cong_no_khach_hang_page_list() {
 
   drupal_add_js(array('cong_no_khach_hang' => array(
     'permissions' => array(
-      'view' => user_access('cong_no_khach_hang_view'),
-      'pay' => user_access('cong_no_khach_hang_pay'),
+      'view' => api_has_permission('cong_no_khach_hang_view'),
+      'pay' => api_has_permission('cong_no_khach_hang_pay'),
     ),
     'fund_options' => $fund_options,
   )), 'setting');
@@ -88,30 +94,23 @@ function _cnkh_input() {
 }
 
 function _cnkh_success($data = NULL) {
-  $res = array('status' => 'success');
-  if ($data !== NULL) $res['data'] = $data;
-  return $res;
+  return api_response_success($data);
 }
 
 function _cnkh_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _cnkh_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _cnkh_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _cnkh_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 function _cnkh_money($value) {
@@ -205,14 +204,14 @@ function _cnkh_normalize_status_filter($status) {
 
 function cong_no_khach_hang_rest_collection() {
   if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _cnkh_method_not_allowed('GET');
-  if (!user_access('cong_no_khach_hang_view')) return _cnkh_unauthorized('Bạn không có quyền xem công nợ khách hàng');
+  if (!api_has_permission('cong_no_khach_hang_view')) return _cnkh_unauthorized('Bạn không có quyền xem công nợ khách hàng');
   return _cnkh_report();
 }
 
 function _cnkh_report() {
   if (!db_table_exists('phieu_tra_khach_hang')) return _cnkh_error('Chưa có bảng phieu_tra_khach_hang');
-  $page = !empty($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = !empty($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $page = api_page_number();
+  $limit = api_page_limit(20, 100);
   $customer_id = !empty($_GET['nid_khach_hang']) ? (int) $_GET['nid_khach_hang'] : 0;
   $status_filter = _cnkh_normalize_status_filter(isset($_GET['trang_thai']) ? $_GET['trang_thai'] : '');
   $keyword = isset($_GET['keyword']) ? trim((string) $_GET['keyword']) : '';
@@ -345,7 +344,7 @@ function _cnkh_report() {
 
 function cong_no_khach_hang_payment_api() {
   if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _cnkh_method_not_allowed('POST');
-  if (!user_access('cong_no_khach_hang_pay')) return _cnkh_unauthorized('Bạn không có quyền thanh toán công nợ khách hàng');
+  if (!api_has_permission('cong_no_khach_hang_pay')) return _cnkh_unauthorized('Bạn không có quyền thanh toán công nợ khách hàng');
   return _cnkh_create_payment();
 }
 

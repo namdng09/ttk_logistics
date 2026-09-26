@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Module quản lý tài chính: quỹ, thu chi, chuyển quỹ, tạm ứng lái xe.
@@ -167,41 +173,31 @@ function quan_ly_tai_chinh_permission() {
 }
 
 function _quan_ly_tai_chinh_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _quan_ly_tai_chinh_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _quan_ly_tai_chinh_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _quan_ly_tai_chinh_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _quan_ly_tai_chinh_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _quan_ly_tai_chinh_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 function _quan_ly_tai_chinh_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function quan_ly_tai_chinh_theme() {
@@ -667,7 +663,7 @@ function quan_ly_tai_chinh_quy_page() {
   quan_ly_tai_chinh_add_assets();
 
   $filters = quan_ly_tai_chinh_get_date_filters();
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+  $page = api_page_number();
 
   return theme('quan_ly_tai_chinh_quy_page', array(
     'render_mode' => 'page',
@@ -2004,8 +2000,8 @@ function _quan_ly_tai_chinh_quy_rest_list() {
 
   $filters = quan_ly_tai_chinh_get_date_filters();
 
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  $page = api_page_number();
+  $limit = api_page_limit(20, 100);
   $offset = ($page - 1) * $limit;
 
   $all = quan_ly_tai_chinh_quy_get_all(TRUE);
@@ -2034,7 +2030,7 @@ function quan_ly_tai_chinh_quy_rest_transfer() {
   if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     return _quan_ly_tai_chinh_method_not_allowed('POST');
   }
-  if (!user_access('quan ly tai chinh')) {
+  if (!api_has_permission('quan ly tai chinh')) {
     return _quan_ly_tai_chinh_unauthorized('Bạn không có quyền chuyển tiền nội bộ.');
   }
 
@@ -2098,7 +2094,7 @@ function _quan_ly_tai_chinh_quy_rest_get($id) {
 }
 
 function _quan_ly_tai_chinh_quy_rest_create() {
-  if (!user_access('quan ly tai chinh')) {
+  if (!api_has_permission('quan ly tai chinh')) {
     return _quan_ly_tai_chinh_unauthorized('Bạn không có quyền tạo quỹ');
   }
 
@@ -2111,7 +2107,7 @@ function _quan_ly_tai_chinh_quy_rest_create() {
 }
 
 function _quan_ly_tai_chinh_quy_rest_update($id) {
-  if (!user_access('quan ly tai chinh')) {
+  if (!api_has_permission('quan ly tai chinh')) {
     return _quan_ly_tai_chinh_unauthorized('Bạn không có quyền cập nhật quỹ');
   }
 
@@ -2126,7 +2122,7 @@ function _quan_ly_tai_chinh_quy_rest_update($id) {
 }
 
 function _quan_ly_tai_chinh_quy_rest_delete($id) {
-  if (!user_access('quan ly tai chinh')) {
+  if (!api_has_permission('quan ly tai chinh')) {
     return _quan_ly_tai_chinh_unauthorized('Bạn không có quyền xóa quỹ');
   }
 
@@ -2138,7 +2134,7 @@ function _quan_ly_tai_chinh_quy_rest_delete($id) {
 }
 
 function _quan_ly_tai_chinh_quy_rest_adjust($id) {
-  if (!user_access('quan ly tai chinh')) {
+  if (!api_has_permission('quan ly tai chinh')) {
     return _quan_ly_tai_chinh_unauthorized('Bạn không có quyền điều chỉnh quỹ');
   }
 

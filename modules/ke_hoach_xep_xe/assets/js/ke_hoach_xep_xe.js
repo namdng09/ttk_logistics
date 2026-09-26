@@ -30,6 +30,8 @@
   };
   // Modal xếp xe hàng cảng đã lưu xong: danh sách phía sau chỉ tải lại 1 lần khi modal đóng (không tải ngay sau mỗi lần lưu).
   var listReloadAfterModal = false;
+  // Như trên nhưng cho modal xếp xe tuyến xa (tách riêng: không dùng chung logic làm nổi bật dòng của hàng cảng).
+  var tuyenXaListReloadAfterModal = false;
   // Kế hoạch đã tính tổng chi phí cho cột bên trong lần mở modal này (đặt lại mỗi lần mở modal); lưu xong không tính lại.
   var portCostSummaryLoadedFor = 0;
   var listSearchDropdownData = {
@@ -54,8 +56,20 @@
     return Drupal.keHoachHangCangMaster;
   }
 
+  // Tuyến xa có nguồn dữ liệu riêng (ke_hoach_tuyen_xa_master.js, namespace tách khỏi hàng cảng); cùng cách dùng.
+  function tuyenXaMaster() {
+    if (currentPlanType() !== 'tuyen_xa' || !window.Drupal || !Drupal.keHoachTuyenXaMaster) return null;
+    Drupal.keHoachTuyenXaMaster.use($);
+    return Drupal.keHoachTuyenXaMaster;
+  }
+
+  // Nguồn danh mục của màn đang mở (hàng cảng hoặc tuyến xa); NULL nếu trang chưa nạp file tương ứng → đường tải riêng cũ.
+  function planMaster() {
+    return hangCangMaster() || tuyenXaMaster();
+  }
+
   function persistHangCangMaster() {
-    var master = hangCangMaster();
+    var master = planMaster();
     if (master) master.persist();
   }
 
@@ -873,7 +887,7 @@
       if (done) done();
       return;
     }
-    var master = hangCangMaster();
+    var master = planMaster();
     if (master) {
       $select.prop('disabled', true);
       master.load(['customers']).done(function () {
@@ -1761,7 +1775,7 @@
   }
 
   function loadListSearchDropdowns(done) {
-    var master = hangCangMaster();
+    var master = planMaster();
     if (master) {
       loadListSearchDropdownsFromMaster(master, done);
       return;
@@ -2313,6 +2327,11 @@
         if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
       }
       setTimeout(hangCangApplyTouchedRow, 50);
+    });
+    $(document).off('hidden.bs.modal.khxhTuyenXaReload').on('hidden.bs.modal.khxhTuyenXaReload', '#ke-hoach-tuyen-xa-edit-fullscreen-modal', function (e) {
+      if (e.target !== this || !tuyenXaListReloadAfterModal) return;
+      tuyenXaListReloadAfterModal = false;
+      if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
     });
     $('#ke-hoach-edit-fullscreen-modal, #ke-hoach-tuyen-xa-edit-fullscreen-modal').on('hidden.bs.modal', function (e) {
       if (e.target !== this) return;
@@ -6050,7 +6069,7 @@
     }
 
     function loadDropdowns(done) {
-      var master = hangCangMaster();
+      var master = planMaster();
       if (master) {
         loadDropdownsFromMaster(master, done);
         return;
@@ -6742,7 +6761,8 @@
                   if ($('#ke-hoach-list-app').length) listReloadAfterModal = true;
                 }
                 else if ($('#ke-hoach-tuyen-xa-edit-fullscreen-modal').hasClass('show')) {
-                  if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
+                  // Tuyến xa: danh sách phía sau modal tải 1 lần khi modal đóng, không tải ngay sau mỗi lần lưu.
+                  if ($('#ke-hoach-list-app').length) tuyenXaListReloadAfterModal = true;
                 }
               }
               if (nid) {
@@ -7381,7 +7401,7 @@
     initContList._bound = true;
 
     function loadCustomers() {
-      var master = hangCangMaster();
+      var master = planMaster();
       if (master) {
         master.load(['customers']).always(function () {
           var html = '<option value="">Khách hàng</option>';

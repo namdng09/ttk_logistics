@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Đối Tác — Customer management.
@@ -86,7 +92,7 @@ function khach_hang_theme() {
  ******************************************************************************/
 
 function _khach_hang_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function khach_hang_modal_html() {
@@ -198,37 +204,27 @@ HTML;
 }
 
 function _khach_hang_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _khach_hang_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _khach_hang_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _khach_hang_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _khach_hang_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _khach_hang_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 function _khach_hang_now() {
@@ -486,7 +482,7 @@ function khach_hang_rest_collection() {
 }
 
 function _khach_hang_rest_list() {
-  if (!user_access('khach_hang_view')) {
+  if (!api_has_permission('khach_hang_view')) {
     return _khach_hang_unauthorized('Bạn không có quyền xem đối tác');
   }
 
@@ -497,8 +493,8 @@ function _khach_hang_rest_list() {
   }
   $select = !empty($sel['active']) ? $sel['fields'] : NULL;
 
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = $select !== NULL ? api_select_limit(TRUE, 100) : (isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20);
+  $page = api_page_number();
+  $limit = $select !== NULL ? api_select_limit(TRUE, 100) : api_page_limit(20, 100);
   $offset = ($page - 1) * $limit;
 
   $query = db_select('khach_hang', 'kh');
@@ -663,7 +659,7 @@ function _khach_hang_select_rows(array $rows, array $fields) {
 }
 
 function _khach_hang_rest_create() {
-  if (!user_access('khach_hang_create')) {
+  if (!api_has_permission('khach_hang_create')) {
     return _khach_hang_unauthorized('Bạn không có quyền tạo đối tác');
   }
 
@@ -766,7 +762,7 @@ function khach_hang_rest_item($id) {
 }
 
 function _khach_hang_rest_get($id) {
-  if (!user_access('khach_hang_view')) {
+  if (!api_has_permission('khach_hang_view')) {
     return _khach_hang_unauthorized('Bạn không có quyền xem đối tác');
   }
 
@@ -778,7 +774,7 @@ function _khach_hang_rest_get($id) {
 }
 
 function _khach_hang_rest_update($id) {
-  if (!user_access('khach_hang_create')) {
+  if (!api_has_permission('khach_hang_create')) {
     return _khach_hang_unauthorized('Bạn không có quyền sửa đối tác');
   }
 
@@ -870,7 +866,7 @@ function _khach_hang_rest_update($id) {
 }
 
 function _khach_hang_rest_delete($id) {
-  if (!user_access('khach_hang_delete')) {
+  if (!api_has_permission('khach_hang_delete')) {
     return _khach_hang_unauthorized('Bạn không có quyền xoá đối tác');
   }
 
@@ -956,9 +952,9 @@ function khach_hang_add_modal_assets($with_modal_html = TRUE, $with_xlsx = FALSE
   drupal_add_js(array('khach_hang' => array(
     'modal_html' => $with_modal_html ? khach_hang_modal_html() : '',
     'permissions' => array(
-      'khach_hang_view' => user_access('khach_hang_view'),
-      'khach_hang_create' => user_access('khach_hang_create'),
-      'khach_hang_delete' => user_access('khach_hang_delete'),
+      'khach_hang_view' => api_has_permission('khach_hang_view'),
+      'khach_hang_create' => api_has_permission('khach_hang_create'),
+      'khach_hang_delete' => api_has_permission('khach_hang_delete'),
     ),
   )), 'setting');
 }

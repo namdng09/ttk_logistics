@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Theo dõi đổ dầu — phiếu đổ dầu của đầu kéo tại cây xăng (nhà cung cấp).
@@ -115,12 +121,12 @@ function do_dau_page_list() {
   drupal_add_js($path . '/assets/js/do_dau.js');
   drupal_add_js(array('do_dau' => array(
     'permissions' => array(
-      'view_own' => user_access('do_dau_view_own'),
-      'view_all' => user_access('do_dau_view_all'),
-      'create' => user_access('do_dau_create'),
-      'approve' => user_access('do_dau_approve'),
-      'delete' => user_access('do_dau_delete'),
-      'duyet_tt' => user_access('de_nghi_thanh_toan_approve_payment'),
+      'view_own' => api_has_permission('do_dau_view_own'),
+      'view_all' => api_has_permission('do_dau_view_all'),
+      'create' => api_has_permission('do_dau_create'),
+      'approve' => api_has_permission('do_dau_approve'),
+      'delete' => api_has_permission('do_dau_delete'),
+      'duyet_tt' => api_has_permission('de_nghi_thanh_toan_approve_payment'),
     ),
     'uid' => (int) $GLOBALS['user']->uid,
   )), 'setting');
@@ -131,41 +137,12 @@ function do_dau_page_list() {
  * AUTH — mẫu hybrid: phiên trình duyệt trước, không có phiên thì Bearer token/?token=.
  ******************************************************************************/
 
-function _do_dau_require_auth() {
-  $token = NULL;
-  if (function_exists('getallheaders')) {
-    $headers = getallheaders();
-    if (!empty($headers['Authorization']) && preg_match('/^Bearer\s+(.+)$/i', trim($headers['Authorization']), $matches)) {
-      $token = trim($matches[1]);
-    }
-  }
-  if (!$token && !empty($_GET['token'])) {
-    $token = $_GET['token'];
-  }
-  if (!$token) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Thiếu token xác thực');
-  }
-  module_load_include('module', 'user_login_api', 'user_login_api');
-  if (!function_exists('api_validate_token')) {
-    drupal_add_http_header('Status', '500 Internal Server Error');
-    return array('status' => 'error', 'message' => 'Hệ thống xác thực chưa sẵn sàng');
-  }
-  $account = api_validate_token($token);
-  if (!$account) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Token không hợp lệ');
-  }
-  return $account;
-}
 
+/**
+ * Tài khoản đang gọi API (phiên đăng nhập hoặc Bearer token), NULL nếu là khách vãng lai. Xem api_common.module.
+ */
 function _do_dau_current_account() {
-  global $user;
-  if (!empty($user->uid)) {
-    return $user;
-  }
-  $auth = _do_dau_require_auth();
-  return is_array($auth) ? NULL : $auth;
+  return api_current_account();
 }
 
 /*******************************************************************************
@@ -173,7 +150,7 @@ function _do_dau_current_account() {
  ******************************************************************************/
 
 function _do_dau_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _do_dau_now() {
@@ -181,42 +158,31 @@ function _do_dau_now() {
 }
 
 function _do_dau_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _do_dau_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _do_dau_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _do_dau_forbidden($message) {
-  drupal_add_http_header('Status', '403 Forbidden');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_forbidden($message);
 }
 
 function _do_dau_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _do_dau_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _do_dau_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 /** Số nguyên đồng từ chuỗi bất kỳ ("19.450", "19450đ"). */
@@ -768,8 +734,8 @@ function _do_dau_rest_list() {
     }
   }
   $tab = isset($_GET['tab']) && in_array($_GET['tab'], _do_dau_tabs(), TRUE) ? $_GET['tab'] : 'all';
-  $page = max(1, isset($_GET['page']) ? (int) $_GET['page'] : 1);
-  $limit = min(100, max(1, isset($_GET['limit']) ? (int) $_GET['limit'] : 20));
+  $page = api_page_number();
+  $limit = api_page_limit(20, 100);
 
   list($where, $args) = _do_dau_filter_sql($f, $account);
   $from = "FROM {do_dau} d LEFT JOIN {phuong_tien} pt ON pt.nid = d.nid_phuong_tien LEFT JOIN {de_nghi_thanh_toan} dn ON dn.nid = d.nid_de_nghi AND dn.hoat_dong = 1";
