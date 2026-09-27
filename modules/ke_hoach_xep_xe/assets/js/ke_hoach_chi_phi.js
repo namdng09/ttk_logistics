@@ -2118,7 +2118,10 @@
     select2Parent: select2DropdownParent,
     reload: fetchRows,
     rerender: renderAll,
-    saveAll: function () { return saveAllRows({ allowEmpty: true, silent: true }); }
+    saveAll: function () { return saveAllRows({ allowEmpty: true, silent: true }); },
+    // Nút "Thêm chi phí" ở đầu card (ke_hoach_chi_phi_dntt.js): thêm 1 dòng trống cuối bảng, dùng chung insertCostRow()
+    // với nút "+" trên từng dòng nên cũng chỉ cuộn trong bảng, không cuộn cả modal/trang.
+    addBlankRow: function () { insertCostRow(createEmptyRow(), -1); }
   };
 
   Drupal.behaviors.keHoachChiPhi = {

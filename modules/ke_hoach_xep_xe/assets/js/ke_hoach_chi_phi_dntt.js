@@ -20,6 +20,10 @@
 
   var API = '/api/de-nghi-thanh-toan';
   var LX = 'lai_xe_tu_chiu';
+  // Loại dòng KHÔNG thuộc bảng "Chi phí vận hành" (nằm ở card khác: Lương lái xe theo chuyến, Doanh thu khách hàng) —
+  // dùng để đếm số dòng hiện trong bảng này, giống danh sách renderTable() lọc ở ke_hoach_chi_phi.js.
+  var DRIVER_SALARY_TYPE = 'luong_lai_xe';
+  var REVENUE_TYPE = 'doanh_thu';
   var STATUS_CLASS = {
     nhap: 'bg-label-secondary',
     cho_duyet: 'bg-label-warning',
@@ -28,6 +32,14 @@
     hoan_thanh: 'bg-label-success',
     tu_choi: 'bg-label-danger',
     tu_choi_thanh_toan: 'bg-label-danger'
+  };
+
+  // Nút hành động cột "Đề nghị thanh toán": cùng icon/màu với màn /de-nghi-thanh-toan (ACTION_ICON trong
+  // de_nghi_thanh_toan.js) để nút rõ ràng là bấm được, không lẫn với chữ mô tả cạnh nó.
+  var ACTION_STYLE = {
+    'thu-hoi': { icon: 'tabler-history', cls: 'btn-label-secondary' },
+    'gui-duyet': { icon: 'tabler-send', cls: 'btn-primary' },
+    'rut-dong': { icon: 'tabler-unlink', cls: 'btn-label-danger' }
   };
 
   var selected = {};
@@ -55,6 +67,14 @@
 
   function selectedRows() {
     return $.grep(rowsOf(), function (row) { return selected[row.nid] && selectable(row); });
+  }
+
+  // Số dòng đang có trong bảng "Chi phí vận hành" (badge cạnh tiêu đề card): mọi dòng KH/CT/LX đã nhập tên, trừ
+  // dòng trống (mẫu chờ nhập) và các loại thuộc card khác (lương lái xe theo chuyến, doanh thu khách hàng).
+  function operatingCostCount() {
+    return $.grep(rowsOf(), function (row) {
+      return row.loai_chi_phi !== DRIVER_SALARY_TYPE && row.loai_chi_phi !== REVENUE_TYPE && String(row.ten_chi_phi || '').trim() !== '';
+    }).length;
   }
 
   /* ─────────── Tuỳ chọn (NCC, nhân viên, lái xe chuyến) ─────────── */
@@ -166,14 +186,19 @@
     if (!row.nid) return '<span class="small text-muted">Lưu để đẩy vào ĐNTT</span>';
     var dn = row.de_nghi;
     if (row.nid_de_nghi && dn) {
+      // Dòng 1: trạng thái + mã đề nghị/hoá đơn (bên nhận tiền đã có cột riêng, không lặp lại ở đây).
+      // Chỉ mã đề nghị: số hoá đơn xem ở màn /de-nghi-thanh-toan hoặc modal chi tiết, không cần lặp ở đây.
       var html = '<div class="d-flex align-items-center flex-wrap gap-1"><span class="badge ' + (STATUS_CLASS[dn.trang_thai] || 'bg-label-secondary') + '">' + esc(dn.trang_thai_label) + '</span>' +
-        '<span class="small text-muted">' + esc(dn.ma_de_nghi) + (dn.so_hoa_don ? ' · HĐ ' + esc(dn.so_hoa_don) : '') + (dn.ben_nhan_tien_ten ? ' · Nhận: ' + esc(dn.ben_nhan_tien_ten) : '') + '</span>';
+        '<span class="small text-muted">' + esc(dn.ma_de_nghi) + '</span></div>';
+      // Dòng 2: nút hành động — cùng class/icon với màn /de-nghi-thanh-toan để rõ là bấm được, không lẫn với chữ mô tả.
       var acts = dn.hanh_dong || [];
+      html += '<div class="d-flex align-items-center flex-wrap gap-1 mt-1">';
       for (var i = 0; i < acts.length; i++) {
-        html += '<button type="button" class="btn btn-sm btn-label-' + (acts[i].key === 'gui-duyet' ? 'primary' : 'secondary') + ' khcp-act khcp-dntt-act" data-act="' + esc(acts[i].key) +
-          '" data-dn="' + dn.nid + '" data-nid="' + row.nid + '">' + esc(acts[i].label) + '</button>';
+        var meta = ACTION_STYLE[acts[i].key] || { icon: 'tabler-point', cls: 'btn-label-secondary' };
+        html += '<button type="button" class="btn btn-sm ' + meta.cls + ' khcp-act khcp-dntt-act" data-act="' + esc(acts[i].key) +
+          '" data-dn="' + dn.nid + '" data-nid="' + row.nid + '"><i class="ti ' + meta.icon + '"></i> ' + esc(acts[i].label) + '</button>';
       }
-      html += '<a class="btn btn-sm btn-label-info khcp-act" target="_blank" href="' + esc(cfg.page_url || '/de-nghi-thanh-toan') + '#xem-' + dn.nid + '">Xem</a></div>';
+      html += '<a class="btn btn-sm btn-label-info khcp-act" target="_blank" href="' + esc(cfg.page_url || '/de-nghi-thanh-toan') + '#xem-' + dn.nid + '"><i class="ti tabler-eye"></i> Xem</a></div>';
       if ((dn.trang_thai === 'tu_choi' || dn.trang_thai === 'tu_choi_thanh_toan') && dn.ly_do_tu_choi) {
         html += '<div class="small mt-1 text-danger">Lý do: ' + esc(dn.ly_do_tu_choi) + '</div>';
       }
@@ -203,9 +228,11 @@
     var $card = $('.khcp-main-card').first();
     if (!$card.length) return;
     var html = '<div id="khcp-dntt-toolbar" class="khcp-dntt-toolbar d-flex justify-content-between align-items-center">' +
-      '<span class="khcp-section-title">Chi phí vận hành</span><div class="d-flex align-items-center gap-2">' +
+      '<span class="d-flex align-items-center gap-2"><span class="khcp-section-title">Chi phí vận hành</span>' +
+      '<span class="badge rounded-pill bg-label-primary border" id="khcp-dntt-count">0</span></span><div class="d-flex align-items-center gap-2">' +
       (perms.create ? '<button type="button" class="btn btn-sm btn-label-primary" id="khcp-payee-bulk-btn" disabled><i class="ti tabler-user-dollar me-1"></i>Gán bên nhận tiền</button>' : '') +
-      (perms.create ? '<button type="button" class="btn btn-sm btn-primary" id="khcp-dntt-create-btn" disabled><i class="ti tabler-receipt-2 me-1"></i>Tạo đề nghị thanh toán</button>' : '') + '</div></div>' +
+      (perms.create ? '<button type="button" class="btn btn-sm btn-primary" id="khcp-dntt-create-btn" disabled><i class="ti tabler-receipt-2 me-1"></i>Tạo đề nghị thanh toán</button>' : '') +
+      (perms.create ? '<button type="button" class="btn btn-sm btn-label-success" id="khcp-dntt-add-btn"><i class="ti tabler-circle-plus me-1"></i>Thêm chi phí</button>' : '') + '</div></div>' +
       '<div id="khcp-payee-tools" class="khcp-payee-tools d-none"><div id="khcp-payee-groups"></div><div id="khcp-payee-suggest"></div></div>';
     $card.prepend(html);
   }
@@ -293,6 +320,7 @@
   }
 
   function updateToolbar() {
+    $('#khcp-dntt-count').text(operatingCostCount());
     var list = selectedRows();
     var sum = 0;
     $.each(list, function (_, r) { sum += Number(r.tong_sau_vat) || 0; });
@@ -919,6 +947,7 @@
       });
       $(document).on('change', '.khcp-dntt-check-all', function () { toggleAll($(this).is(':checked')); });
       $(document).on('click', '#khcp-dntt-create-btn', startCreate);
+      $(document).on('click', '#khcp-dntt-add-btn', function () { core.addBlankRow(); });
       $(document).on('click', '.khcp-dntt-push-one', function () {
         selected = {};
         selected[parseInt($(this).data('nid'), 10)] = true;

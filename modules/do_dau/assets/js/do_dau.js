@@ -447,6 +447,12 @@
 
   /* ─────────── Menu dòng ─────────── */
 
+  // Bỏ qua double-click khi trúng nút hành động, link đề nghị TT, hay bất kỳ phần tử tương tác nào trong dòng
+  // (cùng danh sách loại trừ với /ke-hoach-xep-xe).
+  function isRowInteractiveTarget(target) {
+    return $(target).closest('button, a, input, select, textarea, label, .dropdown, .select2-container, [role="button"]').length > 0;
+  }
+
   function closeMenu() { $('#dd-menu').hide(); }
 
   function openMenu(id, x, y) {
@@ -826,6 +832,16 @@
       if (!id) return;
       e.preventDefault();
       openMenu(id, e.clientX, e.clientY);
+    });
+    // Double-click dòng: mở modal Sửa nếu phiếu còn sửa được, không thì mở Xem chi tiết. Cùng cơ chế với /ke-hoach-xep-xe
+    // (bỏ qua khi double-click trúng nút/link/ô nhập trong dòng, tránh xung đột với thao tác của chính phần tử đó).
+    $('#dd-tbody').delegate('tr', 'dblclick', function (e) {
+      if (isRowInteractiveTarget(e.target)) return;
+      var id = parseInt($(this).attr('data-id'), 10);
+      var item = id && state.items[id];
+      if (!item) return;
+      closeMenu();
+      if (item.co_the_sua) openEdit(id); else openView(id);
     });
     $(document).bind('click', closeMenu);
     $(document).bind('keydown', function (e) { if (e.which === 27) closeMenu(); });

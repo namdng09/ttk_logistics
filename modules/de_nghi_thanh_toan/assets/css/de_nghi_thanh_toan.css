@@ -89,6 +89,33 @@
 .dn-chevron { font-size: 1rem; vertical-align: -3px; color: #8592a3; }
 #dn-app .dn-list-table tbody tr.dn-exp-row > td { padding: 0 !important; background: #fff; --bs-table-hover-bg: transparent; }
 #dn-app .dn-list-table tbody tr.dn-exp-row:hover > td { background: #fff; }
+
+/* Dòng vừa "Xem" từ tab Chi phí kế hoạch (mở "Xem" ở dòng chi phí, đóng modal xong thì nổi bật ngay dòng đó): nền tím
+ * nhạt + vạch trái, nháy 2 lần khi hiện, mờ dần khi hết — cùng animation với dòng kế hoạch vừa thao tác ở /ke-hoach-xep-xe. */
+#dn-app .dn-list-table tr[data-id] { scroll-margin-top: 40px; }
+#dn-app .dn-list-table tr.dn-row-touched > td {
+  background-color: rgba(var(--bs-primary-rgb, 115, 103, 240), .10);
+  box-shadow: inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10);
+  animation: dn-row-touched-flash 1.1s ease-in-out 2;
+}
+#dn-app .dn-list-table tr.dn-row-touched > td:first-child {
+  box-shadow: inset 4px 0 0 var(--bs-primary, #7367f0), inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10);
+  animation-name: dn-row-touched-flash-first;
+}
+#dn-app .dn-list-table tr.dn-row-touched.dn-row-touched-out > td {
+  background-color: transparent;
+  box-shadow: none;
+  animation: none;
+  transition: background-color .9s ease, box-shadow .9s ease;
+}
+@keyframes dn-row-touched-flash {
+  0%, 100% { box-shadow: inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10); }
+  50% { box-shadow: inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .30); }
+}
+@keyframes dn-row-touched-flash-first {
+  0%, 100% { box-shadow: inset 4px 0 0 var(--bs-primary, #7367f0), inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .10); }
+  50% { box-shadow: inset 4px 0 0 var(--bs-primary, #7367f0), inset 0 0 0 9999px rgba(var(--bs-primary-rgb, 115, 103, 240), .30); }
+}
 .dn-expand-wrap { border-left: 3px solid #7367f0; padding: .6rem 1rem .8rem; background: #fff; }
 .dn-expand-title { font-size: .82rem; font-weight: 700; color: #444050; margin-bottom: .4rem; }
 .dn-expand-loading { padding: .9rem 1rem; color: #6d6b77; font-size: .85rem; border-left: 3px solid #7367f0; }

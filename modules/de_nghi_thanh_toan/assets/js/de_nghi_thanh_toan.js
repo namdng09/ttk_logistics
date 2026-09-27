@@ -247,7 +247,7 @@
       var ref = it.nguon_ref || {};
       return '<div>' + chev + '<span class="dn-tag dd">ĐD</span> Đổ dầu</div><div class="small text-muted">' + esc(ref.ma || '') + (ref.bks ? ' · ' + esc(ref.bks) : '') + '</div>';
     }
-    return '<div>' + chev + it.so_dong + ' dòng</div><div class="small text-muted">' + it.so_chuyen + ' chuyến</div>';
+    return '<div>' + chev + it.so_dong + ' chi phí</div><div class="small text-muted">' + it.so_chuyen + ' chuyến</div>';
   }
 
   function noteHtml(item) {
@@ -532,13 +532,23 @@
     $('#dn-view-status').html(statusBadge(d));
   }
 
-  function openView(id, keepOpen) {
+  // focusInList: mở từ ngoài màn (link "Xem" ở tab Chi phí kế hoạch) — lọc danh sách nền theo đúng mã đề nghị (trang 1,
+  // tab "Tất cả") để khi đóng modal, dòng chắc chắn có trên màn hình cho applyTouchedRow() nổi bật, dù đề nghị đang ở
+  // trang/tab nào theo bộ lọc mặc định.
+  function openView(id, keepOpen, focusInList) {
     state.viewId = id;
+    markTouched(id);
     $('#dn-view-loading').show();
     if (!keepOpen) { $('#dn-view-body').html(''); modalOf('dn-view-modal').show(); }
     call('GET', API + '/' + id, null, function (d) {
       renderDetail(d);
       $('#dn-view-loading').hide();
+      if (focusInList && d && d.ma_de_nghi) {
+        $('#dn-f-q').val(d.ma_de_nghi);
+        state.filters.keyword = d.ma_de_nghi;
+        state.page = 1;
+        loadList();
+      }
     }, function (jqXHR) {
       $('#dn-view-loading').hide();
       toast(apiMsg(jqXHR), false);
@@ -743,6 +753,38 @@
     });
   }
 
+  /* ─────────── Nổi bật 1 dòng sau khi đóng modal Xem (cùng animation với dòng kế hoạch vừa thao tác ở /ke-hoach-xep-xe) ───────────
+   * Dùng khi mở "Xem" từ tab Chi phí kế hoạch (link #xem-{id}, thường ra tab mới): đóng modal xong thì biết ngay đề nghị
+   * đang ở dòng nào, khỏi tự tìm/tự bấm sang trang. Nếu đề nghị không nằm ở trang/tab/bộ lọc đang xem thì bỏ qua (không có gì
+   * để cuộn tới) — openView(..., true) đã tự lọc theo đúng mã đề nghị (trang 1, tab "Tất cả") trước khi tới bước này nên
+   * trường hợp không tìm thấy chỉ xảy ra khi mở "Xem" bình thường (dòng đã ở ngay trên màn hình, không cần cuộn/nổi bật). */
+  var touchedId = 0;
+  var touchedTimer = null;
+
+  function markTouched(id) {
+    touchedId = parseInt(id, 10) || 0;
+  }
+
+  function applyTouchedRow() {
+    if (!touchedId) return;
+    if ($('.modal.show').length) return; // đợi modal khác (nếu có) đóng hẳn
+    var id = touchedId;
+    touchedId = 0;
+    var $row = $('#dn-tbody tr[data-id="' + id + '"]');
+    if (!$row.length) return; // đề nghị không nằm ở trang/tab/bộ lọc đang xem
+    clearTimeout(touchedTimer);
+    $('#dn-tbody tr.dn-row-touched').removeClass('dn-row-touched dn-row-touched-out');
+    $row.addClass('dn-row-touched');
+    var rect = $row[0].getBoundingClientRect();
+    if (rect.top < 120 || rect.bottom > window.innerHeight - 20) {
+      $row[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+    touchedTimer = window.setTimeout(function () {
+      $row.addClass('dn-row-touched-out');
+      window.setTimeout(function () { $row.removeClass('dn-row-touched dn-row-touched-out'); }, 900);
+    }, 10000);
+  }
+
   function applyFilters() {
     state.filters.keyword = $.trim($('#dn-f-q').val());
     state.filters.nid_ncc_phat_hanh = $('#dn-f-issuer').val() || '';
@@ -753,6 +795,7 @@
   }
 
   function bind() {
+    $('#dn-view-modal').bind('hidden.bs.modal', applyTouchedRow);
     $('#dn-btn-search').click(applyFilters);
     $('#dn-f-q').keydown(function (e) { if (e.which === 13) { e.preventDefault(); applyFilters(); } });
     $('#dn-btn-reset').click(function () {
@@ -825,6 +868,18 @@
       e.stopPropagation();
       var off = $(this).offset();
       openMenu(parseInt($(this).data('menu-open'), 10), e.clientX, e.clientY);
+    });
+    // Double-click dòng: mở modal Sửa nếu đề nghị còn sửa được, không thì mở Xem chi tiết (cùng cơ chế với /theo-doi-do-dau,
+    // /ke-hoach-xep-xe). Bỏ qua khi trúng nút/link/ô nhập trong dòng — 1 click nhanh vào dòng còn dùng để mở/đóng bảng chi phí,
+    // nhưng click thứ 2 của double click đã tự huỷ việc đó ở handler 'click' phía trên (rowTimer bị clear trước khi dblclick nổ ra).
+    $('#dn-tbody').delegate('tr[data-id]', 'dblclick', function (e) {
+      if ($(e.target).closest('button, a, input, select, textarea, label, .dropdown, .select2-container, [role="button"], .btn').length) return;
+      if (rowTimer) { clearTimeout(rowTimer); rowTimer = null; }
+      var id = parseInt($(this).data('id'), 10);
+      var item = id && state.items[id];
+      if (!item) return;
+      closeMenu();
+      if (item.co_the_sua) openEdit(id); else openView(id);
     });
     $('#dn-tbody').delegate('tr', 'contextmenu', function (e) {
       var id = parseInt($(this).data('id'), 10);
@@ -911,9 +966,10 @@
       bind();
       syncChips();
       initFilters();
-      loadList();
+      // Mở từ link "Xem" ở tab Chi phí kế hoạch (thường ra tab mới): nạp danh sách nền đã lọc sẵn theo mã đề nghị
+      // (xem openView, tham số focusInList) thay vì nạp mặc định rồi lại phải nạp lại ngay.
       var hash = /^#xem-(\d+)$/.exec(window.location.hash || '');
-      if (hash) openView(parseInt(hash[1], 10));
+      if (hash) openView(parseInt(hash[1], 10), false, true); else loadList();
       if (typeof flatpickr !== 'undefined') {
         $('.flatpickr-date').each(function () {
           flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, static: true });
