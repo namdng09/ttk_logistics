@@ -442,6 +442,9 @@
   max-height: min(620px, calc(100vh - 310px));
   height: auto;
   overflow: auto;
+  /* Cuộn hết bảng (lên đầu/xuống cuối) thì dừng lại tại đây, không đẩy tiếp ra vùng cuộn bên ngoài (modal/trang) —
+   * cùng cách dùng ở #vehicle-picker-modal .table-responsive. */
+  overscroll-behavior: contain;
 }
 
 /* Card bọc bảng không được tự cuộn (focus/scrollIntoView làm nội dung card bị dịch lên). */
