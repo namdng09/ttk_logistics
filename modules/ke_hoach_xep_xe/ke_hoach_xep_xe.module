@@ -1267,6 +1267,11 @@ function _ke_hoach_chi_phi_assert_linked_change($existing, array $record) {
   if ((string) $existing->loai_ben_nhan_tien !== (string) $record['loai_ben_nhan_tien'] || (int) $existing->id_ben_nhan_tien !== (int) $record['id_ben_nhan_tien']) {
     throw new Exception('Dòng chi phí đang thuộc đề nghị thanh toán, hãy rút khỏi đề nghị trước khi đổi bên nhận tiền');
   }
+  // NCC cũng khoá: dòng "trùng NCC" (bên nhận để trống) thì đổi NCC là đổi luôn bên nhận hiệu lực, và NCC còn
+  // là 1 nửa khoá hoá đơn (nid_ncc + so_hoa_don) của đề nghị.
+  if ((int) $existing->nid_ncc !== (int) $record['nid_ncc']) {
+    throw new Exception('Dòng chi phí đang thuộc đề nghị thanh toán, hãy rút khỏi đề nghị trước khi đổi nhà cung cấp');
+  }
 }
 
 /** Nhà cung cấp hợp lệ: khach_hang còn hoạt động và có phân loại "Nhà cung cấp" (phan_loai lưu dạng chuỗi ngăn dấu phẩy). */

@@ -1383,8 +1383,14 @@
     $('.dn-create-filter').bind('blur', filterRefetch);
     $('#dn-create-lines').delegate('.money-input', 'input', function () { formatMoneyKeepCaret(this); });
     // Click vào dòng (chỗ không phải ô nhập/select2/nút) = tick/bỏ tick dòng đó.
+    // Bôi đen chữ (kéo chuột / có vùng chọn) thì không tính là click chọn dòng.
+    var rowDownX = 0, rowDownY = 0;
+    $('#dn-create-lines').delegate('tr.dn-create-row', 'mousedown', function (e) { rowDownX = e.pageX; rowDownY = e.pageY; });
     $('#dn-create-lines').delegate('tr.dn-create-row', 'click', function (e) {
       if ($(e.target).closest('input, select, textarea, button, a, label, .select2-container').length) return;
+      if (Math.abs(e.pageX - rowDownX) > 4 || Math.abs(e.pageY - rowDownY) > 4) return;
+      var sel = window.getSelection ? String(window.getSelection()) : '';
+      if (sel) return;
       var cb = $(this).find('.dn-create-check')[0];
       if (!cb) return;
       cb.checked = !cb.checked;

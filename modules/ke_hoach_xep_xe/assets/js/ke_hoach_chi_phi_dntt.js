@@ -380,6 +380,16 @@
 
   /* ─────────── Khoá ô nhập ─────────── */
 
+  // Ô "Ngày HĐ" trong cột Hoá đơn: flatpickr d/m/Y (vẫn gõ tay được). appendTo body để lịch không bị vùng
+  // cuộn của bảng/modal cắt mất. Flatpickr phát 'change' khi chọn ngày nên handler '.khcp-hd-input' vẫn nhận.
+  function initHoaDonDatePickers() {
+    if (typeof flatpickr === 'undefined') return;
+    $('#khcp-cost-table-body .khcp-hd-date').each(function () {
+      if (this._flatpickr) return;
+      flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, appendTo: document.body });
+    });
+  }
+
   function applyLocks() {
     $('#khcp-cost-table-body tr[data-row-key]').each(function () {
       var $tr = $(this);
@@ -396,9 +406,13 @@
         $tr.attr('title', 'Đề nghị thanh toán đang xử lý — thu hồi đề nghị để sửa dòng này.');
       } else {
         $tr.removeAttr('title');
+        $tr.find('td.khcp-col-ncc').removeAttr('title');
         if (linked) {
           $tr.find('.btn-delete-row').prop('disabled', true);
           $tr.find('.khcp-cost-type-check[data-cost-type="' + LX + '"]').prop('disabled', true);
+          // Giống ô Bên nhận tiền: dòng đã thuộc đề nghị (kể cả nháp) không đổi NCC (server cũng chặn).
+          $tr.find('.khcp-ncc-select').prop('disabled', true);
+          $tr.find('td.khcp-col-ncc').attr('title', 'Dòng đã thuộc đề nghị thanh toán — rút khỏi đề nghị để đổi nhà cung cấp.');
         }
       }
     });
@@ -849,6 +863,7 @@
       ensureToolbar();
       ensureCostCard();
       initNccSelects();
+      initHoaDonDatePickers();
       applyLocks();
       updateToolbar();
     },
