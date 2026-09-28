@@ -41,13 +41,13 @@ if (!function_exists('api_response_success')) {
  */
 function de_nghi_thanh_toan_permission() {
   return array(
-    'de_nghi_thanh_toan_view_own' => array('title' => t('Xem đề nghị thanh toán của mình')),
-    'de_nghi_thanh_toan_view_all' => array('title' => t('Xem tất cả đề nghị thanh toán')),
-    'de_nghi_thanh_toan_create' => array('title' => t('Tạo/sửa/gửi duyệt đề nghị thanh toán')),
-    'de_nghi_thanh_toan_approve' => array('title' => t('Duyệt đề nghị thanh toán (bước 1)')),
-    'de_nghi_thanh_toan_approve_payment' => array('title' => t('Duyệt thanh toán (bước 2)')),
-    'de_nghi_thanh_toan_pay' => array('title' => t('Ghi nhận thanh toán')),
-    'de_nghi_thanh_toan_delete' => array('title' => t('Xoá đề nghị thanh toán nháp')),
+    'de_nghi_thanh_toan_view_own' => array('title' => t('Xem đề nghị thanh toán của mình'), 'entry' => array('/de-nghi-thanh-toan', 'GET /api/de-nghi-thanh-toan')),
+    'de_nghi_thanh_toan_view_all' => array('title' => t('Xem tất cả đề nghị thanh toán'), 'entry' => array('/de-nghi-thanh-toan', 'GET /api/de-nghi-thanh-toan')),
+    'de_nghi_thanh_toan_create' => array('title' => t('Tạo/sửa/gửi duyệt đề nghị thanh toán'), 'entry' => array('POST /api/de-nghi-thanh-toan', 'PUT /api/de-nghi-thanh-toan/{id}', 'POST …/{id}/gui-duyet|thu-hoi|rut-dong')),
+    'de_nghi_thanh_toan_approve' => array('title' => t('Duyệt đề nghị thanh toán (bước 1)'), 'entry' => array('POST …/{id}/duyet|tu-choi')),
+    'de_nghi_thanh_toan_approve_payment' => array('title' => t('Duyệt thanh toán (bước 2)'), 'entry' => array('POST …/{id}/duyet-thanh-toan|tu-choi-thanh-toan', 'Duyệt TT phiếu đổ dầu')),
+    'de_nghi_thanh_toan_pay' => array('title' => t('Ghi nhận thanh toán'), 'entry' => array('POST …/{id}/thanh-toan')),
+    'de_nghi_thanh_toan_delete' => array('title' => t('Xoá đề nghị thanh toán nháp'), 'entry' => array('DELETE /api/de-nghi-thanh-toan/{id}')),
   );
 }
 

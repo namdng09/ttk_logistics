@@ -31,6 +31,7 @@
 │   ├── dinh_muc_khoan/           # Định mức khoán lái xe theo tuyến — dùng CHUNG toàn hệ thống
 │   ├── de_nghi_thanh_toan/       # Đề nghị thanh toán chi phí kế hoạch (gom chi phí → duyệt 2 bước → trả từng đợt)
 │   ├── do_dau/                   # Theo dõi đổ dầu: phiếu đổ dầu → duyệt phiếu → (sau này) đề nghị thanh toán
+│   ├── phan_quyen/               # Phân quyền: ma trận quyền × vai trò (cơ chế Drupal), quyền riêng từng người, lịch sử
 │   └── ben_thu_ba_api/
 │
 ├── themes/                      # Drupal theme
@@ -224,7 +225,7 @@ function loadList() {
   Có phiên đăng nhập thì dùng phiên (phiên thắng token). Token sai/khoá/không có ⇒ khách vãng lai. Lấy tài khoản đang gọi: `api_current_account()` (NULL nếu khách). Token đọc từ `Authorization: Bearer` (kể cả `REDIRECT_HTTP_AUTHORIZATION`) rồi `?token=` (`api_bearer_token()`); tài khoản bị khoá thì token cũ mất hiệu lực ngay (`api_validate_token()`). Token **hiện không có hạn** và không có cơ chế thu hồi riêng (chỉ khoá tài khoản).
 - **Từ chối truy cập**: `_module_unauthorized($msg)` = `api_response_denied()` ⇒ **401 nếu chưa đăng nhập, 403 nếu đã đăng nhập mà thiếu quyền** (client phân biệt được "phải đăng nhập lại" với "không đủ quyền"); `_module_forbidden()` luôn 403. Riêng các endpoint của app lái xe (`_ke_hoach_xep_xe_mobile_*`) giữ 401 như cũ.
 - Đặt tên quyền dạng `module_view` / `module_create` / `module_delete` (+ quyền riêng theo nghiệp vụ như `de_nghi_thanh_toan_approve`). Route API vẫn `access callback => TRUE`; phân quyền nằm trong callback, không ở `hook_menu()`. Module cũ còn `'access callback' => 'user_access'` cho trang giao diện (phiên) — đúng chuẩn Drupal, giữ nguyên.
-- Module `giao_dich_ops`, `luong_lai_xe` còn cho phép thêm quyền hệ thống `administer permissions` như quyền quản trị; các module khác không có (chưa thống nhất, quyết khi làm chức năng phân quyền).
+- Module `giao_dich_ops`, `luong_lai_xe` còn cho phép thêm quyền hệ thống `administer permissions` như quyền quản trị; các module khác không có (chưa thống nhất). Màn phân quyền (`phan_quyen`) không dựa vào quyền này — dùng `phan_quyen_view` / `phan_quyen_manage`.
 
 ### Khuôn phản hồi / đầu vào / phân trang dùng chung (`api_common`)
 
@@ -505,6 +506,19 @@ Bản **riêng** của tuyến xa (không dùng chung với hàng cảng): names
 
 - Modal Chi phí **tuyến xa**: `PUT /api/quan-ly-cont/{id}?response=min` (định mức khoán + hình thức tính lương) chỉ trả `{nid, dinh_muc_khoan_lai_xe, hinh_thuc_tinh_luong_lai_xe}` và **chỉ gọi khi bảng định mức hoặc hình thức tính lương đã đổi** (`persistTuyenXaDinhMucRows()`, so với `state.dinhMucSavedSig` + `state.driverPayModeSaved`); `POST /api/ke-hoach-tuyen-xa-dau` (nhật ký dầu, ghi đè cả danh sách) chỉ gọi khi nhật ký đã đổi (`state.oilSavedSig`). `POST /api/ke-hoach-chi-phi/bulk` trả `rows` như hàng cảng (`saveAllRows` dùng chung) nên không gọi `GET` tải lại.
 - Bấm "Lưu" ở modal xếp xe tuyến xa: `PUT /api/ke-hoach-xep-xe/{id}` đã trả đủ dữ liệu kế hoạch (`enrich_row`) và client dùng luôn (`populateEdit(res.data)`), không gọi `GET` chi tiết. Danh sách phía sau **không tải lại ngay** mà 1 lần khi modal đóng (`tuyenXaListReloadAfterModal`, handler `khxhTuyenXaReload`), tách riêng khỏi `listReloadAfterModal` của hàng cảng (handler đó còn làm nổi bật dòng vừa sửa).
+
+## Phân quyền hệ thống (module `phan_quyen`)
+
+Màn `/phan-quyen` (menu Hệ thống → Phân quyền, trên Đăng xuất; chỉ hiện khi có `phan_quyen_view`). **Không có bảng quyền riêng**: dùng nguyên `role` / `role_permission` / `users_roles` của Drupal, code các module vẫn kiểm tra bằng `user_access()` như cũ. Chỉ có bảng `phan_quyen_lich_su` (lịch sử thay đổi).
+
+- **Ma trận**: hàng = quyền do `hook_permission()` của mọi module có `package = ANDIN JSC API` khai báo (trừ `_phan_quyen_excluded_modules()`, hiện là `crm_dntt`), nhóm theo module, giữ thứ tự khai báo; cột = Authenticated user + mọi vai trò (trừ Anonymous). **Module mới chỉ cần khai báo `hook_permission()` là tự hiện**, không sửa `phan_quyen`.
+- **Cột "Màn hình / API"**: thêm key tuỳ chọn `'entry' => array('/duong-dan', 'POST /api/...')` vào từng quyền trong `hook_permission()` (Drupal bỏ qua key lạ). Đã khai báo cho `de_nghi_thanh_toan`, `do_dau`, `dinh_muc_khoan`, `phan_quyen`; module khác để trống cho tới khi thêm.
+- **Kế thừa**: quyền của Authenticated user áp xuống mọi vai trò (ô ✓ xám, không bấm được); vai trò Quản trị (`user_admin_role`, không có thì tên `administrator`/`admin`) luôn toàn quyền, khoá cột. Quyền có `'restrict access' => TRUE` không cấp được cho Authenticated user (server chặn).
+- **Quyền riêng 1 người** = 1 vai trò ẩn tên `__PQ_USER_<uid>` (hằng `PHAN_QUYEN_USER_ROLE_PREFIX`) gắn cho đúng người đó, tự tạo khi cấp quyền đầu tiên, tự xoá khi hết quyền. **Chỉ cộng thêm**, không tước bớt quyền vai trò của họ (giới hạn của Drupal). Mọi màn liệt kê/đọc vai trò phải bỏ qua tiền tố này — `nhan_vien` đã lọc (đọc "1 vai trò chính" và `/api/roles`). `phan_quyen_user_update()` gắn lại vai trò ẩn nếu màn khác lưu tài khoản bằng cách ghi đè toàn bộ vai trò (như `nhan_vien`).
+- **Lưu**: tick chỉ ghi vào thay đổi chờ (ô vàng), bấm Lưu → hộp xác nhận liệt kê Thêm/Bỏ theo từng đối tượng → `POST /api/phan-quyen` `{changes:[{loai:'role'|'user', id, quyen, cap}]}`; server so lại hiện trạng, chỉ ghi phần khác, trong 1 transaction, qua `user_role_grant_permissions()` / `user_role_revoke_permissions()`, ghi lịch sử, trả lại dữ liệu ma trận mới.
+- **API**: `GET/POST /api/phan-quyen` (GET: `{modules, roles, grants, users, admin_rid}`), `POST /api/phan-quyen/vai-tro` (tạo), `PUT/DELETE /api/phan-quyen/vai-tro/{rid}` (đổi tên/xoá, chỉ vai trò thường), `GET /api/phan-quyen/lich-su?page=&keyword=`. Quyền: `phan_quyen_view` (xem), `phan_quyen_manage` (sửa, "restrict access").
+- UI ghi nhớ theo trình duyệt (localStorage `phan_quyen_ui_v1`) các cột người dùng đang mở và cột vai trò đang ẩn.
+- Nạp code lên: bật module `phan_quyen` (tạo bảng lịch sử; Drupal tự cấp 2 quyền mới cho vai trò Quản trị), xoá cache (menu). Gỡ module sẽ xoá mọi vai trò ẩn `__PQ_USER_*` (mất quyền riêng từng người).
 
 ## TODO
 

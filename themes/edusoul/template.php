@@ -140,18 +140,8 @@ function getMainMenuSoft()
                             <div data-i18n="Công nợ KH">Công nợ KH</div>
                         </a>
                     </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'so-chi-phi-van-hanh') === 0 || strpos(current_path(), 'giao-dich-ops') === 0) ? ' active' : '') . '">
-                        <a href="/so-chi-phi-van-hanh" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-wallet"></i>
-                            <div data-i18n="Sổ chi phí vận hành">Sổ chi phí vận hành</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'duyet-de-nghi-chi-phi') === 0 || strpos(current_path(), 'duyet-de-nghi-ung-ops') === 0) ? ' active' : '') . '">
-                        <a href="/duyet-de-nghi-chi-phi" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-clipboard-check"></i>
-                            <div data-i18n="Duyệt đề nghị chi phí">Duyệt đề nghị chi phí</div>
-                        </a>
-                    </li>
+                    <!-- Tạm ẩn "Sổ chi phí vận hành" (/so-chi-phi-van-hanh) và "Duyệt đề nghị chi phí" (/duyet-de-nghi-chi-phi):
+                         đã có màn Đề nghị thanh toán. Route vẫn còn, chỉ bỏ khỏi menu. -->
                     <li class="menu-item' . ((strpos(current_path(), 'de-nghi-thanh-toan') === 0) ? ' active' : '') . '">
                         <a href="/de-nghi-thanh-toan" class="menu-link">
                             <i class="menu-icon icon-base ti tabler-receipt-2"></i>
@@ -265,7 +255,7 @@ function getMainMenuSoft()
                         </a>
                     </li>
                     <!-- Hệ thống -->
-                    <li class="menu-item">
+                    <li class="menu-item' . (strpos(current_path(), 'phan-quyen') === 0 ? ' open' : '') . '">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon icon-base ti tabler-automation"></i>
                             <div data-i18n="Hệ thống">Hệ thống</div>
@@ -288,6 +278,11 @@ function getMainMenuSoft()
                                 </a>
                             </li>
                     Hệ thống -->
+                            ' . (user_access('phan_quyen_view') ? '<li class="menu-item' . (strpos(current_path(), 'phan-quyen') === 0 ? ' active' : '') . '">
+                                <a href="/phan-quyen" class="menu-link">
+                                    <div data-i18n="Phân quyền">Phân quyền</div>
+                                </a>
+                            </li>' : '') . '
                             <li class="menu-item">
                                 <a href="/user/logout" class="menu-link">
                                     <div data-i18n="Đăng xuất">Đăng xuất</div>
@@ -476,9 +471,6 @@ function edusoul_preprocess_html(&$variables)
     }
     if (strpos($current_path, 'vai-tro') !== FALSE) {
         drupal_add_js(drupal_get_path('module', 'quan_ly_vai_tro') . '/js/quan_ly_vai_tro.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
-    }
-    if (strpos($current_path, 'phan-quyen') !== FALSE) {
-        drupal_add_js(drupal_get_path('module', 'phan_quyen') . '/js/phan_quyen.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
     }
     // drupal_add_js(drupal_get_path('module', 'cap_nhat_ho_so') . '/js/cap_nhat_ho_so.js', array('group' => JS_THEME, 'every_page' => FALSE, 'weight' => 1));
 

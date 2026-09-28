@@ -1,0 +1,5 @@
+name = Phân quyền hệ thống
+description = Ma trận quyền × vai trò (cơ chế vai trò/quyền có sẵn của Drupal), quyền riêng từng người dùng, quản lý vai trò, lịch sử thay đổi.
+core = 7.x
+package = ANDIN JSC API
+dependencies[] = api_common

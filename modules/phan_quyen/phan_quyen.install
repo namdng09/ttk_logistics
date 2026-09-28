@@ -1,0 +1,50 @@
+<?php
+
+/**
+ * @file
+ * Bảng lịch sử thay đổi phân quyền. Bản thân quyền KHÔNG có bảng riêng: dùng nguyên role / role_permission /
+ * users_roles của Drupal (xem docblock đầu phan_quyen.module).
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function phan_quyen_schema() {
+  $schema['phan_quyen_lich_su'] = array(
+    'description' => 'Lịch sử thay đổi phân quyền: cấp/bỏ quyền cho vai trò hoặc người dùng, tạo/đổi tên/xoá vai trò.',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => TRUE, 'default' => ''),
+      'uid_nguoi_thuc_hien' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // role | user
+      'loai_doi_tuong' => array('type' => 'varchar', 'length' => 16, 'not null' => TRUE, 'default' => ''),
+      // rid (role) hoặc uid (user)
+      'id_doi_tuong' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Tên tại thời điểm thay đổi (vai trò có thể bị đổi tên/xoá sau đó).
+      'ten_doi_tuong' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      // them_quyen | bo_quyen | tao_vai_tro | doi_ten_vai_tro | xoa_vai_tro
+      'hanh_dong' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''),
+      'quyen' => array('type' => 'varchar', 'length' => 128, 'not null' => TRUE, 'default' => ''),
+      'ten_quyen' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'ghi_chu' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'created' => array('created'),
+      'doi_tuong' => array('loai_doi_tuong', 'id_doi_tuong'),
+    ),
+  );
+  return $schema;
+}
+
+/**
+ * Implements hook_uninstall().
+ *
+ * Gỡ module thì xoá luôn các vai trò ẩn "__PQ_USER_<uid>" (quyền riêng từng người) — không còn màn nào quản lý chúng.
+ */
+function phan_quyen_uninstall() {
+  $rids = db_query("SELECT rid FROM {role} WHERE name LIKE :p", array(':p' => db_like('__PQ_USER_') . '%'))->fetchCol();
+  foreach ($rids as $rid) {
+    user_role_delete((int) $rid);
+  }
+}

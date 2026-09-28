@@ -1,0 +1,75 @@
+/* Màn Phân quyền hệ thống (/phan-quyen). Mọi selector có tiền tố pq-. */
+#pq-app .pq-body { position: relative; min-height: 420px; }
+#pq-app .pq-loading { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; background: rgba(255, 255, 255, .85); }
+#pq-app .pq-loading.is-on { display: flex; }
+
+/* Thanh công cụ + chú thích */
+#pq-app .pq-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .6rem; }
+#pq-app .pq-search { width: 360px; max-width: 100%; }
+/* Nút reset chỉ có icon — cùng kiểu nút reset bộ lọc ở /de-nghi-thanh-toan. */
+#pq-app .pq-filter-reset { display: inline-flex; align-items: center; justify-content: center; width: 38px; min-width: 38px; height: 38px; padding: 0; }
+#pq-app .pq-filter-reset > i { margin: 0 !important; font-size: 1.05rem; line-height: 1; }
+#pq-app .pq-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-bottom: .6rem; }
+#pq-app .pq-legend-changed { display: inline-block; width: 12px; height: 12px; background: #fff4d6; border: 1px solid #ffd98a; border-radius: 2px; vertical-align: -1px; }
+#pq-app .pq-chip-row { display: inline-flex; flex-wrap: wrap; gap: .35rem; }
+#pq-app .pq-new-role { max-width: 340px; }
+
+/* Popover (thêm cột người dùng, sao chép quyền) */
+#pq-app .pq-pop-wrap { position: relative; }
+#pq-app .pq-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; background: #fff; border: 1px solid #e6e6e8; border-radius: 6px; box-shadow: 0 6px 20px rgba(47, 43, 61, .16); padding: 12px; }
+#pq-app .pq-pop-user { width: 340px; }
+#pq-app .pq-pop-copy { width: 480px; }
+#pq-app .pq-user-list { max-height: 280px; overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+#pq-app .pq-user-item { display: flex; justify-content: space-between; gap: 8px; width: 100%; border: 0; background: transparent; padding: 7px 8px; border-radius: 4px; text-align: left; cursor: pointer; color: #444050; }
+#pq-app .pq-user-item:hover { background: #f4f3ff; }
+
+/* Ma trận: cuộn cả 2 chiều trong khung; tiêu đề cột dính trên, cột tên quyền dính trái. */
+#pq-app .pq-matrix-wrap { max-height: calc(100vh - 330px); min-height: 320px; overflow: auto; border: 1px solid #e6e6e8; border-radius: 6px; }
+#pq-app .pq-matrix { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
+#pq-app .pq-matrix th,
+#pq-app .pq-matrix td { border-width: 0 1px 1px 0; vertical-align: middle; }
+/* Theme đặt th của bảng: CHỮ HOA + cỡ/đậm riêng, và mọi thứ bên trong th kế thừa theo — tắt đi để tên quyền,
+ * tên module, dòng phụ hiện đúng kiểu riêng của chúng. */
+#pq-app .pq-matrix th { text-transform: none; letter-spacing: normal; }
+#pq-app .pq-matrix thead th { position: sticky; top: 0; z-index: 3; background: #f8f7fa; font-weight: 500; color: #444050; text-align: center; white-space: normal; line-height: 1.25; padding: 8px 6px; font-size: 13px; }
+#pq-app .pq-matrix .pq-col-perm { position: sticky; left: 0; z-index: 2; background: #fff; width: 380px; min-width: 380px; max-width: 380px; text-align: left; }
+#pq-app .pq-matrix thead th.pq-col-perm { z-index: 4; background: #f8f7fa; }
+#pq-app .pq-matrix .pq-col-entry { width: 220px; min-width: 220px; max-width: 220px; text-align: left; }
+#pq-app .pq-matrix .pq-col-role { width: 96px; min-width: 96px; }
+#pq-app .pq-matrix .pq-col-user { width: 128px; min-width: 128px; }
+#pq-app .pq-matrix thead th.pq-col-user { background: #eef9f3; }
+#pq-app .pq-col-sub { display: block; font-size: 11.5px; font-weight: 400; color: #8b8993; }
+#pq-app .pq-col-remove { border: 0; background: transparent; color: #a8aaae; cursor: pointer; font-size: 12px; padding: 0; }
+#pq-app .pq-col-remove:hover { color: #ea5455; }
+
+/* Dòng nhóm (module) */
+#pq-app .pq-group > th,
+#pq-app .pq-group > td { background: #f4f3ff !important; }
+#pq-app .pq-group-name { font-size: 13.6px; font-weight: 600; color: #444050; }
+#pq-app .pq-group-sub { margin-left: 8px; font-size: 12px; font-weight: 400; color: #8b8993; }
+#pq-app .pq-group-toggle { border: 0; background: transparent; color: #7367f0; padding: 0 6px 0 0; cursor: pointer; }
+#pq-app .pq-tri { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid #b8b6bf; background: #fff; color: #7367f0; font-size: 12px; line-height: 14px; padding: 0; font-weight: 700; cursor: pointer; }
+#pq-app .pq-tri.is-some { border-color: #7367f0; background: #e9e7fd; }
+#pq-app .pq-tri.is-all { border-color: #7367f0; background: #7367f0; color: #fff; }
+#pq-app .pq-tri:disabled { cursor: not-allowed; opacity: .6; }
+#pq-app .pq-all-label { color: #7367f0; font-weight: 500; font-size: 12px; }
+
+/* Dòng quyền */
+#pq-app .pq-perm-title { color: #444050; font-weight: 500; line-height: 1.3; padding-left: 22px; }
+#pq-app .pq-perm-desc { font-size: 12px; color: #8b8993; line-height: 1.3; padding-left: 22px; }
+#pq-app .pq-perm-key { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: #a8aaae; padding-left: 22px; }
+#pq-app .pq-perm-restrict { margin-left: 6px; }
+#pq-app .pq-entry { display: inline-block; font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: #5d596c; background: #f3f2f5; border-radius: 3px; padding: 1px 5px; margin: 1px 0; word-break: break-all; }
+#pq-app .pq-cell { text-align: center; cursor: pointer; min-height: 46px; }
+#pq-app .pq-cell.is-readonly { cursor: default; }
+#pq-app .pq-cell.is-user { background: #fbfefc; }
+#pq-app .pq-cell.is-changed { background: #fff4d6 !important; box-shadow: inset 0 0 0 1px #ffd98a; }
+#pq-app .pq-cell .form-check-input { margin: 0; cursor: pointer; }
+#pq-app .pq-inh { color: #a8aaae; font-weight: 700; cursor: help; }
+#pq-app .pq-admin-mark { color: #7367f0; font-weight: 700; }
+
+/* Hộp xác nhận lưu */
+.pq-diff-subj { font-weight: 600; color: #444050; margin: 10px 0 6px; }
+.pq-diff-subj:first-child { margin-top: 0; }
+.pq-diff-row { display: flex; gap: 8px; align-items: center; padding: 3px 0; }
+.pq-diff-row .badge { min-width: 52px; }

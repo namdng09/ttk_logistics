@@ -137,7 +137,7 @@ function _nhan_vien_load_row($uid) {
   if (!$u || $u->uid == 0) return NULL;
 
   // Get single custom role (excluding anonymous + authenticated)
-  $rid = db_query("SELECT ur.rid FROM {users_roles} ur WHERE ur.uid = :uid AND ur.rid > :auth_rid ORDER BY ur.rid ASC", array(
+  $rid = db_query("SELECT ur.rid FROM {users_roles} ur WHERE ur.uid = :uid AND ur.rid > :auth_rid AND ur.rid NOT IN (SELECT r_pq.rid FROM {role} r_pq WHERE r_pq.name LIKE '\_\_PQ\_USER\_%') ORDER BY ur.rid ASC", array(
     ':uid' => $uid,
     ':auth_rid' => DRUPAL_AUTHENTICATED_RID,
   ))->fetchField();
@@ -296,7 +296,7 @@ function nhan_vien_rest_roles() {
     return _nhan_vien_unauthorized('Bạn không có quyền xem danh sách role');
   }
 
-  $rows = db_query("SELECT rid, name FROM {role} WHERE rid > :auth_rid AND rid <> :driver_rid ORDER BY name ASC", array(
+  $rows = db_query("SELECT rid, name FROM {role} WHERE rid > :auth_rid AND rid <> :driver_rid AND name NOT LIKE '\_\_PQ\_USER\_%' ORDER BY name ASC", array(
     ':auth_rid' => DRUPAL_AUTHENTICATED_RID,
     ':driver_rid' => 7,
   ))->fetchAll();
@@ -401,7 +401,7 @@ function _nhan_vien_select_rows(array $rows, array $fields) {
   $first_rid = array();
   $role_names = array();
   if ($uids && in_array('role', $fields, TRUE)) {
-    foreach (db_query("SELECT ur.uid, ur.rid FROM {users_roles} ur WHERE ur.uid IN (:uids) AND ur.rid > :auth ORDER BY ur.rid ASC", array(':uids' => $uids, ':auth' => DRUPAL_AUTHENTICATED_RID)) as $r) {
+    foreach (db_query("SELECT ur.uid, ur.rid FROM {users_roles} ur WHERE ur.uid IN (:uids) AND ur.rid > :auth AND ur.rid NOT IN (SELECT r_pq.rid FROM {role} r_pq WHERE r_pq.name LIKE '\_\_PQ\_USER\_%') ORDER BY ur.rid ASC", array(':uids' => $uids, ':auth' => DRUPAL_AUTHENTICATED_RID)) as $r) {
       if (!isset($first_rid[(int) $r->uid])) {
         $first_rid[(int) $r->uid] = (int) $r->rid;
       }
@@ -521,7 +521,7 @@ function _nhan_vien_rest_list() {
   // Build response items with role + danh_muc ten
   $items = array();
   foreach ($rows as $u) {
-    $rid = db_query("SELECT ur.rid FROM {users_roles} ur WHERE ur.uid = :uid AND ur.rid > :auth ORDER BY ur.rid ASC", array(
+    $rid = db_query("SELECT ur.rid FROM {users_roles} ur WHERE ur.uid = :uid AND ur.rid > :auth AND ur.rid NOT IN (SELECT r_pq.rid FROM {role} r_pq WHERE r_pq.name LIKE '\_\_PQ\_USER\_%') ORDER BY ur.rid ASC", array(
       ':uid' => $u->uid,
       ':auth' => DRUPAL_AUTHENTICATED_RID,
     ))->fetchField();

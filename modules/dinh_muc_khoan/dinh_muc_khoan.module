@@ -22,9 +22,9 @@ if (!function_exists('api_response_success')) {
  */
 function dinh_muc_khoan_permission() {
   return array(
-    'dinh_muc_khoan_view' => array('title' => t('Xem định mức khoán')),
-    'dinh_muc_khoan_create' => array('title' => t('Tạo/sửa định mức khoán')),
-    'dinh_muc_khoan_delete' => array('title' => t('Xoá định mức khoán')),
+    'dinh_muc_khoan_view' => array('title' => t('Xem định mức khoán'), 'entry' => array('/dinh-muc-khoan', 'GET /api/dinh-muc-khoan')),
+    'dinh_muc_khoan_create' => array('title' => t('Tạo/sửa định mức khoán'), 'entry' => array('POST /api/dinh-muc-khoan', 'PUT /api/dinh-muc-khoan/{id}')),
+    'dinh_muc_khoan_delete' => array('title' => t('Xoá định mức khoán'), 'entry' => array('DELETE /api/dinh-muc-khoan/{id}')),
   );
 }
 

@@ -29,11 +29,11 @@ if (!function_exists('api_response_success')) {
  */
 function do_dau_permission() {
   return array(
-    'do_dau_view_own' => array('title' => t('Xem phiếu đổ dầu của mình')),
-    'do_dau_view_all' => array('title' => t('Xem tất cả phiếu đổ dầu')),
-    'do_dau_create' => array('title' => t('Tạo/sửa/gửi duyệt/thu hồi phiếu đổ dầu')),
-    'do_dau_approve' => array('title' => t('Duyệt/từ chối phiếu đổ dầu')),
-    'do_dau_delete' => array('title' => t('Xoá phiếu đổ dầu')),
+    'do_dau_view_own' => array('title' => t('Xem phiếu đổ dầu của mình'), 'entry' => array('/theo-doi-do-dau', 'GET /api/do-dau')),
+    'do_dau_view_all' => array('title' => t('Xem tất cả phiếu đổ dầu'), 'entry' => array('/theo-doi-do-dau', 'GET /api/do-dau')),
+    'do_dau_create' => array('title' => t('Tạo/sửa/gửi duyệt/thu hồi phiếu đổ dầu'), 'entry' => array('POST /api/do-dau', 'PUT /api/do-dau/{id}', 'POST /api/do-dau/{id}/gui-duyet|thu-hoi|huy')),
+    'do_dau_approve' => array('title' => t('Duyệt/từ chối phiếu đổ dầu'), 'entry' => array('POST /api/do-dau/{id}/duyet|tu-choi')),
+    'do_dau_delete' => array('title' => t('Xoá phiếu đổ dầu'), 'entry' => array('DELETE /api/do-dau/{id}')),
   );
 }
 
