@@ -232,10 +232,27 @@
   var PAYEE_SHORT = { nhan_vien: 'Nhân viên', lai_xe: 'Lái xe', ncc: 'Nhà cung cấp' };
 
   // Không còn "trùng bên phát hành" (không có 1 bên phát hành duy nhất nữa) — luôn hiện thẳng bên nhận tiền.
+  // Mỗi loại bên nhận 1 màu (dn-payee-ncc / -nhan_vien / -lai_xe, xem CSS).
   function payeeCell(item) {
     var b = item.ben_nhan_tien || {};
-    return '<div>' + esc(b.ten) + '</div><span class="dn-payee"><i class="ti tabler-user-dollar" style="font-size:11px;"></i>' +
-      (PAYEE_SHORT[b.loai] || 'Nhà cung cấp') + '</span>';
+    var loai = PAYEE_SHORT[b.loai] ? b.loai : 'ncc';
+    return '<div>' + esc(b.ten) + '</div><span class="dn-payee dn-payee-' + loai + '"><i class="ti tabler-user-dollar" style="font-size:11px;"></i>' +
+      PAYEE_SHORT[loai] + '</span>';
+  }
+
+  // Hình thức thanh toán dạng thẻ cùng kiểu thẻ bên nhận tiền: CK / TM mỗi loại 1 màu.
+  function hinhThucTag(ht) {
+    if (!HINH_THUC_LABEL[ht]) return '<span class="small text-muted">—</span>';
+    var icon = ht === 'CK' ? 'tabler-building-bank' : 'tabler-cash';
+    return '<span class="dn-payee dn-ht-' + ht.toLowerCase() + '"><i class="ti ' + icon + '" style="font-size:11px;"></i>' + HINH_THUC_LABEL[ht] + '</span>';
+  }
+
+  // Hạn TT: đỏ = đến hạn hôm nay/quá hạn, vàng = còn ≤ 3 ngày (han_tt_muc do server tính, chỉ khi đề nghị chưa xong).
+  function hanTtHtml(it) {
+    if (!it.han_thanh_toan) return '<div>—</div>';
+    var cls = it.han_tt_muc === 'den_han' ? 'text-danger fw-semibold' : (it.han_tt_muc === 'sap_den_han' ? 'text-warning fw-semibold' : '');
+    var title = it.qua_han_ngay > 0 ? 'Quá hạn ' + it.qua_han_ngay + ' ngày' : (it.han_tt_muc === 'den_han' ? 'Đến hạn hôm nay' : (it.han_tt_muc === 'sap_den_han' ? 'Sắp đến hạn' : ''));
+    return '<div class="' + cls + '"' + (title ? ' title="' + title + '"' : '') + '>' + esc(toView(it.han_thanh_toan)) + '</div>';
   }
 
   // Chip "Hoá đơn liên quan": tối đa 2 hoá đơn đầu, còn lại gộp "+N khác".
@@ -276,28 +293,27 @@
     var chev = '<i class="ti tabler-chevron-right dn-chevron me-1"></i>';
     if (isDoDau(it)) {
       var ref = it.nguon_ref || {};
-      return '<div>' + chev + '<span class="dn-tag dd">ĐD</span> Đổ dầu</div><div class="small text-muted">' + esc(ref.ma || '') + (ref.bks ? ' · ' + esc(ref.bks) : '') + '</div>';
+      return '<div>' + chev + '<span class="dn-tag dd">ĐD</span> ' + esc(ref.bks || '') + '</div><div class="small text-muted">' + esc(ref.ma || '') + '</div>';
     }
     return '<div>' + chev + it.so_dong + ' chi phí</div><div class="small text-muted">' + it.so_chuyen + ' chuyến</div>';
   }
 
-  function noteHtml(item) {
-    if (item.trang_thai === 'tu_choi' || item.trang_thai === 'tu_choi_thanh_toan') {
-      return '<div class="small mt-1 text-danger">Lý do: ' + esc(item.ly_do_tu_choi) + '</div>';
-    }
-    if (item.qua_han_ngay > 0) {
-      return '<div class="small mt-1 text-danger fw-semibold">Quá hạn thanh toán ' + item.qua_han_ngay + ' ngày</div>';
-    }
-    if (item.trang_thai === 'cho_thanh_toan' && item.da_thanh_toan > 0) {
-      return '<div class="small mt-1 text-muted">Đã trả ' + money(item.da_thanh_toan) + ' đ · còn ' + money(item.con_lai) + ' đ</div>';
-    }
-    return '';
+  // Cột Trạng thái: dòng 1 = thẻ trạng thái (+ lý do nếu bị từ chối), dòng 2 = các nút hành động.
+  function statusCellHtml(it) {
+    var rejected = (it.trang_thai === 'tu_choi' || it.trang_thai === 'tu_choi_thanh_toan') && it.ly_do_tu_choi;
+    var html = '<div class="d-flex align-items-center flex-wrap gap-1">' + statusBadge(it) +
+      (rejected ? '<span class="small text-danger">Lý do: ' + esc(it.ly_do_tu_choi) + '</span>' : '') + '</div>';
+    var btns = actionButtons(it);
+    if (btns) html += '<div class="d-flex flex-wrap gap-1 mt-1">' + btns + '</div>';
+    return html;
   }
 
-  /** Cell "Kế hoạch": số cont (dòng trên) + nhãn kế hoạch/BKG (dòng dưới, nhỏ) — chỉ 1 dòng nếu không có cont (đổ dầu). */
+  /** Cell "Kế hoạch" (mọi bảng dòng chi phí): số cont dòng trên, ngày kế hoạch dòng dưới. Không có ngày kế hoạch
+   *  (dòng đổ dầu) thì hiện nhãn nguồn (ke_hoach_label). */
   function planCellHtml(l) {
-    if (l.so_cont) return '<div>' + esc(l.so_cont) + '</div><div class="small text-muted">' + esc(l.ke_hoach_label) + '</div>';
-    return esc(l.ke_hoach_label);
+    var ngay = toView(String(l.ngay_ke_hoach || '').slice(0, 10)) || esc(l.ke_hoach_label || '');
+    if (l.so_cont) return '<div>' + esc(l.so_cont) + '</div><div class="small text-muted">' + ngay + '</div>';
+    return ngay;
   }
 
   /**
@@ -317,7 +333,7 @@
     }
     for (var g = 0; g < groups.length; g++) {
       var grp = groups[g];
-      var hdText = grp.so_hoa_don ? ('Hoá đơn ' + esc(grp.so_hoa_don) + (grp.ngay_hoa_don ? ' · ' + esc(toView(grp.ngay_hoa_don)) : '')) : 'Chưa có số hoá đơn';
+      var hdText = grp.so_hoa_don ? ('Hoá đơn: ' + esc(grp.so_hoa_don) + (grp.ngay_hoa_don ? ' · ' + esc(toView(grp.ngay_hoa_don)) : '')) : 'Chưa có số hoá đơn';
       html += '<tr class="dn-hdrow"><td colspan="10"><i class="ti tabler-file-invoice me-1"></i>' + hdText +
         '<span class="dn-hdrow-count">(' + grp.lines.length + ' dòng)</span><span class="dn-hdrow-sum">' + money(grp.sau) + ' đ</span></td></tr>';
       for (var i = 0; i < grp.lines.length; i++) {
@@ -394,9 +410,8 @@
         '<td class="text-end">' + money(it.tong_vat) + '</td>' +
         '<td class="text-end fw-semibold">' + money(it.tong_sau_vat) + '</td>' +
         '<td class="text-end"><div class="text-success">' + money(it.da_thanh_toan) + '</div><div class="small text-danger">' + money(it.con_lai) + '</div></td>' +
-        '<td><div class="' + (it.qua_han_ngay > 0 ? 'text-danger fw-semibold' : '') + '">' + (it.han_thanh_toan ? esc(toView(it.han_thanh_toan)) : '—') + '</div>' +
-          '<div class="small text-muted">' + esc(HINH_THUC_LABEL[it.hinh_thuc_tt] || '—') + '</div></td>' +
-        '<td><div class="d-flex align-items-center flex-wrap gap-1">' + statusBadge(it) + actionButtons(it) + '</div>' + noteHtml(it) + '</td>' +
+        '<td>' + hanTtHtml(it) + '<div class="mt-1">' + hinhThucTag(it.hinh_thuc_tt) + '</div></td>' +
+        '<td>' + statusCellHtml(it) + '</td>' +
         '</tr>';
     }
     $('#dn-tbody').html(html);
@@ -539,7 +554,7 @@
 
   function renderDetail(d) {
     var b = d.ben_nhan_tien || {};
-    var payee = esc(b.ten) + (PAYEE_SHORT[b.loai] ? ' <span class="dn-payee">' + PAYEE_SHORT[b.loai] + '</span>' : '');
+    var payee = esc(b.ten) + (PAYEE_SHORT[b.loai] ? ' <span class="dn-payee dn-payee-' + b.loai + '">' + PAYEE_SHORT[b.loai] + '</span>' : '');
     var han = d.han_thanh_toan ? esc(toView(d.han_thanh_toan)) + (d.qua_han_ngay > 0 ? ' <span class="text-danger fw-semibold">(quá hạn ' + d.qua_han_ngay + ' ngày)</span>' : '') : 'Chưa đặt';
     var hdChips = hoaDonChipsHtml(d);
     var html = '';
@@ -690,6 +705,26 @@
     return String(Math.round(n * 100) / 100);
   }
 
+  // Định dạng số tiền ngay khi gõ (giữ nguyên vị trí caret) — cùng cách làm với ô .money-input trong tab
+  // Chi phí kế hoạch hàng cảng (formatMoneyInputKeepingCaret ở ke_hoach_chi_phi.js), chỉ đổi formatter
+  // sang money() sẵn có ở file này (cùng cho ra dạng "400.000").
+  function formatMoneyKeepCaret(input) {
+    var raw = String(input.value || '');
+    var caret = typeof input.selectionStart === 'number' ? input.selectionStart : raw.length;
+    var digitsBeforeCaret = raw.slice(0, caret).replace(/\D/g, '').length;
+    var d = raw.replace(/\D/g, '');
+    if (!d) { input.value = ''; return; }
+    input.value = money(d);
+    var nextCaret = input.value.length, seen = 0;
+    for (var i = 0; i < input.value.length; i++) {
+      if (/\d/.test(input.value.charAt(i))) {
+        seen++;
+        if (seen >= digitsBeforeCaret) { nextCaret = i + 1; break; }
+      }
+    }
+    try { input.setSelectionRange(nextCaret, nextCaret); } catch (e) {}
+  }
+
   function createRowsArray() {
     var out = [];
     for (var nid in createState.rows) { if (createState.rows.hasOwnProperty(nid)) out.push(createState.rows[nid]); }
@@ -724,26 +759,26 @@
     var tagCls = l.loai_chi_phi === 'tinh_cho_khach' ? 'kh' : 'ct';
     var tagTxt = l.loai_chi_phi === 'tinh_cho_khach' ? 'KH' : 'CT';
     var checked = !!createState.selected[l.nid];
-    return '<tr>' +
+    return '<tr class="dn-create-row" data-nid="' + l.nid + '">' +
       '<td class="text-center"><input type="checkbox" class="dn-create-check" data-nid="' + l.nid + '"' + (checked ? ' checked' : '') + '></td>' +
       '<td>' + esc(l.ncc_ten || '—') + '</td>' +
       '<td>' + planCellHtml(l) + '</td>' +
       '<td><select class="form-select form-select-sm dn-create-edit dn-name-select" data-nid="' + l.nid + '" data-field="ten_chi_phi">' + expenseSelectOptionsHtml(l.ten_chi_phi, names) + '</select></td>' +
       '<td><span class="dn-tag ' + tagCls + '">' + tagTxt + '</span></td>' +
-      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm dn-create-edit text-end" data-nid="' + l.nid + '" data-field="don_gia" value="' + money(l.don_gia) + '"></td>' +
-      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm dn-create-edit text-end" data-nid="' + l.nid + '" data-field="so_luong" value="' + esc(formatQty(l.so_luong)) + '"></td>' +
-      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm dn-create-edit text-end" data-nid="' + l.nid + '" data-field="vat_percent" value="' + esc(formatQty(l.vat_percent)) + '"></td>' +
+      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field money-input dn-create-edit" data-nid="' + l.nid + '" data-field="don_gia" value="' + (Number(l.don_gia) ? money(l.don_gia) : '') + '" placeholder="0"></td>' +
+      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field decimal-input dn-create-edit" data-nid="' + l.nid + '" data-field="so_luong" value="' + esc(formatQty(l.so_luong)) + '"></td>' +
+      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field decimal-input dn-create-edit" data-nid="' + l.nid + '" data-field="vat_percent" value="' + (Number(l.vat_percent) ? esc(formatQty(l.vat_percent)) : '') + '" placeholder="0"></td>' +
       '<td class="text-end fw-semibold">' + money(l.tong_sau_vat) + '</td>' +
-      '<td><input type="text" class="form-control form-control-sm dn-create-edit" data-nid="' + l.nid + '" data-field="ghi_chu" value="' + esc(l.ghi_chu || '') + '"></td>' +
-      '<td><input type="text" class="form-control form-control-sm dn-create-edit" data-nid="' + l.nid + '" data-field="so_hoa_don" placeholder="Chưa có" value="' + esc(l.so_hoa_don || '') + '"></td>' +
-      '<td><input type="text" class="form-control form-control-sm dn-create-edit dn-hd-date" autocomplete="off" data-nid="' + l.nid + '" data-field="ngay_hoa_don" placeholder="dd/mm/yyyy" value="' + esc(toView(l.ngay_hoa_don)) + '"></td>' +
+      '<td><input type="text" class="form-control form-control-sm row-field dn-create-edit" data-nid="' + l.nid + '" data-field="ghi_chu" value="' + esc(l.ghi_chu || '') + '" placeholder="Ghi chú"></td>' +
+      '<td><input type="text" class="form-control form-control-sm row-field dn-create-edit" data-nid="' + l.nid + '" data-field="so_hoa_don" placeholder="Chưa có" value="' + esc(l.so_hoa_don || '') + '"></td>' +
+      '<td><input type="text" class="form-control form-control-sm row-field dn-create-edit dn-hd-date" autocomplete="off" data-nid="' + l.nid + '" data-field="ngay_hoa_don" placeholder="dd/mm/yyyy" value="' + esc(toView(l.ngay_hoa_don)) + '"></td>' +
       '</tr>';
   }
 
   function createGroupHeaderHtml(grp) {
     var ids = $.map(grp.lines, function (l) { return l.nid; });
     var uncheckedCount = $.grep(ids, function (id) { return !createState.selected[id]; }).length;
-    var hdText = grp.so_hoa_don ? ('Hoá đơn ' + esc(grp.so_hoa_don) + (grp.ngay_hoa_don ? ' · ' + esc(toView(grp.ngay_hoa_don)) : '')) : 'Chưa có số hoá đơn';
+    var hdText = grp.so_hoa_don ? ('Hoá đơn: ' + esc(grp.so_hoa_don) + (grp.ngay_hoa_don ? ' · ' + esc(toView(grp.ngay_hoa_don)) : '')) : 'Chưa có số hoá đơn';
     return '<tr class="dn-hdrow"><td colspan="12"><label style="cursor:pointer;display:flex;align-items:center;gap:6px;margin:0;">' +
       '<input type="checkbox" class="dn-create-group-check" data-ids="' + ids.join(',') + '"' + (uncheckedCount === 0 ? ' checked' : '') + '>' +
       '<i class="ti tabler-file-invoice"></i>' + hdText + '<span class="dn-hdrow-count">(' + grp.lines.length + ' dòng)</span><span class="dn-hdrow-sum">' + money(grp.sau) + ' đ</span></label></td></tr>';
@@ -780,12 +815,18 @@
       html += '<div class="dn-bulk-hd">' +
         '<i class="ti tabler-bolt text-warning"></i>' +
         '<span class="txt">' + grp.ids.length + ' dòng đã tick của <strong>' + esc(grp.ncc_ten) + '</strong> chưa có số hoá đơn — gán chung 1 lần:</span>' +
-        '<input type="text" class="form-control dn-bulk-so" placeholder="Số hoá đơn">' +
-        '<input type="text" class="form-control dn-bulk-ngay" placeholder="dd/mm/yyyy">' +
+        '<input type="text" class="form-control form-control-sm row-field dn-bulk-so" placeholder="Số hoá đơn">' +
+        '<input type="text" class="form-control form-control-sm row-field dn-bulk-ngay" autocomplete="off" placeholder="dd/mm/yyyy">' +
         '<button type="button" class="btn btn-sm btn-warning dn-bulk-apply" data-ids="' + grp.ids.join(',') + '"><i class="ti tabler-check me-1"></i>Áp dụng cho ' + grp.ids.length + ' dòng</button>' +
         '</div>';
     }
     $('#dn-create-bulk').html(html);
+    // Ô ngày của thanh gán nhanh dùng cùng flatpickr với cột Ngày HĐ trong bảng (vẽ lại mỗi lần tick nên phải khởi tạo lại).
+    if (typeof flatpickr !== 'undefined') {
+      $('#dn-create-bulk .dn-bulk-ngay').each(function () {
+        flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, appendTo: document.body });
+      });
+    }
   }
 
   function renderCreateLines(items) {
@@ -819,7 +860,7 @@
       $('#dn-create-lines .dn-name-select').each(function () {
         var $s = $(this);
         if ($s.data('select2')) $s.select2('destroy');
-        $s.select2({ placeholder: 'Tên chi phí', tags: true, allowClear: false, width: '100%', dropdownParent: $('#dn-create-modal') });
+        $s.select2({ placeholder: 'Tên chi phí', tags: true, allowClear: true, width: '100%', dropdownParent: $('#dn-create-modal') });
       });
     }
     if (typeof flatpickr !== 'undefined') {
@@ -1311,6 +1352,15 @@
     });
     $('#dn-create-q').keydown(function (e) { if (e.which === 13) { e.preventDefault(); fetchCreateLines(); } });
     $('#dn-create-q').bind('blur', fetchCreateLines);
+    $('#dn-create-lines').delegate('.money-input', 'input', function () { formatMoneyKeepCaret(this); });
+    // Click vào dòng (chỗ không phải ô nhập/select2/nút) = tick/bỏ tick dòng đó.
+    $('#dn-create-lines').delegate('tr.dn-create-row', 'click', function (e) {
+      if ($(e.target).closest('input, select, textarea, button, a, label, .select2-container').length) return;
+      var cb = $(this).find('.dn-create-check')[0];
+      if (!cb) return;
+      cb.checked = !cb.checked;
+      $(cb).trigger('change');
+    });
     $('#dn-create-lines').delegate('.dn-create-check', 'change', function () {
       var nid = parseInt($(this).data('nid'), 10);
       if ($(this).is(':checked')) createState.selected[nid] = true; else delete createState.selected[nid];
@@ -1448,6 +1498,8 @@
     start: function () {
       settings = (Drupal.settings && Drupal.settings.de_nghi_thanh_toan) || {};
       perms = settings.permissions || {};
+      // Không có quyền tạo thì ẩn nút "Tạo đề nghị" (server vẫn chặn POST nếu gọi thẳng API).
+      if (!perms.create) $('#dn-btn-create').hide();
       bind();
       syncChips();
       initFilters();

@@ -756,6 +756,24 @@ function _de_nghi_thanh_toan_hoa_don_summaries(array $ids) {
   return $out;
 }
 
+/**
+ * Mức cảnh báo hạn thanh toán cho giao diện (một nguồn duy nhất): '' | 'sap_den_han' (còn 1..N ngày, N =
+ * DE_NGHI_THANH_TOAN_SAP_DEN_HAN_NGAY) | 'den_han' (hạn là hôm nay hoặc đã quá). Chỉ tính khi đề nghị còn
+ * đang xử lý và còn tiền chưa trả — cùng điều kiện với _de_nghi_thanh_toan_qua_han_ngay().
+ */
+define('DE_NGHI_THANH_TOAN_SAP_DEN_HAN_NGAY', 3);
+function _de_nghi_thanh_toan_han_tt_muc($row, $con_lai) {
+  if ($row->han_thanh_toan === '' || !in_array($row->trang_thai, _de_nghi_thanh_toan_open_states(), TRUE) || $con_lai <= 0) {
+    return '';
+  }
+  $han = strtotime($row->han_thanh_toan . ' 00:00:00');
+  $today = strtotime(date('Y-m-d', REQUEST_TIME) . ' 00:00:00');
+  if (!$han) return '';
+  $con = (int) floor(($han - $today) / 86400);
+  if ($con <= 0) return 'den_han';
+  return $con <= DE_NGHI_THANH_TOAN_SAP_DEN_HAN_NGAY ? 'sap_den_han' : '';
+}
+
 function _de_nghi_thanh_toan_qua_han_ngay($row, $con_lai) {
   if ($row->han_thanh_toan === '' || !in_array($row->trang_thai, _de_nghi_thanh_toan_open_states(), TRUE) || $con_lai <= 0) {
     return 0;
@@ -875,6 +893,7 @@ function _de_nghi_thanh_toan_row_to_array($r, $account, array $a, array $hd, arr
     'da_thanh_toan' => $a['da_tt'],
     'con_lai' => $con_lai,
     'qua_han_ngay' => _de_nghi_thanh_toan_qua_han_ngay($r, $con_lai),
+    'han_tt_muc' => _de_nghi_thanh_toan_han_tt_muc($r, $con_lai),
     'hanh_dong' => $actions,
     'co_the_sua' => _de_nghi_thanh_toan_can_edit($r, $account),
     'co_the_xoa' => _de_nghi_thanh_toan_can_delete($r, $account),
@@ -901,7 +920,7 @@ function _de_nghi_thanh_toan_detail($row, $account) {
   }
   $plans = array();
   if ($plan_ids) {
-    foreach (db_query("SELECT nid, so_bkg, so_cont FROM {ke_hoach_xep_xe} WHERE nid IN (:ids)", array(':ids' => array_values($plan_ids))) as $p) {
+    foreach (db_query("SELECT nid, so_bkg, so_cont, ngay_gio_ke_hoach FROM {ke_hoach_xep_xe} WHERE nid IN (:ids)", array(':ids' => array_values($plan_ids))) as $p) {
       $plans[(int) $p->nid] = $p;
     }
   }
@@ -918,6 +937,7 @@ function _de_nghi_thanh_toan_detail($row, $account) {
       'nid_ke_hoach' => (int) $l->nid_ke_hoach,
       'ke_hoach_label' => '#' . (int) $l->nid_ke_hoach . ($p && trim((string) $p->so_bkg) !== '' ? ' · ' . $p->so_bkg : ''),
       'so_cont' => $p ? (string) $p->so_cont : '',
+      'ngay_ke_hoach' => $p ? (string) $p->ngay_gio_ke_hoach : '',
       'ten_chi_phi' => $l->ten_chi_phi,
       'loai_chi_phi' => $l->loai_chi_phi,
       'don_gia' => (int) $l->don_gia,

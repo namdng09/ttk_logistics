@@ -131,7 +131,7 @@
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
-          <div class="modal-body" style="position:relative;max-height:78vh;overflow-y:auto;">
+          <div class="modal-body" style="position:relative;max-height:78vh;overflow-y:auto;overflow-x:hidden;">
             <div class="dn-loading" id="dn-create-loading"><div class="spinner-border text-primary" role="status"></div></div>
             <div class="alert alert-danger py-2 d-none" id="dn-create-reject"></div>
             <div class="alert alert-primary py-2 mb-3" id="dn-create-alert-hint">Chọn <strong>bên nhận tiền</strong> trước — hệ thống liệt kê mọi dòng chi phí (của bất kỳ NCC/hoá đơn nào) đang chờ gộp mà có bên nhận tiền này. Dòng chưa có số hoá đơn điền bù ngay tại đây.</div>
@@ -155,18 +155,18 @@
             <div class="table-responsive d-none" id="dn-create-table-wrap">
               <table class="table table-sm table-bordered dn-lines mb-0">
                 <thead><tr>
-                  <th style="width:30px;"></th>
-                  <th style="width:110px;">NCC</th>
-                  <th style="width:120px;">Kế hoạch</th>
-                  <th style="min-width:160px;">Tên chi phí</th>
-                  <th style="width:44px;">Loại</th>
-                  <th class="text-end" style="width:105px;">Đơn giá</th>
-                  <th class="text-end" style="width:70px;">SL</th>
-                  <th class="text-end" style="width:65px;">VAT%</th>
-                  <th class="text-end" style="width:95px;">Sau VAT</th>
-                  <th style="width:140px;">Ghi chú</th>
-                  <th style="width:120px;">Số HĐ</th>
-                  <th style="width:105px;">Ngày HĐ</th>
+                  <th style="width:3%;"></th>
+                  <th style="width:9%;">NCC</th>
+                  <th style="width:10%;">Kế hoạch</th>
+                  <th style="width:16%;">Tên chi phí</th>
+                  <th style="width:5%;">Loại</th>
+                  <th class="text-end" style="width:9%;">Đơn giá</th>
+                  <th class="text-end" style="width:5%;">SL</th>
+                  <th class="text-end" style="width:5%;">VAT%</th>
+                  <th class="text-end" style="width:9%;">Sau VAT</th>
+                  <th style="width:13%;">Ghi chú</th>
+                  <th style="width:9%;">Số HĐ</th>
+                  <th style="width:9%;">Ngày HĐ</th>
                 </tr></thead>
                 <tbody id="dn-create-lines"></tbody>
                 <tfoot><tr class="table-light"><td colspan="8" class="text-end fw-semibold">Đã chọn <span id="dn-create-count">0</span> dòng · Tổng sau VAT</td><td class="text-end fw-semibold" id="dn-create-total">0 đ</td><td colspan="3"></td></tr></tfoot>
