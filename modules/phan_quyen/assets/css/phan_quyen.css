@@ -75,8 +75,25 @@
 #pq-app .pq-inh { color: #a8aaae; font-weight: 700; cursor: help; }
 #pq-app .pq-admin-mark { color: #7367f0; font-weight: 700; }
 
-/* Hộp xác nhận lưu */
-.pq-diff-subj { font-weight: 600; color: #444050; margin: 10px 0 6px; }
-.pq-diff-subj:first-child { margin-top: 0; }
-.pq-diff-row { display: flex; gap: 8px; align-items: center; padding: 3px 0; }
-.pq-diff-row .badge { min-width: 52px; }
+/* Hộp xác nhận lưu: tổng → khối từng vai trò/người → nhóm theo module → từng quyền (+ xanh / − đỏ). */
+#pq-confirm-body { background: #f8f7fa; }
+.pq-diff-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+.pq-diff-card { background: #fff; border: 1px solid #e6e6e8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+.pq-diff-card:last-child { margin-bottom: 0; }
+.pq-diff-head { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #eeeef0; }
+.pq-diff-name { font-size: 15px; font-weight: 600; color: #444050; }
+.pq-diff-count { margin-left: auto; font-size: 13px; font-weight: 600; }
+.pq-diff-mod { margin: 10px 0 4px; font-size: 11.5px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; color: #8b8993; }
+.pq-diff-list { list-style: none; margin: 0; padding: 0; }
+.pq-diff-list li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; }
+.pq-diff-list li + li { margin-top: 2px; }
+.pq-diff-list li.is-add { background: #eefaf3; }
+.pq-diff-list li.is-remove { background: #fdeeee; }
+.pq-diff-sign { flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; }
+.is-add .pq-diff-sign { background: #28c76f; }
+.is-remove .pq-diff-sign { background: #ea5455; }
+.pq-diff-title { color: #444050; }
+.is-remove .pq-diff-title { text-decoration: line-through; text-decoration-color: rgba(234, 84, 85, .6); }
+.pq-diff-act { margin-left: auto; font-size: 12px; font-weight: 600; }
+.is-add .pq-diff-act { color: #1f9d55; }
+.is-remove .pq-diff-act { color: #d63c3c; }

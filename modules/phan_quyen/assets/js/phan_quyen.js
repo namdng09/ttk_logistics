@@ -372,20 +372,45 @@
 
   /* ─────────── Lưu ─────────── */
 
+  // Hộp xác nhận: dòng tổng (+thêm / −bỏ / số đối tượng), rồi 1 khối cho mỗi vai trò/người; trong khối gom theo
+  // module (tên module làm tiêu đề nhỏ, không lặp lại ở từng dòng), mỗi quyền 1 dòng có dấu + / − rõ ràng.
   function openConfirm() {
-    var groups = {}, order = [];
+    var bySubj = {}, order = [], adds = 0, removes = 0;
     $.each(Object.keys(S.changes), function (_, key) {
       var p = splitKey(key);
-      if (!groups[p.subj]) { groups[p.subj] = []; order.push(p.subj); }
-      groups[p.subj].push({ k: p.k, val: S.changes[key] });
+      var info = idx.perm[p.k] || { title: p.k, module: 'Khác' };
+      if (!bySubj[p.subj]) { bySubj[p.subj] = { mods: {}, modOrder: [], add: 0, rem: 0 }; order.push(p.subj); }
+      var g = bySubj[p.subj];
+      if (!g.mods[info.module]) { g.mods[info.module] = []; g.modOrder.push(info.module); }
+      g.mods[info.module].push({ title: info.title, add: !!S.changes[key] });
+      if (S.changes[key]) { g.add++; adds++; } else { g.rem++; removes++; }
     });
-    var html = $.map(order, function (subj) {
-      return '<div class="pq-diff-subj">' + esc(subjName(subj)) + '</div>' + $.map(groups[subj], function (it) {
-        var info = idx.perm[it.k] || { title: it.k, module: '' };
-        return '<div class="pq-diff-row"><span class="badge ' + (it.val ? 'bg-label-success">Thêm' : 'bg-label-danger">Bỏ') + '</span>' +
-          '<span>' + esc(info.title) + '</span><span class="small text-muted">' + esc(info.module) + '</span></div>';
+
+    var html = '<div class="pq-diff-summary">' +
+      (adds ? '<span class="badge bg-label-success">+' + adds + ' quyền được thêm</span>' : '') +
+      (removes ? '<span class="badge bg-label-danger">−' + removes + ' quyền bị bỏ</span>' : '') +
+      '<span class="text-muted small">cho ' + order.length + (order.length > 1 ? ' vai trò / người dùng' : ' đối tượng') + '</span></div>';
+
+    html += $.map(order, function (subj) {
+      var g = bySubj[subj];
+      var id = subjId(subj);
+      var isRole = isRoleSubj(subj);
+      var name = isRole ? (idx.role[id] ? idx.role[id].ten : '') : (idx.user[id] ? idx.user[id].ten : '');
+      var head = '<div class="pq-diff-head"><span class="pq-diff-name">' + esc(name) + '</span>' +
+        '<span class="badge ' + (isRole ? 'bg-label-primary">Vai trò' : 'bg-label-info">Quyền riêng') + '</span>' +
+        '<span class="pq-diff-count">' + (g.add ? '<span class="text-success">+' + g.add + '</span>' : '') +
+        (g.add && g.rem ? ' · ' : '') + (g.rem ? '<span class="text-danger">−' + g.rem + '</span>' : '') + '</span></div>';
+      var body = $.map(g.modOrder, function (mod) {
+        var items = g.mods[mod].slice().sort(function (a, b) { return (b.add ? 1 : 0) - (a.add ? 1 : 0); });
+        return '<div class="pq-diff-mod">' + esc(mod) + '</div><ul class="pq-diff-list">' + $.map(items, function (it) {
+          return '<li class="' + (it.add ? 'is-add' : 'is-remove') + '"><span class="pq-diff-sign" aria-label="' + (it.add ? 'Thêm' : 'Bỏ') + '">' +
+            (it.add ? '+' : '−') + '</span><span class="pq-diff-title">' + esc(it.title) + '</span>' +
+            '<span class="pq-diff-act">' + (it.add ? 'Thêm' : 'Bỏ') + '</span></li>';
+        }).join('') + '</ul>';
       }).join('');
+      return '<div class="pq-diff-card">' + head + body + '</div>';
     }).join('');
+
     $('#pq-confirm-count').text(Object.keys(S.changes).length);
     $('#pq-confirm-body').html(html);
     bootstrap.Modal.getOrCreateInstance(document.getElementById('pq-confirm-modal')).show();
