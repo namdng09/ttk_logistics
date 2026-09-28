@@ -1,9 +1,12 @@
 /* Phần mở rộng "đề nghị thanh toán" cho tab Chi phí hàng cảng (ke_hoach_chi_phi_dntt.js). */
-.khcp-main-card.khcp-has-dntt .khcp-table { min-width: 1600px; }
+.khcp-main-card.khcp-has-dntt .khcp-table { min-width: 1730px; }
 .khcp-has-dntt .khcp-col-check { width: 30px; text-align: center; }
 .khcp-has-dntt .khcp-col-ncc { width: 160px; }
+.khcp-has-dntt .khcp-col-hd { width: 130px; }
 .khcp-has-dntt .khcp-col-payee { width: 210px; }
 .khcp-has-dntt .khcp-col-dntt { width: 270px; }
+.khcp-hd-input { font-size: 11.5px; padding: 2px 6px; height: 26px; }
+.khcp-hd-input:not(:last-child) { margin-bottom: 3px; }
 .khcp-dntt-toolbar { padding: 10px 14px; border-bottom: 1px solid #e6e6e8; background: #fff; }
 .khcp-table tbody tr.khcp-row-locked td { background: #f8f8fb; }
 .khcp-table tbody tr.khcp-row-locked .form-control,

@@ -4,9 +4,14 @@
  * @file
  * Schema đề nghị thanh toán chi phí kế hoạch.
  *
- * - de_nghi_thanh_toan: 1 đề nghị = 1 hoá đơn của 1 bên phát hành (nid_ncc), gom nhiều dòng
- *   ke_hoach_chi_phi (dòng trỏ về đây bằng nid_de_nghi_chi_phi). Tổng tiền KHÔNG lưu cột riêng,
- *   luôn tính động từ các dòng chi phí để không lệch số.
+ * - de_nghi_thanh_toan: gom nhiều dòng ke_hoach_chi_phi (dòng trỏ về đây bằng nid_de_nghi_chi_phi),
+ *   GỘP THEO BÊN NHẬN TIỀN (loai_ben_nhan_tien + id_ben_nhan_tien) — không còn theo 1 NCC/1 hoá đơn:
+ *   1 đề nghị có thể chứa nhiều hoá đơn của nhiều NCC khác nhau, miễn cùng 1 bên nhận tiền hiệu lực.
+ *   "Hoá đơn" không có bảng riêng: là cặp (nid_ncc, so_hoa_don) lưu trên TỪNG DÒNG ke_hoach_chi_phi
+ *   (xem ke_hoach_xep_xe_update_7029), không còn ở bảng này (xem de_nghi_thanh_toan_update_7002 —
+ *   đã bỏ 3 cột nid_ncc/so_hoa_don/ngay_hoa_don khỏi bảng, di chuyển xuống dòng chi phí). Hạn thanh
+ *   toán + hình thức thanh toán vẫn 1 giá trị DÙNG CHUNG cho cả đề nghị (không tách theo hoá đơn).
+ *   Tổng tiền KHÔNG lưu cột riêng, luôn tính động từ các dòng chi phí để không lệch số.
  * - de_nghi_thanh_toan_thanh_toan: lịch sử trả từng đợt.
  */
 
@@ -19,14 +24,12 @@ function de_nghi_thanh_toan_schema() {
     'fields' => array(
       'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
       'ma_de_nghi' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''),
-      // Bên phát hành hoá đơn: khach_hang có phân loại Nhà cung cấp.
-      'nid_ncc' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
-      // Bên nhận tiền: luôn lưu đủ, kể cả khi trùng bên phát hành ('ncc' + nid_ncc).
+      // Bên nhận tiền — KHOÁ GỘP duy nhất của đề nghị (thay cho "1 NCC/1 hoá đơn" cũ). Luôn lưu đủ.
       // 'ncc' => id_ben_nhan_tien là nid khach_hang; 'nhan_vien' => id_ben_nhan_tien là uid Drupal.
       'loai_ben_nhan_tien' => array('type' => 'varchar', 'length' => 20, 'not null' => TRUE, 'default' => 'ncc'),
       'id_ben_nhan_tien' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
-      'so_hoa_don' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => ''),
-      'ngay_hoa_don' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
+      // Hạn thanh toán / hình thức TT: 1 giá trị DÙNG CHUNG cho cả đề nghị, không tách theo từng hoá đơn
+      // (mỗi hoá đơn có thể khác hạn thật, nhưng đây là hạn công ty tự đặt cho lần chi này — đã chốt với PO).
       'han_thanh_toan' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
       'hinh_thuc_tt' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
       'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
@@ -53,7 +56,6 @@ function de_nghi_thanh_toan_schema() {
       'ma_de_nghi' => array('ma_de_nghi'),
     ),
     'indexes' => array(
-      'nid_ncc' => array('nid_ncc'),
       'ben_nhan_tien' => array('loai_ben_nhan_tien', 'id_ben_nhan_tien'),
       'trang_thai' => array('trang_thai'),
       'loai_nguon' => array('loai_nguon'),
@@ -97,4 +99,49 @@ function de_nghi_thanh_toan_update_7001() {
   if (!db_index_exists('de_nghi_thanh_toan', 'loai_nguon')) {
     db_add_index('de_nghi_thanh_toan', 'loai_nguon', array('loai_nguon'));
   }
+}
+
+/**
+ * Đề nghị nguồn "chi phí kế hoạch" không còn 1 NCC/1 hoá đơn duy nhất (gộp theo bên nhận tiền, có thể
+ * nhiều hoá đơn của nhiều NCC). Chuyển nid_ncc/so_hoa_don/ngay_hoa_don đang lưu ở đây xuống từng dòng
+ * ke_hoach_chi_phi đang gộp trong đề nghị đó (chỉ ghi vào dòng đang trống, không ghi đè dữ liệu dòng đã
+ * có sẵn), rồi xoá 3 cột này khỏi bảng. Đề nghị nguồn "đổ dầu" không đụng tới — do_dau có sẵn nid_ncc/
+ * so_hoa_don riêng của chính nó, độc lập với đề nghị (xem de_nghi_thanh_toan_create_from_do_dau()).
+ *
+ * PHẢI chạy sau ke_hoach_xep_xe_update_7029 (thêm cột so_hoa_don/ngay_hoa_don cho ke_hoach_chi_phi).
+ * update.php của Drupal 7 chạy theo TÊN MODULE (bảng chữ cái), KHÔNG theo dependency, nên
+ * de_nghi_thanh_toan (d) chạy trước ke_hoach_xep_xe (k) — update này sẽ ném DrupalUpdateException
+ * nếu cột kia chưa có (không tự đợi được); chạy update.php lần nữa sau khi ke_hoach_xep_xe_update_7029
+ * đã chạy xong là được, Drupal tự biết update này chưa hoàn tất và chạy lại.
+ */
+function de_nghi_thanh_toan_update_7002() {
+  if (!db_field_exists('de_nghi_thanh_toan', 'nid_ncc')) {
+    return 'Đã chạy update này từ trước (cột nid_ncc không còn), bỏ qua.';
+  }
+  if (!db_table_exists('ke_hoach_chi_phi') || !db_field_exists('ke_hoach_chi_phi', 'so_hoa_don')) {
+    throw new DrupalUpdateException('ke_hoach_chi_phi chưa có cột so_hoa_don/ngay_hoa_don — chạy update database của module ke_hoach_xep_xe (ke_hoach_xep_xe_update_7029) trước, rồi chạy lại update này.');
+  }
+  $rows = db_query(
+    "SELECT nid, nid_ncc, so_hoa_don, ngay_hoa_don FROM {de_nghi_thanh_toan}
+     WHERE loai_nguon = 'chi_phi' AND (nid_ncc > 0 OR so_hoa_don <> '' OR ngay_hoa_don <> '')"
+  )->fetchAll();
+  foreach ($rows as $r) {
+    // Số/ngày hoá đơn: chỉ ghi vào dòng đang trống.
+    db_update('ke_hoach_chi_phi')->fields(array('so_hoa_don' => (string) $r->so_hoa_don))
+      ->condition('nid_de_nghi_chi_phi', (int) $r->nid)->condition('so_hoa_don', '')->execute();
+    db_update('ke_hoach_chi_phi')->fields(array('ngay_hoa_don' => (string) $r->ngay_hoa_don))
+      ->condition('nid_de_nghi_chi_phi', (int) $r->nid)->condition('ngay_hoa_don', '')->execute();
+    // Bên phát hành: chỉ ghi vào dòng chưa có NCC riêng (giữ nguyên NCC đã ghi sẵn trên từng dòng, nếu có).
+    if (!empty($r->nid_ncc)) {
+      db_update('ke_hoach_chi_phi')->fields(array('nid_ncc' => (int) $r->nid_ncc))
+        ->condition('nid_de_nghi_chi_phi', (int) $r->nid)->condition('nid_ncc', 0)->execute();
+    }
+  }
+  if (db_index_exists('de_nghi_thanh_toan', 'nid_ncc')) {
+    db_drop_index('de_nghi_thanh_toan', 'nid_ncc');
+  }
+  db_drop_field('de_nghi_thanh_toan', 'nid_ncc');
+  db_drop_field('de_nghi_thanh_toan', 'so_hoa_don');
+  db_drop_field('de_nghi_thanh_toan', 'ngay_hoa_don');
+  return 'Đã chuyển bên phát hành/số hoá đơn/ngày hoá đơn của ' . count($rows) . ' đề nghị xuống dòng chi phí, và xoá 3 cột cũ khỏi de_nghi_thanh_toan.';
 }

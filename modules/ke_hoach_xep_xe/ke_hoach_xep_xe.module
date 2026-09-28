@@ -1158,6 +1158,16 @@ function _ke_hoach_chi_phi_payee_normalize($loai, $id, $nid_ncc, $loai_chi_phi) 
   return array('loai' => $loai, 'id' => $id);
 }
 
+/** Ngày dạng Y-m-d hoặc rỗng ('' = chưa có); chuỗi khác trả FALSE. Cùng quy tắc với _de_nghi_thanh_toan_date()/_do_dau_valid_date(). */
+function _ke_hoach_chi_phi_valid_date($value) {
+  $value = trim((string) $value);
+  if ($value === '') return '';
+  if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m) || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+    return FALSE;
+  }
+  return $value;
+}
+
 /** Bên nhận tiền phải tồn tại: ncc = nhà cung cấp hợp lệ, nhan_vien = tài khoản đang mở, lai_xe = lái xe đang hoạt động. */
 function _ke_hoach_chi_phi_payee_is_valid($loai, $id) {
   $id = (int) $id;
@@ -1209,6 +1219,9 @@ function _ke_hoach_chi_phi_build_record(array $input, $existing = NULL) {
     'tong_sau_vat' => $tong_sau_vat,
     // Nhà cung cấp phát hành hoá đơn: chỉ nhận từ client khi có key (giữ giá trị cũ nếu không gửi).
     'nid_ncc' => $nid_ncc,
+    // Hoá đơn của dòng này ('hoá đơn' = cặp nid_ncc + so_hoa_don, không có bảng riêng). Không bắt buộc.
+    'so_hoa_don' => array_key_exists('so_hoa_don', $input) ? trim((string) $input['so_hoa_don']) : ($existing && isset($existing->so_hoa_don) ? (string) $existing->so_hoa_don : ''),
+    'ngay_hoa_don' => array_key_exists('ngay_hoa_don', $input) ? $input['ngay_hoa_don'] : ($existing && isset($existing->ngay_hoa_don) ? (string) $existing->ngay_hoa_don : ''),
     // Chi hộ khách hàng: luôn do server suy ra từ loại chi phí + khách hàng của kế hoạch, không tin client.
     'nid_khach_hang' => $loai_chi_phi === 'tinh_cho_khach' && $parent && !empty($parent->nid_khach_hang) ? (int) $parent->nid_khach_hang : 0,
     // Bên nhận tiền ('' + 0 = trùng nhà cung cấp), xem _ke_hoach_chi_phi_payee_normalize().
@@ -1274,6 +1287,12 @@ function _ke_hoach_chi_phi_validate_record(array $record) {
   if (!empty($record['loai_ben_nhan_tien']) && !_ke_hoach_chi_phi_payee_is_valid($record['loai_ben_nhan_tien'], $record['id_ben_nhan_tien'])) {
     throw new Exception('Bên nhận tiền không hợp lệ hoặc đã bị khoá/ngưng hoạt động');
   }
+  if (isset($record['so_hoa_don']) && mb_strlen($record['so_hoa_don']) > 50) {
+    throw new Exception('Số hoá đơn tối đa 50 ký tự');
+  }
+  if (isset($record['ngay_hoa_don']) && _ke_hoach_chi_phi_valid_date($record['ngay_hoa_don']) === FALSE) {
+    throw new Exception('Ngày hoá đơn không hợp lệ (định dạng YYYY-MM-DD)');
+  }
   if (in_array($record['loai_chi_phi'], array('doanh_thu', 'luong_lai_xe'), TRUE)) {
     return;
   }
@@ -1329,7 +1348,10 @@ function ke_hoach_chi_phi_rest_bulk() {
 }
 
 function _ke_hoach_chi_phi_rest_list() {
-  if (!api_has_permission('ke_hoach_xep_xe_view')) {
+  // Modal Tạo/Sửa đề nghị thanh toán (lọc theo ben_nhan_tien) chỉ cần quyền de_nghi_thanh_toan_create —
+  // cùng tinh thần "không cần ke_hoach_xep_xe_create/_view để làm việc với chi phí từ màn đề nghị".
+  $for_dntt = !empty($_GET['ben_nhan_tien']);
+  if (!api_has_permission('ke_hoach_xep_xe_view') && !($for_dntt && api_has_permission('de_nghi_thanh_toan_create'))) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem chi phí kế hoạch');
   }
   $page = api_page_number();
@@ -1343,6 +1365,40 @@ function _ke_hoach_chi_phi_rest_list() {
   }
   if (!empty($_GET['trang_thai_duyet'])) {
     $query->condition('c.trang_thai_duyet', trim((string) $_GET['trang_thai_duyet']));
+  }
+  // Các bộ lọc dưới đây phục vụ modal "Tạo/Sửa đề nghị thanh toán" (chọn dòng chi phí theo bên nhận
+  // tiền, chưa gộp) — chỉ áp dụng hàng cảng, đề nghị thanh toán chưa hỗ trợ tuyến xa.
+  if (!empty($_GET['ben_nhan_tien']) && preg_match('/^(ncc|nhan_vien)\|(\d+)$/', (string) $_GET['ben_nhan_tien'], $bm)) {
+    $query->condition('c.loai_ke_hoach', 'thuong');
+    $bid = (int) $bm[2];
+    if ($bm[1] === 'ncc') {
+      // '' + nid_ncc = trùng NCC của dòng (xem _ke_hoach_chi_phi_payee_normalize()).
+      $query->condition(db_or()
+        ->condition(db_and()->condition('c.loai_ben_nhan_tien', 'ncc')->condition('c.id_ben_nhan_tien', $bid))
+        ->condition(db_and()->condition('c.loai_ben_nhan_tien', '')->condition('c.nid_ncc', $bid))
+      );
+    }
+    else {
+      $query->condition('c.loai_ben_nhan_tien', 'nhan_vien')->condition('c.id_ben_nhan_tien', $bid);
+    }
+  }
+  if (!empty($_GET['chua_gop'])) {
+    $query->condition('c.nid_de_nghi_chi_phi', 0);
+  }
+  if (!empty($_GET['gop_duoc'])) {
+    $query->condition('c.loai_chi_phi', array('tinh_cho_khach', 'cong_ty_chi_tra'), 'IN');
+  }
+  if (!empty($_GET['keyword'])) {
+    $query->condition('c.ten_chi_phi', '%' . db_like(trim((string) $_GET['keyword'])) . '%', 'LIKE');
+  }
+  if (!empty($_GET['tu_ngay']) || !empty($_GET['den_ngay'])) {
+    $query->leftJoin('ke_hoach_xep_xe', 'k', 'k.nid = c.nid_ke_hoach');
+    if (!empty($_GET['tu_ngay'])) {
+      $query->condition('k.ngay_gio_ke_hoach', trim((string) $_GET['tu_ngay']) . ' 00:00:00', '>=');
+    }
+    if (!empty($_GET['den_ngay'])) {
+      $query->condition('k.ngay_gio_ke_hoach', trim((string) $_GET['den_ngay']) . ' 23:59:59', '<=');
+    }
   }
   $count_query = clone $query;
   $total = (int) $count_query->countQuery()->execute()->fetchField();
@@ -1368,12 +1424,24 @@ function _ke_hoach_chi_phi_rest_list() {
 function _ke_hoach_chi_phi_decorate_items(array $items) {
   $ncc_ids = array();
   $dntt_ids = array();
+  $plan_ids = array();
   foreach ($items as $item) {
     if (!empty($item['nid_ncc'])) {
       $ncc_ids[(int) $item['nid_ncc']] = (int) $item['nid_ncc'];
     }
     if (!empty($item['nid_de_nghi_chi_phi'])) {
       $dntt_ids[(int) $item['nid_de_nghi_chi_phi']] = (int) $item['nid_de_nghi_chi_phi'];
+    }
+    if (!empty($item['nid_ke_hoach'])) {
+      $plan_ids[(int) $item['nid_ke_hoach']] = (int) $item['nid_ke_hoach'];
+    }
+  }
+  // Cont/BKG/ngày kế hoạch của dòng — dùng cho modal chọn dòng chi phí ở đề nghị thanh toán (nhận biết
+  // dòng thuộc chuyến nào, lọc theo ngày kế hoạch).
+  $plans = array();
+  if ($plan_ids) {
+    foreach (db_query("SELECT nid, so_bkg, so_cont, ngay_gio_ke_hoach FROM {ke_hoach_xep_xe} WHERE nid IN (:ids)", array(':ids' => array_values($plan_ids))) as $p) {
+      $plans[(int) $p->nid] = $p;
     }
   }
   // Bên nhận tiền khác nhà cung cấp: gom id theo loại để tra tên 1 lần.
@@ -1416,6 +1484,10 @@ function _ke_hoach_chi_phi_decorate_items(array $items) {
     $item['khoa_sua'] = _ke_hoach_chi_phi_is_locked($item);
     $dn = !empty($item['nid_de_nghi_chi_phi']) ? (int) $item['nid_de_nghi_chi_phi'] : 0;
     $item['de_nghi'] = $dn && isset($dntt_map[$dn]) ? $dntt_map[$dn] : NULL;
+    $p = !empty($item['nid_ke_hoach']) && isset($plans[(int) $item['nid_ke_hoach']]) ? $plans[(int) $item['nid_ke_hoach']] : NULL;
+    $item['ke_hoach_label'] = '#' . (int) $item['nid_ke_hoach'] . ($p && trim((string) $p->so_bkg) !== '' ? ' · ' . $p->so_bkg : '');
+    $item['so_cont'] = $p ? (string) $p->so_cont : '';
+    $item['ngay_ke_hoach'] = $p ? (string) $p->ngay_gio_ke_hoach : '';
   }
   unset($item);
   return $items;

@@ -273,6 +273,10 @@ function ke_hoach_xep_xe_schema() {
       'tong_sau_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
       // Bên phát hành hoá đơn (khach_hang có phân loại Nhà cung cấp). 0 = chưa chọn / không áp dụng.
       'nid_ncc' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Hoá đơn của DÒNG này (không còn ở đề nghị thanh toán): "hoá đơn" = cặp (nid_ncc, so_hoa_don).
+      // Không bắt buộc — dòng có thể lập trước khi có hoá đơn, điền bù sau (kể cả từ modal đề nghị thanh toán).
+      'so_hoa_don' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => ''),
+      'ngay_hoa_don' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
       // Chi hộ khách hàng nào: server tự điền theo khách hàng của kế hoạch khi loai_chi_phi = tinh_cho_khach, ngược lại 0.
       'nid_khach_hang' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       // Bên nhận tiền của dòng: '' + 0 = trùng nhà cung cấp (nid_ncc, đi theo khi đổi NCC); còn lại là
@@ -305,6 +309,8 @@ function ke_hoach_xep_xe_schema() {
       'hoat_dong' => array('hoat_dong'),
       'created' => array('created'),
       'uid_nguoi_tao' => array('uid_nguoi_tao'),
+      // "Hoá đơn" ảo = cặp (nid_ncc, so_hoa_don); index gộp để gom nhóm/lọc theo hoá đơn nhanh.
+      'hoa_don' => array('nid_ncc', 'so_hoa_don'),
     ),
   );
 
@@ -922,4 +928,29 @@ function ke_hoach_xep_xe_update_7028() {
     db_add_index('ke_hoach_chi_phi', 'ben_nhan_tien', array('loai_ben_nhan_tien', 'id_ben_nhan_tien'));
   }
   return 'Đã thêm cột loai_ben_nhan_tien, id_ben_nhan_tien cho ke_hoach_chi_phi.';
+}
+
+/**
+ * Số hoá đơn + ngày hoá đơn chuyển xuống TỪNG DÒNG chi phí (không còn ở đề nghị thanh toán, vì 1 đề nghị
+ * giờ có thể gộp nhiều hoá đơn của nhiều NCC khác nhau — xem de_nghi_thanh_toan_update_7002()). "Hoá đơn"
+ * là cặp ảo (nid_ncc, so_hoa_don), không có bảng riêng.
+ */
+function ke_hoach_xep_xe_update_7029() {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return 'Bảng ke_hoach_chi_phi chưa tồn tại, bỏ qua.';
+  }
+  foreach (array('so_hoa_don' => 50, 'ngay_hoa_don' => 10) as $field => $len) {
+    if (!db_field_exists('ke_hoach_chi_phi', $field)) {
+      db_add_field('ke_hoach_chi_phi', $field, array(
+        'type' => 'varchar',
+        'length' => $len,
+        'not null' => TRUE,
+        'default' => '',
+      ));
+    }
+  }
+  if (!db_index_exists('ke_hoach_chi_phi', 'hoa_don')) {
+    db_add_index('ke_hoach_chi_phi', 'hoa_don', array('nid_ncc', 'so_hoa_don'));
+  }
+  return 'Đã thêm cột so_hoa_don, ngay_hoa_don cho ke_hoach_chi_phi.';
 }

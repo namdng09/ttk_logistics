@@ -23,7 +23,7 @@
     page: 1,
     tab: 'all',
     filters: { keyword: '', nid_ncc_phat_hanh: '', ben_nhan_tien: '', hinh_thuc: '' },
-    chips: { qua_han: false, chua_hd: false, khac_ben: false },
+    chips: { qua_han: false, chua_hd: false, nhieu_hd: false },
     items: {},
     options: null,
     optionsLoading: false,
@@ -168,7 +168,7 @@
     if (state.filters.hinh_thuc) p.hinh_thuc = state.filters.hinh_thuc;
     if (state.chips.qua_han) p.qua_han = 1;
     if (state.chips.chua_hd) p.chua_hd = 1;
-    if (state.chips.khac_ben) p.khac_ben = 1;
+    if (state.chips.nhieu_hd) p.nhieu_hd = 1;
     return p;
   }
 
@@ -229,13 +229,44 @@
   }
 
   // Loại bên nhận tiền: nhãn ngắn ở danh sách.
-  var PAYEE_SHORT = { nhan_vien: 'Nhân viên', lai_xe: 'Lái xe', ncc: 'NCC khác' };
+  var PAYEE_SHORT = { nhan_vien: 'Nhân viên', lai_xe: 'Lái xe', ncc: 'Nhà cung cấp' };
 
+  // Không còn "trùng bên phát hành" (không có 1 bên phát hành duy nhất nữa) — luôn hiện thẳng bên nhận tiền.
   function payeeCell(item) {
     var b = item.ben_nhan_tien || {};
-    if (!b.khac_ben_phat_hanh) return '<span class="small text-muted">Trùng bên phát hành</span>';
     return '<div>' + esc(b.ten) + '</div><span class="dn-payee"><i class="ti tabler-user-dollar" style="font-size:11px;"></i>' +
-      (PAYEE_SHORT[b.loai] || 'NCC khác') + '</span>';
+      (PAYEE_SHORT[b.loai] || 'Nhà cung cấp') + '</span>';
+  }
+
+  // Chip "Hoá đơn liên quan": tối đa 2 hoá đơn đầu, còn lại gộp "+N khác".
+  function hoaDonChipsHtml(item) {
+    var list = item.hoa_dons || [];
+    if (!list.length) return '<span class="small text-muted">Chưa có số hoá đơn</span>';
+    var html = '<div class="d-flex flex-wrap gap-1">';
+    var shown = list.slice(0, 2);
+    for (var i = 0; i < shown.length; i++) {
+      var g = shown[i];
+      html += '<span class="dn-hdchip">' + esc(g.ncc_ten || '—') + (g.so_hoa_don ? ' · ' + esc(g.so_hoa_don) : ' · chưa có HĐ') + '</span>';
+    }
+    if (list.length > 2) html += '<span class="dn-hdchip more">+' + (list.length - 2) + ' hoá đơn khác</span>';
+    html += '</div>';
+    return html;
+  }
+
+  // Nhóm các dòng chi phí theo hoá đơn (nid_ncc + so_hoa_don), giữ thứ tự xuất hiện — dùng cho bảng gộp
+  // (dòng bung ở danh sách + modal chi tiết + modal sửa).
+  function groupLinesByHoaDon(lines) {
+    var map = {}, order = [];
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i];
+      var key = (l.nid_ncc || 0) + '|' + (l.so_hoa_don || '');
+      if (!map[key]) { map[key] = { ncc_ten: l.ncc_ten || '', so_hoa_don: l.so_hoa_don || '', ngay_hoa_don: l.ngay_hoa_don || '', lines: [], sau: 0 }; order.push(key); }
+      map[key].lines.push(l);
+      map[key].sau += Number(l.tong_sau_vat) || 0;
+    }
+    var out = [];
+    for (var j = 0; j < order.length; j++) out.push(map[order[j]]);
+    return out;
   }
 
   function isDoDau(item) { return item && item.loai_nguon === 'do_dau'; }
@@ -263,32 +294,57 @@
     return '';
   }
 
-  /** Các dòng <tr> chi phí của 1 đề nghị (dùng cho modal chi tiết và dòng mở rộng ở danh sách). */
-  function linesRowsHtml(lines) {
-    var html = '';
-    for (var i = 0; i < lines.length; i++) {
-      var l = lines[i];
-      var tagCls = l.loai_chi_phi === 'do_dau' ? 'dd' : (l.loai_chi_phi === 'tinh_cho_khach' ? 'kh' : 'ct');
-      var tagTxt = l.loai_chi_phi === 'do_dau' ? 'ĐD' : (l.loai_chi_phi === 'tinh_cho_khach' ? 'KH' : 'CT');
-      html += '<tr><td>' + esc(l.ke_hoach_label) + '</td><td>' + esc(l.ten_chi_phi) + '</td><td><span class="dn-tag ' + tagCls + '">' +
-        tagTxt + '</span></td><td class="text-end">' + money(l.don_gia) + '</td><td class="text-end">' + esc(l.so_luong) +
-        '</td><td class="text-end">' + money(l.tong_truoc_vat) + '</td><td class="text-end">' + esc(l.vat_percent) + '</td><td class="text-end fw-semibold">' + money(l.tong_sau_vat) +
-        '</td><td class="text-muted">' + esc(l.ghi_chu) + '</td></tr>';
+  /** Cell "Kế hoạch": số cont (dòng trên) + nhãn kế hoạch/BKG (dòng dưới, nhỏ) — chỉ 1 dòng nếu không có cont (đổ dầu). */
+  function planCellHtml(l) {
+    if (l.so_cont) return '<div>' + esc(l.so_cont) + '</div><div class="small text-muted">' + esc(l.ke_hoach_label) + '</div>';
+    return esc(l.ke_hoach_label);
+  }
+
+  /**
+   * Bảng GỘP các dòng chi phí của 1 đề nghị: 1 bảng duy nhất, có dòng phân cách riêng cho từng hoá đơn
+   * (đề nghị giờ có thể gồm nhiều hoá đơn của nhiều NCC — xem docblock server). Dùng cho dòng mở rộng ở
+   * danh sách và modal chi tiết (chỉ xem); modal Tạo/Sửa dùng bảng chọn dòng riêng, xem createRowHtml().
+   */
+  function groupedLinesTableHtml(lines, opts) {
+    opts = opts || {};
+    var groups = groupLinesByHoaDon(lines);
+    var html = '<table class="table table-sm table-bordered dn-lines mb-0"><thead><tr>' +
+      '<th style="width:130px;">NCC</th><th>Kế hoạch</th><th>Tên chi phí</th><th style="width:50px;">Loại</th>' +
+      '<th class="text-end">Đơn giá</th><th class="text-end" style="width:50px;">SL</th><th class="text-end">Trước VAT</th><th class="text-end" style="width:60px;">VAT%</th>' +
+      '<th class="text-end">Sau VAT</th><th>Ghi chú</th></tr></thead><tbody>';
+    if (!lines.length) {
+      html += '<tr><td colspan="10" class="text-center text-muted">Chưa có dòng chi phí</td></tr>';
     }
-    return html;
+    for (var g = 0; g < groups.length; g++) {
+      var grp = groups[g];
+      var hdText = grp.so_hoa_don ? ('Hoá đơn ' + esc(grp.so_hoa_don) + (grp.ngay_hoa_don ? ' · ' + esc(toView(grp.ngay_hoa_don)) : '')) : 'Chưa có số hoá đơn';
+      html += '<tr class="dn-hdrow"><td colspan="10"><i class="ti tabler-file-invoice me-1"></i>' + hdText +
+        '<span class="dn-hdrow-count">(' + grp.lines.length + ' dòng)</span><span class="dn-hdrow-sum">' + money(grp.sau) + ' đ</span></td></tr>';
+      for (var i = 0; i < grp.lines.length; i++) {
+        var l = grp.lines[i];
+        var tagCls = l.loai_chi_phi === 'do_dau' ? 'dd' : (l.loai_chi_phi === 'tinh_cho_khach' ? 'kh' : 'ct');
+        var tagTxt = l.loai_chi_phi === 'do_dau' ? 'ĐD' : (l.loai_chi_phi === 'tinh_cho_khach' ? 'KH' : 'CT');
+        html += '<tr><td>' + esc(l.ncc_ten || '—') + '</td><td>' + planCellHtml(l) + '</td><td>' + esc(l.ten_chi_phi) + '</td><td><span class="dn-tag ' + tagCls + '">' +
+          tagTxt + '</span></td><td class="text-end">' + money(l.don_gia) + '</td><td class="text-end">' + esc(l.so_luong) +
+          '</td><td class="text-end">' + money(l.tong_truoc_vat) + '</td><td class="text-end">' + esc(l.vat_percent) + '</td><td class="text-end fw-semibold">' + money(l.tong_sau_vat) +
+          '</td><td class="text-muted">' + esc(l.ghi_chu) + '</td></tr>';
+      }
+    }
+    html += '</tbody>';
+    if (opts.totals) {
+      html += '<tfoot><tr class="table-light"><td colspan="6" class="text-end fw-semibold">Tổng</td><td class="text-end fw-semibold">' + money(opts.totals.truoc) +
+        '</td><td class="text-end">' + money(opts.totals.vat) + '</td><td class="text-end fw-semibold">' + money(opts.totals.sau) + '</td><td></td></tr></tfoot>';
+    }
+    return html + '</table>';
   }
 
   /* ─────────── Mở rộng dòng: chi phí của đề nghị ─────────── */
 
   function expandHtml(d) {
     var lines = d.dong_chi_phi || [];
-    var html = '<div class="dn-expand-wrap"><div class="dn-expand-title"><i class="ti tabler-list-details me-1"></i>' + (isDoDau(d) ? 'Phiếu đổ dầu trong đề nghị' : 'Chi phí trong đề nghị') + ' (' + lines.length + ')</div>' +
-      '<table class="table table-sm table-bordered dn-expand-table mb-0"><thead><tr><th>' + (isDoDau(d) ? 'Phiếu' : 'Kế hoạch') + '</th><th>Tên chi phí</th><th style="width:50px;">Loại</th>' +
-      '<th class="text-end">Đơn giá</th><th class="text-end" style="width:50px;">SL</th><th class="text-end">Trước VAT</th><th class="text-end" style="width:60px;">VAT%</th>' +
-      '<th class="text-end">Sau VAT</th><th>Ghi chú</th></tr></thead><tbody>';
-    html += lines.length ? linesRowsHtml(lines) : '<tr><td colspan="9" class="text-center text-muted">Chưa có dòng chi phí</td></tr>';
-    html += '</tbody><tfoot><tr><td colspan="5" class="text-end fw-semibold">Tổng</td><td class="text-end fw-semibold">' + money(d.tong_truoc_vat) +
-      '</td><td class="text-end">' + money(d.tong_vat) + '</td><td class="text-end fw-semibold">' + money(d.tong_sau_vat) + '</td><td></td></tr></tfoot></table></div>';
+    var html = '<div class="dn-expand-wrap"><div class="dn-expand-title"><i class="ti tabler-list-details me-1"></i>' +
+      (isDoDau(d) ? 'Phiếu đổ dầu trong đề nghị' : 'Hoá đơn / chi phí trong đề nghị') + ' (' + lines.length + ' dòng · ' + (d.so_hoa_don_count || 0) + ' hoá đơn)</div>' +
+      groupedLinesTableHtml(lines, { totals: { truoc: d.tong_truoc_vat, vat: d.tong_vat, sau: d.tong_sau_vat } }) + '</div>';
     return html;
   }
 
@@ -331,9 +387,8 @@
       html += '<tr data-id="' + it.nid + '">' +
         '<td class="text-center"><button type="button" class="dn-stt-btn" data-menu-open="' + it.nid + '" title="Chức năng">' + stt + '</button></td>' +
         '<td><div class="fw-semibold">' + esc(it.ma_de_nghi) + '</div><div class="small text-muted">' + esc(toView(it.created)) + ' · ' + esc(it.nguoi_tao) + '</div></td>' +
-        '<td><div>' + esc(it.ncc_ten) + '</div><div class="small text-muted"><i class="ti tabler-file-invoice me-1"></i>' +
-          (it.so_hoa_don ? 'HĐ ' + esc(it.so_hoa_don) + (it.ngay_hoa_don ? ' · ' + esc(toView(it.ngay_hoa_don)) : '') : 'Chưa có số hoá đơn') + '</div></td>' +
         '<td>' + payeeCell(it) + '</td>' +
+        '<td>' + hoaDonChipsHtml(it) + '</td>' +
         '<td>' + sourceCell(it) + '</td>' +
         '<td class="text-end">' + money(it.tong_truoc_vat) + '</td>' +
         '<td class="text-end">' + money(it.tong_vat) + '</td>' +
@@ -429,7 +484,7 @@
     loadOptions(function () {
       state.payCtx = { id: item.nid };
       $('#dn-pay-title').text('Ghi nhận thanh toán ' + item.ma_de_nghi);
-      var to = item.ben_nhan_tien && item.ben_nhan_tien.ten ? item.ben_nhan_tien.ten : item.ncc_ten;
+      var to = item.ben_nhan_tien ? item.ben_nhan_tien.ten : '';
       $('#dn-pay-info').html('Trả cho: <strong>' + esc(to) + '</strong> · Còn lại <strong>' + money(item.con_lai) + ' đ</strong> / Sau VAT ' + money(item.tong_sau_vat) + ' đ');
       $('#dn-pay-amount').val(money(item.con_lai)).removeClass('is-invalid');
       $('#dn-pay-ht').val(item.hinh_thuc_tt === 'TM' ? 'TM' : 'CK');
@@ -484,26 +539,21 @@
 
   function renderDetail(d) {
     var b = d.ben_nhan_tien || {};
-    // Chỉ hiển thị tên bên nhận tiền (trùng bên phát hành thì là tên bên phát hành), không kèm ghi chú.
-    var payee = esc(b.ten || d.ncc_ten);
+    var payee = esc(b.ten) + (PAYEE_SHORT[b.loai] ? ' <span class="dn-payee">' + PAYEE_SHORT[b.loai] + '</span>' : '');
     var han = d.han_thanh_toan ? esc(toView(d.han_thanh_toan)) + (d.qua_han_ngay > 0 ? ' <span class="text-danger fw-semibold">(quá hạn ' + d.qua_han_ngay + ' ngày)</span>' : '') : 'Chưa đặt';
+    var hdChips = hoaDonChipsHtml(d);
     var html = '';
     if ((d.trang_thai === 'tu_choi' || d.trang_thai === 'tu_choi_thanh_toan') && d.ly_do_tu_choi) {
       html += '<div class="alert alert-danger py-2"><strong>Lý do từ chối:</strong> ' + esc(d.ly_do_tu_choi) + '</div>';
     }
     html += '<div class="row g-3">' +
-      field('Bên phát hành', esc(d.ncc_ten)) + field('Bên nhận tiền', payee) +
-      field('Số hoá đơn', d.so_hoa_don ? esc(d.so_hoa_don) : 'Chưa có') + field('Ngày hoá đơn', d.ngay_hoa_don ? esc(toView(d.ngay_hoa_don)) : 'Chưa có') +
+      field('Bên nhận tiền', payee) + ('<div class="col-md-6"><div class="dn-info-label">Hoá đơn liên quan (' + (d.so_hoa_don_count || 0) + ')</div><div class="dn-info-value">' + hdChips + '</div></div>') +
       field('Hạn thanh toán', han) + field('Hình thức thanh toán', esc(HINH_THUC_LABEL[d.hinh_thuc_tt] || 'Chưa chọn')) +
       field('Người tạo', esc(d.nguoi_tao)) + field('Ngày tạo', esc(toView(d.created))) + field('Nguồn', esc(d.nguon_label || 'Chi phí kế hoạch')) +
       '<div class="col-md-9"><div class="dn-info-label">Ghi chú</div><div class="dn-info-value">' + (d.ghi_chu ? esc(d.ghi_chu) : '—') + '</div></div></div>';
 
-    html += '<div class="fw-semibold mt-4 mb-2">' + (isDoDau(d) ? 'Phiếu đổ dầu trong đề nghị' : 'Các dòng chi phí trong đề nghị') + ' (' + d.so_dong + ')</div>' +
-      '<div class="table-responsive"><table class="table table-sm table-bordered dn-lines mb-0"><thead><tr><th>' + (isDoDau(d) ? 'Phiếu' : 'Kế hoạch') + '</th><th>Tên chi phí</th><th style="width:50px;">Loại</th>' +
-      '<th class="text-end">Đơn giá</th><th class="text-end" style="width:50px;">SL</th><th class="text-end">Trước VAT</th><th class="text-end" style="width:60px;">VAT%</th><th class="text-end">Sau VAT</th><th>Ghi chú</th></tr></thead><tbody>';
-    html += linesRowsHtml(d.dong_chi_phi || []);
-    html += '</tbody><tfoot><tr class="table-light"><td colspan="5" class="text-end fw-semibold">Tổng</td><td class="text-end fw-semibold">' + money(d.tong_truoc_vat) +
-      '</td><td class="text-end">' + money(d.tong_vat) + '</td><td class="text-end fw-semibold">' + money(d.tong_sau_vat) + '</td><td></td></tr></tfoot></table></div>';
+    html += '<div class="fw-semibold mt-4 mb-2">' + (isDoDau(d) ? 'Phiếu đổ dầu trong đề nghị' : 'Các hoá đơn / dòng chi phí trong đề nghị') + ' (' + d.so_dong + ' dòng)</div>' +
+      '<div class="table-responsive">' + groupedLinesTableHtml(d.dong_chi_phi || [], { totals: { truoc: d.tong_truoc_vat, vat: d.tong_vat, sau: d.tong_sau_vat } }) + '</div>';
 
     html += '<div class="row g-3 mt-1"><div class="col-md-4"><div class="dn-box"><span>Tổng sau VAT</span><strong>' + money(d.tong_sau_vat) + ' đ</strong></div></div>' +
       '<div class="col-md-4"><div class="dn-box"><span>Đã trả</span><strong class="text-success">' + money(d.da_thanh_toan) + ' đ</strong></div></div>' +
@@ -555,12 +605,14 @@
     });
   }
 
-  /* ─────────── Sửa ─────────── */
+  /* ─────────── Bên nhận tiền (dùng chung cho modal Tạo/Sửa đề nghị — xem phần "Tạo đề nghị" bên dưới) ─────────── */
 
   // Tên kèm số điện thoại nếu có: "Nguyễn Văn A (0123456789)"; không có thì chỉ tên.
   function payeeLabel(x) { return x.ten + (x.sdt ? ' (' + x.sdt + ')' : ''); }
 
-  function payeeSelectHtml(current, nccId) {
+  // Bên nhận tiền giờ là khoá gộp bắt buộc của đề nghị (không còn khái niệm "trùng bên phát hành" để loại trừ 1 NCC
+  // khỏi danh sách) — liệt kê đủ Nhân viên + mọi Nhà cung cấp.
+  function payeeSelectHtml(current) {
     var html = '<option value=""></option>';
     var staff = (state.options && state.options.nhan_vien) || [];
     var nccs = (state.options && state.options.ncc) || [];
@@ -574,66 +626,26 @@
     if (current && current.loai === 'nhan_vien' && !hasCurrent) {
       html += '<option value="nhan_vien|' + current.id + '">' + esc(current.ten) + '</option>';
     }
-    html += '</optgroup><optgroup label="Nhà cung cấp khác (thu hộ)">';
-    for (var j = 0; j < nccs.length; j++) if (nccs[j].nid !== nccId) html += '<option value="ncc|' + nccs[j].nid + '">' + esc(payeeLabel(nccs[j])) + '</option>';
+    html += '</optgroup><optgroup label="Nhà cung cấp">';
+    for (var j = 0; j < nccs.length; j++) html += '<option value="ncc|' + nccs[j].nid + '">' + esc(payeeLabel(nccs[j])) + '</option>';
     html += '</optgroup>';
     return html;
   }
 
   // Select2 chuẩn (SELECT2_PATTERN.md): tìm kiếm được, nhóm theo optgroup.
-  function initPayeeSelect(optionsHtml) {
-    var $p = $('#dn-edit-payee');
+  function initPayeeSelect(optionsHtml, selId, modalId) {
+    selId = selId || '#dn-create-payee';
+    modalId = modalId || '#dn-create-modal';
+    var $p = $(selId);
     if ($p.data('select2')) $p.select2('destroy');
     $p.html(optionsHtml);
     if (!$.fn.select2) return;
-    $p.select2({ placeholder: 'Chọn nhân viên hoặc NCC khác…', allowClear: true, width: '100%', dropdownParent: $('#dn-edit-modal') });
+    $p.select2({ placeholder: 'Chọn bên nhận tiền…', allowClear: false, width: '100%', dropdownParent: $(modalId) });
     $p.unbind('select2:open.dnFocus').bind('select2:open.dnFocus', function () {
       window.setTimeout(function () {
         var search = document.querySelector('.select2-container--open .select2-search__field');
         if (search) search.focus();
       }, 0);
-    });
-  }
-
-  function openEdit(id) {
-    state.editId = id;
-    $('#dn-edit-loading').show();
-    $('#dn-edit-lines').html('');
-    modalOf('dn-edit-modal').show();
-    loadOptions(function () {
-      call('GET', API + '/' + id, null, function (d) {
-        $('#dn-edit-ma').text(d.ma_de_nghi);
-        $('#dn-edit-ncc').val(d.ncc_ten);
-        $('#dn-edit-so-hd').val(d.so_hoa_don);
-        $('#dn-edit-ngay-hd').val(toView(d.ngay_hoa_don));
-        $('#dn-edit-han-tt').val(toView(d.han_thanh_toan));
-        $('#dn-edit-ht').val(d.hinh_thuc_tt);
-        $('#dn-edit-ghi-chu').val(d.ghi_chu);
-        var b = d.ben_nhan_tien || {};
-        initPayeeSelect(payeeSelectHtml(b.khac_ben_phat_hanh ? b : null, d.nid_ncc));
-        var same = !b.khac_ben_phat_hanh;
-        $('#dn-edit-trung').prop ? $('#dn-edit-trung').prop('checked', same) : $('#dn-edit-trung').attr('checked', same);
-        $('#dn-edit-payee-box').toggle(!same);
-        if (!same) $('#dn-edit-payee').val(b.loai + '|' + b.id).trigger('change');
-        $('#dn-edit-payee').removeClass('is-invalid');
-        if (d.ly_do_tu_choi && (d.trang_thai === 'tu_choi' || d.trang_thai === 'tu_choi_thanh_toan')) {
-          $('#dn-edit-reject').removeClass('d-none').html('<strong>Lý do từ chối:</strong> ' + esc(d.ly_do_tu_choi));
-        } else {
-          $('#dn-edit-reject').addClass('d-none');
-        }
-        var html = '';
-        var lines = d.dong_chi_phi || [];
-        for (var i = 0; i < lines.length; i++) {
-          html += '<tr><td>' + esc(lines[i].ke_hoach_label) + '</td><td>' + esc(lines[i].ten_chi_phi) + '</td><td class="text-end">' + money(lines[i].tong_sau_vat) +
-            '</td><td class="text-end"><button type="button" class="btn btn-sm btn-label-secondary dn-act" data-remove-line="' + lines[i].nid + '" title="Rút khỏi đề nghị"><i class="ti tabler-unlink"></i></button></td></tr>';
-        }
-        $('#dn-edit-lines').html(html);
-        $('#dn-edit-save-send').toggle(d.hanh_dong.length > 0 && hasAction(d, 'gui-duyet'));
-        $('#dn-edit-loading').hide();
-      }, function (jqXHR) {
-        $('#dn-edit-loading').hide();
-        toast(apiMsg(jqXHR), false);
-      });
     });
   }
 
@@ -643,68 +655,449 @@
     return false;
   }
 
-  function editPayload() {
-    var ngay = toApi($('#dn-edit-ngay-hd').val());
-    var han = toApi($('#dn-edit-han-tt').val());
-    if (ngay === null || han === null) { toast('Ngày phải có dạng dd/mm/yyyy.', false); return null; }
-    var body = {
-      so_hoa_don: $.trim($('#dn-edit-so-hd').val()),
-      ngay_hoa_don: ngay,
-      han_thanh_toan: han,
-      hinh_thuc_tt: $('#dn-edit-ht').val(),
-      ghi_chu: $.trim($('#dn-edit-ghi-chu').val())
-    };
-    var same = $('#dn-edit-trung').is(':checked');
-    body.ben_nhan_tien_trung = same;
-    if (!same) {
-      var v = $('#dn-edit-payee').val();
-      if (!v) { $('#dn-edit-payee').addClass('is-invalid'); return null; }
-      var i = v.indexOf('|');
-      body.loai_ben_nhan_tien = v.slice(0, i);
-      body.id_ben_nhan_tien = parseInt(v.slice(i + 1), 10);
-    }
-    return body;
+  /* ─────────── Tạo / Sửa đề nghị (1 modal dùng chung — chọn bên nhận tiền trước, gom theo hoá đơn,
+   * sửa trực tiếp trên bảng chọn dòng; Sửa chỉ khác Tạo ở chỗ nạp sẵn dòng/bên nhận/hạn TT hiện có
+   * và PUT thay vì POST) ─────────── */
+
+  var CP_API = '/api/ke-hoach-chi-phi';
+  var createState = { rows: {}, selected: {}, edits: {}, mode: 'create', editId: 0, ownLines: [], suppressPayeeChange: false };
+  var suppressLineEditChange = false;
+
+  // Dòng chi phí sau khi áp mọi lần sửa tại chỗ (so_hoa_don/ngay_hoa_don/ghi_chu) — createState.edits[nid]
+  // luôn là BẢN SAO ĐẦY ĐỦ (không phải diff) nên dùng thẳng, không cần merge lại với bản gốc.
+  function createEffectiveLine(item) {
+    return (item && createState.edits[item.nid]) || item;
   }
 
-  function saveEdit(andSend) {
-    var body = editPayload();
-    if (!body) return;
-    var id = state.editId;
-    $('#dn-edit-save, #dn-edit-save-send').attr('disabled', 'disabled');
-    call('PUT', API + '/' + id, body, function () {
-      if (andSend) {
-        call('POST', API + '/' + id + '/gui-duyet', {}, function () {
-          $('#dn-edit-save, #dn-edit-save-send').removeAttr('disabled');
-          modalOf('dn-edit-modal').hide();
-          toast('Đã lưu và gửi duyệt.');
-          loadList();
-        }, function (jqXHR) {
-          $('#dn-edit-save, #dn-edit-save-send').removeAttr('disabled');
-          toast(apiMsg(jqXHR), false);
-        });
-      } else {
-        $('#dn-edit-save, #dn-edit-save-send').removeAttr('disabled');
-        modalOf('dn-edit-modal').hide();
-        toast('Đã lưu đề nghị.');
-        loadList();
+  function setCreateEdit(nid, field, val) {
+    var base = createState.edits[nid] || $.extend({}, createState.rows[nid]);
+    var next = $.extend({}, base);
+    next[field] = val;
+    // Đơn giá/SL/VAT đổi thì tính lại Trước VAT/Sau VAT ngay tại chỗ (giống công thức server
+    // _de_nghi_thanh_toan_apply_line_edits: truoc = round(don_gia*so_luong), sau = round(truoc*(1+vat/100))).
+    if (field === 'don_gia' || field === 'so_luong' || field === 'vat_percent') {
+      var truoc = Math.round((Number(next.don_gia) || 0) * (Number(next.so_luong) || 0));
+      next.tong_truoc_vat = truoc;
+      next.tong_sau_vat = Math.round(truoc * (1 + (Number(next.vat_percent) || 0) / 100));
+    }
+    createState.edits[nid] = next;
+  }
+
+  // 1 -> "1", 1.5 -> "1.5", 1.50 -> "1.5" (bỏ số 0 thừa, giữ dấu chấm thập phân khi cần).
+  function formatQty(v) {
+    var n = parseFloat(v);
+    if (isNaN(n)) return '0';
+    return String(Math.round(n * 100) / 100);
+  }
+
+  function createRowsArray() {
+    var out = [];
+    for (var nid in createState.rows) { if (createState.rows.hasOwnProperty(nid)) out.push(createState.rows[nid]); }
+    return out;
+  }
+
+  // Danh sách tên chi phí gợi ý cho select2 "Tên chi phí" trong bảng chọn dòng: gom từ chính các dòng
+  // đang tải (đủ dùng cho việc sửa/chuẩn hoá tên, không cần thêm API riêng); tags:true vẫn cho gõ tên mới.
+  function distinctExpenseNames() {
+    var seen = {}, out = [];
+    for (var nid in createState.rows) {
+      if (!createState.rows.hasOwnProperty(nid)) continue;
+      var name = $.trim((createState.rows[nid] && createState.rows[nid].ten_chi_phi) || '');
+      if (name && !seen[name]) { seen[name] = true; out.push(name); }
+    }
+    out.sort(function (a, b) { return a.localeCompare(b, 'vi'); });
+    return out;
+  }
+
+  function expenseSelectOptionsHtml(current, names) {
+    var html = '<option value=""></option>';
+    var hasCurrent = !current;
+    for (var i = 0; i < names.length; i++) {
+      html += '<option value="' + esc(names[i]) + '"' + (names[i] === current ? ' selected' : '') + '>' + esc(names[i]) + '</option>';
+      if (names[i] === current) hasCurrent = true;
+    }
+    if (current && !hasCurrent) html += '<option value="' + esc(current) + '" selected>' + esc(current) + '</option>';
+    return html;
+  }
+
+  function createRowHtml(l, names) {
+    var tagCls = l.loai_chi_phi === 'tinh_cho_khach' ? 'kh' : 'ct';
+    var tagTxt = l.loai_chi_phi === 'tinh_cho_khach' ? 'KH' : 'CT';
+    var checked = !!createState.selected[l.nid];
+    return '<tr>' +
+      '<td class="text-center"><input type="checkbox" class="dn-create-check" data-nid="' + l.nid + '"' + (checked ? ' checked' : '') + '></td>' +
+      '<td>' + esc(l.ncc_ten || '—') + '</td>' +
+      '<td>' + planCellHtml(l) + '</td>' +
+      '<td><select class="form-select form-select-sm dn-create-edit dn-name-select" data-nid="' + l.nid + '" data-field="ten_chi_phi">' + expenseSelectOptionsHtml(l.ten_chi_phi, names) + '</select></td>' +
+      '<td><span class="dn-tag ' + tagCls + '">' + tagTxt + '</span></td>' +
+      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm dn-create-edit text-end" data-nid="' + l.nid + '" data-field="don_gia" value="' + money(l.don_gia) + '"></td>' +
+      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm dn-create-edit text-end" data-nid="' + l.nid + '" data-field="so_luong" value="' + esc(formatQty(l.so_luong)) + '"></td>' +
+      '<td><input type="text" inputmode="decimal" class="form-control form-control-sm dn-create-edit text-end" data-nid="' + l.nid + '" data-field="vat_percent" value="' + esc(formatQty(l.vat_percent)) + '"></td>' +
+      '<td class="text-end fw-semibold">' + money(l.tong_sau_vat) + '</td>' +
+      '<td><input type="text" class="form-control form-control-sm dn-create-edit" data-nid="' + l.nid + '" data-field="ghi_chu" value="' + esc(l.ghi_chu || '') + '"></td>' +
+      '<td><input type="text" class="form-control form-control-sm dn-create-edit" data-nid="' + l.nid + '" data-field="so_hoa_don" placeholder="Chưa có" value="' + esc(l.so_hoa_don || '') + '"></td>' +
+      '<td><input type="text" class="form-control form-control-sm dn-create-edit dn-hd-date" autocomplete="off" data-nid="' + l.nid + '" data-field="ngay_hoa_don" placeholder="dd/mm/yyyy" value="' + esc(toView(l.ngay_hoa_don)) + '"></td>' +
+      '</tr>';
+  }
+
+  function createGroupHeaderHtml(grp) {
+    var ids = $.map(grp.lines, function (l) { return l.nid; });
+    var uncheckedCount = $.grep(ids, function (id) { return !createState.selected[id]; }).length;
+    var hdText = grp.so_hoa_don ? ('Hoá đơn ' + esc(grp.so_hoa_don) + (grp.ngay_hoa_don ? ' · ' + esc(toView(grp.ngay_hoa_don)) : '')) : 'Chưa có số hoá đơn';
+    return '<tr class="dn-hdrow"><td colspan="12"><label style="cursor:pointer;display:flex;align-items:center;gap:6px;margin:0;">' +
+      '<input type="checkbox" class="dn-create-group-check" data-ids="' + ids.join(',') + '"' + (uncheckedCount === 0 ? ' checked' : '') + '>' +
+      '<i class="ti tabler-file-invoice"></i>' + hdText + '<span class="dn-hdrow-count">(' + grp.lines.length + ' dòng)</span><span class="dn-hdrow-sum">' + money(grp.sau) + ' đ</span></label></td></tr>';
+  }
+
+  function updateCreateSummary() {
+    var count = 0, sum = 0;
+    for (var nid in createState.selected) {
+      if (createState.selected.hasOwnProperty(nid) && createState.selected[nid] && createState.rows[nid]) {
+        count++;
+        sum += Number(createEffectiveLine(createState.rows[nid]).tong_sau_vat) || 0;
       }
-    }, function (jqXHR) {
-      $('#dn-edit-save, #dn-edit-save-send').removeAttr('disabled');
-      toast(apiMsg(jqXHR), false);
+    }
+    $('#dn-create-count').text(count);
+    $('#dn-create-total').text(money(sum) + ' đ');
+  }
+
+  // Từ 2 dòng đã tick trở lên cùng 1 NCC mà còn thiếu số hoá đơn: hiện thanh gán nhanh riêng cho NCC đó
+  // (không gộp chung mọi NCC vào 1 ô vì 1 hoá đơn chỉ thuộc đúng 1 NCC).
+  function updateCreateBulkBar() {
+    var byNcc = {};
+    for (var nid in createState.selected) {
+      if (!createState.selected.hasOwnProperty(nid) || !createState.selected[nid] || !createState.rows[nid]) continue;
+      var eff = createEffectiveLine(createState.rows[nid]);
+      if (eff.so_hoa_don) continue;
+      var key = eff.nid_ncc || 0;
+      if (!byNcc[key]) byNcc[key] = { ncc_ten: eff.ncc_ten || '—', ids: [] };
+      byNcc[key].ids.push(parseInt(nid, 10));
+    }
+    var html = '';
+    for (var k in byNcc) {
+      if (!byNcc.hasOwnProperty(k) || byNcc[k].ids.length < 2) continue;
+      var grp = byNcc[k];
+      html += '<div class="dn-bulk-hd">' +
+        '<i class="ti tabler-bolt text-warning"></i>' +
+        '<span class="txt">' + grp.ids.length + ' dòng đã tick của <strong>' + esc(grp.ncc_ten) + '</strong> chưa có số hoá đơn — gán chung 1 lần:</span>' +
+        '<input type="text" class="form-control dn-bulk-so" placeholder="Số hoá đơn">' +
+        '<input type="text" class="form-control dn-bulk-ngay" placeholder="dd/mm/yyyy">' +
+        '<button type="button" class="btn btn-sm btn-warning dn-bulk-apply" data-ids="' + grp.ids.join(',') + '"><i class="ti tabler-check me-1"></i>Áp dụng cho ' + grp.ids.length + ' dòng</button>' +
+        '</div>';
+    }
+    $('#dn-create-bulk').html(html);
+  }
+
+  function renderCreateLines(items) {
+    var lines = $.map(items, function (it) { return createEffectiveLine(it); });
+    var groups = groupLinesByHoaDon(lines);
+    var names = distinctExpenseNames();
+    var html = '';
+    for (var g = 0; g < groups.length; g++) {
+      html += createGroupHeaderHtml(groups[g]);
+      for (var i = 0; i < groups[g].lines.length; i++) html += createRowHtml(groups[g].lines[i], names);
+    }
+    $('#dn-create-lines').html(html);
+    initCreateRowWidgets();
+    var hasPayee = !!$('#dn-create-payee').val();
+    $('#dn-create-table-wrap').toggleClass('d-none', !lines.length);
+    if (!hasPayee) {
+      $('#dn-create-empty').removeClass('d-none').text('Chọn bên nhận tiền để hiện các dòng chi phí khả dụng.');
+    } else if (!lines.length) {
+      $('#dn-create-empty').removeClass('d-none').text('Bên nhận tiền này hiện không có dòng chi phí nào đang chờ gộp (thử bỏ bớt bộ lọc).');
+    } else {
+      $('#dn-create-empty').addClass('d-none');
+    }
+    updateCreateBulkBar();
+    updateCreateSummary();
+  }
+
+  // Select2 (tên chi phí) + flatpickr (ngày hoá đơn) cho các ô trong bảng — bảng được vẽ lại toàn bộ mỗi
+  // lần sửa 1 ô (giống các cột khác), nên phải khởi tạo lại 2 plugin này sau mỗi lần render.
+  function initCreateRowWidgets() {
+    if ($.fn && $.fn.select2) {
+      $('#dn-create-lines .dn-name-select').each(function () {
+        var $s = $(this);
+        if ($s.data('select2')) $s.select2('destroy');
+        $s.select2({ placeholder: 'Tên chi phí', tags: true, allowClear: false, width: '100%', dropdownParent: $('#dn-create-modal') });
+      });
+    }
+    if (typeof flatpickr !== 'undefined') {
+      // appendTo body (không static:true): trong bảng cuộn ngang/dọc của modal, static:true đặt lịch
+      // position:absolute NGAY TRONG bảng nên bị overflow của .table-responsive/.modal-body cắt mất.
+      $('#dn-create-lines .dn-hd-date').each(function () {
+        flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, appendTo: document.body });
+      });
+    }
+  }
+
+  // Đề nghị đang sửa: dòng đã gộp sẵn (nid_de_nghi_chi_phi = đề nghị này) bị chua_gop=1 loại khỏi bể chọn
+  // phía dưới, nên phải gộp thủ công vào items để vẫn thấy/được bỏ tick — không trùng nid với bể chọn
+  // (chua_gop=1 chỉ trả dòng CHƯA thuộc đề nghị nào).
+  function mergeOwnLines(items) {
+    if (createState.mode !== 'edit' || !createState.ownLines.length) return items;
+    var ownIds = {};
+    for (var i = 0; i < createState.ownLines.length; i++) ownIds[createState.ownLines[i].nid] = true;
+    var pool = $.grep(items, function (it) { return !ownIds[it.nid]; });
+    return createState.ownLines.concat(pool);
+  }
+
+  function finishCreateLines(items) {
+    $('#dn-create-loading').hide();
+    items = mergeOwnLines(items);
+    createState.rows = {};
+    for (var i = 0; i < items.length; i++) createState.rows[items[i].nid] = items[i];
+    // Dòng đã tick nhưng không còn khớp bộ lọc/bên nhận tiền hiện tại: bỏ tick, tránh gửi id không hợp lệ.
+    for (var nid in createState.selected) {
+      if (createState.selected.hasOwnProperty(nid) && !createState.rows[nid]) delete createState.selected[nid];
+    }
+    renderCreateLines(items);
+  }
+
+  // Đọc khoảng ngày đã áp dụng từ daterangepicker (Y-m-d cho API) — input để trống = không lọc ngày.
+  function readCreateDateRange() {
+    var $range = $('#dn-create-daterange');
+    var picker = $range.data('daterangepicker');
+    if (!$range.val() || !picker) return { tu: '', den: '' };
+    return { tu: picker.startDate.format('YYYY-MM-DD'), den: picker.endDate.format('YYYY-MM-DD') };
+  }
+
+  // Tải hết các trang (mỗi lần tối đa 100 dòng, cùng quy ước với các dropdown dùng chung khác trong dự án).
+  function fetchCreateLines() {
+    var payee = $('#dn-create-payee').val();
+    if (!payee) { createState.rows = {}; renderCreateLines([]); return; }
+    var params = { ben_nhan_tien: payee, chua_gop: 1, gop_duoc: 1, limit: 100, page: 1 };
+    var kw = $.trim($('#dn-create-q').val());
+    if (kw) params.keyword = kw;
+    var range = readCreateDateRange();
+    if (range.tu) params.tu_ngay = range.tu;
+    if (range.den) params.den_ngay = range.den;
+    $('#dn-create-loading').show();
+    $.ajax({
+      url: CP_API, type: 'GET', dataType: 'json', data: params,
+      success: function (res) {
+        var d = (res && res.data) || {};
+        var items = d.items || [];
+        var totalPages = Math.min(d.total_pages || 1, 50);
+        if (totalPages <= 1) { finishCreateLines(items); return; }
+        var pending = totalPages - 1, more = [];
+        for (var p = 2; p <= totalPages; p++) {
+          (function (page) {
+            $.ajax({
+              url: CP_API, type: 'GET', dataType: 'json', data: $.extend({}, params, { page: page }),
+              success: function (r2) { more = more.concat((r2 && r2.data && r2.data.items) || []); },
+              complete: function () { pending--; if (pending <= 0) finishCreateLines(items.concat(more)); }
+            });
+          })(p);
+        }
+      },
+      error: function (jqXHR) { $('#dn-create-loading').hide(); toast(apiMsg(jqXHR), false); }
     });
   }
 
-  function removeLine(chiPhiId) {
-    var id = state.editId;
-    call('POST', API + '/' + id + '/rut-dong', { chi_phi_id: chiPhiId }, function (data) {
-      if (data && data.deleted) {
-        modalOf('dn-edit-modal').hide();
-        toast('Đã rút dòng cuối, đề nghị được xoá.');
-      } else {
-        toast('Đã rút dòng chi phí khỏi đề nghị.');
-        openEdit(id);
+  function resetCreateState() {
+    createState = { rows: {}, selected: {}, edits: {}, mode: 'create', editId: 0, ownLines: [], suppressPayeeChange: false };
+  }
+
+  // Vietnamese locale + 3 nút chọn nhanh, giống hệt khoảng ngày ở bộ lọc /ke-hoach-xep-xe (#filter-date-range).
+  function initCreateDateRange() {
+    var $range = $('#dn-create-daterange');
+    if (!$range.length || $range.data('daterangepicker') || typeof $.fn.daterangepicker !== 'function' || typeof moment === 'undefined') return;
+    $range.daterangepicker({
+      autoUpdateInput: false,
+      autoApply: true,
+      showDropdowns: true,
+      opens: 'center',
+      locale: {
+        format: 'DD/MM/YYYY', separator: ' đến ', applyLabel: 'Áp dụng', cancelLabel: 'Xóa', customRangeLabel: 'Tùy chọn',
+        daysOfWeek: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
+        monthNames: ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'],
+        firstDay: 1
       }
-      loadList();
+    });
+    var picker = $range.data('daterangepicker');
+    if (picker && picker.container) picker.container.addClass('dn-create-daterangepicker');
+    $range.on('apply.daterangepicker', function (e, p) {
+      $(this).val(p.startDate.format('DD/MM/YYYY') + ' đến ' + p.endDate.format('DD/MM/YYYY'));
+      fetchCreateLines();
+    }).on('cancel.daterangepicker', function () {
+      $(this).val('');
+      fetchCreateLines();
+    }).on('show.daterangepicker', function (e, p) {
+      var $footer = p.container.find('.drp-buttons');
+      if (!$footer.length) return;
+      $footer.find('.dn-create-date-quick').remove();
+      $footer.find('.drp-selected, .applyBtn').hide();
+      $footer.find('.cancelBtn').show();
+      var $shortcuts = $('<span class="dn-create-date-quick"></span>')
+        .append('<button type="button" class="btn btn-sm btn-label-secondary" data-dn-date-quick="today">Hôm nay</button>')
+        .append('<button type="button" class="btn btn-sm btn-label-secondary" data-dn-date-quick="week">Tuần này</button>')
+        .append('<button type="button" class="btn btn-sm btn-label-secondary" data-dn-date-quick="month">Tháng này</button>');
+      $footer.prepend($shortcuts);
+      $footer.off('click.dnDateQuick', '[data-dn-date-quick]').on('click.dnDateQuick', '[data-dn-date-quick]', function () {
+        var action = $(this).attr('data-dn-date-quick');
+        var end = moment().startOf('day');
+        var start = end.clone();
+        if (action === 'week') { start = end.clone().startOf('isoWeek'); end = end.clone().endOf('isoWeek').startOf('day'); }
+        else if (action === 'month') { start = end.clone().startOf('month'); end = end.clone().endOf('month').startOf('day'); }
+        p.setStartDate(start);
+        p.setEndDate(end);
+        $range.val(start.format('DD/MM/YYYY') + ' đến ' + end.format('DD/MM/YYYY'));
+        p.hide();
+        fetchCreateLines();
+      });
+    });
+  }
+
+  function clearCreateDateRange() {
+    var $range = $('#dn-create-daterange');
+    var picker = $range.data('daterangepicker');
+    $range.val('');
+    if (picker) { picker.setStartDate(moment().startOf('day')); picker.setEndDate(moment().endOf('day')); }
+  }
+
+  function setCreateModalMode(mode) {
+    if (mode === 'edit') {
+      $('#dn-create-modal-title').text('Sửa đề nghị thanh toán');
+      $('#dn-create-alert-hint').addClass('d-none');
+      $('#dn-create-save').html('<i class="ti tabler-device-floppy me-1"></i>Lưu');
+      $('#dn-create-save-send').html('<i class="ti tabler-send me-1"></i>Lưu & gửi duyệt');
+    } else {
+      $('#dn-create-modal-title').text('Tạo đề nghị thanh toán');
+      $('#dn-create-modal-ma').addClass('d-none').text('');
+      $('#dn-create-reject').addClass('d-none').html('');
+      $('#dn-create-alert-hint').removeClass('d-none');
+      $('#dn-create-save').html('<i class="ti tabler-device-floppy me-1"></i>Lưu nháp');
+      $('#dn-create-save-send').html('<i class="ti tabler-send me-1"></i>Gửi duyệt').show();
+    }
+  }
+
+  function openCreate() {
+    resetCreateState();
+    setCreateModalMode('create');
+    $('#dn-create-q, #dn-create-han-tt, #dn-create-ghi-chu').val('');
+    clearCreateDateRange();
+    $('#dn-create-ht').val('');
+    $('#dn-create-lines').html('');
+    $('#dn-create-table-wrap').addClass('d-none');
+    $('#dn-create-empty').removeClass('d-none').text('Chọn bên nhận tiền để hiện các dòng chi phí khả dụng.');
+    $('#dn-create-bulk').html('');
+    $('#dn-create-payee').removeClass('is-invalid');
+    updateCreateSummary();
+    modalOf('dn-create-modal').show();
+    loadOptions(function () {
+      initPayeeSelect(payeeSelectHtml(null), '#dn-create-payee', '#dn-create-modal');
+    });
+  }
+
+  // Sửa dùng lại nguyên modal/bảng chọn dòng của Tạo: nạp sẵn bên nhận tiền + hạn TT/hình thức/ghi chú +
+  // các dòng đã thuộc đề nghị (tự tick sẵn), cho tick thêm/bỏ tick như Tạo rồi PUT thay vì POST khi lưu.
+  function openEdit(id) {
+    resetCreateState();
+    createState.mode = 'edit';
+    createState.editId = id;
+    setCreateModalMode('edit');
+    $('#dn-create-q, #dn-create-han-tt, #dn-create-ghi-chu').val('');
+    clearCreateDateRange();
+    $('#dn-create-ht').val('');
+    $('#dn-create-lines').html('');
+    $('#dn-create-table-wrap').addClass('d-none');
+    $('#dn-create-empty').removeClass('d-none').text('Đang tải…');
+    $('#dn-create-bulk').html('');
+    $('#dn-create-payee').removeClass('is-invalid');
+    $('#dn-create-loading').show();
+    modalOf('dn-create-modal').show();
+    loadOptions(function () {
+      call('GET', API + '/' + id, null, function (d) {
+        $('#dn-create-modal-ma').removeClass('d-none').text(d.ma_de_nghi);
+        $('#dn-create-han-tt').val(toView(d.han_thanh_toan));
+        $('#dn-create-ht').val(d.hinh_thuc_tt);
+        $('#dn-create-ghi-chu').val(d.ghi_chu);
+        var b = d.ben_nhan_tien || {};
+        initPayeeSelect(payeeSelectHtml(b), '#dn-create-payee', '#dn-create-modal');
+        createState.suppressPayeeChange = true;
+        $('#dn-create-payee').val(b.loai + '|' + b.id).trigger('change');
+        createState.suppressPayeeChange = false;
+        $('#dn-create-payee').removeClass('is-invalid');
+        if (d.ly_do_tu_choi && (d.trang_thai === 'tu_choi' || d.trang_thai === 'tu_choi_thanh_toan')) {
+          $('#dn-create-reject').removeClass('d-none').html('<strong>Lý do từ chối:</strong> ' + esc(d.ly_do_tu_choi));
+        } else {
+          $('#dn-create-reject').addClass('d-none');
+        }
+        createState.ownLines = d.dong_chi_phi || [];
+        for (var i = 0; i < createState.ownLines.length; i++) createState.selected[createState.ownLines[i].nid] = true;
+        $('#dn-create-save-send').toggle((d.hanh_dong || []).length > 0 && hasAction(d, 'gui-duyet'));
+        fetchCreateLines();
+      }, function (jqXHR) {
+        $('#dn-create-loading').hide();
+        toast(apiMsg(jqXHR), false);
+      });
+    });
+  }
+
+  function buildCreateEdits() {
+    var out = {};
+    for (var nid in createState.edits) {
+      if (!createState.edits.hasOwnProperty(nid) || !createState.selected[nid]) continue;
+      var eff = createState.edits[nid];
+      out[nid] = {
+        ten_chi_phi: eff.ten_chi_phi,
+        don_gia: eff.don_gia,
+        so_luong: eff.so_luong,
+        vat_percent: eff.vat_percent,
+        ghi_chu: eff.ghi_chu || '',
+        so_hoa_don: eff.so_hoa_don || '',
+        ngay_hoa_don: eff.ngay_hoa_don || ''
+      };
+    }
+    return out;
+  }
+
+  function submitCreate(andSend) {
+    var payee = $('#dn-create-payee').val();
+    if (!payee) { $('#dn-create-payee').addClass('is-invalid'); return; }
+    $('#dn-create-payee').removeClass('is-invalid');
+    var ids = [];
+    for (var nid in createState.selected) { if (createState.selected.hasOwnProperty(nid) && createState.selected[nid]) ids.push(parseInt(nid, 10)); }
+    if (!ids.length) { toast('Vui lòng chọn ít nhất 1 dòng chi phí.', false); return; }
+    var han = toApi($('#dn-create-han-tt').val());
+    if (han === null) { toast('Hạn thanh toán phải có dạng dd/mm/yyyy.', false); return; }
+    var i = payee.indexOf('|');
+    var body = {
+      chi_phi_ids: ids,
+      loai_ben_nhan_tien: payee.slice(0, i),
+      id_ben_nhan_tien: parseInt(payee.slice(i + 1), 10),
+      han_thanh_toan: han,
+      hinh_thuc_tt: $('#dn-create-ht').val(),
+      ghi_chu: $.trim($('#dn-create-ghi-chu').val()),
+      chi_phi_edits: buildCreateEdits()
+    };
+    var isEdit = createState.mode === 'edit';
+    var method = isEdit ? 'PUT' : 'POST';
+    var url = isEdit ? (API + '/' + createState.editId) : API;
+    $('#dn-create-save, #dn-create-save-send').attr('disabled', 'disabled');
+    call(method, url, body, function (data) {
+      var nid = isEdit ? createState.editId : (data && data.nid);
+      var ma = (data && data.ma_de_nghi) || '';
+      if (andSend && nid) {
+        call('POST', API + '/' + nid + '/gui-duyet', {}, function () {
+          $('#dn-create-save, #dn-create-save-send').removeAttr('disabled');
+          modalOf('dn-create-modal').hide();
+          toast(isEdit ? 'Đã lưu và gửi duyệt.' : ('Đã tạo và gửi duyệt ' + ma + '.'));
+          loadList();
+        }, function (jqXHR) {
+          $('#dn-create-save, #dn-create-save-send').removeAttr('disabled');
+          toast(apiMsg(jqXHR), false);
+        });
+      } else {
+        $('#dn-create-save, #dn-create-save-send').removeAttr('disabled');
+        modalOf('dn-create-modal').hide();
+        toast(isEdit ? 'Đã lưu đề nghị.' : ('Đã tạo đề nghị (nháp) ' + ma + '.'));
+        loadList();
+      }
+    }, function (jqXHR) {
+      $('#dn-create-save, #dn-create-save-send').removeAttr('disabled');
+      toast(apiMsg(jqXHR), false);
     });
   }
 
@@ -733,7 +1126,7 @@
     var item = state.items[id];
     if (!item) return;
     state.menuId = id;
-    $('#dn-menu-title').text(item.ma_de_nghi + ' · ' + item.ncc_ten);
+    $('#dn-menu-title').text(item.ma_de_nghi + ' · ' + ((item.ben_nhan_tien && item.ben_nhan_tien.ten) || ''));
     $('#dn-menu [data-menu="edit"]').toggleClass('disabled', !item.co_the_sua);
     $('#dn-menu [data-menu="delete"]').toggleClass('disabled', !item.co_the_xoa);
     var w = 220, h = 190;
@@ -800,7 +1193,7 @@
     $('#dn-f-q').keydown(function (e) { if (e.which === 13) { e.preventDefault(); applyFilters(); } });
     $('#dn-btn-reset').click(function () {
       $('#dn-f-q').val(''); setSelectVal('#dn-f-issuer', ''); setSelectVal('#dn-f-payee', ''); $('#dn-f-ht').val('');
-      state.chips = { qua_han: false, chua_hd: false, khac_ben: false };
+      state.chips = { qua_han: false, chua_hd: false, nhieu_hd: false };
       syncChips();
       applyFilters();
     });
@@ -906,13 +1299,105 @@
       var raw = this.value.replace(/[^0-9]/g, '');
       this.value = raw === '' ? '' : money(raw);
     });
-    $('#dn-edit-trung').change(function () {
-      $('#dn-edit-payee-box').toggle(!$(this).is(':checked'));
+    $('#dn-btn-create').click(openCreate);
+    $('#dn-create-form').submit(function (e) { e.preventDefault(); submitCreate(false); });
+    $('#dn-create-save-send').click(function () { submitCreate(true); });
+    $('#dn-create-payee').change(function () {
+      if (createState.suppressPayeeChange) return;
+      createState.selected = {};
+      createState.edits = {};
+      $('#dn-create-payee').removeClass('is-invalid');
+      fetchCreateLines();
     });
-    $('#dn-edit-form').submit(function (e) { e.preventDefault(); saveEdit(false); });
-    $('#dn-edit-save-send').click(function () { saveEdit(true); });
-    $('#dn-edit-lines').delegate('[data-remove-line]', 'click', function () {
-      removeLine(parseInt($(this).data('remove-line'), 10));
+    $('#dn-create-q').keydown(function (e) { if (e.which === 13) { e.preventDefault(); fetchCreateLines(); } });
+    $('#dn-create-q').bind('blur', fetchCreateLines);
+    $('#dn-create-lines').delegate('.dn-create-check', 'change', function () {
+      var nid = parseInt($(this).data('nid'), 10);
+      if ($(this).is(':checked')) createState.selected[nid] = true; else delete createState.selected[nid];
+      updateCreateBulkBar();
+      updateCreateSummary();
+    });
+    $('#dn-create-lines').delegate('.dn-create-group-check', 'change', function () {
+      var ids = String($(this).data('ids')).split(','), on = $(this).is(':checked');
+      for (var i = 0; i < ids.length; i++) {
+        var nid = parseInt(ids[i], 10);
+        if (on) createState.selected[nid] = true; else delete createState.selected[nid];
+      }
+      renderCreateLines(createRowsArray());
+    });
+    $('#dn-create-lines').delegate('.dn-create-edit', 'change', function () {
+      if (suppressLineEditChange) return;
+      var $el = $(this);
+      var nid = parseInt($el.data('nid'), 10), field = $el.attr('data-field'), val = $el.val();
+      var cur = createEffectiveLine(createState.rows[nid]);
+      // Trả ô về giá trị cũ khi nhập sai — cần trigger 'change' để select2 (tên chi phí) vẽ lại đúng nhãn
+      // đang chọn, nên phải chặn tự gọi lại chính handler này (suppressLineEditChange).
+      function revert(value) {
+        suppressLineEditChange = true;
+        $el.val(value).trigger('change');
+        suppressLineEditChange = false;
+      }
+      if (field === 'ngay_hoa_don') {
+        var d = toApi(val);
+        if (d === null) {
+          toast('Ngày hoá đơn phải có dạng dd/mm/yyyy.', false);
+          revert(toView(cur.ngay_hoa_don));
+          return;
+        }
+        setCreateEdit(nid, 'ngay_hoa_don', d);
+      }
+      else if (field === 'so_hoa_don') {
+        setCreateEdit(nid, 'so_hoa_don', $.trim(val));
+      }
+      else if (field === 'ten_chi_phi') {
+        var ten = $.trim(val);
+        if (!ten) {
+          toast('Tên chi phí không được để trống.', false);
+          revert(cur.ten_chi_phi);
+          return;
+        }
+        setCreateEdit(nid, 'ten_chi_phi', ten);
+      }
+      else if (field === 'don_gia') {
+        setCreateEdit(nid, 'don_gia', digits(val));
+      }
+      else if (field === 'so_luong') {
+        var sl = parseFloat(String(val).replace(',', '.'));
+        if (!sl || sl <= 0) {
+          toast('Số lượng phải lớn hơn 0.', false);
+          revert(formatQty(cur.so_luong));
+          return;
+        }
+        setCreateEdit(nid, 'so_luong', Math.round(sl * 100) / 100);
+      }
+      else if (field === 'vat_percent') {
+        var vat = parseFloat(String(val).replace(',', '.'));
+        if (isNaN(vat)) vat = 0;
+        vat = Math.min(100, Math.max(0, vat));
+        setCreateEdit(nid, 'vat_percent', Math.round(vat * 100) / 100);
+      }
+      else {
+        setCreateEdit(nid, field, val);
+      }
+      renderCreateLines(createRowsArray());
+    });
+    $('#dn-create-bulk').delegate('.dn-bulk-apply', 'click', function () {
+      var $bar = $(this).closest('.dn-bulk-hd');
+      var ids = String($(this).data('ids')).split(',');
+      var so = $.trim($bar.find('.dn-bulk-so').val());
+      if (!so) return;
+      var ngay = toApi($bar.find('.dn-bulk-ngay').val());
+      if (ngay === null) { toast('Ngày hoá đơn phải có dạng dd/mm/yyyy.', false); return; }
+      var n = 0;
+      for (var i = 0; i < ids.length; i++) {
+        var nid = parseInt(ids[i], 10);
+        if (createEffectiveLine(createState.rows[nid]).so_hoa_don) continue;
+        setCreateEdit(nid, 'so_hoa_don', so);
+        setCreateEdit(nid, 'ngay_hoa_don', ngay);
+        n++;
+      }
+      toast('Đã gán hoá đơn ' + so + ' cho ' + n + ' dòng');
+      renderCreateLines(createRowsArray());
     });
   }
 
@@ -971,10 +1456,14 @@
       var hash = /^#xem-(\d+)$/.exec(window.location.hash || '');
       if (hash) openView(parseInt(hash[1], 10), false, true); else loadList();
       if (typeof flatpickr !== 'undefined') {
+        // appendTo body: theme này đặt z-index modal (1090) cao hơn z-index mặc định của flatpickr (1074),
+        // static:true lại đặt lịch position:absolute bên trong modal-body (overflow-y:auto) nên bị cắt —
+        // appendTo body + .flatpickr-calendar{z-index:99999} (CSS) tránh được cả 2 vấn đề.
         $('.flatpickr-date').each(function () {
-          flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, static: true });
+          flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, appendTo: document.body });
         });
       }
+      initCreateDateRange();
     }
   };
   }

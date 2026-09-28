@@ -58,7 +58,7 @@
 
   // Ảnh chụp các trường ảnh hưởng tới đề nghị, để biết dòng đã sửa chưa lưu (tránh lưu + tải lại vô ích).
   function snapshotOf(row) {
-    return JSON.stringify([row.loai_chi_phi, row.ten_chi_phi, row.don_gia, row.so_luong, row.vat_percent, row.tong_truoc_vat, row.tong_sau_vat, row.ghi_chu || '', row.nid_ncc || 0, row.loai_ben_nhan_tien || '', row.id_ben_nhan_tien || 0]);
+    return JSON.stringify([row.loai_chi_phi, row.ten_chi_phi, row.don_gia, row.so_luong, row.vat_percent, row.tong_truoc_vat, row.tong_sau_vat, row.ghi_chu || '', row.nid_ncc || 0, row.loai_ben_nhan_tien || '', row.id_ben_nhan_tien || 0, row.so_hoa_don || '', row.ngay_hoa_don || '']);
   }
 
   function isDirty(row) {
@@ -136,6 +136,23 @@
   function nccInner(row) {
     return '<select class="form-select form-select-sm khcp-ncc-select" data-placeholder="Chọn NCC">' +
       '<option value="' + (row.nid_ncc || '') + '" selected>' + esc(row.ncc_ten || '') + '</option></select>';
+  }
+
+  /* ─────────── Hoá đơn của dòng (số + ngày) ─────────── */
+
+  // Ngày API (YYYY-MM-DD) <-> hiển thị (dd/mm/yyyy) — cùng quy tắc với de_nghi_thanh_toan.js/do_dau.js.
+  function toView(d) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '');
+    return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+  }
+
+  // Dòng "Lái xe chi trả" không tham gia đề nghị thanh toán nên hoá đơn không có ý nghĩa — ẩn hẳn 2 ô, giống cột Bên nhận tiền.
+  function hoaDonInner(row) {
+    if (!payeeApplies(row)) {
+      return '<span class="small text-muted">—</span>';
+    }
+    return '<input type="text" class="form-control form-control-sm khcp-hd-input mb-1" placeholder="Số hoá đơn" maxlength="50" value="' + esc(row.so_hoa_don || '') + '" data-hd-field="so_hoa_don">' +
+      '<input type="text" class="form-control form-control-sm khcp-hd-input khcp-hd-date" placeholder="dd/mm/yyyy" autocomplete="off" value="' + esc(toView(row.ngay_hoa_don)) + '" data-hd-field="ngay_hoa_don">';
   }
 
   /* ─────────── Bên nhận tiền ─────────── */
@@ -217,7 +234,8 @@
       if ($tr.find('.khcp-th-check').length) return;
       $tr.prepend('<th class="khcp-col-check khcp-th-check"><input type="checkbox" class="khcp-dntt-check-all" title="Chọn tất cả dòng cùng nhà cung cấp"></th>');
       $tr.find('.khcp-col-name').after('<th class="khcp-col-ncc">Nhà cung cấp</th>');
-      $tr.find('.khcp-col-ncc').after('<th class="khcp-col-payee">Bên nhận tiền</th>');
+      $tr.find('.khcp-col-ncc').after('<th class="khcp-col-hd">Hoá đơn</th>');
+      $tr.find('.khcp-col-hd').after('<th class="khcp-col-payee">Bên nhận tiền</th>');
       $tr.find('.khcp-col-action').before('<th class="khcp-col-dntt">Đề nghị thanh toán</th>');
     });
     $('.khcp-main-card').addClass('khcp-has-dntt');
@@ -374,7 +392,7 @@
       // chạy lại ở đây (afterBusy) để trả về đúng trạng thái. Đang busy thì core đã disable hết, không bật lên.
       $tr.find('.khcp-payee-btn').prop('disabled', !payeeEditable(row) || !!core.state.busy);
       if (locked) {
-        $tr.find('.row-field, .khcp-cost-type-check, .cost-name-select, .khcp-ncc-select, .btn-delete-row').prop('disabled', true);
+        $tr.find('.row-field, .khcp-cost-type-check, .cost-name-select, .khcp-ncc-select, .khcp-hd-input, .btn-delete-row').prop('disabled', true);
         $tr.attr('title', 'Đề nghị thanh toán đang xử lý — thu hồi đề nghị để sửa dòng này.');
       } else {
         $tr.removeAttr('title');
@@ -631,27 +649,17 @@
     return '<div class="modal fade" id="khcp-dn-modal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">' +
       '<div class="modal-header"><h5 class="modal-title">Tạo đề nghị thanh toán</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>' +
       '<div class="modal-body" style="position:relative;">' +
-        '<div class="text-muted small mb-3" id="khcp-dn-summary"></div>' +
-        '<div class="mb-3"><label class="form-label small mb-1" for="khcp-dn-issuer">Bên phát hành <span class="text-danger">*</span></label>' +
-          '<select class="form-select" id="khcp-dn-issuer"></select>' +
-          '<div class="small text-danger mt-1 d-none" id="khcp-dn-issuer-error">Chọn bên phát hành hoá đơn.</div></div>' +
+        '<div class="text-muted small mb-2" id="khcp-dn-summary"></div>' +
+        '<div class="mb-3" id="khcp-dn-payee-info"></div>' +
+        '<div class="alert alert-danger py-2 d-none" id="khcp-dn-payee-mismatch">Các dòng đã chọn không cùng 1 bên nhận tiền (hoặc có dòng chưa xác định được bên nhận tiền) — bỏ chọn bớt rồi thử lại.</div>' +
         '<div id="khcp-dn-draft-list"></div>' +
         '<div id="khcp-dn-new-box" class="khcp-dn-box">' +
-          '<div class="mb-3"><label class="form-label small mb-1" for="khcp-dn-so-hd">Số hoá đơn</label><input type="text" class="form-control form-control-sm" id="khcp-dn-so-hd" maxlength="50" placeholder="Không bắt buộc, sửa lại được ở màn đề nghị"></div>' +
           '<div class="row g-2 mb-3">' +
-            '<div class="col-6"><label class="form-label small mb-1" for="khcp-dn-ngay-hd">Ngày hoá đơn</label><input type="text" class="form-control form-control-sm khcp-dn-date" id="khcp-dn-ngay-hd" placeholder="dd/mm/yyyy" autocomplete="off"></div>' +
             '<div class="col-6"><label class="form-label small mb-1" for="khcp-dn-han-tt">Hạn thanh toán</label><input type="text" class="form-control form-control-sm khcp-dn-date" id="khcp-dn-han-tt" placeholder="dd/mm/yyyy" autocomplete="off"></div>' +
-          '</div>' +
-          '<div class="mb-3"><label class="form-label small mb-1" for="khcp-dn-ht">Hình thức thanh toán</label><select class="form-select form-select-sm" id="khcp-dn-ht"><option value="">Chưa chọn</option><option value="CK">Chuyển khoản</option><option value="TM">Tiền mặt</option></select></div>' +
-          '<div class="form-check"><input type="checkbox" class="form-check-input" id="khcp-dn-same" checked><label class="form-check-label" for="khcp-dn-same">Đối tác nhận tiền trùng bên phát hành</label></div>' +
-          '<div id="khcp-dn-payee-box" class="mt-3 khcp-dn-payee" style="display:none;">' +
-            '<label class="form-label small mb-1" for="khcp-dn-payee">Đối tác nhận tiền <span class="text-danger">*</span></label>' +
-            '<div class="mb-2" id="khcp-dn-driver-chip"></div>' +
-            '<select class="form-select" id="khcp-dn-payee"></select>' +
-            '<div class="small text-danger mt-1 d-none" id="khcp-dn-payee-error">Chọn đối tác nhận tiền hoặc tick lại "trùng bên phát hành".</div>' +
+            '<div class="col-6"><label class="form-label small mb-1" for="khcp-dn-ht">Hình thức thanh toán</label><select class="form-select form-select-sm" id="khcp-dn-ht"><option value="">Chưa chọn</option><option value="CK">Chuyển khoản</option><option value="TM">Tiền mặt</option></select></div>' +
           '</div>' +
         '</div>' +
-        '<div class="small text-muted mt-2">Mỗi đề nghị ứng với 1 hoá đơn của 1 bên phát hành. Cùng nhà cung cấp có 2 hoá đơn thì chọn "Tạo đề nghị mới" cho hoá đơn thứ hai.</div>' +
+        '<div class="small text-muted mt-2">Đề nghị gộp theo bên nhận tiền — có thể gồm nhiều hoá đơn của nhiều nhà cung cấp khác nhau, miễn cùng 1 bên nhận. Số/ngày hoá đơn sửa trực tiếp ở cột "Hoá đơn" của từng dòng chi phí.</div>' +
       '</div>' +
       '<div class="modal-footer"><button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>' +
       '<button type="button" class="btn btn-primary" id="khcp-dn-confirm"><i class="ti tabler-receipt-2 me-1"></i>Tạo đề nghị</button></div>' +
@@ -682,139 +690,84 @@
     if (drafts.length) {
       for (var i = 0; i < drafts.length; i++) {
         html += '<label class="khcp-dn-option"><input type="radio" name="khcp-dn-choice" value="' + drafts[i].nid + '"> <span><strong>Thêm vào đề nghị nháp ' + esc(drafts[i].ma_de_nghi) +
-          '</strong><span class="d-block small text-muted">' + drafts[i].so_dong + ' dòng · ' + money(drafts[i].tong_sau_vat) + ' đ' + (drafts[i].so_hoa_don ? ' · HĐ ' + esc(drafts[i].so_hoa_don) : '') + '</span></span></label>';
+          '</strong><span class="d-block small text-muted">' + drafts[i].so_dong + ' dòng · ' + money(drafts[i].tong_sau_vat) + ' đ · ' + (drafts[i].so_hoa_don_count || 0) + ' hoá đơn</span></span></label>';
       }
-      html += '<label class="khcp-dn-option"><input type="radio" name="khcp-dn-choice" value="new" checked> <span><strong>Tạo đề nghị mới</strong><span class="d-block small text-muted">Tạo 1 đề nghị nháp mới cho hoá đơn này</span></span></label>';
+      html += '<label class="khcp-dn-option"><input type="radio" name="khcp-dn-choice" value="new" checked> <span><strong>Tạo đề nghị mới</strong><span class="d-block small text-muted">Tạo 1 đề nghị nháp mới cho bên nhận tiền này</span></span></label>';
     }
     $('#khcp-dn-draft-list').html(html);
     dialog.choice = 'new';
     $('#khcp-dn-new-box').show();
   }
 
-  // Tên kèm số điện thoại nếu có: "Nguyễn Văn A (0123456789)"; không có thì chỉ tên.
-  function payeeLabel(x) { return x.ten + (x.sdt ? ' (' + x.sdt + ')' : ''); }
-
-  function fillPayee() {
-    var html = '<option value=""></option><optgroup label="Nhân viên (ứng tiền trước)">';
-    var staff = staffOptions();
-    for (var i = 0; i < staff.length; i++) html += '<option value="nhan_vien|' + staff[i].uid + '">' + esc(payeeLabel(staff[i])) + '</option>';
-    html += '</optgroup><optgroup label="Nhà cung cấp khác (thu hộ)">';
-    var nccs = (options && options.ncc) || [];
-    var anchor = issuerId();
-    for (var j = 0; j < nccs.length; j++) if (nccs[j].nid !== anchor) html += '<option value="ncc|' + nccs[j].nid + '">' + esc(payeeLabel(nccs[j])) + '</option>';
-    html += '</optgroup>';
-    var $p = $('#khcp-dn-payee');
-    if ($p.data('select2')) $p.select2('destroy');
-    $p.html(html);
-    if ($.fn.select2) {
-      $p.select2({ placeholder: 'Chọn nhân viên hoặc NCC khác…', allowClear: true, width: '100%', dropdownParent: $('#khcp-dn-modal') });
-      $p.off('select2:open.khcpFocus').on('select2:open.khcpFocus', function () {
-        window.setTimeout(function () {
-          var search = document.querySelector('.select2-container--open .select2-search__field');
-          if (search) search.focus();
-        }, 0);
-      });
-    }
-    var lx = tripDriver();
-    if (lx && lx.uid) {
-      $('#khcp-dn-driver-chip').html('<button type="button" class="btn btn-sm btn-label-primary" id="khcp-dn-driver-btn"><i class="ti tabler-steering-wheel me-1"></i>Lái xe của chuyến: ' + esc(lx.ten) + '</button>');
-    } else {
-      $('#khcp-dn-driver-chip').html('');
-    }
-  }
-
-  function issuerId() { return parseInt($('#khcp-dn-issuer').val(), 10) || 0; }
-
-  function fillIssuer(preselect) {
-    var html = '<option value="">Chọn bên phát hành…</option>';
-    var nccs = (options && options.ncc) || [];
-    for (var i = 0; i < nccs.length; i++) {
-      html += '<option value="' + nccs[i].nid + '"' + (nccs[i].nid === preselect ? ' selected' : '') + '>' + esc(nccs[i].ten) + '</option>';
-    }
-    var $s = $('#khcp-dn-issuer');
-    if ($s.data('select2')) $s.select2('destroy');
-    $s.html(html);
-    if ($.fn.select2) {
-      $s.select2({ placeholder: 'Chọn bên phát hành…', allowClear: true, width: '100%', dropdownParent: $('#khcp-dn-modal') });
-      $s.off('select2:open.khcpFocus').on('select2:open.khcpFocus', function () {
-        window.setTimeout(function () {
-          var search = document.querySelector('.select2-container--open .select2-search__field');
-          if (search) search.focus();
-        }, 0);
-      });
-    }
-  }
-
-  // Bên phát hành đổi thì nạp lại đề nghị nháp của bên đó và danh sách bên nhận tiền (bỏ chính bên phát hành).
+  // Bên nhận tiền của đề nghị giờ suy thẳng từ các dòng đã tick (đã cùng 1 bên nhận, kiểm tra ở openDialog) —
+  // không còn ô "Bên phát hành" để tự chọn, và không còn "trùng bên phát hành" (không có 1 phát hành duy nhất nữa).
   function loadDrafts() {
-    var ncc = issuerId();
-    $('#khcp-dn-issuer-error').addClass('d-none');
-    fillPayee();
-    if (!ncc) { renderDrafts([]); return; }
-    $('#khcp-dn-draft-list').html('<div class="small text-muted mb-2"><span class="spinner-border spinner-border-sm me-1" role="status"></span>Đang kiểm tra đề nghị nháp của nhà cung cấp…</div>');
+    if (!dialog.payee) { renderDrafts([]); return; }
+    var bnt = dialog.payee.loai + '|' + dialog.payee.id;
+    $('#khcp-dn-draft-list').html('<div class="small text-muted mb-2"><span class="spinner-border spinner-border-sm me-1" role="status"></span>Đang kiểm tra đề nghị nháp của bên nhận tiền này…</div>');
     $.ajax({
-      url: API, type: 'GET', dataType: 'json', data: { tab: 'nhap', nid_ncc_phat_hanh: ncc, limit: 50 },
+      url: API, type: 'GET', dataType: 'json', data: { tab: 'nhap', ben_nhan_tien: bnt, limit: 50 },
       success: function (res) {
-        if (issuerId() !== ncc) return;   // đã đổi bên phát hành khác trong lúc chờ
+        if (!dialog.payee || (dialog.payee.loai + '|' + dialog.payee.id) !== bnt) return; // đã đổi lựa chọn trong lúc chờ
         var items = (res && res.data && res.data.items) || [];
         renderDrafts($.grep(items, function (it) { return it.co_the_sua && it.trang_thai === 'nhap'; }));
       },
-      error: function () { if (issuerId() === ncc) renderDrafts([]); }
+      error: function () { renderDrafts([]); }
     });
   }
 
   function openDialog() {
     var rows = selectedRows();
     if (!rows.length) return;
-    dialog = { rows: rows, choice: 'new', tried: false };
+    dialog = { rows: rows, choice: 'new', tried: false, payee: null };
     var sum = 0;
-    var nccIds = {};
-    $.each(rows, function (_, r) { sum += Number(r.tong_sau_vat) || 0; if (r.nid_ncc) nccIds[r.nid_ncc] = true; });
-    // Gợi ý bên phát hành khi tất cả dòng chọn cùng 1 NCC; ngược lại để trống cho người dùng tự chọn.
+    var payeeMap = {};
+    var hasNone = false;
+    $.each(rows, function (_, r) {
+      sum += Number(r.tong_sau_vat) || 0;
+      var p = payeeOf(r);
+      if (!p) { hasNone = true; return; }
+      payeeMap[p.loai + '|' + p.id] = p;
+    });
     var keys = [];
-    for (var k in nccIds) { if (nccIds.hasOwnProperty(k)) keys.push(parseInt(k, 10)); }
-    var suggested = (keys.length === 1 && $.grep(rows, function (r) { return !r.nid_ncc; }).length === 0) ? keys[0] : 0;
+    for (var k in payeeMap) { if (payeeMap.hasOwnProperty(k)) keys.push(k); }
     var $modal = getModal();
     $('#khcp-dn-summary').html(rows.length + ' dòng chi phí · Tổng sau VAT ' + money(sum) + ' đ');
-    $('#khcp-dn-so-hd, #khcp-dn-ngay-hd, #khcp-dn-han-tt').val('');
-    $('#khcp-dn-ht').val('');
-    $('#khcp-dn-same').prop('checked', true);
-    $('#khcp-dn-payee-box').hide();
-    $('#khcp-dn-payee-error, #khcp-dn-issuer-error').addClass('d-none');
-    $('#khcp-dn-issuer').html('<option value="">Đang tải…</option>');
+    $('#khcp-dn-han-tt, #khcp-dn-ht').val('');
     $('#khcp-dn-draft-list').html('');
     $('#khcp-dn-new-box').show();
+    var mismatch = hasNone || keys.length !== 1;
+    $('#khcp-dn-payee-mismatch').toggleClass('d-none', !mismatch);
+    $('#khcp-dn-confirm').prop('disabled', mismatch);
+    if (mismatch) {
+      $('#khcp-dn-payee-info').html('');
+      $('#khcp-dn-new-box').hide();
+      $modal.show();
+      return;
+    }
+    dialog.payee = payeeMap[keys[0]];
+    $('#khcp-dn-payee-info').html(
+      '<div class="small text-muted mb-1">Bên nhận tiền (theo các dòng đã chọn)</div>' +
+      '<div class="d-flex align-items-center gap-2"><i class="' + esc(KIND_ICON[dialog.payee.loai] || 'ti tabler-user') + '"></i>' +
+      '<strong>' + esc(dialog.payee.ten) + '</strong><span class="khcp-mini ' + esc(dialog.payee.loai) + '">' + esc(KIND_LABEL[dialog.payee.loai] || '') + '</span></div>'
+    );
     $modal.show();
-    ensureOptions(function () {
-      fillIssuer(suggested);
-      loadDrafts();
-    });
+    ensureOptions(function () { loadDrafts(); });
   }
 
   function submitDialog() {
+    if (!dialog.payee) return; // nút đã bị disable khi lệch bên nhận tiền, đây là chặn phòng hờ
     var body = { chi_phi_ids: $.map(dialog.rows, function (r) { return r.nid; }) };
     var choice = $('input[name="khcp-dn-choice"]:checked').val() || 'new';
-    if (!issuerId()) { $('#khcp-dn-issuer-error').removeClass('d-none'); return; }
-    body.nid_ncc = issuerId();
     if (choice !== 'new') {
       body.nid_de_nghi = parseInt(choice, 10);
     } else {
-      var ngay = toApiDate($('#khcp-dn-ngay-hd').val());
       var han = toApiDate($('#khcp-dn-han-tt').val());
-      if (ngay === null || han === null) { core.notify('Ngày phải có dạng dd/mm/yyyy.', 'error'); return; }
-      body.so_hoa_don = $.trim($('#khcp-dn-so-hd').val());
-      body.ngay_hoa_don = ngay;
+      if (han === null) { core.notify('Ngày phải có dạng dd/mm/yyyy.', 'error'); return; }
       body.han_thanh_toan = han;
       body.hinh_thuc_tt = $('#khcp-dn-ht').val();
-      var same = $('#khcp-dn-same').is(':checked');
-      body.ben_nhan_tien_trung = same;
-      if (!same) {
-        var v = $('#khcp-dn-payee').val();
-        if (!v) { $('#khcp-dn-payee-error').removeClass('d-none'); return; }
-        var i = v.indexOf('|');
-        body.loai_ben_nhan_tien = v.slice(0, i);
-        body.id_ben_nhan_tien = parseInt(v.slice(i + 1), 10);
-      }
+      body.loai_ben_nhan_tien = dialog.payee.loai;
+      body.id_ben_nhan_tien = dialog.payee.id;
     }
     var $btn = $('#khcp-dn-confirm');
     $btn.prop('disabled', true);
@@ -874,6 +827,8 @@
       row.trang_thai_duyet = item.trang_thai_duyet || 'khong_can_duyet';
       row.de_nghi = item.de_nghi || null;
       row.khoa_sua = !!item.khoa_sua;
+      row.so_hoa_don = item.so_hoa_don || '';
+      row.ngay_hoa_don = item.ngay_hoa_don || '';
       row._snap = snapshotOf(row);
     },
     isLocked: function (row) { return !!row.khoa_sua; },
@@ -881,9 +836,13 @@
       payload.nid_ncc = row.nid_ncc || 0;
       payload.loai_ben_nhan_tien = payeeApplies(row) ? (row.loai_ben_nhan_tien || '') : '';
       payload.id_ben_nhan_tien = payeeApplies(row) ? (row.id_ben_nhan_tien || 0) : 0;
+      payload.so_hoa_don = row.so_hoa_don || '';
+      payload.ngay_hoa_don = row.ngay_hoa_don || '';
     },
     leadCell: function (row) { return '<td class="khcp-col-check">' + leadInner(row) + '</td>'; },
-    afterNameCell: function (row) { return '<td class="khcp-col-ncc">' + nccInner(row) + '</td><td class="khcp-col-payee">' + payeeInner(row) + '</td>'; },
+    afterNameCell: function (row) {
+      return '<td class="khcp-col-ncc">' + nccInner(row) + '</td><td class="khcp-col-hd">' + hoaDonInner(row) + '</td><td class="khcp-col-payee">' + payeeInner(row) + '</td>';
+    },
     beforeActionCell: function (row) { return '<td class="khcp-col-dntt">' + statusInner(row) + '</td>'; },
     afterRenderTable: function () {
       ensureHeader();
@@ -965,6 +924,20 @@
         row.ncc_ten = row.nid_ncc ? $.trim($s.find('option:selected').text()) : '';
         refreshRow($tr, row);
       });
+      // Số/ngày hoá đơn của dòng — điền ngay tại đây, không cần vào modal đề nghị thanh toán. Không ảnh hưởng
+      // ô nào khác nên không cần refreshRow (tránh mất focus khi đang gõ).
+      $(document).on('change', '.khcp-hd-input', function () {
+        var $i = $(this), $tr = $i.closest('tr'), field = $i.attr('data-hd-field');
+        var row = core.getRow($tr.data('row-key'));
+        if (!row) return;
+        if (field === 'ngay_hoa_don') {
+          var d = toApiDate($i.val());
+          if (d === null) { core.notify('Ngày hoá đơn phải có dạng dd/mm/yyyy.', 'error'); $i.val(toView(row.ngay_hoa_don)); return; }
+          row.ngay_hoa_don = d;
+        } else {
+          row.so_hoa_don = $.trim($i.val());
+        }
+      });
       // Core cập nhật loai_chi_phi trong handler của nó; đợi xong mới vẽ lại 2 ô phụ thuộc loại.
       $(document).on('click', '.khcp-payee-btn', function (e) {
         e.stopPropagation();
@@ -1003,15 +976,6 @@
       $(document).on('change', 'input[name="khcp-dn-choice"]', function () {
         dialog.choice = $(this).val();
         $('#khcp-dn-new-box').toggle(dialog.choice === 'new');
-      });
-      $(document).on('change', '#khcp-dn-issuer', function () { loadDrafts(); });
-      $(document).on('change', '#khcp-dn-same', function () {
-        $('#khcp-dn-payee-box').toggle(!$(this).is(':checked'));
-        $('#khcp-dn-payee-error').addClass('d-none');
-      });
-      $(document).on('click', '#khcp-dn-driver-btn', function () {
-        var lx = tripDriver();
-        if (lx && lx.uid) $('#khcp-dn-payee').val('nhan_vien|' + lx.uid).trigger('change');
       });
       $(document).on('click', '#khcp-dn-confirm', submitDialog);
     }
