@@ -627,22 +627,32 @@
 
   // Bên nhận tiền giờ là khoá gộp bắt buộc của đề nghị (không còn khái niệm "trùng bên phát hành" để loại trừ 1 NCC
   // khỏi danh sách) — liệt kê đủ Nhân viên + mọi Nhà cung cấp.
+  // Nhóm theo cùng thứ tự với popup "Bên nhận tiền" ở tab Chi phí hàng cảng: Nhân viên → Nhà cung cấp → Lái xe.
   function payeeSelectHtml(current) {
     var html = '<option value=""></option>';
     var staff = (state.options && state.options.nhan_vien) || [];
     var nccs = (state.options && state.options.ncc) || [];
-    html += '<optgroup label="Nhân viên (ứng tiền trước)">';
-    var hasCurrent = false;
-    for (var i = 0; i < staff.length; i++) {
+    var drivers = (state.options && state.options.lai_xe_ds) || [];
+    var hasStaff = false, hasDriver = false, i;
+    html += '<optgroup label="Nhân viên">';
+    for (i = 0; i < staff.length; i++) {
       html += '<option value="nhan_vien|' + staff[i].uid + '">' + esc(payeeLabel(staff[i])) + '</option>';
-      if (current && current.loai === 'nhan_vien' && staff[i].uid === current.id) hasCurrent = true;
+      if (current && current.loai === 'nhan_vien' && staff[i].uid === current.id) hasStaff = true;
     }
-    // Bên nhận đã lưu là 1 lái xe (danh sách nhân viên không liệt kê lái xe): giữ lại để ô không bị trống khi sửa.
-    if (current && current.loai === 'nhan_vien' && !hasCurrent) {
+    // Bên nhận đã lưu là tài khoản không còn trong danh sách nhân viên (vd tài khoản lái xe): giữ lại để ô không trống khi sửa.
+    if (current && current.loai === 'nhan_vien' && !hasStaff) {
       html += '<option value="nhan_vien|' + current.id + '">' + esc(current.ten) + '</option>';
     }
     html += '</optgroup><optgroup label="Nhà cung cấp">';
-    for (var j = 0; j < nccs.length; j++) html += '<option value="ncc|' + nccs[j].nid + '">' + esc(payeeLabel(nccs[j])) + '</option>';
+    for (i = 0; i < nccs.length; i++) html += '<option value="ncc|' + nccs[i].nid + '">' + esc(payeeLabel(nccs[i])) + '</option>';
+    html += '</optgroup><optgroup label="Lái xe">';
+    for (i = 0; i < drivers.length; i++) {
+      html += '<option value="lai_xe|' + drivers[i].nid + '">' + esc(payeeLabel(drivers[i])) + '</option>';
+      if (current && current.loai === 'lai_xe' && drivers[i].nid === current.id) hasDriver = true;
+    }
+    if (current && current.loai === 'lai_xe' && !hasDriver) {
+      html += '<option value="lai_xe|' + current.id + '">' + esc(current.ten) + '</option>';
+    }
     html += '</optgroup>';
     return html;
   }
@@ -886,10 +896,16 @@
   function finishCreateLines(items) {
     $('#dn-create-loading').hide();
     items = mergeOwnLines(items);
+    // Dòng đã tick mà không khớp bộ lọc mới (tên/cont/số HĐ/ngày) vẫn giữ lại trong bảng và giữ tick — lọc chỉ để
+    // tìm thêm dòng, không làm mất dòng đã chọn. Đổi bên nhận tiền thì handler riêng đã xoá hết tick trước khi tải.
+    var seen = {}, i, nid;
+    for (i = 0; i < items.length; i++) seen[items[i].nid] = true;
+    for (nid in createState.selected) {
+      if (createState.selected.hasOwnProperty(nid) && !seen[nid] && createState.rows[nid]) items.push(createState.rows[nid]);
+    }
     createState.rows = {};
-    for (var i = 0; i < items.length; i++) createState.rows[items[i].nid] = items[i];
-    // Dòng đã tick nhưng không còn khớp bộ lọc/bên nhận tiền hiện tại: bỏ tick, tránh gửi id không hợp lệ.
-    for (var nid in createState.selected) {
+    for (i = 0; i < items.length; i++) createState.rows[items[i].nid] = items[i];
+    for (nid in createState.selected) {
       if (createState.selected.hasOwnProperty(nid) && !createState.rows[nid]) delete createState.selected[nid];
     }
     renderCreateLines(items);
@@ -910,6 +926,10 @@
     var params = { ben_nhan_tien: payee, chua_gop: 1, gop_duoc: 1, limit: 100, page: 1 };
     var kw = $.trim($('#dn-create-q').val());
     if (kw) params.keyword = kw;
+    var cont = $.trim($('#dn-create-cont').val());
+    if (cont) params.so_cont = cont;
+    var soHd = $.trim($('#dn-create-so-hd').val());
+    if (soHd) params.so_hoa_don = soHd;
     var range = readCreateDateRange();
     if (range.tu) params.tu_ngay = range.tu;
     if (range.den) params.den_ngay = range.den;
@@ -1016,7 +1036,8 @@
   function openCreate() {
     resetCreateState();
     setCreateModalMode('create');
-    $('#dn-create-q, #dn-create-han-tt, #dn-create-ghi-chu').val('');
+    $('#dn-create-q, #dn-create-cont, #dn-create-so-hd, #dn-create-han-tt, #dn-create-ghi-chu').val('');
+    $('.dn-create-filter').data('dnLast', '');
     clearCreateDateRange();
     $('#dn-create-ht').val('');
     $('#dn-create-lines').html('');
@@ -1038,7 +1059,8 @@
     createState.mode = 'edit';
     createState.editId = id;
     setCreateModalMode('edit');
-    $('#dn-create-q, #dn-create-han-tt, #dn-create-ghi-chu').val('');
+    $('#dn-create-q, #dn-create-cont, #dn-create-so-hd, #dn-create-han-tt, #dn-create-ghi-chu').val('');
+    $('.dn-create-filter').data('dnLast', '');
     clearCreateDateRange();
     $('#dn-create-ht').val('');
     $('#dn-create-lines').html('');
@@ -1350,8 +1372,15 @@
       $('#dn-create-payee').removeClass('is-invalid');
       fetchCreateLines();
     });
-    $('#dn-create-q').keydown(function (e) { if (e.which === 13) { e.preventDefault(); fetchCreateLines(); } });
-    $('#dn-create-q').bind('blur', fetchCreateLines);
+    // 3 ô lọc Tên chi phí / Số cont / Số hoá đơn: Enter hoặc rời ô thì tải lại, chỉ khi giá trị thực sự đổi.
+    var filterRefetch = function () {
+      var v = $.trim($(this).val());
+      if ($(this).data('dnLast') === v) return;
+      $(this).data('dnLast', v);
+      fetchCreateLines();
+    };
+    $('.dn-create-filter').keydown(function (e) { if (e.which === 13) { e.preventDefault(); filterRefetch.call(this); } });
+    $('.dn-create-filter').bind('blur', filterRefetch);
     $('#dn-create-lines').delegate('.money-input', 'input', function () { formatMoneyKeepCaret(this); });
     // Click vào dòng (chỗ không phải ô nhập/select2/nút) = tick/bỏ tick dòng đó.
     $('#dn-create-lines').delegate('tr.dn-create-row', 'click', function (e) {

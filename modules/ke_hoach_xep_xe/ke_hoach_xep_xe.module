@@ -1368,7 +1368,7 @@ function _ke_hoach_chi_phi_rest_list() {
   }
   // Các bộ lọc dưới đây phục vụ modal "Tạo/Sửa đề nghị thanh toán" (chọn dòng chi phí theo bên nhận
   // tiền, chưa gộp) — chỉ áp dụng hàng cảng, đề nghị thanh toán chưa hỗ trợ tuyến xa.
-  if (!empty($_GET['ben_nhan_tien']) && preg_match('/^(ncc|nhan_vien)\|(\d+)$/', (string) $_GET['ben_nhan_tien'], $bm)) {
+  if (!empty($_GET['ben_nhan_tien']) && preg_match('/^(ncc|nhan_vien|lai_xe)\|(\d+)$/', (string) $_GET['ben_nhan_tien'], $bm)) {
     $query->condition('c.loai_ke_hoach', 'thuong');
     $bid = (int) $bm[2];
     if ($bm[1] === 'ncc') {
@@ -1379,7 +1379,7 @@ function _ke_hoach_chi_phi_rest_list() {
       );
     }
     else {
-      $query->condition('c.loai_ben_nhan_tien', 'nhan_vien')->condition('c.id_ben_nhan_tien', $bid);
+      $query->condition('c.loai_ben_nhan_tien', $bm[1])->condition('c.id_ben_nhan_tien', $bid);
     }
   }
   if (!empty($_GET['chua_gop'])) {
@@ -1391,13 +1391,22 @@ function _ke_hoach_chi_phi_rest_list() {
   if (!empty($_GET['keyword'])) {
     $query->condition('c.ten_chi_phi', '%' . db_like(trim((string) $_GET['keyword'])) . '%', 'LIKE');
   }
-  if (!empty($_GET['tu_ngay']) || !empty($_GET['den_ngay'])) {
+  $so_hd_q = isset($_GET['so_hoa_don']) ? trim((string) $_GET['so_hoa_don']) : '';
+  if ($so_hd_q !== '') {
+    $query->condition('c.so_hoa_don', '%' . db_like($so_hd_q) . '%', 'LIKE');
+  }
+  // Lọc theo ngày kế hoạch / số cont đều cần kế hoạch của dòng — JOIN 1 lần dùng chung.
+  $so_cont_q = isset($_GET['so_cont']) ? trim((string) $_GET['so_cont']) : '';
+  if (!empty($_GET['tu_ngay']) || !empty($_GET['den_ngay']) || $so_cont_q !== '') {
     $query->leftJoin('ke_hoach_xep_xe', 'k', 'k.nid = c.nid_ke_hoach');
     if (!empty($_GET['tu_ngay'])) {
       $query->condition('k.ngay_gio_ke_hoach', trim((string) $_GET['tu_ngay']) . ' 00:00:00', '>=');
     }
     if (!empty($_GET['den_ngay'])) {
       $query->condition('k.ngay_gio_ke_hoach', trim((string) $_GET['den_ngay']) . ' 23:59:59', '<=');
+    }
+    if ($so_cont_q !== '') {
+      $query->condition('k.so_cont', '%' . db_like($so_cont_q) . '%', 'LIKE');
     }
   }
   $count_query = clone $query;

@@ -510,7 +510,7 @@
       $.each(list, function (_, p) { if (match(p)) items += popItemHtml(p, '', payeeKey(p) === cur); });
       return section(title, items);
     };
-    var groups = group('Lái xe', cand.drivers) + group('Nhân viên', cand.staff) + group('Nhà cung cấp', cand.nccs);
+    var groups = group('Nhân viên', cand.staff) + group('Nhà cung cấp', cand.nccs) + group('Lái xe', cand.drivers);
     html += groups;
     if (q && !groups) html += '<div class="text-center text-muted small py-3">Không tìm thấy</div>';
     if (!options) html += '<div class="text-center text-muted small py-3">Đang tải danh sách…</div>';

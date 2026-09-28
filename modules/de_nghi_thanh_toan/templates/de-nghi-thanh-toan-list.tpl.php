@@ -136,16 +136,24 @@
             <div class="alert alert-danger py-2 d-none" id="dn-create-reject"></div>
             <div class="alert alert-primary py-2 mb-3" id="dn-create-alert-hint">Chọn <strong>bên nhận tiền</strong> trước — hệ thống liệt kê mọi dòng chi phí (của bất kỳ NCC/hoá đơn nào) đang chờ gộp mà có bên nhận tiền này. Dòng chưa có số hoá đơn điền bù ngay tại đây.</div>
             <div class="row g-3 mb-2">
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label class="form-label" for="dn-create-payee">Bên nhận tiền <span class="text-danger">*</span></label>
                 <select class="form-select" id="dn-create-payee"><option value="">Chọn bên nhận tiền…</option></select>
                 <div class="invalid-feedback" id="dn-create-payee-error">Vui lòng chọn bên nhận tiền.</div>
               </div>
-              <div class="col-md-3">
-                <label class="form-label" for="dn-create-q">Lọc theo tên chi phí</label>
-                <input type="text" class="form-control" id="dn-create-q" placeholder="Gõ để lọc">
+              <div class="col-md-2">
+                <label class="form-label" for="dn-create-q">Tên chi phí</label>
+                <input type="text" class="form-control dn-create-filter" id="dn-create-q" placeholder="Gõ để lọc">
               </div>
-              <div class="col-md-3">
+              <div class="col-md-2">
+                <label class="form-label" for="dn-create-cont">Số cont</label>
+                <input type="text" class="form-control dn-create-filter" id="dn-create-cont" placeholder="Gõ để lọc">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label" for="dn-create-so-hd">Số hoá đơn</label>
+                <input type="text" class="form-control dn-create-filter" id="dn-create-so-hd" placeholder="Gõ để lọc">
+              </div>
+              <div class="col-md-2">
                 <label class="form-label" for="dn-create-daterange">Ngày kế hoạch</label>
                 <input type="text" class="form-control" id="dn-create-daterange" placeholder="Chọn khoảng ngày" autocomplete="off" readonly>
               </div>

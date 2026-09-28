@@ -538,19 +538,18 @@ function _de_nghi_thanh_toan_hinh_thuc_options() {
 function _de_nghi_thanh_toan_resolve_payee_required(array $input, $fallback = NULL) {
   $loai = isset($input['loai_ben_nhan_tien']) ? trim((string) $input['loai_ben_nhan_tien']) : ($fallback ? $fallback['loai'] : '');
   $id = isset($input['id_ben_nhan_tien']) ? (int) $input['id_ben_nhan_tien'] : ($fallback ? (int) $fallback['id'] : 0);
-  if (!in_array($loai, array('ncc', 'nhan_vien'), TRUE) || !$id) {
+  // lai_xe (nid bảng lai_xe, lái xe chưa có tài khoản vẫn được): dòng chi phí có thể đặt bên nhận là lái xe
+  // (tab Chi phí hàng cảng) nên đề nghị chi phí cũng phải gộp được theo lái xe.
+  if (!in_array($loai, array('ncc', 'nhan_vien', 'lai_xe'), TRUE) || !$id) {
     return 'Vui lòng chọn bên nhận tiền.';
   }
-  if ($loai === 'ncc') {
-    if (!_ke_hoach_chi_phi_ncc_is_valid($id)) {
-      return 'Bên nhận tiền (nhà cung cấp) không hợp lệ.';
-    }
-  }
-  else {
-    $ok = db_query("SELECT uid FROM {users} WHERE uid = :uid AND status = 1", array(':uid' => $id))->fetchField();
-    if (!$ok) {
-      return 'Nhân viên nhận tiền không tồn tại hoặc đã bị khoá.';
-    }
+  if (!_ke_hoach_chi_phi_payee_is_valid($loai, $id)) {
+    $msg = array(
+      'ncc' => 'Bên nhận tiền (nhà cung cấp) không hợp lệ.',
+      'nhan_vien' => 'Nhân viên nhận tiền không tồn tại hoặc đã bị khoá.',
+      'lai_xe' => 'Lái xe nhận tiền không tồn tại hoặc đã ngưng hoạt động.',
+    );
+    return $msg[$loai];
   }
   return array('loai' => $loai, 'id' => $id);
 }
