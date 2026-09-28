@@ -500,13 +500,17 @@
       qTimer = setTimeout(function () { S.q = v; renderBody(); }, 200);
     });
     $('#pq-only-changed').on('click', function () { S.onlyChanged = !S.onlyChanged; refresh(); });
+    // Như tải lại trang: xoá ô tìm + bộ lọc, bỏ thay đổi chưa lưu (hỏi trước nếu có), tải lại dữ liệu từ server.
     $('#pq-btn-reset').on('click', function () {
+      var n = Object.keys(S.changes).length;
+      if (n && !window.confirm('Bỏ ' + n + ' thay đổi chưa lưu và tải lại dữ liệu?')) return;
       clearTimeout(qTimer);
       $('#pq-q').val('');
       S.q = '';
       S.onlyChanged = false;
       S.collapsed = {};
-      refresh();
+      S.changes = {};
+      loadData();
     });
     $('#pq-toggle-groups').on('click', function () {
       var open = anyGroupOpen();
@@ -652,11 +656,21 @@
     if (typeof Notyf !== 'undefined') notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
     loadUiPrefs();
     bind();
+    loadData();
+  }
+
+  function loadData() {
+    var $btn = $('#pq-btn-reset').prop('disabled', true);
+    $btn.find('i').addClass('pq-spin');
     loading(true);
     $.ajax({
-      url: API, type: 'GET', dataType: 'json',
-      success: function (res) { loading(false); applyData(res.data); },
-      error: function (jqXHR) { loading(false); $('#pq-tbody').html('<tr><td class="text-center text-danger py-4">' + esc(apiMsg(jqXHR)) + '</td></tr>'); }
+      url: API, type: 'GET', dataType: 'json', cache: false,
+      success: function (res) { applyData(res.data); },
+      error: function (jqXHR) { $('#pq-tbody').html('<tr><td class="text-center text-danger py-4">' + esc(apiMsg(jqXHR)) + '</td></tr>'); },
+      complete: function () {
+        loading(false);
+        $btn.prop('disabled', false).find('i').removeClass('pq-spin');
+      }
     });
   }
 

@@ -9,6 +9,13 @@
 /* Nút reset chỉ có icon — cùng kiểu nút reset bộ lọc ở /de-nghi-thanh-toan. */
 #pq-app .pq-filter-reset { display: inline-flex; align-items: center; justify-content: center; width: 38px; min-width: 38px; height: 38px; padding: 0; }
 #pq-app .pq-filter-reset > i { margin: 0 !important; font-size: 1.05rem; line-height: 1; }
+#pq-app .pq-spin { display: inline-block; animation: pq-spin .8s linear infinite; }
+@keyframes pq-spin { to { transform: rotate(360deg); } }
+
+/* Tab chưa chọn có nền xám nhạt để nhìn ra là nút (nav-pills mặc định trong suốt, lẫn vào nền trắng). */
+#pq-tabs .nav-link { border: 0; cursor: pointer; }
+#pq-tabs .nav-link:not(.active) { background: #f1f0f3; color: #5d596c; }
+#pq-tabs .nav-link:not(.active):hover { background: #e9e7fd; color: #7367f0; }
 #pq-app .pq-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-bottom: .6rem; }
 #pq-app .pq-legend-changed { display: inline-block; width: 12px; height: 12px; background: #fff4d6; border: 1px solid #ffd98a; border-radius: 2px; vertical-align: -1px; }
 #pq-app .pq-chip-row { display: inline-flex; flex-wrap: wrap; gap: .35rem; }

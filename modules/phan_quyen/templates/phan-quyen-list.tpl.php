@@ -12,7 +12,7 @@
 
   <div class="px-4">
     <div class="nav nav-pills gap-1" id="pq-tabs">
-      <button type="button" class="nav-link active" data-tab="mt">Ma trận quyền</button>
+      <button type="button" class="nav-link active" data-tab="mt">Ma trận phân quyền</button>
       <button type="button" class="nav-link" data-tab="vt">Vai trò</button>
       <button type="button" class="nav-link" data-tab="ls">Lịch sử thay đổi</button>
     </div>
@@ -21,14 +21,14 @@
   <div class="card-body pq-body">
     <div class="pq-loading" id="pq-loading"><div class="spinner-border text-primary" role="status"></div></div>
 
-    <!-- Ma trận quyền -->
+    <!-- Ma trận phân quyền -->
     <div class="pq-panel" data-panel="mt">
       <div class="pq-toolbar">
         <div class="input-group pq-search">
           <span class="input-group-text"><i class="ti tabler-search"></i></span>
           <input type="text" class="form-control" id="pq-q" placeholder="Tìm quyền, mã quyền, module, đường dẫn" autocomplete="off">
         </div>
-        <button type="button" class="btn btn-label-secondary pq-filter-reset" id="pq-btn-reset" title="Reset bộ lọc" aria-label="Reset bộ lọc"><i class="ti tabler-refresh"></i></button>
+        <button type="button" class="btn btn-label-secondary pq-filter-reset" id="pq-btn-reset" title="Tải lại" aria-label="Tải lại"><i class="ti tabler-refresh"></i></button>
         <button type="button" class="btn btn-sm btn-label-secondary" id="pq-only-changed">Chỉ dòng đang thay đổi</button>
         <button type="button" class="btn btn-sm btn-label-secondary" id="pq-toggle-groups">Thu gọn tất cả nhóm</button>
         <div class="flex-grow-1"></div>
