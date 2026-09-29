@@ -822,10 +822,16 @@ function _hop_dong_nhan_vien_file_delete($id, $file_id) { if (!api_has_permissio
  ******************************************************************************/
 
 function hop_dong_page_list() {
+  if (!api_has_permission('hop_dong_view')) {
+    return api_denied_page('Bạn không có quyền xem hợp đồng khách hàng');
+  }
   return _hop_dong_page_list(FALSE);
 }
 
 function hop_dong_nhan_vien_page_list() {
+  if (!api_has_permission('hop_dong_nhan_vien_view')) {
+    return api_denied_page('Bạn không có quyền xem hợp đồng nhân viên');
+  }
   return _hop_dong_page_list(TRUE);
 }
 

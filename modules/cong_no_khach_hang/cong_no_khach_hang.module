@@ -52,6 +52,9 @@ function cong_no_khach_hang_theme() {
 }
 
 function cong_no_khach_hang_page_list() {
+  if (!api_has_permission('cong_no_khach_hang_view')) {
+    return api_denied_page('Bạn không có quyền xem công nợ khách hàng');
+  }
   $path = drupal_get_path('module', 'cong_no_khach_hang');
   $version = REQUEST_TIME;
   drupal_add_css($path . '/assets/css/cong_no_khach_hang.css', array('group' => CSS_THEME, 'weight' => 20, 'version' => $version));

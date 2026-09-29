@@ -69,6 +69,9 @@ function phieu_tra_khach_hang_theme() {
 }
 
 function phieu_tra_khach_hang_page_list() {
+  if (!api_has_permission('phieu_tra_khach_hang_view')) {
+    return api_denied_page('Bạn không có quyền xem phiếu trả khách hàng');
+  }
   $module_path = drupal_get_path('module', 'phieu_tra_khach_hang');
   $css_path = $module_path . '/assets/css/phieu_tra_khach_hang.css';
   $js_path = $module_path . '/assets/js/phieu_tra_khach_hang.js';

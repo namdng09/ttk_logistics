@@ -4733,6 +4733,9 @@ function _ke_hoach_hang_cang_add_master_assets() {
 }
 
 function ke_hoach_xep_xe_page_list() {
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
+    return api_denied_page('Bạn không có quyền xem kế hoạch');
+  }
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_hang_cang.css');
   _ke_hoach_hang_cang_add_master_assets();
@@ -4765,6 +4768,9 @@ function ke_hoach_xep_xe_page_list() {
 }
 
 function ke_hoach_cont_page_list() {
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
+    return api_denied_page('Bạn không có quyền xem kế hoạch');
+  }
   $mode = 'overall';
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   _ke_hoach_hang_cang_add_master_assets();
@@ -4786,6 +4792,9 @@ function ke_hoach_cont_page_list() {
  * (giao diện sao chép từ hàng cảng, không dùng chung selector).
  */
 function ke_hoach_cat_mooc_page_list() {
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
+    return api_denied_page('Bạn không có quyền xem kế hoạch');
+  }
   $module_path = drupal_get_path('module', 'ke_hoach_xep_xe');
   drupal_add_css($module_path . '/assets/css/ke_hoach_cat_mooc.css');
   _ke_hoach_hang_cang_add_master_assets();
@@ -4794,6 +4803,9 @@ function ke_hoach_cat_mooc_page_list() {
 }
 
 function ke_hoach_xep_xe_page_form($id = NULL) {
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
+    return api_denied_page('Bạn không có quyền xem kế hoạch');
+  }
   if (!$id) {
     drupal_goto('ke-hoach-xep-xe');
   }
@@ -4849,6 +4861,9 @@ function ke_hoach_xep_xe_page_form($id = NULL) {
 }
 
 function ke_hoach_xep_xe_page_detail($id) {
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
+    return api_denied_page('Bạn không có quyền xem kế hoạch');
+  }
   $id = (int) $id;
   if (!$id) {
     return MENU_NOT_FOUND;
@@ -5662,6 +5677,9 @@ function _ke_hoach_tuyen_xa_add_master_assets() {
 }
 
 function ke_hoach_tuyen_xa_page_list() {
+  if (!api_has_permission('ke_hoach_xep_xe_view')) {
+    return api_denied_page('Bạn không có quyền xem kế hoạch');
+  }
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_xep_xe.css');
   drupal_add_css(drupal_get_path('module', 'ke_hoach_xep_xe') . '/assets/css/ke_hoach_tuyen_xa_screen.css');
   _ke_hoach_tuyen_xa_add_master_assets();

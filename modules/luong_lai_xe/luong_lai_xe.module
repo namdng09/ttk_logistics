@@ -107,6 +107,9 @@ function luong_lai_xe_theme() {
 }
 
 function luong_lai_xe_page_list() {
+  if (!api_has_permission('luong_lai_xe_view') && !api_has_permission('administer permissions')) {
+    return api_denied_page('Bạn không có quyền xem lương lái xe');
+  }
   drupal_add_css(drupal_get_path('module', 'luong_lai_xe') . '/assets/css/luong_lai_xe.css');
   drupal_add_js(drupal_get_path('module', 'luong_lai_xe') . '/assets/js/luong_lai_xe.js', array('group' => JS_THEME, 'weight' => 2));
   drupal_add_js(array('luong_lai_xe' => array(

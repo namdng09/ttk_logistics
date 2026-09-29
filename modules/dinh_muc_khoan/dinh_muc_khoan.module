@@ -431,6 +431,9 @@ function _dinh_muc_khoan_rest_delete($id) {
  ******************************************************************************/
 
 function dinh_muc_khoan_page_list() {
+  if (!api_has_permission('dinh_muc_khoan_view')) {
+    return api_denied_page('Bạn không có quyền xem định mức khoán');
+  }
   drupal_add_css(drupal_get_path('module', 'dinh_muc_khoan') . '/assets/css/dinh_muc_khoan.css');
   drupal_add_js(drupal_get_path('module', 'dinh_muc_khoan') . '/assets/js/dinh_muc_khoan.js');
 

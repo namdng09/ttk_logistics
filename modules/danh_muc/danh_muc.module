@@ -16,9 +16,9 @@ if (!function_exists('api_response_success')) {
  */
 function danh_muc_permission() {
   return array(
-    'danh_muc_view' => array('title' => t('Xem danh mục')),
-    'danh_muc_create' => array('title' => t('Tạo/sửa danh mục')),
-    'danh_muc_delete' => array('title' => t('Xoá danh mục')),
+    'danh_muc_view' => array('title' => t('Xem danh mục'), 'entry' => array('/danh-muc', 'GET /api/danh-muc', 'GET /api/danh-muc/{id}')),
+    'danh_muc_create' => array('title' => t('Tạo/sửa danh mục'), 'entry' => array('POST /api/danh-muc', 'PUT /api/danh-muc/{id}')),
+    'danh_muc_delete' => array('title' => t('Xoá danh mục'), 'entry' => array('DELETE /api/danh-muc/{id}')),
   );
 }
 
@@ -254,6 +254,24 @@ function _danh_muc_bai_save_phu_phi($danh_muc_id, $items, $phan_loai) {
  * REST: COLLECTION — GET /api/danh-muc, POST /api/danh-muc
  ******************************************************************************/
 
+/**
+ * Quyền đọc danh mục qua API. Ngoài quyền xem danh mục, các màn dùng danh mục làm ô chọn (Kho/Bãi/Cảng/Chi phí,
+ * phòng ban/chức vụ...) cũng đọc được — đúng quyền xem của chính màn đó (như `dia_diem` của /api/ke-hoach-xep-xe/tuy-chon).
+ * Thêm màn mới gọi /api/danh-muc thì thêm quyền xem của màn đó vào đây. Màn /danh-muc vẫn chỉ cho danh_muc_view.
+ */
+function _danh_muc_read_permissions() {
+  return array('danh_muc_view', 'ke_hoach_xep_xe_view', 'nhan_vien_view', 'dinh_muc_khoan_view');
+}
+
+function _danh_muc_can_read() {
+  foreach (_danh_muc_read_permissions() as $perm) {
+    if (api_has_permission($perm)) {
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 function danh_muc_rest_collection() {
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'GET':
@@ -326,6 +344,9 @@ function _danh_muc_select_rows(array $rows, array $fields) {
 }
 
 function _danh_muc_rest_list() {
+  if (!_danh_muc_can_read()) {
+    return _danh_muc_unauthorized('Bạn không có quyền xem danh mục');
+  }
   // select=a,b,-c (module api_common): chỉ lấy/loại trừ trường; không có thì trả như cũ.
   $sel = _danh_muc_select_request();
   if (!empty($sel['error'])) {
@@ -484,6 +505,9 @@ function danh_muc_rest_item($id) {
 }
 
 function _danh_muc_rest_get($id) {
+  if (!_danh_muc_can_read()) {
+    return _danh_muc_unauthorized('Bạn không có quyền xem danh mục');
+  }
   $row = db_query("SELECT * FROM {danh_muc} WHERE nid = :id", array(':id' => $id))->fetch();
   if (!$row) {
     return _danh_muc_not_found('Danh mục không tồn tại');
@@ -586,6 +610,9 @@ function _danh_muc_rest_delete($id) {
  ******************************************************************************/
 
 function danh_muc_page_list() {
+  if (!api_has_permission('danh_muc_view')) {
+    return api_denied_page('Bạn không có quyền xem danh mục');
+  }
   danh_muc_add_modal_assets();
 
   return theme('danh_muc_list_page');

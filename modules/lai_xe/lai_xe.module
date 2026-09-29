@@ -1087,6 +1087,9 @@ function _lai_xe_rest_file_delete($id, $file_id) {
  ******************************************************************************/
 
 function lai_xe_page_list() {
+  if (!api_has_permission('lai_xe_view')) {
+    return api_denied_page('Bạn không có quyền xem lái xe');
+  }
   drupal_add_css(drupal_get_path('module', 'lai_xe') . '/assets/css/lai_xe.css');
   drupal_add_js(drupal_get_path('module', 'lai_xe') . '/assets/js/lai_xe.js');
 

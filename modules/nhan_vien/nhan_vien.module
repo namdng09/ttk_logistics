@@ -842,6 +842,9 @@ function _nhan_vien_rest_delete($id) {
  ******************************************************************************/
 
 function nhan_vien_page_list() {
+  if (!api_has_permission('nhan_vien_view')) {
+    return api_denied_page('Bạn không có quyền xem nhân viên');
+  }
   drupal_add_css(drupal_get_path('module', 'nhan_vien') . '/assets/css/nhan_vien.css');
   // Bump the asset version whenever role filtering changes; otherwise an old
   // aggregated/browser-cached JS can keep showing role Lái xe.

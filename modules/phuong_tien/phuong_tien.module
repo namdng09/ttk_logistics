@@ -1028,6 +1028,9 @@ function _phuong_tien_rest_file_delete($id, $file_id) {
  ******************************************************************************/
 
 function phuong_tien_page_list() {
+  if (!api_has_permission('phuong_tien_view')) {
+    return api_denied_page('Bạn không có quyền xem phương tiện');
+  }
   drupal_add_css(drupal_get_path('module', 'phuong_tien') . '/assets/css/phuong_tien.css');
   drupal_add_js(drupal_get_path('module', 'phuong_tien') . '/assets/js/phuong_tien.js');
 
@@ -1050,6 +1053,9 @@ function phuong_tien_page_list() {
 }
 
 function phuong_tien_page_han($type) {
+  if (!api_has_permission('phuong_tien_view')) {
+    return api_denied_page('Bạn không có quyền xem phương tiện');
+  }
   $valid_types = array('dang-kiem', 'bao-hiem-than-vo', 'tnds', 'phu-hieu', 'giay-phep-lien-van');
   if (!in_array($type, $valid_types)) {
     drupal_not_found();

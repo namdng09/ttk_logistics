@@ -909,6 +909,9 @@ function _khach_hang_rest_delete($id) {
  ******************************************************************************/
 
 function khach_hang_page_list() {
+  if (!api_has_permission('khach_hang_view')) {
+    return api_denied_page('Bạn không có quyền xem đối tác');
+  }
   // $with_xlsx = FALSE: XLSX chỉ dùng cho import/export định mức theo đối tác
   // (đã bỏ, định mức giờ dùng chung toàn hệ thống — xem module dinh_muc_khoan).
   khach_hang_add_modal_assets(FALSE, FALSE);
