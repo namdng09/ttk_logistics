@@ -921,11 +921,21 @@
     $ul.html(html);
   }
 
+  // Chỉ có quyền xem quỹ (không có "quan ly tai chinh") thì dropdown chỉ còn Xem — server vẫn chặn nếu gọi thẳng.
+  function canManageQuy() {
+    return !!(Drupal.settings && Drupal.settings.qltc && Drupal.settings.qltc.canManage);
+  }
+
   function buildQuyActions(item) {
+    var view = '<li><a href="#" class="dropdown-item qltc-quy-detail-modal" data-url="' + QUY_API_BASE + '/' + item.nid + '" data-title="Chi tiết quỹ"><i class="ti tabler-eye me-2"></i>Xem</a></li>';
+    if (!canManageQuy()) {
+      return '<div class="dropdown qltc-function-dropdown">' +
+        '<button type="button" class="btn btn-sm btn-icon btn-label-secondary rounded-pill qltc-function-btn" data-bs-toggle="dropdown" aria-expanded="false"><i class="ti tabler-dots-vertical"></i></button>' +
+        '<ul class="dropdown-menu">' + view + '</ul></div>';
+    }
     return '<div class="dropdown qltc-function-dropdown">' +
       '<button type="button" class="btn btn-sm btn-icon btn-label-secondary rounded-pill qltc-function-btn" data-bs-toggle="dropdown" aria-expanded="false"><i class="ti tabler-dots-vertical"></i></button>' +
-      '<ul class="dropdown-menu">' +
-      '<li><a href="#" class="dropdown-item qltc-quy-detail-modal" data-url="' + QUY_API_BASE + '/' + item.nid + '" data-title="Chi tiết quỹ"><i class="ti tabler-eye me-2"></i>Xem</a></li>' +
+      '<ul class="dropdown-menu">' + view +
       '<li><a href="#" class="dropdown-item qltc-quy-open-modal" data-url="' + QUY_API_BASE + '/' + item.nid + '" data-title="Sửa quỹ"><i class="ti tabler-edit me-2"></i>Sửa</a></li>' +
       '<li><a href="#" class="dropdown-item qltc-quy-adjust-modal" data-url="' + QUY_API_BASE + '/' + item.nid + '?action=adjust" data-title="Điều chỉnh số dư đầu kỳ"><i class="ti tabler-adjustments-dollar me-2"></i>Điều chỉnh</a></li>' +
       '<li><hr class="dropdown-divider"></li>' +

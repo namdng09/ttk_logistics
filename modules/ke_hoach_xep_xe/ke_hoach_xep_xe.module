@@ -1356,7 +1356,9 @@ function _ke_hoach_chi_phi_rest_list() {
   // Modal Tạo/Sửa đề nghị thanh toán (lọc theo ben_nhan_tien) chỉ cần quyền de_nghi_thanh_toan_create —
   // cùng tinh thần "không cần ke_hoach_xep_xe_create/_view để làm việc với chi phí từ màn đề nghị".
   $for_dntt = !empty($_GET['ben_nhan_tien']);
-  if (!api_has_permission('ke_hoach_xep_xe_view') && !($for_dntt && api_has_permission('de_nghi_thanh_toan_create'))) {
+  $dntt_ok = $for_dntt && api_has_permission('de_nghi_thanh_toan_create')
+    && (api_has_permission('de_nghi_thanh_toan_view_own') || api_has_permission('de_nghi_thanh_toan_view_all'));
+  if (!api_has_permission('ke_hoach_xep_xe_view') && !$dntt_ok) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền xem chi phí kế hoạch');
   }
   $page = api_page_number();

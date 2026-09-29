@@ -298,23 +298,19 @@ function _de_nghi_thanh_toan_open_states() {
   return array('cho_duyet', 'cho_duyet_thanh_toan', 'cho_thanh_toan');
 }
 
+// Quyền XEM chỉ đến từ 2 quyền xem (đã chốt với PO): quyền tạo/duyệt/duyệt TT/ghi nhận TT KHÔNG tự cho xem. Người duyệt
+// muốn thấy đề nghị của người khác để duyệt thì phải được cấp thêm "Xem tất cả đề nghị thanh toán".
 function _de_nghi_thanh_toan_can_view_all($account) {
-  return user_access('de_nghi_thanh_toan_view_all', $account)
-    || user_access('de_nghi_thanh_toan_approve', $account)
-    || user_access('de_nghi_thanh_toan_approve_payment', $account)
-    || user_access('de_nghi_thanh_toan_pay', $account);
+  return user_access('de_nghi_thanh_toan_view_all', $account);
 }
 
 function _de_nghi_thanh_toan_can_view_any($account) {
-  return _de_nghi_thanh_toan_can_view_all($account)
-    || user_access('de_nghi_thanh_toan_view_own', $account)
-    || user_access('de_nghi_thanh_toan_create', $account);
+  return _de_nghi_thanh_toan_can_view_all($account) || user_access('de_nghi_thanh_toan_view_own', $account);
 }
 
 function _de_nghi_thanh_toan_can_view_row($row, $account) {
   if (_de_nghi_thanh_toan_can_view_all($account)) return TRUE;
-  return (int) $row->uid_nguoi_tao === (int) $account->uid
-    && (user_access('de_nghi_thanh_toan_view_own', $account) || user_access('de_nghi_thanh_toan_create', $account));
+  return (int) $row->uid_nguoi_tao === (int) $account->uid && user_access('de_nghi_thanh_toan_view_own', $account);
 }
 
 /** Người tạo hoặc người xem được tất cả (quản lý) mới thao tác thay được. */
@@ -1686,7 +1682,9 @@ function de_nghi_thanh_toan_rest_options() {
     return _de_nghi_thanh_toan_method_not_allowed('GET');
   }
   $account = _de_nghi_thanh_toan_current_account();
-  if (!$account || !_de_nghi_thanh_toan_can_view_any($account)) {
+  // Chỉ là danh sách NCC/nhân viên/lái xe/quỹ (không phải dữ liệu đề nghị): tab Chi phí kế hoạch cũng dùng cho popup
+  // Bên nhận tiền, nên người lập kế hoạch (không có quyền xem đề nghị) vẫn gọi được.
+  if (!$account || !(_de_nghi_thanh_toan_can_view_any($account) || user_access('de_nghi_thanh_toan_create', $account) || user_access('ke_hoach_xep_xe_create', $account))) {
     return _de_nghi_thanh_toan_unauthorized('Bạn không có quyền xem đề nghị thanh toán');
   }
   $nccs = array();

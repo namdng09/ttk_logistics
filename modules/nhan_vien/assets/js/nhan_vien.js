@@ -506,7 +506,10 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="11" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        // Hiện đúng lý do server trả về trong bảng (vd "Bạn không có quyền xem danh sách nhân viên"), không chung chung.
+        var denied = jqXHR.status === 401 || jqXHR.status === 403;
+        tbody.append('<tr><td colspan="11" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+          (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + escapeHtml(apiMsg(jqXHR)) + '</td></tr>');
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });

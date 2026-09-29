@@ -116,6 +116,17 @@ function phan_quyen_user_update(&$edit, $account, $category) {
 }
 
 /**
+ * Implements hook_js_alter().
+ *
+ * Module phân quyền đời cũ nạp .../phan_quyen/js/phan_quyen.js; file đó không còn (JS của module này ở
+ * assets/js/) nên nếu trên server còn nơi nào nạp (theme/module cũ chưa cập nhật), trình duyệt nhận trang lỗi
+ * HTML và báo lỗi MIME. Bỏ luôn đường dẫn cũ đó khỏi trang.
+ */
+function phan_quyen_js_alter(&$javascript) {
+  unset($javascript[drupal_get_path('module', 'phan_quyen') . '/js/phan_quyen.js']);
+}
+
+/**
  * Implements hook_user_delete().
  */
 function phan_quyen_user_delete($account) {

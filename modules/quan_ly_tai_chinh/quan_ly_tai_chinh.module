@@ -40,14 +40,14 @@ function quan_ly_tai_chinh_menu() {
   $items['quan-ly-tai-chinh'] = array(
     'title' => 'Quản lý tài chính',
     'page callback' => 'quan_ly_tai_chinh_dashboard',
-    'access arguments' => array('quan ly tai chinh'),
+    'access callback' => 'quan_ly_tai_chinh_view_access',
     'type' => MENU_NORMAL_ITEM,
   );
 
   $items['quan-ly-quy'] = array(
     'title' => 'Quản lý quỹ',
     'page callback' => 'quan_ly_tai_chinh_quy_page',
-    'access arguments' => array('quan ly tai chinh'),
+    'access callback' => 'quan_ly_tai_chinh_view_access',
     'type' => MENU_NORMAL_ITEM,
   );
 
@@ -137,7 +137,7 @@ function quan_ly_tai_chinh_menu() {
   $items['quan-ly-quy/ajax-list'] = array(
     'title' => 'Danh sách quỹ AJAX',
     'page callback' => 'quan_ly_tai_chinh_quy_ajax_list',
-    'access arguments' => array('quan ly tai chinh'),
+    'access callback' => 'quan_ly_tai_chinh_view_access',
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
@@ -146,7 +146,7 @@ function quan_ly_tai_chinh_menu() {
     'title' => 'Chi tiết quỹ AJAX',
     'page callback' => 'quan_ly_tai_chinh_quy_ajax_detail',
     'page arguments' => array(2),
-    'access arguments' => array('quan ly tai chinh'),
+    'access callback' => 'quan_ly_tai_chinh_view_access',
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
@@ -160,14 +160,27 @@ function quan_ly_tai_chinh_menu() {
   return $items;
 }
 
+/** Xem quỹ: có quyền xem hoặc quyền quản lý (quản lý bao gồm xem). */
+function quan_ly_tai_chinh_view_access() {
+  return user_access('quan_ly_tai_chinh_view') || user_access('quan ly tai chinh');
+}
+
 /**
  * Implements hook_permission().
  */
 function quan_ly_tai_chinh_permission() {
   return array(
+    // Chỉ xem danh sách/chi tiết quỹ (tách khỏi quyền quản lý, xem quan_ly_tai_chinh_view_access()).
+    'quan_ly_tai_chinh_view' => array(
+      'title' => t('Xem quỹ'),
+      'description' => t('Xem danh sách quỹ, số dư, chi tiết quỹ. Không thêm/sửa/xoá/chuyển tiền được.'),
+      'entry' => array('/quan-ly-quy', 'GET /api/quan-ly-quy'),
+    ),
+    // Giữ nguyên tên quyền cũ để không mất quyền đang cấp; nghĩa nay là "quản lý" (thêm/sửa/xoá/chuyển tiền/điều chỉnh).
     'quan ly tai chinh' => array(
-      'title' => t('Quản lý tài chính'),
-      'description' => t('Quản lý quỹ, thu chi và tạm ứng lái xe.'),
+      'title' => t('Quản lý quỹ (thêm/sửa/xoá/chuyển tiền/điều chỉnh)'),
+      'description' => t('Bao gồm cả quyền xem quỹ.'),
+      'entry' => array('POST/PUT/DELETE /api/quan-ly-quy', 'POST /api/quan-ly-quy/chuyen-tien'),
     ),
   );
 }
@@ -661,6 +674,8 @@ function quan_ly_tai_chinh_dashboard() {
  */
 function quan_ly_tai_chinh_quy_page() {
   quan_ly_tai_chinh_add_assets();
+  // JS ẩn Sửa/Điều chỉnh/Xoá ở các dòng tải bằng API khi chỉ có quyền xem.
+  drupal_add_js(array('qltc' => array('canManage' => user_access('quan ly tai chinh'))), 'setting');
 
   $filters = quan_ly_tai_chinh_get_date_filters();
   $page = api_page_number();
@@ -1993,7 +2008,23 @@ function quan_ly_tai_chinh_quy_rest_item($id) {
   }
 }
 
+/**
+ * Đọc danh sách/chi tiết quỹ qua API: người xem/quản lý quỹ, và người trả lương/tạm ứng lái xe (màn Lương lái xe cần chọn
+ * quỹ chi). NULL nếu được phép, không thì sẵn phản hồi từ chối.
+ */
+function _quan_ly_tai_chinh_quy_read_denied() {
+  foreach (array('quan_ly_tai_chinh_view', 'quan ly tai chinh', 'luong_lai_xe_pay', 'luong_lai_xe_create') as $perm) {
+    if (api_has_permission($perm)) {
+      return NULL;
+    }
+  }
+  return api_response_denied('Bạn không có quyền xem quỹ');
+}
+
 function _quan_ly_tai_chinh_quy_rest_list() {
+  if ($deny = _quan_ly_tai_chinh_quy_read_denied()) {
+    return $deny;
+  }
   if (!empty($_GET['options']) && $_GET['options'] === 'users') {
     return _quan_ly_tai_chinh_success(array('items' => quan_ly_tai_chinh_user_options_api()));
   }
@@ -2085,6 +2116,9 @@ function quan_ly_tai_chinh_quy_rest_transfer() {
 }
 
 function _quan_ly_tai_chinh_quy_rest_get($id) {
+  if ($deny = _quan_ly_tai_chinh_quy_read_denied()) {
+    return $deny;
+  }
   $quy = quan_ly_tai_chinh_quy_load($id);
   if (!$quy || intval($quy->hoat_dong) !== 1) {
     return _quan_ly_tai_chinh_not_found('Không tìm thấy quỹ');

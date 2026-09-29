@@ -61,8 +61,10 @@
             </button>
           </div>
           <div class="d-flex flex-wrap align-items-center gap-2">
+            <?php if (user_access('quan ly tai chinh')): ?>
             <a href="<?php print url('quan-ly-quy/them'); ?>" class="btn btn-primary waves-effect waves-light qltc-quy-open-modal" data-url="<?php print url('quan-ly-quy/ajax-form'); ?>" data-title="Thêm quỹ"><i class="ti tabler-plus me-1"></i>Thêm quỹ</a>
             <button type="button" class="btn btn-label-primary waves-effect qltc-quy-transfer-modal"><i class="ti tabler-arrows-exchange me-1"></i>Chuyển tiền nội bộ</button>
+            <?php endif; ?>
             <button type="button" class="btn btn-label-secondary qltc-btn-reload waves-effect">
               <i class="ti tabler-refresh me-1"></i>Làm mới
             </button>
@@ -96,10 +98,12 @@
                           <button type="button" class="btn btn-sm btn-icon btn-label-secondary rounded-pill qltc-function-btn" data-bs-toggle="dropdown" aria-expanded="false"><i class="ti tabler-dots-vertical"></i></button>
                           <ul class="dropdown-menu">
                             <li><a href="#" class="dropdown-item qltc-quy-detail-modal" data-url="<?php print check_plain(url('quan-ly-quy/ajax-detail/' . $quy->nid_quy)); ?>" data-title="Chi tiết quỹ"><i class="ti tabler-eye me-2"></i>Xem</a></li>
+                            <?php if (user_access('quan ly tai chinh')): ?>
                             <li><a href="#" class="dropdown-item qltc-quy-open-modal" data-url="<?php print check_plain(url('quan-ly-quy/ajax-form/' . $quy->nid_quy)); ?>" data-title="Sửa quỹ"><i class="ti tabler-edit me-2"></i>Sửa</a></li>
                             <li><a href="#" class="dropdown-item qltc-quy-adjust-modal" data-url="<?php print check_plain(url('quan-ly-quy/ajax-adjust-form/' . $quy->nid_quy)); ?>" data-title="Điều chỉnh số dư đầu kỳ"><i class="ti tabler-adjustments-dollar me-2"></i>Điều chỉnh</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a href="#" class="dropdown-item text-danger qltc-quy-delete" data-url="<?php print check_plain(url('quan-ly-quy/ajax-delete/' . $quy->nid_quy)); ?>" data-title="<?php print check_plain($quy->ten_quy); ?>"><i class="ti tabler-trash me-2"></i>Xóa</a></li>
+                            <?php endif; ?>
                           </ul>
                         </div>
                       </td>

@@ -229,11 +229,16 @@
 
   // Tải đủ mọi trang của 1 API danh sách: trang 1 cho biết total_pages, các trang còn lại gọi song song (mỗi lần tối đa 100 dòng
   // khi dùng select, tối đa 50 trang). done(items) khi đủ, fail(jqXHR|undefined) nếu có trang lỗi.
+  // Dùng callback success/error/complete (không dùng .done/.fail/.always): lúc file này chạy, $ là jQuery cũ của Drupal
+  // core, $.ajax() của bản đó không trả về Deferred.
   function fetchAllPages(url, params, done, fail) {
-    function request(page) {
-      return $.ajax({ url: url, type: 'GET', dataType: 'json', data: $.extend({ page: page }, params) });
+    function request(page, onSuccess, onError, onComplete) {
+      $.ajax({
+        url: url, type: 'GET', dataType: 'json', data: $.extend({ page: page }, params),
+        success: onSuccess, error: onError, complete: onComplete
+      });
     }
-    request(1).done(function (res) {
+    request(1, function (res) {
       if (!(res && res.status === 'success' && res.data && res.data.items)) {
         fail();
         return;
@@ -249,11 +254,11 @@
       var failed = false;
       for (var page = 2; page <= pages; page++) {
         (function (p) {
-          request(p).done(function (r) {
+          request(p, function (r) {
             if (r && r.status === 'success' && r.data && r.data.items) chunks[p - 2] = r.data.items; else failed = true;
-          }).fail(function () {
+          }, function () {
             failed = true;
-          }).always(function () {
+          }, function () {
             left -= 1;
             if (left > 0) return;
             if (failed) { fail(); return; }
@@ -263,7 +268,7 @@
           });
         })(page);
       }
-    }).fail(function (jqXHR) {
+    }, function (jqXHR) {
       fail(jqXHR);
     });
   }

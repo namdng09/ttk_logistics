@@ -27,7 +27,7 @@ function thu_chi_menu() {
     'title' => 'Thêm phiếu thu chi',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('thu_chi_giao_dich_form'),
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'thu_chi_manage_access',
     'type' => MENU_CALLBACK,
   );
 
@@ -35,7 +35,7 @@ function thu_chi_menu() {
     'title' => 'Sửa phiếu thu chi',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('thu_chi_giao_dich_form', 2),
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'thu_chi_manage_access',
     'type' => MENU_CALLBACK,
   );
 
@@ -43,14 +43,14 @@ function thu_chi_menu() {
     'title' => 'Xóa phiếu thu chi',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('thu_chi_giao_dich_delete_form', 2),
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'thu_chi_manage_access',
     'type' => MENU_CALLBACK,
   );
 
   $items['thu-chi/ajax-form'] = array(
     'title' => 'Form phiếu thu chi AJAX',
     'page callback' => 'thu_chi_ajax_form',
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'thu_chi_manage_access',
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
@@ -59,7 +59,7 @@ function thu_chi_menu() {
     'title' => 'Form sửa phiếu thu chi AJAX',
     'page callback' => 'thu_chi_ajax_form',
     'page arguments' => array(2),
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'thu_chi_manage_access',
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
@@ -67,7 +67,7 @@ function thu_chi_menu() {
   $items['thu-chi/ajax-save'] = array(
     'title' => 'Lưu phiếu thu chi AJAX',
     'page callback' => 'thu_chi_ajax_save',
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'thu_chi_manage_access',
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
@@ -76,7 +76,7 @@ function thu_chi_menu() {
     'title' => 'Xóa phiếu thu chi AJAX',
     'page callback' => 'thu_chi_ajax_delete',
     'page arguments' => array(2),
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'thu_chi_manage_access',
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
@@ -94,7 +94,7 @@ function thu_chi_menu() {
     'title' => 'Duyệt phiếu thu chi AJAX',
     'page callback' => 'thu_chi_ajax_approve',
     'page arguments' => array(2),
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'thu_chi_manage_access',
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
@@ -103,7 +103,7 @@ function thu_chi_menu() {
     'title' => 'Yêu cầu điều chỉnh phiếu thu chi AJAX',
     'page callback' => 'thu_chi_ajax_request_adjust',
     'page arguments' => array(2),
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'thu_chi_manage_access',
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
@@ -112,7 +112,7 @@ function thu_chi_menu() {
     'title' => 'Duyệt điều chỉnh phiếu thu chi AJAX',
     'page callback' => 'thu_chi_ajax_approve_adjust',
     'page arguments' => array(2),
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'thu_chi_manage_access',
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
@@ -140,9 +140,17 @@ function thu_chi_menu() {
  */
 function thu_chi_permission() {
   return array(
+    // Chỉ xem danh sách/chi tiết phiếu (tách khỏi quyền quản lý, xem thu_chi_access()).
+    'thu_chi_view' => array(
+      'title' => t('Xem thu chi'),
+      'description' => t('Xem danh sách, chi tiết phiếu thu/chi. Không tạo/sửa/xoá/duyệt được.'),
+      'entry' => array('/thu-chi', '/thu-chi/ajax-detail/{id}'),
+    ),
+    // Giữ nguyên tên quyền cũ để không mất quyền đang cấp; nghĩa nay là "quản lý" (tạo/sửa/xoá/duyệt/điều chỉnh).
     'quan ly thu chi' => array(
-      'title' => t('Quản lý thu chi'),
-      'description' => t('Xem, thêm, sửa, xóa mềm phiếu thu và phiếu chi.'),
+      'title' => t('Quản lý thu chi (tạo/sửa/xoá/duyệt)'),
+      'description' => t('Bao gồm cả quyền xem thu chi.'),
+      'entry' => array('/thu-chi/ajax-form|ajax-save|ajax-delete', '/thu-chi/ajax-approve|ajax-request-adjust|ajax-approve-adjust'),
     ),
   );
 }
@@ -185,6 +193,16 @@ function thu_chi_theme() {
   );
 }
 
+/** Quyền tạo/sửa/xoá/duyệt phiếu thu chi. */
+function thu_chi_manage_access() {
+  return function_exists('user_access') && user_access('quan ly thu chi');
+}
+
+/** Đường dẫn AJAX ghi dữ liệu (cần quyền quản lý); còn lại (chi tiết, tìm danh mục/nội dung) chỉ cần quyền xem. */
+function thu_chi_is_write_path($path) {
+  return (bool) preg_match('#^thu-chi/(ajax-form(/\d+)?|ajax-save|ajax-delete/\d+|ajax-approve/\d+|ajax-request-adjust/\d+|ajax-approve-adjust/\d+)$#', $path);
+}
+
 /**
  * Quyền truy cập module Thu chi.
  */
@@ -192,8 +210,9 @@ function thu_chi_access() {
   // user_access() chưa luôn sẵn sàng ở giai đoạn hook_boot() trên một số
   // môi trường Drupal 7. Vì vậy phải kiểm tra tồn tại hàm trước khi gọi để
   // tránh fatal error khi module được nạp rất sớm.
+  // Xem: quyền xem hoặc quyền quản lý thu chi (không còn "ăn theo" quyền quản lý quỹ — quyền xem phải cấp riêng).
   if (function_exists('user_access')) {
-    return user_access('quan ly thu chi') || user_access('quan ly tai chinh');
+    return user_access('thu_chi_view') || user_access('quan ly thu chi');
   }
 
   // Fallback an toàn khi Drupal chưa bootstrap đầy đủ: chỉ cho user đã có uid.
@@ -309,6 +328,13 @@ function thu_chi_early_ajax_router() {
     drupal_json_output(array(
       'success' => FALSE,
       'message' => 'Bạn không có quyền truy cập chức năng Thu chi.',
+    ));
+    drupal_exit();
+  }
+  if (thu_chi_is_write_path($path) && !thu_chi_manage_access()) {
+    drupal_json_output(array(
+      'success' => FALSE,
+      'message' => 'Bạn chỉ có quyền xem thu chi, không được tạo/sửa/xoá/duyệt phiếu.',
     ));
     drupal_exit();
   }
@@ -558,6 +584,13 @@ function thu_chi_render_action_dropdown($item) {
   $html .= '<button type="button" class="btn btn-sm btn-icon btn-label-secondary rounded-pill tc-function-btn" title="Chức năng">';
   $html .= '<i class="ti tabler-dots-vertical"></i></button>';
   $html .= '<div class="dropdown-menu dropdown-menu-start">';
+
+  // Chỉ có quyền xem: dropdown chỉ còn "Xem chi tiết" (server vẫn chặn các thao tác ghi nếu gọi thẳng).
+  if (!thu_chi_manage_access()) {
+    $html .= '<a href="#" class="dropdown-item tc-thu-chi-detail" data-url="' . check_plain(url('thu-chi/ajax-detail/' . $gd_id)) . '" data-title="Chi tiết phiếu ' . check_plain($ma) . '">';
+    $html .= '<i class="icon-base ti tabler-eye me-1 text-info"></i>Xem chi tiết</a>';
+    return $html . '</div></div>';
+  }
 
   if ($status === 'yeu_cau_dieu_chinh') {
     $html .= '<a href="#" class="dropdown-item tc-thu-chi-approve-adjust" data-url="' . check_plain(url('thu-chi/ajax-approve-adjust/' . $gd_id)) . '" data-decision="duyet" data-title="' . check_plain($ma) . '">';

@@ -11,9 +11,11 @@
           <button type="button" class="btn btn-label-secondary btn-sm tc-btn-reload" title="Làm mới">
             <i class="ti tabler-refresh me-1"></i> Làm mới
           </button>
+          <?php if (thu_chi_manage_access()): ?>
           <a href="<?php print url('thu-chi/them'); ?>" class="btn btn-primary btn-sm waves-effect waves-light tc-thu-chi-open-modal" data-url="<?php print url('thu-chi/ajax-form'); ?>" data-title="Tạo phiếu thu/chi">
             <i class="icon-base ti tabler-circle-plus me-1"></i> Tạo phiếu
           </a>
+          <?php endif; ?>
         </div>
       </div>
       <div id="tc-thu-chi-list-wrapper">

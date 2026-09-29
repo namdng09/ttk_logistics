@@ -74,223 +74,7 @@ function getMainMenuSoft()
 
                 <div class="menu-inner-shadow"></div>
 
-                <ul class="menu-inner py-1">
-                    <li class="menu-item' . (drupal_is_front_page() ? ' active' : '') . '">
-                        <a href="/" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-smart-home"></i>
-                            <div data-i18n="Tổng quan">Tổng quan</div>
-                        </a>
-                    </li>
-
-                    <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="Vận tải">Vận tải</span>
-                    </li>
-                    <li class="menu-item' . ($active_ke_hoach_xep_xe ? ' active' : '') . '">
-                        <a href="/ke-hoach-xep-xe" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-calendar-stats"></i>
-                            <div data-i18n="Kế hoạch hàng cảng">Kế hoạch hàng cảng</div>
-                        </a>
-                    </li>
-
-                    ' . ((strpos(current_path(), 'cat-mooc') === 0 || strpos(current_path(), 'quan-ly-cont') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
-                        <a href="javascript:void(0);" class="menu-link menu-toggle">
-                            <i class="menu-icon icon-base ti tabler-container"></i>
-                            <div data-i18n="Quản lý Cont">Quản lý Cont</div>
-                        </a>
-                        <ul class="menu-sub">
-                            <li class="menu-item' . ((current_path() === 'cat-mooc') ? ' active' : '') . '">
-                                <a href="/cat-mooc" class="menu-link">
-                                    <div data-i18n="Cắt Mooc">Cắt Mooc</div>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    
-                    <li class="menu-item' . ($active_ke_hoach_tuyen_xa ? ' active' : '') . '">
-                        <a href="/ke-hoach-tuyen-xa" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-route-2"></i>
-                            <div data-i18n="Kế hoạch tuyến xa">Kế hoạch tuyến xa</div>
-                        </a>
-                    </li>
-                    
-                     <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="Tài chính">Tài chính</span>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'quan-ly-quy') === 0 || strpos(current_path(), 'quan-ly-tai-chinh') === 0) ? ' active' : '') . '">
-                        <a href="/quan-ly-quy" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-cash"></i>
-                            <div data-i18n="Quản lý quỹ">Quản lý quỹ</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'thu-chi') === 0) ? ' active' : '') . '">
-                        <a href="/thu-chi" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-receipt-2"></i>
-                            <div data-i18n="Thu chi">Thu chi</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'phieu-tra-khach-hang') === 0) ? ' active' : '') . '">
-                        <a href="/phieu-tra-khach-hang" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-file-invoice"></i>
-                            <div data-i18n="Phiếu trả KH">Phiếu trả KH</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'cong-no-khach-hang') === 0) ? ' active' : '') . '">
-                        <a href="/cong-no-khach-hang" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-report-money"></i>
-                            <div data-i18n="Công nợ KH">Công nợ KH</div>
-                        </a>
-                    </li>
-                    <!-- Tạm ẩn "Sổ chi phí vận hành" (/so-chi-phi-van-hanh) và "Duyệt đề nghị chi phí" (/duyet-de-nghi-chi-phi):
-                         đã có màn Đề nghị thanh toán. Route vẫn còn, chỉ bỏ khỏi menu. -->
-                    <li class="menu-item' . ((strpos(current_path(), 'de-nghi-thanh-toan') === 0) ? ' active' : '') . '">
-                        <a href="/de-nghi-thanh-toan" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-receipt-2"></i>
-                            <div data-i18n="Đề nghị thanh toán">Đề nghị thanh toán</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'theo-doi-do-dau') === 0) ? ' active' : '') . '">
-                        <a href="/theo-doi-do-dau" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-gas-station"></i>
-                            <div data-i18n="Theo dõi đổ dầu">Theo dõi đổ dầu</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'luong-lai-xe') === 0) ? ' active' : '') . '">
-                        <a href="/luong-lai-xe" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-report-money"></i>
-                            <div data-i18n="Lương lái xe">Lương lái xe</div>
-                        </a>
-                    </li>
-
-                    <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="DANH MỤC">DANH MỤC</span>
-                    </li>
-
-                    <li class="menu-item' . ((strpos(current_path(), 'nhan-vien') === 0) ? ' active' : '') . '">
-                        <a href="/nhan-vien" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-user-cog"></i>
-                            <div data-i18n="Nhân viên">Nhân viên</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'khach-hang') === 0) ? ' active' : '') . '">
-                        <a href="/khach-hang" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-users"></i>
-                            <div data-i18n="Đối tác">Đối tác</div>
-                        </a>
-                    </li>
-
-                    ' . ((strpos(current_path(), 'phuong-tien') === 0 || strpos(current_path(), 'lich-su-sua-xe') === 0) ? '<li class="menu-item open">' : '<li class="menu-item">') . '
-                        <a href="javascript:void(0);" class="menu-link menu-toggle">
-                            <i class="menu-icon icon-base ti tabler-truck"></i>
-                            <div data-i18n="Phương tiện">Phương tiện</div>
-                        </a>
-                        <ul class="menu-sub">
-                            <li class="menu-item' . ((current_path() === 'phuong-tien') ? ' active' : '') . '">
-                                <a href="/phuong-tien" class="menu-link">
-                                    <div data-i18n="Danh sách">Danh sách</div>
-                                </a>
-                            </li>
-                            <li class="menu-item' . ((current_path() === 'phuong-tien/dang-kiem') ? ' active' : '') . '">
-                                <a href="/phuong-tien/dang-kiem" class="menu-link">
-                                    <div data-i18n="Đăng kiểm">Đăng kiểm</div>
-                                </a>
-                            </li>
-                            <li class="menu-item' . ((current_path() === 'phuong-tien/bao-hiem-than-vo') ? ' active' : '') . '">
-                                <a href="/phuong-tien/bao-hiem-than-vo" class="menu-link">
-                                    <div data-i18n="Bảo hiểm thân vỏ">Bảo hiểm thân vỏ</div>
-                                </a>
-                            </li>
-                            <li class="menu-item' . ((current_path() === 'phuong-tien/tnds') ? ' active' : '') . '">
-                                <a href="/phuong-tien/tnds" class="menu-link">
-                                    <div data-i18n="TNDS">TNDS</div>
-                                </a>
-                            </li>
-                            <li class="menu-item' . ((current_path() === 'phuong-tien/phu-hieu') ? ' active' : '') . '">
-                                <a href="/phuong-tien/phu-hieu" class="menu-link">
-                                    <div data-i18n="Phù hiệu">Phù hiệu</div>
-                                </a>
-                            </li>
-                            <li class="menu-item' . ((current_path() === 'phuong-tien/giay-phep-lien-van') ? ' active' : '') . '">
-                                <a href="/phuong-tien/giay-phep-lien-van" class="menu-link">
-                                    <div data-i18n="Giấy phép liên vận">Giấy phép liên vận</div>
-                                </a>
-                            </li>
-                            <li class="menu-item' . ((strpos(current_path(), 'lich-su-sua-xe') === 0) ? ' active' : '') . '">
-                                <a href="/lich-su-sua-xe" class="menu-link">
-                                    <div data-i18n="Lịch sử sửa xe">Lịch sử sửa xe</div>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'lai-xe') === 0) ? ' active' : '') . '">
-                        <a href="/lai-xe" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-users"></i>
-                            <div data-i18n="Lái xe">Lái xe</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'danh-muc') === 0) ? ' active' : '') . '">
-                        <a href="/danh-muc" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-category"></i>
-                            <div data-i18n="Danh mục">Danh mục</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((strpos(current_path(), 'dinh-muc-khoan') === 0) ? ' active' : '') . '">
-                        <a href="/dinh-muc-khoan" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-map-dollar"></i>
-                            <div data-i18n="Định mức khoán">Định mức khoán</div>
-                        </a>
-                    </li>
-                    <li class="menu-header small">
-                        <span class="menu-header-text" data-i18n="Hợp đồng">Hợp đồng</span>
-                    </li>
-                    <li class="menu-item' . ((current_path() === 'hop-dong') ? ' active' : '') . '">
-                        <a href="/hop-dong" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-file-text"></i>
-                            <div data-i18n="Hợp đồng khách hàng">Hợp đồng khách hàng</div>
-                        </a>
-                    </li>
-                    <li class="menu-item' . ((current_path() === 'hop-dong-nhan-vien') ? ' active' : '') . '">
-                        <a href="/hop-dong-nhan-vien" class="menu-link">
-                            <i class="menu-icon icon-base ti tabler-file-description"></i>
-                            <div data-i18n="Hợp đồng nhân viên">Hợp đồng nhân viên</div>
-                        </a>
-                    </li>
-                    <!-- Hệ thống -->
-                    <li class="menu-item' . (strpos(current_path(), 'phan-quyen') === 0 ? ' open' : '') . '">
-                        <a href="javascript:void(0);" class="menu-link menu-toggle">
-                            <i class="menu-icon icon-base ti tabler-automation"></i>
-                            <div data-i18n="Hệ thống">Hệ thống</div>
-                        </a>
-                        <ul class="menu-sub">
-                    <!-- 
-                            <li class="menu-item">
-                                <a href="/vai-tro" class="menu-link">
-                                    <div data-i18n="Bộ phận">Bộ phận</div>
-                                </a>
-                            </li>
-                            <li class="menu-item">
-                                <a href="/phan-quyen" class="menu-link">
-                                    <div data-i18n="Phân quyền">Phân quyền</div>
-                                </a>
-                            </li>
-                            <li class="menu-item">
-                                <a href="/quan-ly/cap-nhat-ho-so/' . $user->uid . '" class="menu-link" id="update-ho-so">
-                                    <div data-i18n="Hồ sơ cá nhân">Hồ sơ cá nhân</div>
-                                </a>
-                            </li>
-                    Hệ thống -->
-                            ' . (user_access('phan_quyen_view') ? '<li class="menu-item' . (strpos(current_path(), 'phan-quyen') === 0 ? ' active' : '') . '">
-                                <a href="/phan-quyen" class="menu-link">
-                                    <div data-i18n="Phân quyền">Phân quyền</div>
-                                </a>
-                            </li>' : '') . '
-                            <li class="menu-item">
-                                <a href="/user/logout" class="menu-link">
-                                    <div data-i18n="Đăng xuất">Đăng xuất</div>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
+                <ul class="menu-inner py-1">' . _edusoul_menu_render(_edusoul_menu_tree($current_path, $active_ke_hoach_xep_xe, $active_ke_hoach_tuyen_xa)) . '</ul>
             </aside>
 
             <div class="menu-mobile-toggler d-xl-none rounded-1">
@@ -299,6 +83,121 @@ function getMainMenuSoft()
                     <i class="ti tabler-chevron-right icon-base"></i>
                 </a>
             </div>';
+}
+
+/**
+ * Cấu trúc menu sidebar. Mỗi nhóm: 'header' (tiêu đề nhóm, NULL = không có) + 'items'. Mỗi mục:
+ * - 'perm': hiện khi tài khoản có ÍT NHẤT 1 quyền trong danh sách (bỏ trống = luôn hiện). Dùng đúng quyền XEM mà API của
+ *   màn đó kiểm tra, để thấy menu là xem được dữ liệu và ngược lại.
+ * - hoặc 'children': nhóm con, hiện khi còn ít nhất 1 mục con được phép ('open' = mở sẵn nhóm con).
+ * Nhóm không còn mục nào thì ẩn luôn tiêu đề. Thêm màn mới: thêm 1 dòng vào đây.
+ * (Tạm ẩn khỏi menu, route vẫn còn: Sổ chi phí vận hành /so-chi-phi-van-hanh, Duyệt đề nghị chi phí /duyet-de-nghi-chi-phi.)
+ */
+function _edusoul_menu_tree($cp, $active_xep_xe, $active_tuyen_xa) {
+  $starts = function ($prefix) use ($cp) { return strpos($cp, $prefix) === 0; };
+  return array(
+    array('header' => NULL, 'items' => array(
+      array('label' => 'Tổng quan', 'href' => '/', 'icon' => 'tabler-smart-home', 'active' => drupal_is_front_page()),
+    )),
+    array('header' => 'Vận tải', 'items' => array(
+      array('label' => 'Kế hoạch hàng cảng', 'href' => '/ke-hoach-xep-xe', 'icon' => 'tabler-calendar-stats', 'perm' => array('ke_hoach_xep_xe_view'), 'active' => $active_xep_xe),
+      array('label' => 'Quản lý Cont', 'icon' => 'tabler-container', 'open' => $starts('cat-mooc') || $starts('quan-ly-cont'), 'children' => array(
+        array('label' => 'Cắt Mooc', 'href' => '/cat-mooc', 'perm' => array('ke_hoach_xep_xe_view'), 'active' => $cp === 'cat-mooc'),
+      )),
+      array('label' => 'Kế hoạch tuyến xa', 'href' => '/ke-hoach-tuyen-xa', 'icon' => 'tabler-route-2', 'perm' => array('ke_hoach_xep_xe_view'), 'active' => $active_tuyen_xa),
+    )),
+    array('header' => 'Tài chính', 'items' => array(
+      array('label' => 'Quản lý quỹ', 'href' => '/quan-ly-quy', 'icon' => 'tabler-cash', 'perm' => array('quan_ly_tai_chinh_view', 'quan ly tai chinh'), 'active' => $starts('quan-ly-quy') || $starts('quan-ly-tai-chinh')),
+      array('label' => 'Thu chi', 'href' => '/thu-chi', 'icon' => 'tabler-receipt-2', 'perm' => array('thu_chi_view', 'quan ly thu chi'), 'active' => $starts('thu-chi')),
+      array('label' => 'Phiếu trả KH', 'href' => '/phieu-tra-khach-hang', 'icon' => 'tabler-file-invoice', 'perm' => array('phieu_tra_khach_hang_view'), 'active' => $starts('phieu-tra-khach-hang')),
+      array('label' => 'Công nợ KH', 'href' => '/cong-no-khach-hang', 'icon' => 'tabler-report-money', 'perm' => array('cong_no_khach_hang_view'), 'active' => $starts('cong-no-khach-hang')),
+      array('label' => 'Đề nghị thanh toán', 'href' => '/de-nghi-thanh-toan', 'icon' => 'tabler-receipt-2', 'perm' => array('de_nghi_thanh_toan_view_own', 'de_nghi_thanh_toan_view_all'), 'active' => $starts('de-nghi-thanh-toan')),
+      array('label' => 'Theo dõi đổ dầu', 'href' => '/theo-doi-do-dau', 'icon' => 'tabler-gas-station', 'perm' => array('do_dau_view_own', 'do_dau_view_all'), 'active' => $starts('theo-doi-do-dau')),
+      array('label' => 'Lương lái xe', 'href' => '/luong-lai-xe', 'icon' => 'tabler-report-money', 'perm' => array('luong_lai_xe_view'), 'active' => $starts('luong-lai-xe')),
+    )),
+    array('header' => 'DANH MỤC', 'items' => array(
+      array('label' => 'Nhân viên', 'href' => '/nhan-vien', 'icon' => 'tabler-user-cog', 'perm' => array('nhan_vien_view'), 'active' => $starts('nhan-vien')),
+      array('label' => 'Đối tác', 'href' => '/khach-hang', 'icon' => 'tabler-users', 'perm' => array('khach_hang_view'), 'active' => $starts('khach-hang')),
+      array('label' => 'Phương tiện', 'icon' => 'tabler-truck', 'open' => $starts('phuong-tien') || $starts('lich-su-sua-xe'), 'children' => array(
+        array('label' => 'Danh sách', 'href' => '/phuong-tien', 'perm' => array('phuong_tien_view'), 'active' => $cp === 'phuong-tien'),
+        array('label' => 'Đăng kiểm', 'href' => '/phuong-tien/dang-kiem', 'perm' => array('phuong_tien_view'), 'active' => $cp === 'phuong-tien/dang-kiem'),
+        array('label' => 'Bảo hiểm thân vỏ', 'href' => '/phuong-tien/bao-hiem-than-vo', 'perm' => array('phuong_tien_view'), 'active' => $cp === 'phuong-tien/bao-hiem-than-vo'),
+        array('label' => 'TNDS', 'href' => '/phuong-tien/tnds', 'perm' => array('phuong_tien_view'), 'active' => $cp === 'phuong-tien/tnds'),
+        array('label' => 'Phù hiệu', 'href' => '/phuong-tien/phu-hieu', 'perm' => array('phuong_tien_view'), 'active' => $cp === 'phuong-tien/phu-hieu'),
+        array('label' => 'Giấy phép liên vận', 'href' => '/phuong-tien/giay-phep-lien-van', 'perm' => array('phuong_tien_view'), 'active' => $cp === 'phuong-tien/giay-phep-lien-van'),
+        array('label' => 'Lịch sử sửa xe', 'href' => '/lich-su-sua-xe', 'perm' => array('lich_su_sua_xe_view'), 'active' => $starts('lich-su-sua-xe')),
+      )),
+      array('label' => 'Lái xe', 'href' => '/lai-xe', 'icon' => 'tabler-users', 'perm' => array('lai_xe_view'), 'active' => $starts('lai-xe')),
+      array('label' => 'Danh mục', 'href' => '/danh-muc', 'icon' => 'tabler-category', 'perm' => array('danh_muc_view'), 'active' => $starts('danh-muc')),
+      array('label' => 'Định mức khoán', 'href' => '/dinh-muc-khoan', 'icon' => 'tabler-map-dollar', 'perm' => array('dinh_muc_khoan_view'), 'active' => $starts('dinh-muc-khoan')),
+    )),
+    array('header' => 'Hợp đồng', 'items' => array(
+      array('label' => 'Hợp đồng khách hàng', 'href' => '/hop-dong', 'icon' => 'tabler-file-text', 'perm' => array('hop_dong_view'), 'active' => $cp === 'hop-dong'),
+      array('label' => 'Hợp đồng nhân viên', 'href' => '/hop-dong-nhan-vien', 'icon' => 'tabler-file-description', 'perm' => array('hop_dong_nhan_vien_view'), 'active' => $cp === 'hop-dong-nhan-vien'),
+    )),
+    array('header' => NULL, 'items' => array(
+      array('label' => 'Hệ thống', 'icon' => 'tabler-automation', 'open' => $starts('phan-quyen'), 'children' => array(
+        array('label' => 'Phân quyền', 'href' => '/phan-quyen', 'perm' => array('phan_quyen_view'), 'active' => $starts('phan-quyen')),
+        array('label' => 'Đăng xuất', 'href' => '/user/logout'),
+      )),
+    )),
+  );
+}
+
+/** Mục menu được hiện với tài khoản đang đăng nhập (không khai 'perm' = luôn hiện). */
+function _edusoul_menu_allowed(array $item) {
+  if (empty($item['perm'])) {
+    return TRUE;
+  }
+  foreach ($item['perm'] as $perm) {
+    if (user_access($perm)) {
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+function _edusoul_menu_render(array $tree) {
+  $html = '';
+  foreach ($tree as $section) {
+    $items = '';
+    foreach ($section['items'] as $item) {
+      $items .= _edusoul_menu_item_html($item);
+    }
+    if ($items === '') {
+      continue;
+    }
+    if ($section['header'] !== NULL) {
+      $h = check_plain($section['header']);
+      $html .= '<li class="menu-header small"><span class="menu-header-text" data-i18n="' . $h . '">' . $h . '</span></li>';
+    }
+    $html .= $items;
+  }
+  return $html;
+}
+
+function _edusoul_menu_item_html(array $item) {
+  $label = check_plain($item['label']);
+  $icon = !empty($item['icon']) ? '<i class="menu-icon icon-base ti ' . check_plain($item['icon']) . '"></i>' : '';
+  if (!empty($item['children'])) {
+    $sub = '';
+    foreach ($item['children'] as $child) {
+      if (_edusoul_menu_allowed($child)) {
+        $sub .= '<li class="menu-item' . (!empty($child['active']) ? ' active' : '') . '"><a href="' . check_plain($child['href']) . '" class="menu-link">'
+          . '<div data-i18n="' . check_plain($child['label']) . '">' . check_plain($child['label']) . '</div></a></li>';
+      }
+    }
+    if ($sub === '') {
+      return '';
+    }
+    return '<li class="menu-item' . (!empty($item['open']) ? ' open' : '') . '"><a href="javascript:void(0);" class="menu-link menu-toggle">' . $icon
+      . '<div data-i18n="' . $label . '">' . $label . '</div></a><ul class="menu-sub">' . $sub . '</ul></li>';
+  }
+  if (!_edusoul_menu_allowed($item)) {
+    return '';
+  }
+  return '<li class="menu-item' . (!empty($item['active']) ? ' active' : '') . '"><a href="' . check_plain($item['href']) . '" class="menu-link">' . $icon
+    . '<div data-i18n="' . $label . '">' . $label . '</div></a></li>';
 }
 
 /**

@@ -377,24 +377,21 @@ function _do_dau_user_names_all() {
  * QUYỀN & HÀNH ĐỘNG HỢP LỆ
  ******************************************************************************/
 
+// Quyền XEM chỉ đến từ 2 quyền xem (đã chốt với PO): quyền tạo/duyệt phiếu, duyệt TT, ghi nhận TT KHÔNG tự cho xem.
+// Người duyệt / duyệt TT muốn thấy phiếu của người khác thì phải được cấp thêm "Xem tất cả phiếu đổ dầu".
 function _do_dau_can_view_all($account) {
-  // Người xử lý bước thanh toán (duyệt thanh toán, kế toán) cần thấy mọi phiếu để làm việc.
-  return user_access('do_dau_view_all', $account) || user_access('do_dau_approve', $account)
-    || user_access('de_nghi_thanh_toan_approve_payment', $account) || user_access('de_nghi_thanh_toan_pay', $account);
+  return user_access('do_dau_view_all', $account);
 }
 
 function _do_dau_can_view_any($account) {
-  return _do_dau_can_view_all($account)
-    || user_access('do_dau_view_own', $account)
-    || user_access('do_dau_create', $account);
+  return _do_dau_can_view_all($account) || user_access('do_dau_view_own', $account);
 }
 
 function _do_dau_can_view_row($row, $account) {
   if (_do_dau_can_view_all($account)) {
     return TRUE;
   }
-  return (int) $row->uid_nguoi_tao === (int) $account->uid
-    && (user_access('do_dau_view_own', $account) || user_access('do_dau_create', $account));
+  return (int) $row->uid_nguoi_tao === (int) $account->uid && user_access('do_dau_view_own', $account);
 }
 
 /** Người tạo hoặc người xem được tất cả (quản lý) mới thao tác thay được. */

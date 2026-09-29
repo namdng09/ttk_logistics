@@ -615,7 +615,9 @@
     $('#pq-copy-mode').on('click', 'button', function () { S.copyMode = $(this).data('mode'); renderCopyPop(); });
     $('#pq-copy-apply').on('click', applyCopy);
     $('#pq-app').on('click', '.pq-pop-close', closePops);
-    $('#pq-app').on('click', '.pq-pop', function (e) { e.stopPropagation(); });
+    // Gắn thẳng vào khung popover (không delegate): bấm chọn vai trò sẽ vẽ lại các nút bên trong, nút vừa bấm bị gỡ
+    // khỏi trang nên delegate không còn nhận ra cú bấm nằm trong popover → click lan tới document và đóng popover.
+    $('#pq-app .pq-pop').on('click', function (e) { e.stopPropagation(); });
     $(document).on('click', closePops);
 
     $('#pq-btn-discard').on('click', function () { S.changes = {}; refresh(); });
