@@ -24,6 +24,12 @@
    * @param {string} bksText    - text hiển thị (BKS - mã tài sản)
    * @param {object|null} laixe - nested lai_xe object from list API {nid, ten, sdt, ...}
    */
+  // Bỏ gán lái xe (để trống rồi Lưu) cần quyền ptlx_delete; không có thì không cho xoá lựa chọn hiện tại.
+  function canUnassign() {
+    var s = window.Drupal && Drupal.settings && Drupal.settings.phuong_tien;
+    return !!(s && s.permissions && s.permissions.ptlx_delete);
+  }
+
   window.ptlxOpenAssignModal = function (nidPT, bksText, laixe) {
     var modal = document.getElementById('phuong-tien-lai-xe-modal');
     var displayBks = document.getElementById('ptlx-display-bks');
@@ -38,6 +44,7 @@
     modal.setAttribute('data-current-id', '');
 
     var currentNidLX = laixe ? parseInt(laixe.nid) : null;
+    modal.setAttribute('data-nid-lx-current', currentNidLX || '');
 
     var bsModal = new bootstrap.Modal(modal);
     bsModal.show();
@@ -59,10 +66,11 @@
   // Tải đủ mọi trang của 1 API danh sách: trang 1 cho biết total_pages, các trang còn lại gọi song song (mỗi lần tối đa 100 dòng
   // khi dùng select, tối đa 50 trang). done(items) khi đủ, fail(jqXHR|undefined) nếu có trang lỗi.
   function fetchAllPages(url, params, done, fail) {
-    function request(page) {
-      return $.ajax({ url: url, type: 'GET', dataType: 'json', data: $.extend({ page: page }, params) });
+    // Dùng callback success/error thay cho .done/.fail: trang có thể chạy bản jQuery cũ của Drupal (không có Deferred).
+    function request(page, onOk, onErr) {
+      $.ajax({ url: url, type: 'GET', dataType: 'json', data: $.extend({ page: page }, params), success: onOk, error: onErr });
     }
-    request(1).done(function (res) {
+    request(1, function (res) {
       if (!(res && res.status === 'success' && res.data && res.data.items)) {
         fail();
         return;
@@ -76,23 +84,26 @@
       var chunks = [];
       var left = pages - 1;
       var failed = false;
+      function finishOne() {
+        left -= 1;
+        if (left > 0) return;
+        if (failed) { fail(); return; }
+        var all = first;
+        for (var c = 0; c < chunks.length; c++) all = all.concat(chunks[c]);
+        done(all);
+      }
       for (var page = 2; page <= pages; page++) {
         (function (p) {
-          request(p).done(function (r) {
+          request(p, function (r) {
             if (r && r.status === 'success' && r.data && r.data.items) chunks[p - 2] = r.data.items; else failed = true;
-          }).fail(function () {
+            finishOne();
+          }, function () {
             failed = true;
-          }).always(function () {
-            left -= 1;
-            if (left > 0) return;
-            if (failed) { fail(); return; }
-            var all = first;
-            for (var c = 0; c < chunks.length; c++) all = all.concat(chunks[c]);
-            done(all);
+            finishOne();
           });
         })(page);
       }
-    }).fail(function (jqXHR) {
+    }, function (jqXHR) {
       fail(jqXHR);
     });
   }
@@ -133,7 +144,7 @@
       }
       jqSel2.select2({
         placeholder: 'Tìm kiếm tên, SĐT, CCCD...',
-        allowClear: true,
+        allowClear: canUnassign() || !currentNidLX,
         width: '100%',
         dropdownParent: jqModal
       });
@@ -153,6 +164,17 @@
     if (!nidPT || nidPT <= 0) {
       if (notyf) notyf.error('Thiếu thông tin phương tiện');
       return;
+    }
+    if (nidLX <= 0) {
+      var currentLX = parseInt(modal.getAttribute('data-nid-lx-current'), 10) || 0;
+      if (!currentLX) {
+        if (notyf) notyf.error('Vui lòng chọn lái xe');
+        return;
+      }
+      if (!canUnassign()) {
+        if (notyf) notyf.error('Bạn không có quyền bỏ gán lái xe khỏi phương tiện');
+        return;
+      }
     }
     btn.setAttribute('disabled', 'disabled');
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang lưu...';

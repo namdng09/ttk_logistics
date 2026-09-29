@@ -1046,6 +1046,10 @@ function phuong_tien_page_list() {
       'phuong_tien_view' => api_has_permission('phuong_tien_view'),
       'phuong_tien_create' => api_has_permission('phuong_tien_create'),
       'phuong_tien_delete' => api_has_permission('phuong_tien_delete'),
+      // "Chọn lái xe" gọi POST /api/phuong-tien-lai-xe — server kiểm tra ptlx_create (module phuong_tien_lai_xe).
+      'ptlx_create' => module_exists('phuong_tien_lai_xe') && api_has_permission('ptlx_create'),
+      // Để trống lái xe rồi Lưu = bỏ gán — server kiểm tra thêm ptlx_delete.
+      'ptlx_delete' => module_exists('phuong_tien_lai_xe') && api_has_permission('ptlx_delete'),
     ),
   )), 'setting');
 

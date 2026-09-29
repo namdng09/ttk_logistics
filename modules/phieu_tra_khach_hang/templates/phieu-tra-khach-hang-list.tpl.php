@@ -1,7 +1,9 @@
 <div class="card ptkh-page">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h4 class="card-title mb-0">Phiếu trả khách hàng</h4>
+    <?php if (api_has_permission('phieu_tra_khach_hang_create')): ?>
     <button type="button" class="btn btn-primary" id="ptkh-open-create"><i class="ti tabler-plus me-1"></i>Tạo phiếu</button>
+    <?php endif; ?>
   </div>
   <div class="card-body">
     <div class="row g-2 align-items-end mb-3">

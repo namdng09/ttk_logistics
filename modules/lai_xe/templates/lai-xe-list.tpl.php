@@ -16,9 +16,11 @@
       </div>
       <div class="col-12 col-md-8">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
+          <?php if (api_has_permission('lai_xe_create')): ?>
           <button type="button" class="btn btn-primary btn-them-lai-xe" data-bs-toggle="modal" data-bs-target="#lai-xe-modal">
             <i class="ti tabler-plus me-1"></i>Thêm lái xe
           </button>
+          <?php endif; ?>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-lai-xe">
             <i class="ti tabler-refresh"></i>
           </button>

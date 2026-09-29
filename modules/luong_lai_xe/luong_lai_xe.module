@@ -117,7 +117,8 @@ function luong_lai_xe_page_list() {
       'view' => api_has_permission('luong_lai_xe_view'),
       'create' => api_has_permission('luong_lai_xe_create'),
       'delete' => api_has_permission('luong_lai_xe_delete'),
-      'pay' => api_has_permission('luong_lai_xe_pay'),
+      // Khớp _luong_lai_xe_require_permission(): server cho cả 'administer permissions'.
+      'pay' => api_has_permission('luong_lai_xe_pay') || api_has_permission('administer permissions'),
     ),
   )), 'setting');
 

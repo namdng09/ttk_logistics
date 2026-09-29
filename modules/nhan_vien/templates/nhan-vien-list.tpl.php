@@ -28,9 +28,11 @@
       </div>
       <div class="col-12 col-md-2">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
+          <?php if (api_has_permission('nhan_vien_create')): ?>
           <button type="button" class="btn btn-primary btn-them-nhan-vien" data-bs-toggle="modal" data-bs-target="#nhan-vien-modal">
             <i class="ti tabler-plus me-1"></i>Thêm
           </button>
+          <?php endif; ?>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-nhan-vien">
             <i class="ti tabler-refresh"></i>
           </button>

@@ -15,8 +15,15 @@
   var payQuyBalances = {};
   var notyf;
 
+  // Ứng tiền / Thanh toán lương / Khấu trừ tạm ứng: server kiểm tra luong_lai_xe_pay — không có quyền thì ẩn nút.
+  function canPay() {
+    var s = Drupal.settings && Drupal.settings.luong_lai_xe;
+    return !!(s && s.permissions && s.permissions.pay);
+  }
+
   Drupal.behaviors.luongLaiXe = {
     attach: function (context) {
+      if (!canPay()) $('#llx-btn-advance, #llx-btn-pay').remove();
       var $table = $('#llx-table-body', context);
       if (!$table.length || $table.data('llxInit')) return;
       $table.data('llxInit', true);
@@ -270,9 +277,10 @@
       '<button type="button" class="btn btn-sm btn-icon btn-label-secondary rounded-pill"><i class="ti tabler-dots-vertical"></i></button>' +
       '<ul class="dropdown-menu">' +
       '<li><button type="button" class="dropdown-item llx-act-view" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-eye me-2 text-primary"></i>Xem chi tiết</button></li>' +
+      (canPay() ?
       '<li><button type="button" class="dropdown-item llx-act-advance" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-cash me-2 text-info"></i>Ứng tiền</button></li>' +
       '<li><button type="button" class="dropdown-item llx-act-pay" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-wallet me-2 text-success"></i>Thanh toán lương</button></li>' +
-      '<li><button type="button" class="dropdown-item llx-act-deduct" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-receipt-2 me-2 text-warning"></i>Khấu trừ tạm ứng</button></li>' +
+      '<li><button type="button" class="dropdown-item llx-act-deduct" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-receipt-2 me-2 text-warning"></i>Khấu trừ tạm ứng</button></li>' : '') +
       '<li><button type="button" class="dropdown-item llx-act-history" data-id="' + nid + '" data-ky-luong="' + ky + '"><i class="ti tabler-history me-2 text-secondary"></i>Lịch sử tạm ứng</button></li>' +
       '</ul></div>';
   }

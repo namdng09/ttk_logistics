@@ -24,9 +24,11 @@
         <button type="button" class="btn btn-primary flex-fill" id="btn-lssx-search">
           <i class="ti tabler-search me-1"></i>Tìm
         </button>
+        <?php if (api_has_permission('lich_su_sua_xe_create')): ?>
         <button type="button" class="btn btn-primary flex-fill btn-lssx-create" data-bs-toggle="modal" data-bs-target="#lssx-modal">
           <i class="ti tabler-plus me-1"></i>Thêm
         </button>
+        <?php endif; ?>
         <button type="button" class="btn btn-icon btn-label-secondary" id="btn-lssx-reset" title="Làm mới">
           <i class="ti tabler-refresh"></i>
         </button>

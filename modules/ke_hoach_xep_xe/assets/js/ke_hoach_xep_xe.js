@@ -1191,16 +1191,21 @@
     var costAction = isHangCang
       ? '<li><button type="button" class="dropdown-item btn-open-port-cost-tab" data-id="' + nid + '"><i class="ti tabler-receipt-2 me-2 text-success"></i>Nhập chi phí</button></li>'
       : '<li><button type="button" class="dropdown-item btn-open-ke-hoach-chi-phi" data-id="' + nid + '" data-nid-lai-xe="' + nidLaiXe + '" data-loai-ke-hoach="' + escHtml(loaiKeHoach) + '"><i class="ti tabler-receipt-2 me-2 text-success"></i>Chi phí</button></li>';
-    var statusActions = isHangCang ? hangCangStatusActionHtml(row) : '';
+    // Không có quyền thì không hiện mục (server vẫn kiểm tra lại): tạo/sửa ⇒ Xếp xe, chi phí, đổi trạng thái; xoá ⇒ Xoá.
+    var canCreate = !!perms.create;
+    var canDelete = !!perms.delete;
+    var statusActions = isHangCang && canCreate ? hangCangStatusActionHtml(row) : '';
+    var deleteAction = canDelete
+      ? '<li><button type="button" class="dropdown-item text-danger btn-delete-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-trash me-2"></i>Xoá</button></li>'
+      : '';
     return '<div class="dropdown">' +
       '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill"><i class="ti tabler-dots-vertical"></i></button>' +
       '<ul class="dropdown-menu">' +
       '<li><button type="button" class="dropdown-item btn-view-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-eye me-2 text-info"></i>Xem chi tiết</button></li>' +
-      '<li><button type="button" class="dropdown-item btn-edit-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-truck-delivery me-2 text-primary"></i>Xếp xe</button></li>' +
-      costAction +
-      '<li><hr class="dropdown-divider"></li>' +
+      (canCreate ? '<li><button type="button" class="dropdown-item btn-edit-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-truck-delivery me-2 text-primary"></i>Xếp xe</button></li>' + costAction : '') +
+      (statusActions || deleteAction ? '<li><hr class="dropdown-divider"></li>' : '') +
       statusActions +
-      '<li><button type="button" class="dropdown-item text-danger btn-delete-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-trash me-2"></i>Xoá</button></li>' +
+      deleteAction +
       '</ul></div>';
   }
 
@@ -2084,6 +2089,14 @@
         if (id) {
           $('#list-body tr.khxh-row-menu-active').removeClass('khxh-row-menu-active');
           openEditFullscreenModal(id);
+          return;
+        }
+        // Không có quyền tạo/sửa (không có mục Xếp xe) ⇒ double-click mở Xem chi tiết.
+        var viewButton = this.querySelector('.btn-view-ke-hoach-xep-xe');
+        var viewId = viewButton && parseInt(viewButton.getAttribute('data-id'), 10);
+        if (viewId) {
+          $('#list-body tr.khxh-row-menu-active').removeClass('khxh-row-menu-active');
+          openDetailModal(viewId);
         }
       })
       // Chọn một chức năng nghĩa là đã rời khỏi thao tác chọn dòng. Bỏ nền

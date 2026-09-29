@@ -16,9 +16,11 @@
       </div>
       <div class="col-12 col-md-4">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
+          <?php if (api_has_permission('dinh_muc_khoan_create')): ?>
           <button type="button" class="btn btn-primary" id="dmk-btn-them">
             <i class="ti tabler-plus me-1"></i>Thêm định mức
           </button>
+          <?php endif; ?>
           <button type="button" class="btn btn-icon btn-label-secondary" id="dmk-btn-reload">
             <i class="ti tabler-refresh"></i>
           </button>

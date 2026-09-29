@@ -16,9 +16,9 @@ if (!function_exists('api_response_success')) {
  */
 function phuong_tien_lai_xe_permission() {
   return array(
-    'ptlx_view' => array('title' => t('Xem quan hệ PT-LX')),
-    'ptlx_create' => array('title' => t('Gán/sửa lái xe cho phương tiện')),
-    'ptlx_delete' => array('title' => t('Xoá quan hệ PT-LX')),
+    'ptlx_view' => array('title' => t('Xem quan hệ PT-LX'), 'entry' => array('GET /api/phuong-tien-lai-xe', 'GET /api/phuong-tien-lai-xe/{id}')),
+    'ptlx_create' => array('title' => t('Gán/sửa lái xe cho phương tiện'), 'entry' => array('/phuong-tien (Chọn lái xe)', 'POST /api/phuong-tien-lai-xe', 'PUT /api/phuong-tien-lai-xe/{id}')),
+    'ptlx_delete' => array('title' => t('Bỏ gán lái xe khỏi phương tiện'), 'entry' => array('/phuong-tien (Chọn lái xe → để trống)', 'POST /api/phuong-tien-lai-xe (nid_lai_xe = 0)', 'DELETE /api/phuong-tien-lai-xe/{id}')),
   );
 }
 
@@ -109,7 +109,17 @@ function ptlx_rest_collection() {
   }
 }
 
+/**
+ * Đọc quan hệ phương tiện – lái xe: ptlx_view, hoặc phuong_tien_view (danh sách phương tiện vốn đã hiện lái xe đang gán).
+ */
+function _ptlx_can_read() {
+  return api_has_permission('ptlx_view') || api_has_permission('phuong_tien_view');
+}
+
 function _ptlx_rest_list() {
+  if (!_ptlx_can_read()) {
+    return _ptlx_unauthorized('Bạn không có quyền xem lái xe của phương tiện');
+  }
   $params = array_merge($_GET, array());
 
   $page = isset($params['page']) ? max(1, (int) $params['page']) : 1;
@@ -209,8 +219,11 @@ function _ptlx_rest_create() {
     return _ptlx_fail('Phương tiện không tồn tại hoặc đã bị xoá');
   }
 
-  // Cho phép gửi lái xe rỗng để bỏ gán lái xe hiện tại.
+  // Cho phép gửi lái xe rỗng để bỏ gán lái xe hiện tại — đây là xoá quan hệ nên cần thêm ptlx_delete.
   if ($nid_lx <= 0) {
+    if (!api_has_permission('ptlx_delete')) {
+      return _ptlx_unauthorized('Bạn không có quyền bỏ gán lái xe khỏi phương tiện');
+    }
     $transaction = db_transaction();
     try {
       _ptlx_deactivate_old($nid_pt);
@@ -288,6 +301,9 @@ function ptlx_rest_item($id) {
 }
 
 function _ptlx_rest_get($id) {
+  if (!_ptlx_can_read()) {
+    return _ptlx_unauthorized('Bạn không có quyền xem lái xe của phương tiện');
+  }
   $row = db_query("SELECT * FROM {phuong_tien_lai_xe} WHERE id = :id", array(':id' => $id))->fetch();
   if (!$row) {
     return _ptlx_not_found('Không tìm thấy bản ghi');

@@ -24,9 +24,11 @@
       </div>
       <div class="col-6 col-md-5">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
+          <?php if (api_has_permission('khach_hang_create')): ?>
           <button type="button" class="btn btn-primary btn-them-khach-hang" data-bs-toggle="modal" data-bs-target="#khach-hang-modal">
             <i class="ti tabler-plus me-1"></i>Thêm
           </button>
+          <?php endif; ?>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-khach-hang">
             <i class="ti tabler-refresh"></i>
           </button>

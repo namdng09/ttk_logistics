@@ -4,7 +4,9 @@
       <h4 class="card-title mb-0"><i class="ti tabler-receipt-2 me-2 dn-title-icon"></i>Đề nghị thanh toán</h4>
       <div class="d-flex align-items-center gap-3">
         <div class="dn-sum-bar" id="dn-sum"></div>
+        <?php if (api_has_permission('de_nghi_thanh_toan_create')): ?>
         <button type="button" class="btn btn-primary" id="dn-btn-create"><i class="ti tabler-plus me-1"></i>Tạo đề nghị</button>
+        <?php endif; ?>
       </div>
     </div>
     <div class="card-body dn-filter-body">

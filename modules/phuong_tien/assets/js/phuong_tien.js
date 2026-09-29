@@ -621,9 +621,10 @@
     }
     if (perms.phuong_tien_create) {
       items += '<li><button type="button" class="dropdown-item btn-edit-phuong-tien" data-id="' + nid + '"><i class="ti tabler-edit me-2"></i>Sửa</button></li>';
-      if (!item || item.loai_phuong_tien === 'dau_keo') {
-        items += '<li><button type="button" class="dropdown-item btn-assign-lai-xe" data-id="' + nid + '"><i class="ti tabler-steering-wheel me-2"></i>Chọn lái xe</button></li>';
-      }
+    }
+    // Gán lái xe là quyền riêng của module phuong_tien_lai_xe (ptlx_create), không đi theo quyền sửa phương tiện.
+    if (perms.ptlx_create && (!item || item.loai_phuong_tien === 'dau_keo')) {
+      items += '<li><button type="button" class="dropdown-item btn-assign-lai-xe" data-id="' + nid + '"><i class="ti tabler-steering-wheel me-2"></i>Chọn lái xe</button></li>';
     }
     if (perms.phuong_tien_delete) {
       items += '<li><hr class="dropdown-divider"></li>';
