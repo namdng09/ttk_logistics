@@ -40,14 +40,14 @@ function quan_ly_tai_chinh_menu() {
   $items['quan-ly-tai-chinh'] = array(
     'title' => 'Quản lý tài chính',
     'page callback' => 'quan_ly_tai_chinh_dashboard',
-    'access callback' => 'quan_ly_tai_chinh_view_access',
+    'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
   );
 
   $items['quan-ly-quy'] = array(
     'title' => 'Quản lý quỹ',
     'page callback' => 'quan_ly_tai_chinh_quy_page',
-    'access callback' => 'quan_ly_tai_chinh_view_access',
+    'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
   );
 
@@ -659,6 +659,9 @@ function quan_ly_tai_chinh_page_build(&$page) {
  * Dashboard nhanh.
  */
 function quan_ly_tai_chinh_dashboard() {
+  if (!quan_ly_tai_chinh_view_access()) {
+    return api_denied_page('Bạn không có quyền xem quỹ');
+  }
   quan_ly_tai_chinh_add_assets();
 
   $dashboard_actions = '';
@@ -673,6 +676,9 @@ function quan_ly_tai_chinh_dashboard() {
  * Danh sách quỹ và số dư theo kỳ.
  */
 function quan_ly_tai_chinh_quy_page() {
+  if (!quan_ly_tai_chinh_view_access()) {
+    return api_denied_page('Bạn không có quyền xem quỹ');
+  }
   quan_ly_tai_chinh_add_assets();
   // JS ẩn Sửa/Điều chỉnh/Xoá ở các dòng tải bằng API khi chỉ có quyền xem.
   drupal_add_js(array('qltc' => array('canManage' => user_access('quan ly tai chinh'))), 'setting');

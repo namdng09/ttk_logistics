@@ -48,6 +48,14 @@
     return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
+  }
+
   function apiMsg(jqXHR) {
     try {
       var r = JSON.parse(jqXHR.responseText);
@@ -480,7 +488,7 @@
     $.ajax({
       url: API + '/lich-su', type: 'GET', dataType: 'json', data: { page: S.lsPage, keyword: S.lsQ },
       success: function (res) { renderHistory((res && res.data) || {}); },
-      error: function (jqXHR) { $('#pq-ls-tbody').html('<tr><td colspan="5" class="text-center text-danger py-4">' + esc(apiMsg(jqXHR)) + '</td></tr>'); }
+      error: function (jqXHR) { $('#pq-ls-tbody').html(loadErrorRow(5, jqXHR)); }
     });
   }
 
@@ -693,7 +701,7 @@
     $.ajax({
       url: API, type: 'GET', dataType: 'json', cache: false,
       success: function (res) { applyData(res.data); },
-      error: function (jqXHR) { $('#pq-tbody').html('<tr><td class="text-center text-danger py-4">' + esc(apiMsg(jqXHR)) + '</td></tr>'); },
+      error: function (jqXHR) { $('#pq-tbody').html(loadErrorRow(100, jqXHR)); },
       complete: function () {
         loading(false);
         $btn.prop('disabled', false).find('i').removeClass('pq-spin');

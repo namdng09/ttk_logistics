@@ -45,6 +45,14 @@
     return money(v) + ' đ';
   }
 
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
+  }
+
   function apiMsg(xhr) {
     try {
       return JSON.parse(xhr.responseText).message || 'Lỗi không xác định';
@@ -268,7 +276,7 @@
       renderTable();
       renderPagination(data);
     }).fail(function (xhr) {
-      $('#cnkh-table-body').html('<tr><td colspan="9" class="text-center text-danger py-4">' + esc(apiMsg(xhr)) + '</td></tr>');
+      $('#cnkh-table-body').html(loadErrorRow(9, xhr));
     });
   }
 

@@ -300,3 +300,17 @@ function api_page_result(array $items, $total, $page, $limit) {
     'limit' => (int) $limit,
   );
 }
+
+/*******************************************************************************
+ * TRANG GIAO DIỆN KHI KHÔNG CÓ QUYỀN
+ ******************************************************************************/
+
+/**
+ * Nội dung trang khi tài khoản đăng nhập nhưng không có quyền xem màn: thẻ vàng + icon ổ khoá, cùng kiểu dòng "không có
+ * quyền" trong bảng danh sách các màn. Dùng ở page callback thay cho MENU_ACCESS_DENIED (trang lỗi mặc định của Drupal):
+ *   if (!user_access('x_view')) return api_denied_page('Bạn không có quyền xem ...');
+ */
+function api_denied_page($message) {
+  return '<div class="card"><div class="card-body text-center py-5 text-warning">'
+    . '<i class="ti tabler-lock me-1"></i>' . check_plain($message) . '</div></div>';
+}

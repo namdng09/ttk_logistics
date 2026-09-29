@@ -114,7 +114,7 @@ function do_dau_theme() {
 
 function do_dau_page_list() {
   if (!_do_dau_can_view_any($GLOBALS['user'])) {
-    return MENU_ACCESS_DENIED;
+    return api_denied_page('Bạn không có quyền xem phiếu đổ dầu');
   }
   $path = drupal_get_path('module', 'do_dau');
   drupal_add_css($path . '/assets/css/do_dau.css');

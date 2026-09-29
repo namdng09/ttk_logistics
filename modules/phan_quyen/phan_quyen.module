@@ -52,8 +52,7 @@ function phan_quyen_menu() {
   $items['phan-quyen'] = array(
     'title' => 'Phân quyền hệ thống',
     'page callback' => 'phan_quyen_page_list',
-    'access callback' => 'user_access',
-    'access arguments' => array('phan_quyen_view'),
+    'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
   );
 
@@ -141,6 +140,9 @@ function phan_quyen_user_delete($account) {
  ******************************************************************************/
 
 function phan_quyen_page_list() {
+  if (!user_access('phan_quyen_view')) {
+    return api_denied_page('Bạn không có quyền xem phân quyền');
+  }
   $path = drupal_get_path('module', 'phan_quyen');
   drupal_add_css($path . '/assets/css/phan_quyen.css');
   drupal_add_js($path . '/assets/js/phan_quyen.js');

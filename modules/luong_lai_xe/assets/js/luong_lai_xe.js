@@ -231,7 +231,7 @@
         renderPagination(data);
       })
       .fail(function (xhr) {
-        $('#llx-table-body').html('<tr><td colspan="10" class="text-center text-danger py-4">' + esc(apiMsg(xhr)) + '</td></tr>');
+        $('#llx-table-body').html(loadErrorRow(10, xhr));
       });
   }
 
@@ -1023,6 +1023,14 @@
 
   function lastDayOfMonth(year, month) {
     return String(new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate()).padStart(2, '0');
+  }
+
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
   }
 
   function apiMsg(xhr) {

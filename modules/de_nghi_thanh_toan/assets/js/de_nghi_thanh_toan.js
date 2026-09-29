@@ -68,6 +68,14 @@
 
   var HINH_THUC_LABEL = { CK: 'Chuyển khoản', TM: 'Tiền mặt' };
 
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
+  }
+
   function apiMsg(jqXHR) {
     try {
       var r = JSON.parse(jqXHR.responseText);
@@ -187,7 +195,7 @@
         renderPagination(d);
       },
       error: function (jqXHR) {
-        $('#dn-tbody').html('<tr><td colspan="11" class="text-center text-danger py-4">' + esc(apiMsg(jqXHR)) + '</td></tr>');
+        $('#dn-tbody').html(loadErrorRow(11, jqXHR));
       }
     });
   }

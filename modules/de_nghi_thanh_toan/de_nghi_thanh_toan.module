@@ -128,7 +128,7 @@ function de_nghi_thanh_toan_theme() {
 
 function de_nghi_thanh_toan_page_list() {
   if (!_de_nghi_thanh_toan_can_view_any($GLOBALS['user'])) {
-    return MENU_ACCESS_DENIED;
+    return api_denied_page('Bạn không có quyền xem đề nghị thanh toán');
   }
   $path = drupal_get_path('module', 'de_nghi_thanh_toan');
   drupal_add_css($path . '/assets/css/de_nghi_thanh_toan.css');

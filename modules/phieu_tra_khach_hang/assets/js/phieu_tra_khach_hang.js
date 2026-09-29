@@ -11,6 +11,14 @@
     else window.alert(message);
   }
 
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
+  }
+
   function apiMsg(xhr) {
     try { return JSON.parse(xhr.responseText).message || 'Lỗi không xác định'; }
     catch (e) { return 'Lỗi kết nối server'; }
@@ -233,7 +241,7 @@
       renderPager(res.data || {});
     }).fail(function (xhr) {
       $('#ptkh-loading-row').remove();
-      $('#ptkh-table-body').html('<tr><td colspan="9" class="text-center text-danger py-4">' + esc(apiMsg(xhr)) + '</td></tr>');
+      $('#ptkh-table-body').html(loadErrorRow(9, xhr));
     });
   }
 
@@ -304,7 +312,7 @@
       renderCandidates();
     }).fail(function (xhr) {
       $('#ptkh-candidate-loading-row').remove();
-      $('#ptkh-candidate-body').html('<tr><td colspan="7" class="text-center text-danger py-4">' + esc(apiMsg(xhr)) + '</td></tr>');
+      $('#ptkh-candidate-body').html(loadErrorRow(7, xhr));
       state.candidates = [];
       updateSelectedTotal();
     }).always(function () {

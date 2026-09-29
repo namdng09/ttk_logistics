@@ -16,10 +16,11 @@
 function thu_chi_menu() {
   $items = array();
 
+  // Trang danh sách: vào được khi đã đăng nhập, không có quyền xem thì thu_chi_page() hiện thẻ "không có quyền".
   $items['thu-chi'] = array(
     'title' => 'Thu chi',
     'page callback' => 'thu_chi_page',
-    'access callback' => 'thu_chi_access',
+    'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
   );
 
@@ -465,6 +466,9 @@ function thu_chi_add_assets() {
  * Trang danh sách phiếu thu / chi.
  */
 function thu_chi_page() {
+  if (!thu_chi_access()) {
+    return function_exists('api_denied_page') ? api_denied_page('Bạn không có quyền xem thu chi') : MENU_ACCESS_DENIED;
+  }
   thu_chi_add_assets();
   thu_chi_ensure_content_type_runtime();
 

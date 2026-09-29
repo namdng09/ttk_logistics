@@ -209,6 +209,14 @@
     return $('<span class="badge ' + hinhThucColor(option.id) + '">' + escHtml(hinhThucLabel(option.id) || option.text) + '</span>');
   }
 
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
+  }
+
   function apiMsg(jqXHR) {
     try {
       var r = JSON.parse(jqXHR.responseText);
@@ -2758,7 +2766,7 @@
         // Request bị huỷ do có lần tải mới hơn: bỏ qua, lần tải mới sẽ tự cập nhật bảng.
         if (textStatus === 'abort' || currentXhr !== listXhr) return;
         $('#loading-row').remove();
-        tbody.innerHTML = '<tr><td colspan="' + listColumnCount + '" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
+        tbody.innerHTML = loadErrorRow(listColumnCount, jqXHR);
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -7653,7 +7661,7 @@
         }
       },
       error: function (jqXHR) {
-        $('#detail-body').html('<tr><td colspan="2" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>');
+        $('#detail-body').html(loadErrorRow(2, jqXHR));
       }
     });
   }
