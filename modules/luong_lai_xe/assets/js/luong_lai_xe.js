@@ -6,6 +6,8 @@
   var state = {
     date_from: '',
     date_to: '',
+    // Tab trạng thái trả lương: '' = tất cả, chua_tra, tra_mot_phan, da_tra, tra_thua (server lọc trước khi cắt trang).
+    trang_thai_tra: '',
     keyword: ''
   };
   var driverCache = {};
@@ -28,6 +30,7 @@
       if (!$table.length || $table.data('llxInit')) return;
       $table.data('llxInit', true);
       if (typeof Notyf !== 'undefined' && !notyf) notyf = new Notyf();
+      initPeriodPicker();
       initDefaults();
       initDatePickers();
       bindEvents();
@@ -35,12 +38,91 @@
     }
   };
 
-  function initDefaults() {
-    if ($('#llx-ky-luong-from').val() || $('#llx-ky-luong-to').val()) return;
-    var now = new Date();
-    $('#llx-ky-luong-from').val(toMonthDisplay(now));
-    $('#llx-ky-luong-to').val(toMonthDisplay(now));
+  // --- Ô "Kỳ lương": khoảng tháng {from, to} dạng 'YYYYMM' (mặc định tháng hiện tại). Cùng cách chọn với ô "Kỳ công nợ".
+  var period = { from: '', to: '' };
+  var periodPick = '';
+  var periodYear = new Date().getFullYear();
+
+  function ymKey(year, month) { return String(year) + (month < 10 ? '0' : '') + month; }
+  function periodLabel(v) { return v ? v.slice(4) + '/' + v.slice(0, 4) : ''; }
+  function periodText() {
+    if (period.from === period.to) return 'Tháng ' + periodLabel(period.from);
+    if (period.from.slice(0, 4) === period.to.slice(0, 4) && period.from.slice(4) === '01' && period.to.slice(4) === '12') return 'Năm ' + period.from.slice(0, 4);
+    return periodLabel(period.from) + ' – ' + periodLabel(period.to);
+  }
+  function setPeriod(from, to, reload) {
+    if (from > to) { var t = from; from = to; to = t; }
+    period = { from: from, to: to };
+    periodPick = '';
+    $('#llx-period-text').text(periodText());
+    $('#llx-period-pop').addClass('d-none');
     readFilters();
+    if (reload) { currentPage = 1; loadList(); }
+  }
+  function renderPeriodPop() {
+    var now = new Date();
+    var current = ymKey(now.getFullYear(), now.getMonth() + 1);
+    var from = periodPick || period.from;
+    var to = periodPick || period.to;
+    var html = '<div class="llx-period-head"><button type="button" class="llx-period-nav" data-period-year="-1" title="Năm trước"><i class="ti tabler-chevron-left"></i></button>' +
+      '<strong>' + periodYear + '</strong><button type="button" class="llx-period-nav" data-period-year="1" title="Năm sau"><i class="ti tabler-chevron-right"></i></button></div><div class="llx-period-grid">';
+    for (var m = 1; m <= 12; m++) {
+      var v = ymKey(periodYear, m);
+      var cls = 'llx-period-month';
+      if (v >= from && v <= to) cls += ' is-range';
+      if (v === from || v === to) cls += ' is-edge';
+      if (v === current) cls += ' is-current';
+      html += '<button type="button" class="' + cls + '" data-period-month="' + v + '">Th ' + m + '</button>';
+    }
+    html += '</div><div class="llx-period-hint">' + (periodPick ? 'Chọn tháng kết thúc (bấm lại tháng này = chỉ 1 tháng)' : 'Bấm tháng bắt đầu, rồi tháng kết thúc') + '</div>' +
+      '<div class="llx-period-quick">' +
+      '<button type="button" class="btn btn-label-secondary" data-period-quick="month">Tháng này</button>' +
+      '<button type="button" class="btn btn-label-secondary" data-period-quick="last_month">Tháng trước</button>' +
+      '<button type="button" class="btn btn-label-secondary" data-period-quick="quarter">Quý này</button>' +
+      '<button type="button" class="btn btn-label-secondary" data-period-quick="year">Năm nay</button></div>';
+    $('#llx-period-pop').html(html);
+  }
+  // Gắn thẳng vào ô (như ô "Kỳ công nợ" ở /cong-no-khach-hang): stopPropagation() chặn được handler "click ra ngoài thì đóng".
+  function initPeriodPicker() {
+    var $input = $('#llx-period-input');
+    var $pop = $('#llx-period-pop');
+    if (!$input.length || !$pop.length) return;
+    $input.on('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!$pop.hasClass('d-none')) { $pop.addClass('d-none'); periodPick = ''; return; }
+      periodPick = '';
+      periodYear = parseInt(period.to.slice(0, 4), 10) || new Date().getFullYear();
+      renderPeriodPop();
+      $pop.removeClass('d-none');
+    });
+    $pop.on('click', function (e) {
+      e.stopPropagation();
+      var $t = $(e.target).closest('button');
+      if (!$t.length) return;
+      if ($t.is('[data-period-year]')) { periodYear += parseInt($t.attr('data-period-year'), 10); renderPeriodPop(); return; }
+      if ($t.is('[data-period-month]')) {
+        var v = String($t.attr('data-period-month'));
+        if (!periodPick) { periodPick = v; renderPeriodPop(); } else setPeriod(periodPick, v, true);
+        return;
+      }
+      var now = new Date(), y = now.getFullYear(), m = now.getMonth() + 1, q = $t.attr('data-period-quick');
+      if (q === 'month') setPeriod(ymKey(y, m), ymKey(y, m), true);
+      else if (q === 'last_month') { var py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1; setPeriod(ymKey(py, pm), ymKey(py, pm), true); }
+      else if (q === 'quarter') { var qs = Math.floor((m - 1) / 3) * 3 + 1; setPeriod(ymKey(y, qs), ymKey(y, qs + 2), true); }
+      else if (q === 'year') setPeriod(ymKey(y, 1), ymKey(y, 12), true);
+    });
+    $(document).on('click.llxPeriod', function () {
+      if (!$pop.hasClass('d-none')) { $pop.addClass('d-none'); periodPick = ''; }
+    }).on('keydown.llxPeriod', function (e) {
+      if (e.which === 27) { $pop.addClass('d-none'); periodPick = ''; }
+    });
+  }
+
+  function initDefaults() {
+    var now = new Date();
+    var cur = ymKey(now.getFullYear(), now.getMonth() + 1);
+    setPeriod(cur, cur, false);
   }
 
   function initDatePickers() {
@@ -80,11 +162,6 @@
       }
     });
 
-    $(document).on('change.llx', '#llx-ky-luong-from, #llx-ky-luong-to', function () {
-      readFilters();
-      currentPage = 1;
-      loadList();
-    });
 
     $(document).on('click.llx', '#llx-search-btn', function () {
       applySearch();
@@ -100,10 +177,19 @@
       updateDeductRemaining();
     });
 
+    $(document).on('click.llx', '#llx-tabs [data-tab]', function (e) {
+      e.preventDefault();
+      var tab = String($(this).attr('data-tab') || '');
+      if (tab === state.trang_thai_tra) return;
+      state.trang_thai_tra = tab;
+      currentPage = 1;
+      loadList();
+    });
+
     $(document).on('click.llx', '#llx-btn-reload', function () {
-      $('#llx-ky-luong-from, #llx-ky-luong-to, #llx-keyword').val('');
+      state.trang_thai_tra = '';
+      $('#llx-keyword').val('');
       initDefaults();
-      readFilters();
       currentPage = 1;
       loadList();
     });
@@ -120,6 +206,12 @@
 
     $(document).on('click.llx', '.llx-act-view', function (e) {
       e.preventDefault();
+      openDetail($(this).attr('data-id'), $(this).attr('data-ky-luong'));
+    });
+
+    // Double-click 1 dòng: mở chi tiết lương (bỏ qua khi trúng nút / menu).
+    $(document).on('dblclick.llx', '#llx-table-body tr[data-id]', function (e) {
+      if ($(e.target).closest('a, button, input, .dropdown').length) return;
       openDetail($(this).attr('data-id'), $(this).attr('data-ky-luong'));
     });
 
@@ -212,11 +304,10 @@
     });
   }
 
+  // Kỳ lương ⇒ khoảng ngày gửi API (ngày đầu tháng bắt đầu → ngày cuối tháng kết thúc).
   function readFilters() {
-    var from = monthDisplayToParts($('#llx-ky-luong-from').val());
-    var to = monthDisplayToParts($('#llx-ky-luong-to').val());
-    state.date_from = from ? from.year + '-' + from.month + '-01' : '';
-    state.date_to = to ? to.year + '-' + to.month + '-' + lastDayOfMonth(to.year, to.month) : '';
+    state.date_from = period.from ? period.from.slice(0, 4) + '-' + period.from.slice(4) + '-01' : '';
+    state.date_to = period.to ? period.to.slice(0, 4) + '-' + period.to.slice(4) + '-' + lastDayOfMonth(parseInt(period.to.slice(0, 4), 10), parseInt(period.to.slice(4), 10)) : '';
   }
 
   function query(extra) {
@@ -236,35 +327,80 @@
         var data = res && res.data ? res.data : {};
         renderRows(data.items || []);
         renderPagination(data);
+        renderTabs(data.status_counts || {});
+        renderSum(data.tong || {});
       })
       .fail(function (xhr) {
-        $('#llx-table-body').html(loadErrorRow(10, xhr));
+        $('#llx-table-body').html(loadErrorRow(12, xhr));
       });
+  }
+
+  var PAY_TABS = [
+    { id: '', key: 'all', label: 'Tất cả' },
+    { id: 'chua_tra', key: 'chua_tra', label: 'Chưa trả' },
+    { id: 'tra_mot_phan', key: 'tra_mot_phan', label: 'Trả 1 phần' },
+    { id: 'da_tra', key: 'da_tra', label: 'Đã trả đủ' },
+    { id: 'tra_thua', key: 'tra_thua', label: 'Trả thừa' }
+  ];
+  var PAY_STATUS = {
+    chua_tra: ['Chưa trả', 'bg-label-warning'],
+    tra_mot_phan: ['Trả 1 phần', 'bg-label-info'],
+    da_tra: ['Đã trả đủ', 'bg-label-success'],
+    tra_thua: ['Trả thừa', 'bg-label-danger']
+  };
+
+  // Hoàn chi phí: số đã hoàn qua ĐNTT + dòng phụ "Chờ hoàn" (bên nhận là lái xe, ĐNTT chưa xong) nếu có.
+  function hoanHtml(da, cho) {
+    var c = parseInt(cho, 10) || 0;
+    return money(da) + (c > 0 ? '<div class="llx-subtext text-warning" title="Chi phí công ty/khách chịu, bên nhận là lái xe, chưa trả xong qua đề nghị thanh toán">Chờ hoàn ' + money(c) + '</div>' : '');
+  }
+
+  function renderTabs(counts) {
+    $('#llx-tabs').html($.map(PAY_TABS, function (t) {
+      return '<li class="nav-item"><button type="button" class="nav-link waves-effect waves-light' + (state.trang_thai_tra === t.id ? ' active' : '') + '" data-tab="' + t.id + '" role="tab">' +
+        esc(t.label) + ' <span class="badge bg-label-primary ms-1">' + (parseInt(counts[t.key], 10) || 0) + '</span></button></li>';
+    }).join(''));
+  }
+
+  // Dải tổng theo bộ lọc hiện tại (cả danh sách, không theo tab).
+  function renderSum(t) {
+    function stat(label, value, cls) {
+      return '<div class="llx-sum-item"><span class="llx-sum-label">' + label + '</span><span class="llx-sum-value ' + cls + '">' + money(value) + '</span></div>';
+    }
+    $('#llx-sum').html(stat('Tổng lương', t.tong_luong, 'text-primary') + stat('Thực lĩnh', t.thuc_lanh, '') + stat('Đã trả', t.da_thanh_toan, 'text-success') + stat('Còn phải trả', t.con_phai_tra, 'text-danger') +
+      ((parseInt(t.tra_thua, 10) || 0) > 0 ? stat('Trả thừa', t.tra_thua, 'text-danger') : '') +
+      ((parseInt(t.cho_hoan, 10) || 0) > 0 ? stat('Chờ hoàn chi phí', t.cho_hoan, 'text-warning') : ''));
   }
 
   function renderRows(items) {
     if (!items.length) {
-      $('#llx-table-body').html('<tr><td colspan="10" class="text-center text-muted py-4">Không có dữ liệu lương trong khoảng lọc.</td></tr>');
+      $('#llx-table-body').html('<tr><td colspan="12" class="text-center text-muted py-4">Không có dữ liệu lương trong khoảng lọc.</td></tr>');
       return;
     }
     var html = '';
     $.each(items, function (index, item) {
       var driver = item.lai_xe || {};
       if (driver.nid) driverCache[driver.nid] = driver;
-      var stt = (((currentPage - 1) * 20) + index + 1);
-      var driverName = [String(driver.ten || '').trim(), String(driver.ma_nhan_vien || '').trim()].filter(Boolean).join(' - ') || '-';
-      var driverSub = driverBankLine(driver);
-      html += '<tr>' +
+      var driverName = String(driver.ten || '').trim() || '-';
+      var driverSub = [String(driver.ma_nhan_vien || '').trim(), driverBankLine(driver)].filter(Boolean).join(' · ');
+      var st = PAY_STATUS[item.trang_thai_tra] || ['—', 'bg-label-secondary'];
+      var remaining = parseInt(item.luong_phai_tra, 10) || 0;
+      var over = parseInt(item.tra_thua, 10) || 0;
+      html += '<tr data-id="' + esc(driver.nid || 0) + '" data-ky-luong="' + esc(item.ky_luong || '') + '">' +
         '<td class="text-center">' + buildActions(item) + '</td>' +
-        '<td class="text-center">' + stt + '</td>' +
         '<td><div class="llx-driver-name">' + esc(driverName) + '</div><div class="llx-subtext">' + esc(driverSub) + '</div></td>' +
-        '<td>' + esc(item.ky_luong_display || '-') + '</td>' +
+        '<td><span class="llx-period">' + esc(item.ky_luong_display || '-') + '</span></td>' +
         '<td class="text-center">' + number(item.so_ke_hoach) + '</td>' +
-        '<td class="text-end fw-semibold text-primary">' + money(item.tong_luong_ke_hoach) + '</td>' +
-        '<td class="text-end">' + money(item.hoan_chi_phi_da_thanh_toan) + '</td>' +
-        '<td class="text-end">' + money(item.tam_ung_da_chi) + '</td>' +
-        '<td class="text-end">' + money(item.khau_tru_tam_ung) + '</td>' +
-        '<td class="text-end fw-semibold text-success">' + money(item.thuc_lanh) + '</td>' +
+        '<td class="text-end fw-semibold text-primary llx-money">' + money(item.luong_chot) + '</td>' +
+        '<td class="text-end llx-money">' + money(item.tam_ung_da_chi) + '</td>' +
+        '<td class="text-end llx-money">' + money(item.khau_tru_tam_ung) + '</td>' +
+        '<td class="text-end fw-semibold llx-money">' + money(item.thuc_lanh) + '</td>' +
+        '<td class="text-end text-success llx-money">' + money(item.da_thanh_toan) + '</td>' +
+        (over > 0
+          ? '<td class="text-end fw-bold llx-money text-danger" title="Đã trả nhiều hơn thực lĩnh">−' + money(over) + '<div class="llx-subtext text-danger">Trả thừa</div></td>'
+          : '<td class="text-end fw-bold llx-money ' + (remaining > 0 ? 'text-danger' : 'text-muted') + '">' + money(remaining) + '</td>') +
+        '<td class="text-end text-muted llx-money">' + hoanHtml(item.hoan_chi_phi_da_thanh_toan, item.hoan_chi_phi_cho_hoan) + '</td>' +
+        '<td><span class="badge ' + st[1] + '">' + esc(st[0]) + '</span></td>' +
       '</tr>';
     });
     $('#llx-table-body').html(html);
@@ -327,7 +463,7 @@
     $('#llx-detail-title').text('Chi tiết lương - ' + (driver.ten || 'Lái xe'));
     $('#llx-detail-meta').text([driver.ma_nhan_vien, driver.sdt].filter(Boolean).join(' / '));
     $('#llx-detail-plan-salary').text(money(data.tong_luong_ke_hoach));
-    $('#llx-detail-reimburse').text(money(data.hoan_chi_phi_da_thanh_toan));
+    $('#llx-detail-reimburse').html(hoanHtml(data.hoan_chi_phi_da_thanh_toan, data.hoan_chi_phi_cho_hoan));
     $('#llx-detail-advance').text(money(data.tam_ung_da_chi));
     $('#llx-detail-deduct').text(money(data.khau_tru_tam_ung));
     $('#llx-detail-final').text(money(data.luong_chot));
@@ -345,7 +481,7 @@
         '<td class="text-center">' + (index + 1) + '</td>' +
         '<td><div class="fw-semibold">' + esc(plan.so_bkg || ('#' + plan.nid)) + '</div><div class="llx-subtext">' + esc([plan.loai_cont, plan.so_cont].filter(Boolean).join(' - ')) + '</div></td>' +
         '<td>' + esc(plan.ngay_ke_hoach || '-') + '</td>' +
-        '<td class="text-end">' + money(row.de_nghi && row.de_nghi.da_thanh_toan) + '</td>' +
+        '<td class="text-end">' + hoanHtml(row.de_nghi && row.de_nghi.da_thanh_toan, row.de_nghi && row.de_nghi.cho_hoan) + '</td>' +
         '<td class="text-end fw-semibold">' + money(row.luong_ke_hoach) + '</td>' +
       '</tr>';
     });
@@ -851,7 +987,7 @@
     if (driver.nid) driverCache[driver.nid] = driver;
     renderPayDriver(driver.nid, driver);
     $('#llx-pay-plan-salary').text(money(data.tong_luong_ke_hoach));
-    $('#llx-pay-reimburse').text(money(data.hoan_chi_phi_da_thanh_toan));
+    $('#llx-pay-reimburse').html(hoanHtml(data.hoan_chi_phi_da_thanh_toan, data.hoan_chi_phi_cho_hoan));
     $('#llx-pay-advance').text(money(data.tam_ung_da_chi));
     $('#llx-pay-deduct').text(money(data.khau_tru_tam_ung));
     $('#llx-pay-final').text(money(data.luong_chot));
@@ -993,7 +1129,7 @@
   }
 
   function setTableLoading() {
-    $('#llx-table-body').html('<tr><td colspan="10" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>');
+    $('#llx-table-body').html('<tr><td colspan="12" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>');
   }
 
   function money(value) {

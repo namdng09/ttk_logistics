@@ -67,6 +67,15 @@ function _thu_chi_actions($item) {
     'xoa' => 'Xoá phiếu',
   );
   $status = isset($item->duyet_status) ? $item->duyet_status : 'cho_duyet';
+  // Phiếu tạm ứng / trả lương lái xe: chỉ duyệt / không duyệt khi đang chờ duyệt (thu_chi_edit_locked_reason()).
+  if (thu_chi_edit_locked_reason($item)) {
+    $actions = array();
+    if ($status === 'cho_duyet') {
+      $actions[] = array('action' => 'duyet', 'label' => $map['duyet']);
+      $actions[] = array('action' => 'khong_duyet', 'label' => $map['khong_duyet']);
+    }
+    return $actions;
+  }
   $keys = array();
   switch ($status) {
     case 'cho_duyet':
@@ -102,6 +111,7 @@ function _thu_chi_source_label($ref_type) {
   $map = array(
     'cong_no_khach_hang' => 'Công nợ khách hàng',
     'bcllx_tam_ung_lai_xe' => 'Ứng tiền lái xe',
+    'llx_thanh_toan_luong' => 'Thanh toán lương lái xe',
     'bcllx_thanh_toan_luong_lai_xe' => 'Thanh toán lương lái xe',
     'bcllx_tam_ung_khau_tru' => 'Khấu trừ tạm ứng lương',
   );
@@ -146,6 +156,7 @@ function _thu_chi_api_item($item, $full = FALSE) {
     'duyet_label' => thu_chi_duyet_label($item->duyet_status),
     'nguon' => array('ref_type' => (string) $item->ref_type, 'label' => _thu_chi_source_label($item->ref_type)),
     'khoa' => $locked,
+    'khoa_sua' => $locked ? '' : thu_chi_edit_locked_reason($item),
     'hanh_dong' => _thu_chi_actions($item),
     'created' => $item->created ? date('Y-m-d H:i:s', (int) $item->created) : '',
     'changed' => $item->changed ? date('Y-m-d H:i:s', (int) $item->changed) : '',

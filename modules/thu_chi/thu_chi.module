@@ -655,7 +655,7 @@ function thu_chi_ajax_form($gd_id = 0) {
   if ($gd_id && !$gd) {
     return array('success' => FALSE, 'message' => 'Không tìm thấy phiếu cần sửa.');
   }
-  if ($gd && ($locked = thu_chi_locked_reason($gd))) {
+  if ($gd && ($locked = thu_chi_locked_reason($gd) ?: thu_chi_edit_locked_reason($gd))) {
     return array('success' => FALSE, 'message' => $locked);
   }
 
@@ -757,7 +757,7 @@ function thu_chi_ajax_delete($gd_id) {
   if (!$gd) {
     return array('success' => FALSE, 'message' => 'Không tìm thấy phiếu cần xóa.');
   }
-  if ($locked = thu_chi_locked_reason($gd)) {
+  if ($locked = thu_chi_locked_reason($gd) ?: thu_chi_edit_locked_reason($gd)) {
     return array('success' => FALSE, 'message' => $locked);
   }
 
@@ -815,7 +815,8 @@ function thu_chi_ajax_approve($gd_id) {
  */
 function thu_chi_ajax_request_adjust($gd_id) {
   thu_chi_ensure_content_type_runtime();
-  if ($locked = thu_chi_locked_reason(thu_chi_giao_dich_load(intval($gd_id)))) {
+  $gd_lock = thu_chi_giao_dich_load(intval($gd_id));
+  if ($locked = thu_chi_locked_reason($gd_lock) ?: thu_chi_edit_locked_reason($gd_lock)) {
     return array('success' => FALSE, 'message' => $locked);
   }
   return thu_chi_request_adjustment(intval($gd_id));
@@ -826,7 +827,8 @@ function thu_chi_ajax_request_adjust($gd_id) {
  */
 function thu_chi_ajax_approve_adjust($gd_id) {
   thu_chi_ensure_content_type_runtime();
-  if ($locked = thu_chi_locked_reason(thu_chi_giao_dich_load(intval($gd_id)))) {
+  $gd_lock = thu_chi_giao_dich_load(intval($gd_id));
+  if ($locked = thu_chi_locked_reason($gd_lock) ?: thu_chi_edit_locked_reason($gd_lock)) {
     return array('success' => FALSE, 'message' => $locked);
   }
   $decision = isset($_POST['decision']) ? trim($_POST['decision']) : (isset($_GET['decision']) ? trim($_GET['decision']) : '');
@@ -996,9 +998,6 @@ function thu_chi_approve_giao_dich($gd_id, $decision) {
     if (function_exists('luong_lai_xe_sync_thanh_toan_luong_status_from_phieu')) {
       luong_lai_xe_sync_thanh_toan_luong_status_from_phieu($node, $new_status);
     }
-    if (function_exists('luong_lai_xe_sync_khau_tru_status_from_phieu')) {
-      luong_lai_xe_sync_khau_tru_status_from_phieu($node, $new_status);
-    }
     foreach (array_unique(array_filter(array_map('intval', array($gd->nid_quy, $gd->nid_quy_nhan)))) as $qid) {
       thu_chi_rebuild_quy_balance($qid);
     }
@@ -1051,9 +1050,6 @@ function thu_chi_approve_giao_dich($gd_id, $decision) {
   thu_chi_sync_bcllx_thanh_toan_luong_status_from_phieu($after_gd, $new_status);
   if (function_exists('luong_lai_xe_sync_thanh_toan_luong_status_from_phieu')) {
     luong_lai_xe_sync_thanh_toan_luong_status_from_phieu($after_gd, $new_status);
-  }
-  if (function_exists('luong_lai_xe_sync_khau_tru_status_from_phieu')) {
-    luong_lai_xe_sync_khau_tru_status_from_phieu($after_gd, $new_status);
   }
 
   foreach ($quy_ids as $qid) {
@@ -1603,7 +1599,7 @@ function thu_chi_giao_dich_save_values(array $values, $gd_id = 0) {
     return array('success' => FALSE, 'message' => 'Không tìm thấy phiếu cần cập nhật.');
   }
 
-  if ($old && ($locked = thu_chi_locked_reason($old))) {
+  if ($old && ($locked = thu_chi_locked_reason($old) ?: thu_chi_edit_locked_reason($old))) {
     return array('success' => FALSE, 'message' => $locked);
   }
 
@@ -2805,6 +2801,20 @@ function thu_chi_locked_reason($item) {
   $locked = array(
     // Số đã thu được phân bổ vào từng phiếu trả khách hàng (bảng cong_no_khach_hang_phan_bo) — đổi phiếu ở đây sẽ lệch công nợ.
     'cong_no_khach_hang' => 'Phiếu thu công nợ khách hàng được tạo và chốt ở màn Công nợ khách hàng, không sửa / xoá / đổi trạng thái ở Thu chi.',
+  );
+  return isset($locked[$ref_type]) ? $locked[$ref_type] : '';
+}
+
+/**
+ * Phiếu do module khác tạo nhưng vẫn DUYỆT ở Thu chi (tạm ứng / trả lương lái xe): khoá sửa, xoá, yêu cầu/duyệt điều chỉnh —
+ * chỉ Duyệt / Không duyệt. Số tiền đã ghi ở màn Lương lái xe, sửa ở đây sẽ lệch. Trả lý do hoặc ''.
+ */
+function thu_chi_edit_locked_reason($item) {
+  if (!$item) return '';
+  $ref_type = isset($item->ref_type) ? trim((string) $item->ref_type) : '';
+  $locked = array(
+    'bcllx_tam_ung_lai_xe' => 'Phiếu ứng tiền lái xe tạo ở màn Lương lái xe: chỉ duyệt / không duyệt ở Thu chi. Muốn đổi số tiền thì Không duyệt rồi tạo lại ở màn Lương lái xe.',
+    'llx_thanh_toan_luong' => 'Phiếu trả lương lái xe tạo ở màn Lương lái xe: chỉ duyệt / không duyệt ở Thu chi. Muốn đổi số tiền thì Không duyệt rồi tạo lại ở màn Lương lái xe.',
   );
   return isset($locked[$ref_type]) ? $locked[$ref_type] : '';
 }

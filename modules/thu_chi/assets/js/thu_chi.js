@@ -98,8 +98,9 @@
     }
     function sourceChip(item) {
       if (!item.nguon || !item.nguon.label) return '';
-      return '<div class="mt-1"><span class="tc-chip tc-chip-source" title="' + esc(item.khoa || ('Nguồn: ' + item.nguon.label)) + '">' +
-        (item.khoa ? '<i class="ti tabler-lock"></i>' : '<i class="ti tabler-link"></i>') + esc(item.nguon.label) + '</span></div>';
+      var lock = item.khoa || item.khoa_sua;
+      return '<div class="mt-1"><span class="tc-chip tc-chip-source" title="' + esc(lock || ('Nguồn: ' + item.nguon.label)) + '">' +
+        (lock ? '<i class="ti tabler-lock"></i>' : '<i class="ti tabler-link"></i>') + esc(item.nguon.label) + '</span></div>';
     }
     function hasAction(item, action) {
       return $.grep(item.hanh_dong || [], function (a) { return a.action === action; }).length > 0;
@@ -478,7 +479,7 @@
       if (d.khach_hang) doiTuong.push('KH: ' + esc(d.khach_hang.ten));
       if (d.nha_cung_cap) doiTuong.push('NCC: ' + esc(d.nha_cung_cap.ten));
       var html = '';
-      if (d.khoa) html += '<div class="alert alert-secondary py-2"><i class="ti tabler-lock me-1"></i>' + esc(d.khoa) + '</div>';
+      if (d.khoa || d.khoa_sua) html += '<div class="alert alert-secondary py-2"><i class="ti tabler-lock me-1"></i>' + esc(d.khoa || d.khoa_sua) + '</div>';
       html += '<div class="row g-3 mb-3">' +
         info('Phân loại', d.phan_loai ? esc(d.phan_loai.ten) : '') +
         info('Quỹ', esc(d.quy)) +

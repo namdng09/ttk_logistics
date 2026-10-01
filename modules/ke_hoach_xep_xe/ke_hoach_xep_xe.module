@@ -3878,12 +3878,16 @@ function ke_hoach_xep_xe_dinh_muc_rest($id) {
     return _ke_hoach_xep_xe_unauthorized('Bạn không có quyền cập nhật định mức');
   }
   $id = (int) $id;
-  $plan = $id ? db_query("SELECT nid, loai_ke_hoach, thong_tin_json FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch() : FALSE;
+  $plan = $id ? db_query("SELECT * FROM {ke_hoach_xep_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch() : FALSE;
   if (!$plan) {
     return _ke_hoach_xep_xe_not_found('Kế hoạch không tồn tại');
   }
   if (!empty($plan->loai_ke_hoach) && $plan->loai_ke_hoach !== 'thuong') {
     return _ke_hoach_xep_xe_fail('Endpoint này chỉ dành cho kế hoạch hàng cảng');
+  }
+  // Kỳ lương của lái xe đã có phiếu trả lương ⇒ khoá định mức, để số lương đã trả không bị đổi ngầm.
+  if (function_exists('luong_lai_xe_dinh_muc_lock_reason') && ($lock = luong_lai_xe_dinh_muc_lock_reason($plan))) {
+    return _ke_hoach_xep_xe_fail($lock);
   }
   $input = _ke_hoach_xep_xe_input();
   $json = _ke_hoach_xep_xe_json_decode($plan->thong_tin_json);
