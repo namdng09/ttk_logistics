@@ -1,0 +1,91 @@
+/* Màn /thu-chi — bố cục 2 card như /de-nghi-thanh-toan (bản riêng, tiền tố tc-, không dùng chung selector). */
+#tc-app.tc-list-app { display: flex; flex-direction: column; gap: 1rem; }
+#tc-app .tc-title-icon { color: #7367f0; font-size: 1.35rem; vertical-align: -3px; }
+
+/* Dải tổng thu / chi / chênh lệch. */
+#tc-app .tc-sum-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.75rem; }
+#tc-app .tc-sum-item { display: flex; align-items: baseline; gap: .5rem; }
+#tc-app .tc-sum-label { font-size: .78rem; color: #6d6b77; }
+#tc-app .tc-sum-value { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Bộ lọc 1 dòng. */
+#tc-app .tc-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.1fr) minmax(120px, .7fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(200px, 1fr) max-content;
+  align-items: flex-end;
+  gap: .75rem;
+  min-width: 0;
+}
+#tc-app .tc-filter-field { min-width: 0; }
+#tc-app .tc-filter-field .form-label { margin-bottom: .35rem; font-size: .76rem; font-weight: 600; color: #566a7f; white-space: nowrap; }
+#tc-app .tc-filter-field .form-control,
+#tc-app .tc-filter-field .form-select { font-size: .85rem; }
+#tc-app .tc-filter-actions { display: flex; align-items: center; gap: .5rem; }
+#tc-app .tc-filter-reset { display: inline-flex; align-items: center; justify-content: center; width: 38px; min-width: 38px; height: 38px; padding: 0; }
+#tc-app .tc-filter-reset > i { margin: 0 !important; font-size: 1.05rem; line-height: 1; }
+@media (max-width: 1199.98px) {
+  #tc-app .tc-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #tc-app .tc-filter-actions { grid-column: 1 / -1; justify-content: flex-end; }
+}
+@media (max-width: 767.98px) {
+  #tc-app .tc-filter-grid { grid-template-columns: 1fr; }
+}
+
+/* Select2 trong màn + modal: cùng chiều cao ô nhập. */
+#tc-app .select2-container { width: 100% !important; font-family: inherit; }
+#tc-app .select2-container .select2-selection--single { height: calc(1.5em + 0.75rem + 2px); padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-size: 0.85rem; line-height: 1.5; }
+#tc-app .select2-container .select2-selection--single .select2-selection__rendered { line-height: 1.5; padding: 0; padding-right: 1.75rem; font-size: 0.85rem; }
+#tc-app .select2-container .select2-selection--single .select2-selection__arrow { height: 100%; top: 0; right: 0.375rem; width: 1rem; }
+#tc-app .select2-container .select2-selection--single .select2-selection__clear { position: relative; z-index: 1; font-size: 0.875rem; }
+#tc-app .is-invalid + .select2-container .select2-selection { border-color: #ff4c51; }
+
+/* Tab trạng thái. */
+#tc-app .tc-status-tabs-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .5rem 1rem; border-bottom: 1px solid #eef0f4; background: #fff; }
+#tc-app .tc-status-tabs { gap: 6px; flex-wrap: wrap; }
+#tc-app .tc-status-tabs .nav-link { border: 0; cursor: pointer; padding-left: 7px; padding-right: 7px; }
+#tc-app .tc-status-tabs .nav-link .badge { pointer-events: none; }
+
+/* Bảng: chỉ nội dung bảng cuộn, tiêu đề dính. */
+#tc-app .tc-table-scroll { min-height: 280px; max-height: min(620px, calc(100vh - 330px)); overflow: auto; }
+#tc-app .tc-table-scroll .table-responsive { overflow: visible; }
+#tc-app .tc-list-table { min-width: 1300px; }
+#tc-app .tc-list-table th { white-space: nowrap; font-size: 12px; }
+#tc-app .tc-list-table td { vertical-align: middle; font-size: 13px; }
+#tc-app .tc-table-scroll .tc-list-table thead th { position: sticky; top: 0; z-index: 2; background: var(--bs-table-bg, #f8f9fa); }
+#tc-app .tc-list-table tbody tr { cursor: default; }
+#tc-app .tc-code { color: #7367f0; font-weight: 700; text-decoration: none; }
+#tc-app .tc-code:hover { text-decoration: underline; }
+#tc-app .tc-money { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+#tc-app .tc-money-thu { color: #1f9d55; }
+#tc-app .tc-money-chi { color: #ea5455; }
+#tc-app .tc-chip { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; padding: 1px 8px; border-radius: 50rem; font-weight: 600; white-space: nowrap; }
+#tc-app .tc-chip-thu { background: #ddf6e8; color: #1f9d55; }
+#tc-app .tc-chip-chi { background: #fde8e8; color: #ea5455; }
+#tc-app .tc-chip-source { background: #f1f2f6; color: #566a7f; border: 1px solid #e6e6e8; cursor: help; }
+
+/* Loading overlay trong modal. */
+.tc-loading { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; background: rgba(255, 255, 255, .85); }
+.tc-loading.is-visible { display: flex; }
+
+/* Bảng chi tiết trong modal tạo/sửa. */
+#tc-form-modal .tc-lines > thead > tr > th,
+#tc-view-modal .tc-lines > thead > tr > th {
+  height: 30px; padding: 3px 6px; vertical-align: middle; background: #eef3f8; color: #344054;
+  font-size: 12px; font-weight: 650; white-space: nowrap; text-transform: none; letter-spacing: normal; border-bottom: 1px solid #d9e2ec;
+}
+#tc-form-modal .tc-lines td { vertical-align: middle; padding: 4px; }
+#tc-form-modal .tc-lines .form-control { height: 32px; padding: 4px 8px; font-size: 13px; }
+#tc-form-modal .tc-lines .tc-num { text-align: right; font-variant-numeric: tabular-nums; }
+#tc-form-modal .tc-line-total { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#tc-form-modal .tc-loai-toggle .btn { font-weight: 600; }
+
+/* Modal chi tiết. */
+.tc-info-label { font-size: .76rem; font-weight: 700; color: #566a7f; margin-bottom: .15rem; }
+.tc-info-value { color: #444050; word-break: break-word; }
+.tc-box { border: 1px solid #e7e9ee; border-radius: .5rem; padding: 10px 14px; background: #fbfcfe; }
+
+.flatpickr-calendar { z-index: 99999 !important; }
+.daterangepicker.tc-daterangepicker .drp-buttons { display: flex !important; align-items: center; gap: .35rem; }
+.daterangepicker.tc-daterangepicker .drp-selected,
+.daterangepicker.tc-daterangepicker .applyBtn { display: none !important; }
+.daterangepicker.tc-daterangepicker .tc-date-quick { display: inline-flex; gap: .35rem; margin-right: auto; }

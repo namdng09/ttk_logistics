@@ -12,17 +12,11 @@
           </select>
         </div>
         <div class="cnkh-filter-field">
-          <label class="form-label">Từ tháng</label>
-          <div class="cnkh-month-range">
-            <select id="cnkh-filter-from-month" class="form-select cnkh-month-select"></select>
-            <select id="cnkh-filter-from-year" class="form-select cnkh-year-select"></select>
-          </div>
-        </div>
-        <div class="cnkh-filter-field">
-          <label class="form-label">Đến tháng</label>
-          <div class="cnkh-month-range">
-            <select id="cnkh-filter-to-month" class="form-select cnkh-month-select"></select>
-            <select id="cnkh-filter-to-year" class="form-select cnkh-year-select"></select>
+          <label class="form-label" for="cnkh-period-input">Kỳ công nợ</label>
+          <!-- Chọn khoảng tháng: bấm tháng bắt đầu rồi tháng kết thúc (JS dựng bảng chọn, xem initPeriodPicker()). -->
+          <div class="cnkh-period" id="cnkh-period">
+            <button type="button" class="form-select cnkh-period-input" id="cnkh-period-input"><i class="ti tabler-calendar-month me-1"></i><span id="cnkh-period-text">Tất cả thời gian</span></button>
+            <div class="cnkh-period-pop d-none" id="cnkh-period-pop"></div>
           </div>
         </div>
         <div class="cnkh-filter-field">

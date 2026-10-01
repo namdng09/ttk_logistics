@@ -2,7 +2,7 @@
 /**
  * @file
  * Danh sách phiếu trả khách hàng — bố cục 2 card như /de-nghi-thanh-toan (bản riêng, tiền tố ptkh-, không dùng chung selector):
- * card trên = tiêu đề + nút tạo + bộ lọc; card dưới = tab trạng thái có số lượng + bảng + phân trang.
+ * card trên = tiêu đề + bộ lọc (tạo phiếu ở nút "Tạo phiếu trả KH" trên /ke-hoach-xep-xe); card dưới = tab trạng thái có số lượng + bảng + phân trang.
  * Modal Tạo/Sửa là modal dùng chung (phieu-tra-khach-hang-modal.tpl.php), nối vào cuối trang ở page callback.
  */
 ?>
@@ -10,9 +10,6 @@
   <div class="card ptkh-controls-card">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
       <h4 class="card-title mb-0"><i class="ti tabler-file-invoice me-2 ptkh-title-icon"></i>Phiếu trả khách hàng</h4>
-      <?php if (api_has_permission('phieu_tra_khach_hang_create')): ?>
-      <button type="button" class="btn btn-primary" id="ptkh-open-create"><i class="ti tabler-plus me-1"></i>Tạo phiếu</button>
-      <?php endif; ?>
     </div>
     <div class="card-body ptkh-filter-body">
       <div class="ptkh-filter-grid">

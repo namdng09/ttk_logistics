@@ -820,3 +820,60 @@ function thu_chi_update_7213() {
   drupal_static_reset('user_access');
   return 'Đã cấp quyền Xem thu chi cho ' . $n . ' vai trò đang có quyền quản lý quỹ.';
 }
+
+/**
+ * Thu chi chuyển sang dữ liệu mới:
+ * - "Phân loại phiếu" từ node danh_muc kiểu cũ sang bảng danh_muc (phân loại "Phân loại thu chi"), mỗi phiếu 1 phân loại;
+ * - "Nội dung" từng dòng từ id node sang chữ tự do.
+ * Tạo sẵn các phân loại mặc định. Phiếu đã ở dạng mới thì bỏ qua.
+ */
+function thu_chi_update_7214() {
+  module_load_include('module', 'thu_chi');
+  if (!db_table_exists('danh_muc') || !db_table_exists('qltc_phieu_thu_chi')) {
+    return 'Chưa có bảng danh_muc hoặc qltc_phieu_thu_chi — bỏ qua.';
+  }
+  thu_chi_ensure_default_category_nodes();
+  $changed = 0;
+  foreach (db_query("SELECT nid, loai_giao_dich_json, chi_tiet_json, thong_tin_json FROM {qltc_phieu_thu_chi}") as $row) {
+    $fields = array();
+    // Phân loại: id đã là danh_muc "Phân loại thu chi" thì giữ, không thì đổi theo tên node cũ.
+    $ids = json_decode((string) $row->loai_giao_dich_json, TRUE);
+    $ids = is_array($ids) ? $ids : array();
+    $new_ids = array();
+    foreach ($ids as $id) {
+      $id = intval($id);
+      if (!$id) continue;
+      if (thu_chi_selected_danh_muc_options(array($id), THU_CHI_PHAN_LOAI_DANH_MUC)) { $new_ids = array($id); break; }
+      $title = thu_chi_legacy_node_title($id);
+      $nid = $title !== '' ? thu_chi_get_or_create_category_node($title) : 0;
+      if ($nid) { $new_ids = array($nid); break; }
+    }
+    if ($new_ids !== array_values(array_map('intval', $ids))) {
+      $fields['loai_giao_dich_json'] = json_encode($new_ids);
+    }
+    // Nội dung: id node ⇒ tên.
+    $items = json_decode((string) $row->chi_tiet_json, TRUE);
+    $dirty = FALSE;
+    if (is_array($items)) {
+      foreach ($items as &$item) {
+        if (is_array($item) && isset($item['noi_dung']) && (is_int($item['noi_dung']) || ctype_digit((string) $item['noi_dung']))) {
+          $item['noi_dung'] = thu_chi_normalize_noi_dung_nid($item['noi_dung']);
+          $dirty = TRUE;
+        }
+      }
+      unset($item);
+      if ($dirty) $fields['chi_tiet_json'] = json_encode($items);
+    }
+    if ($fields) {
+      $json = json_decode((string) $row->thong_tin_json, TRUE);
+      if (is_array($json)) {
+        if (isset($fields['loai_giao_dich_json'])) $json['loai_giao_dich'] = $new_ids;
+        if ($dirty) $json['chi_tiet'] = $items;
+        $fields['thong_tin_json'] = json_encode($json);
+      }
+      db_update('qltc_phieu_thu_chi')->fields($fields)->condition('nid', intval($row->nid))->execute();
+      $changed++;
+    }
+  }
+  return 'Đã chuyển phân loại / nội dung sang dữ liệu mới cho ' . $changed . ' phiếu thu chi.';
+}

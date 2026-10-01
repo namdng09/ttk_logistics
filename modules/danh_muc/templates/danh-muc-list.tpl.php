@@ -23,6 +23,7 @@
           <option value="Kho">Kho</option>
           <option value="Bãi">Bãi</option>
           <option value="Cảng">Cảng</option>
+          <option value="Phân loại thu chi">Phân loại thu chi</option>
           <option value="Cửa khẩu">Cửa khẩu</option>
         </select>
       </div>

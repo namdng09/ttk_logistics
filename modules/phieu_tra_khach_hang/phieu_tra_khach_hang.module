@@ -618,6 +618,10 @@ function _ptkh_load($id, $with_items = FALSE) {
  */
 function _ptkh_has_payment(array $row) {
   if ((int) $row['da_thanh_toan'] > 0) return TRUE;
+  // Nguồn chính: bảng phân bổ thanh toán của module công nợ. Chưa có (chưa chạy update) thì dò JSON phiếu thu như cũ.
+  if (function_exists('cong_no_khach_hang_voucher_has_payment') && db_table_exists('cong_no_khach_hang_phan_bo')) {
+    return cong_no_khach_hang_voucher_has_payment((int) $row['nid']);
+  }
   if (!db_table_exists('qltc_phieu_thu_chi')) return FALSE;
   $id = (int) $row['nid'];
   $query = db_select('qltc_phieu_thu_chi', 'p')->fields('p', array('nid'))
@@ -1074,6 +1078,11 @@ function phieu_tra_khach_hang_download($id) {
   if (!$row) {
     drupal_not_found();
     return;
+  }
+  // File Excel thật (.xlsx, có định dạng) — xem phieu_tra_khach_hang.export.inc. Máy chủ thiếu ZipArchive thì xuất kiểu cũ bên dưới.
+  module_load_include('inc', 'phieu_tra_khach_hang', 'phieu_tra_khach_hang.export');
+  if (function_exists('_ptkh_export_xlsx') && _ptkh_export_xlsx($row)) {
+    drupal_exit();
   }
   drupal_add_http_header('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
   drupal_add_http_header('Content-Disposition', 'attachment; filename="' . $row['ma_phieu'] . '.xls"');

@@ -586,10 +586,7 @@
   }
 
   function bind() {
-    // Tạo/Sửa dùng modal chung (phieu_tra_khach_hang_modal.js, cùng modal với nút trên /ke-hoach-xep-xe).
-    function openCreateModal() {
-      if (window.PtkhModal) window.PtkhModal.openCreate({ onSaved: function () { loadList(); } });
-    }
+    // Màn này chỉ Sửa phiếu (modal chung phieu_tra_khach_hang_modal.js); tạo phiếu ở nút "Tạo phiếu trả KH" trên /ke-hoach-xep-xe.
     $('#ptkh-search').on('click', reloadFromFilter);
     $('#ptkh-reload').on('click', resetFilters);
     $('#ptkh-keyword').on('keydown', function (e) { if (e.which === 13) reloadFromFilter(); });
@@ -622,7 +619,6 @@
         }
       }
     });
-    $('#ptkh-open-create').on('click', openCreateModal);
     $(document).on('click', '.ptkh-view', function (e) { e.preventDefault(); openDetail($(this).data('id'), false); });
     $(document).on('click', '.ptkh-history', function (e) { e.preventDefault(); openDetail($(this).data('id'), true); });
     $(document).on('click', '.ptkh-approve', function (e) { e.preventDefault(); openStatusModal($(this).data('id'), 'da_duyet'); });
@@ -643,14 +639,6 @@
       showStatusLoading(false);
       $('#ptkh-status-invoice, #ptkh-status-month').removeClass('is-invalid');
     });
-    try {
-      var url = new URL(window.location.href);
-      if (url.searchParams.get('open_create') === '1') {
-        url.searchParams.delete('open_create');
-        window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : '') + url.hash);
-        setTimeout(openCreateModal, 0);
-      }
-    } catch (e) {}
   }
 
   $(function () {
