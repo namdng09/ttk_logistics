@@ -713,3 +713,8 @@
   align-items: center;
   /* align-self: center; */
 }
+
+/* Thẻ phiếu trả khách hàng (PT = chờ khách duyệt, HĐ = đã xuất hoá đơn) cạnh thẻ giờ ở cột Ngày KH — cùng khuôn .khxh-port-time. */
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-ptkh { cursor: help; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-ptkh-pt { color: #b7791f; background: rgba(255, 193, 7, .2); }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-ptkh-hd { color: #1f9254; background: rgba(40, 199, 111, .16); }

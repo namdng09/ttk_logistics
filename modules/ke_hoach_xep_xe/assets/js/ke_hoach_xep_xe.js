@@ -844,6 +844,12 @@
       e.preventDefault();
       openPtkhCreateModal();
     });
+    // Hàng cảng: nút "Tạo phiếu trả KH" ở header mở modal chung của module phiếu trả (phieu_tra_khach_hang_modal.js);
+    // tạo xong tải lại danh sách để thẻ PT hiện ở các kế hoạch vừa gom.
+    $(document).on('click', '.khxh-port-ptkh-create', function (e) {
+      e.preventDefault();
+      if (window.PtkhModal) window.PtkhModal.openCreate({ onSaved: function () { loadList(); } });
+    });
     $(document).on('click', '#khxh-ptkh-load-candidates', loadPtkhCandidates);
     $(document).on('change', '#khxh-ptkh-check-all', function () {
       $('.khxh-ptkh-plan-check:not(:disabled)').prop('checked', this.checked);
@@ -2626,7 +2632,7 @@
     var rowActionMenu = '<span class="khxh-row-action-menu">' + buildActions(row) + '</span>';
     return '<tr data-plan-id="' + escHtml(row.nid) + '">' +
       rowActionsTriggerHtml(stt) +
-      '<td class="khxh-date-cell"><div class="khxh-date-stack">' + (dateOnlyStack(row.ngay_gio_ke_hoach) || '<span class="text-muted">—</span>') + hangCangPlanTimeHtml(row.ngay_gio_ke_hoach) + '</div>' + rowActionMenu + '</td>' +
+      '<td class="khxh-date-cell"><div class="khxh-date-stack">' + (dateOnlyStack(row.ngay_gio_ke_hoach) || '<span class="text-muted">—</span>') + hangCangPlanTimeAndPtkhHtml(row) + '</div>' + rowActionMenu + '</td>' +
       '<td class="khxh-common-cell">' +
         '<div class="khxh-customer-cell" title="' + escHtml(customerTitle) + '">' + customerDisplay + '</div>' +
         '<div class="khxh-htvt-cell">' +
@@ -2648,6 +2654,37 @@
       '<td class="khxh-cang-cell" title="Cảng xuất: ' + escHtml(row.cang_xuat || 'Chưa có') + '">' + (row.cang_xuat ? escHtml(row.cang_xuat) : '_') + '</td>' +
       '<td class="khxh-status-cell"><div class="khxh-status-stack"><span class="badge ' + hangCangPlanStatusColor(planStatus) + '" title="Trạng thái chuyến (lái xe): ' + escHtml(planStatus) + '">' + escHtml(planStatus) + '</span>' + portContStatusBadgeHtml(row) + '</div></td>' +
       '</tr>';
+  }
+
+  // Hàng cảng: thẻ nhỏ khi kế hoạch đang nằm trong phiếu trả khách hàng (server trả row.phieu_tra_khach_hang).
+  // Vàng "PT: mã phiếu" = chờ khách duyệt; xanh "HĐ: số hoá đơn" = khách đã duyệt (đã xuất hoá đơn). Di chuột xem đủ thông tin.
+  function hangCangPtkhBadgeHtml(row) {
+    var pt = row && row.phieu_tra_khach_hang;
+    if (!pt) return '';
+    var approved = pt.trang_thai_duyet === 'da_duyet';
+    var money = String(parseInt(pt.tong_tien || 0, 10) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' đ';
+    var lines = [
+      'Phiếu trả KH: ' + (pt.ma_phieu || ''),
+      'Trạng thái: ' + (pt.trang_thai_label || ''),
+      'Tổng tiền phiếu: ' + money,
+      'Ngày tạo: ' + (pt.created || '-')
+    ];
+    if (approved) {
+      lines.push('Số hoá đơn: ' + (pt.so_hoa_don || '-'));
+      lines.push('Tháng hạch toán: ' + (pt.thang_hach_toan ? pt.thang_hach_toan.slice(4) + '/' + pt.thang_hach_toan.slice(0, 4) : '-'));
+      lines.push('Ngày duyệt: ' + (pt.ngay_duyet || '-'));
+    }
+    // Chỉ 2 ký tự (PT / HĐ), cùng kiểu thẻ giờ kế hoạch; đầy đủ thông tin nằm trong tooltip.
+    return '<span class="khxh-port-time khxh-port-ptkh ' + (approved ? 'khxh-port-ptkh-hd' : 'khxh-port-ptkh-pt') + '" title="' + escHtml(lines.join('\n')) + '">' +
+      (approved ? 'HĐ' : 'PT') + '</span>';
+  }
+
+  // Cột Ngày KH: thẻ giờ kế hoạch + thẻ PT/HĐ đứng cạnh nhau trên cùng 1 dòng (dưới ngày).
+  function hangCangPlanTimeAndPtkhHtml(row) {
+    var time = hangCangPlanTimeHtml(row.ngay_gio_ke_hoach);
+    var ptkh = hangCangPtkhBadgeHtml(row);
+    if (!ptkh) return time;
+    return (time || '<br>') + (time ? ' ' : '') + ptkh;
   }
 
   // Tuyến xa (/ke-hoach-tuyen-xa).

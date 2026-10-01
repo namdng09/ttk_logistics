@@ -131,7 +131,7 @@ function _nhan_vien_method_not_allowed($allowed) {
 function _nhan_vien_load_row($uid) {
   $uid = (int) $uid;
   if (!$uid) return NULL;
-  if (_nhan_vien_is_driver_account($uid)) return NULL;
+  if (_nhan_vien_is_driver_account($uid) || _nhan_vien_is_admin_account($uid)) return NULL;
 
   $u = db_query("SELECT * FROM {users} WHERE uid = :uid", array(':uid' => $uid))->fetch();
   if (!$u || $u->uid == 0) return NULL;
@@ -285,6 +285,34 @@ function _nhan_vien_check_unique_mail($value, $exclude_uid = NULL) {
  * REST: ROLES — GET /api/roles
  ******************************************************************************/
 
+/** rid cố định của vai trò Quản trị (administrator) trên hệ thống TTK — luôn tính là quản trị dù biến user_admin_role trỏ chỗ khác. */
+define('NHAN_VIEN_ADMIN_RID', 3);
+
+/**
+ * Các rid vai trò Quản trị: rid 3 (administrator), user_admin_role và vai trò tên administrator/admin.
+ * Màn nhân viên không gán được các vai trò này và không làm mất chúng ở tài khoản đang có (quản lý ở /phan-quyen).
+ */
+function _nhan_vien_admin_rids() {
+  $rids = array(NHAN_VIEN_ADMIN_RID => NHAN_VIEN_ADMIN_RID);
+  $var = (int) variable_get('user_admin_role', 0);
+  if ($var) $rids[$var] = $var;
+  foreach (db_query("SELECT rid FROM {role} WHERE LOWER(TRIM(name)) IN ('administrator', 'admin')")->fetchCol() as $rid) $rids[(int) $rid] = (int) $rid;
+  return $rids;
+}
+
+/** Tài khoản đang có vai trò Quản trị ⇒ không hiện / không xem-sửa-xoá ở màn nhân viên (như tài khoản lái xe). */
+function _nhan_vien_is_admin_account($uid) {
+  $uid = (int) $uid;
+  if (!$uid) return FALSE;
+  return (bool) db_query_range("SELECT 1 FROM {users_roles} WHERE uid = :uid AND rid IN (:rids)", 0, 1, array(':uid' => $uid, ':rids' => array_values(_nhan_vien_admin_rids())))->fetchField();
+}
+
+function _nhan_vien_is_admin_rid($rid) {
+  $rid = (int) $rid;
+  $rids = _nhan_vien_admin_rids();
+  return $rid > 0 && isset($rids[$rid]);
+}
+
 function nhan_vien_rest_roles() {
   $method = $_SERVER['REQUEST_METHOD'];
   if ($method !== 'GET') {
@@ -307,6 +335,8 @@ function nhan_vien_rest_roles() {
     if ((int) $r->rid === 7 || drupal_strtolower($role_label) === drupal_strtolower('Lái xe') || drupal_strtolower($role_label) === 'lai xe') {
       continue;
     }
+    // Vai trò Quản trị không hiện ở màn nhân viên (cả bộ lọc lẫn modal tạo/sửa) — quản lý ở /phan-quyen.
+    if (_nhan_vien_is_admin_rid($r->rid)) continue;
     $items[] = array('rid' => (int) $r->rid, 'name' => $r->name);
   }
 
@@ -471,6 +501,9 @@ function _nhan_vien_rest_list() {
   // Driver accounts are managed only from the Lái xe screen, never as staff.
   $query->leftJoin('users_roles', 'ur_driver', 'ur_driver.uid = u.uid AND ur_driver.rid = :driver_rid', array(':driver_rid' => 7));
   $query->isNull('ur_driver.uid');
+  // Tài khoản Quản trị không hiện ở màn nhân viên (quản lý ở /phan-quyen).
+  $query->leftJoin('users_roles', 'ur_admin', 'ur_admin.uid = u.uid AND ur_admin.rid IN (:admin_rids)', array(':admin_rids' => array_values(_nhan_vien_admin_rids())));
+  $query->isNull('ur_admin.uid');
   if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
     $query->leftJoin('lai_xe', 'lx_driver', 'lx_driver.uid_nguoi_dung = u.uid');
     $query->isNull('lx_driver.nid');
@@ -604,6 +637,9 @@ function _nhan_vien_rest_create() {
 
   $dupUser = _nhan_vien_check_unique_username($input['username']);
   if ($dupUser) return $dupUser;
+  if (!empty($input['role_rid']) && _nhan_vien_is_admin_rid($input['role_rid'])) {
+    return _nhan_vien_fail('Không gán vai trò Quản trị từ màn nhân viên (phân quyền ở màn Phân quyền)');
+  }
 
   $transaction = db_transaction();
   try {
@@ -619,6 +655,9 @@ function _nhan_vien_rest_create() {
     // Role assignment
     if (!empty($input['role_rid'])) {
       $rid = (int) $input['role_rid'];
+      if (_nhan_vien_is_admin_rid($rid)) {
+        throw new Exception('Không gán vai trò Quản trị từ màn nhân viên');
+      }
       $role_name = db_query("SELECT name FROM {role} WHERE rid = :rid", array(':rid' => $rid))->fetchField();
       if ($role_name) {
         $edit['roles'] = array($rid => $role_name);
@@ -708,7 +747,7 @@ function _nhan_vien_rest_update($id) {
   }
 
   $existing = user_load($id);
-  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id)) {
+  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id) || _nhan_vien_is_admin_account($id)) {
     return _nhan_vien_not_found('Nhân viên không tồn tại');
   }
 
@@ -738,6 +777,9 @@ function _nhan_vien_rest_update($id) {
 
   $dupMa = _nhan_vien_check_unique_ma(isset($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : '', $id);
   if ($dupMa) return $dupMa;
+  if (!empty($input['role_rid']) && _nhan_vien_is_admin_rid($input['role_rid']) && empty($existing->roles[(int) $input['role_rid']])) {
+    return _nhan_vien_fail('Không gán vai trò Quản trị từ màn nhân viên (phân quyền ở màn Phân quyền)');
+  }
 
   $transaction = db_transaction();
   try {
@@ -754,13 +796,22 @@ function _nhan_vien_rest_update($id) {
     }
 
     // Update role
+    // Vai trò Quản trị tài khoản đang có: luôn giữ nguyên (màn này không gán/không gỡ quản trị).
+    $kept_admin_roles = array_intersect_key((array) $existing->roles, _nhan_vien_admin_rids());
+    $is_admin_account = !empty($kept_admin_roles);
     if (isset($input['role_rid'])) {
       $rid = (int) $input['role_rid'];
+      if (_nhan_vien_is_admin_rid($rid) && empty($existing->roles[$rid])) {
+        throw new Exception('Không gán vai trò Quản trị từ màn nhân viên');
+      }
       if ($rid > 0) {
         $role_name = db_query("SELECT name FROM {role} WHERE rid = :rid", array(':rid' => $rid))->fetchField();
         if ($role_name) {
-          $edit['roles'] = array($rid => $role_name);
+          $edit['roles'] = array($rid => $role_name) + $kept_admin_roles;
         }
+      }
+      elseif ($is_admin_account) {
+        // Ô vai trò để trống với tài khoản Quản trị (không có trong danh sách chọn) = giữ nguyên vai trò.
       }
       else {
         // Empty role_rid = remove all custom roles
@@ -811,7 +862,7 @@ function _nhan_vien_rest_delete($id) {
   }
 
   $existing = user_load($id);
-  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id)) {
+  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id) || _nhan_vien_is_admin_account($id)) {
     return _nhan_vien_not_found('Nhân viên không tồn tại');
   }
 
@@ -848,9 +899,11 @@ function nhan_vien_page_list() {
   drupal_add_css(drupal_get_path('module', 'nhan_vien') . '/assets/css/nhan_vien.css');
   // Bump the asset version whenever role filtering changes; otherwise an old
   // aggregated/browser-cached JS can keep showing role Lái xe.
-  drupal_add_js(drupal_get_path('module', 'nhan_vien') . '/assets/js/nhan_vien.js', array(
+  // version theo thời điểm sửa file: URL đổi mỗi lần nạp bản mới, trình duyệt/proxy không giữ JS cũ (số cố định trước đây làm bản cũ bị cache).
+  $nv_js = drupal_get_path('module', 'nhan_vien') . '/assets/js/nhan_vien.js';
+  drupal_add_js($nv_js, array(
     'group' => JS_THEME,
-    'version' => 2026090904,
+    'version' => file_exists($nv_js) ? filemtime($nv_js) . '-' . filesize($nv_js) : REQUEST_TIME,
   ));
 
   drupal_add_js(array('nhan_vien' => array(

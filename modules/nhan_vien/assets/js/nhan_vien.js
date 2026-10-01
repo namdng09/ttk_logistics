@@ -269,18 +269,23 @@
           var filterRole = document.getElementById('filter-role');
           var formRole = document.querySelector('#form-nhan-vien select[name="role_rid"]');
           var html = '';
+          var formHtml = '';
           for (var i = 0; i < res.data.length; i++) {
             var r = res.data[i];
             // Role Lái xe (rid 7) is managed exclusively in the Lái xe screen.
             var roleName = String(r.name || '').replace(/\s+/g, ' ').trim().toLowerCase();
             if (parseInt(r.rid, 10) === 7 || roleName === 'lái xe' || roleName === 'lai xe') continue;
-            html += '<option value="' + r.rid + '">' + escapeHtml(r.name) + '</option>';
+            // Vai trò Quản trị (rid 3 / administrator) không hiện ở màn nhân viên — server đã bỏ, đây là chặn thêm phía client.
+            if (r.quan_tri || parseInt(r.rid, 10) === 3 || roleName === 'administrator' || roleName === 'admin') continue;
+            var opt = '<option value="' + r.rid + '">' + escapeHtml(r.name) + '</option>';
+            html += opt;
+            formHtml += opt;
           }
           if (filterRole) {
             filterRole.innerHTML = '<option value="">Tất cả vai trò</option>' + html;
           }
           if (formRole) {
-            formRole.innerHTML = '<option value="">Chọn vai trò</option>' + html;
+            formRole.innerHTML = '<option value="">Chọn vai trò</option>' + formHtml;
           }
         }
       },
@@ -730,7 +735,23 @@
     var selectCV = document.querySelector('#form-nhan-vien select[name="chuc_vu"]');
     if (selectCV && d.chuc_vu) selectCV.value = d.chuc_vu.nid;
     var selectRole = document.querySelector('#form-nhan-vien select[name="role_rid"]');
-    if (selectRole && d.role) selectRole.value = d.role.nid;
+    if (selectRole) {
+      var adminOpt = selectRole.querySelector('option[data-quan-tri]');
+      if (adminOpt) adminOpt.parentNode.removeChild(adminOpt);
+      if (d.role) {
+        selectRole.value = d.role.nid;
+        // Tài khoản đang là Quản trị (không có trong danh sách chọn): hiện 1 mục giữ nguyên, gửi rỗng = server giữ vai trò.
+        if (String(selectRole.value) !== String(d.role.nid)) {
+          var keep = document.createElement('option');
+          keep.value = '';
+          keep.setAttribute('data-quan-tri', '1');
+          keep.textContent = (d.role.ten || 'Quản trị') + ' (giữ nguyên)';
+          selectRole.insertBefore(keep, selectRole.options[1] || null);
+          selectRole.value = '';
+          keep.selected = true;
+        }
+      }
+    }
     // Switch trang thai
     var sw = document.getElementById('switch-trang-thai');
     var hiddenVal = document.getElementById('input-trang-thai');

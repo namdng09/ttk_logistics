@@ -96,3 +96,13 @@ function phieu_tra_khach_hang_update_7001() {
   }
   return 'Đã tạo bảng Phiếu trả khách hàng.';
 }
+
+/**
+ * Đổi luồng phiếu trả khách hàng: bỏ trạng thái "Không duyệt" (đổi qua lại tự do), phiếu cũ ở trạng thái này thành "Đã huỷ".
+ * Phiếu đã huỷ nhả kế hoạch ra, giống "Không duyệt" trước đây.
+ */
+function phieu_tra_khach_hang_update_7003() {
+  if (!db_table_exists('phieu_tra_khach_hang')) return;
+  $count = db_update('phieu_tra_khach_hang')->fields(array('trang_thai_duyet' => 'huy'))->condition('trang_thai_duyet', 'khong_duyet')->execute();
+  return t('Đã chuyển @count phiếu "Không duyệt" thành "Đã huỷ".', array('@count' => $count));
+}

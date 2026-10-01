@@ -100,6 +100,12 @@ function ke_hoach_xep_xe_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/mobile/danh-muc-chi-phi'] = array(
+    'page callback' => 'ke_hoach_xep_xe_mobile_cost_catalog',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['api/mobile/chuyen-xe/%/chi-phi/%'] = array(
     'page callback' => 'ke_hoach_xep_xe_mobile_chi_phi_item',
     'page arguments' => array(3, 5),
@@ -457,7 +463,150 @@ function _ke_hoach_xep_xe_mobile_enrich_plan($plan, $account_uid = 0) {
   if ($account_uid && isset($result['hinh_anh_chung_tu'])) {
     $result['hinh_anh_chung_tu'] = _ke_hoach_xep_xe_files_owned_by($result['hinh_anh_chung_tu'], $account_uid);
   }
+  // Lộ trình lái xe chỉ có ở hàng cảng (tuyến xa chưa làm): null với tuyến xa.
+  $result['lo_trinh'] = (empty($plan->loai_ke_hoach) || $plan->loai_ke_hoach === 'thuong') ? _ke_hoach_hang_cang_mobile_route($result) : NULL;
   return $result;
+}
+
+/**
+ * Hàng cảng: phiếu trả khách hàng (chưa huỷ) đang chứa từng kế hoạch của trang danh sách — 1 truy vấn cho cả trang,
+ * để danh sách hiện thẻ nhỏ "PT: mã phiếu" / "HĐ: số hoá đơn". NULL khi chưa bật module phiếu trả hoặc không có quyền xem phiếu.
+ */
+function _ke_hoach_hang_cang_ptkh_map(array $rows) {
+  if (!function_exists('phieu_tra_khach_hang_plan_badges') || !api_has_permission('phieu_tra_khach_hang_view')) return NULL;
+  $ids = array();
+  foreach ($rows as $row) $ids[] = (int) $row->nid;
+  return phieu_tra_khach_hang_plan_badges($ids);
+}
+
+/**
+ * Lộ trình thực tế của lái xe cho 1 chuyến hàng cảng (app chỉ hiển thị, không tự ghép).
+ * Cont 1 = cont của chính kế hoạch; Cont 2 = cont kéo về (cont_ref). Chặng lấy từ
+ * _ke_hoach_port_legs() — cùng nguồn với luồng trạng thái — nên đổi nghiệp vụ chỉ sửa 1 chỗ:
+ *   đóng hàng    : [Cont 1] Bãi lấy → Kho → Bãi hạ (1 chặng, không chia kéo lên/kéo về)
+ *   thả mooc     : kéo lên [Cont 1] Bãi lấy → Kho (cont 1 ở lại kho)
+ *   rút mooc     : kéo về  [Cont 2] Kho cont 2 → Bãi hạ cont 2
+ *   cắt kéo/chéo : kéo lên [Cont 1] Bãi lấy → Kho; kéo về [Cont 2] Kho cont 2 → Bãi hạ cont 2
+ * Bãi hạ = bãi hạ ngoài nếu có, không thì bãi hạ theo booking. Cont ở lại kho thì không
+ * đưa bãi hạ/cảng của cont đó vào lộ trình.
+ */
+function _ke_hoach_hang_cang_mobile_route(array $plan) {
+  $hinh_thuc = _ke_hoach_xep_xe_normalize_hinh_thuc(isset($plan['hinh_thuc_van_tai']) ? $plan['hinh_thuc_van_tai'] : '');
+  $status = isset($plan['trang_thai_van_chuyen']) ? (string) $plan['trang_thai_van_chuyen'] : '';
+  $ref = !empty($plan['cont_ref']) && is_array($plan['cont_ref']) ? $plan['cont_ref'] : NULL;
+  $legs = _ke_hoach_port_legs($hinh_thuc);
+  $chang = array();
+
+  if ($hinh_thuc === 'dong_hang') {
+    $chang[] = _ke_hoach_hang_cang_mobile_leg('dong_hang', 'Đóng hàng', $plan, array(
+      _ke_hoach_hang_cang_mobile_stop('bai_lay', 'Bãi lấy', isset($plan['bai_lay_cont']) ? $plan['bai_lay_cont'] : ''),
+      _ke_hoach_hang_cang_mobile_stop('kho', 'Kho (đóng hàng)', isset($plan['dia_chi_kho']) ? $plan['dia_chi_kho'] : ''),
+      _ke_hoach_hang_cang_mobile_drop_stop($plan),
+    ), _ke_hoach_hang_cang_mobile_leg_status($status, array('Đã nhận chuyến'), array('Hoàn thành')));
+  }
+  else {
+    if (!empty($legs['keo_len'])) {
+      $kho_label = $hinh_thuc === 'tha_mooc' ? 'Kho (thả mooc)' : ($hinh_thuc === 'cat_keo' || $hinh_thuc === 'cat_keo_cheo' ? 'Kho (cắt mooc)' : 'Kho');
+      $chang[] = _ke_hoach_hang_cang_mobile_leg('keo_len', 'Kéo lên', $plan, array(
+        _ke_hoach_hang_cang_mobile_stop('bai_lay', 'Bãi lấy', isset($plan['bai_lay_cont']) ? $plan['bai_lay_cont'] : ''),
+        _ke_hoach_hang_cang_mobile_stop('kho', $kho_label, isset($plan['dia_chi_kho']) ? $plan['dia_chi_kho'] : ''),
+      ), _ke_hoach_hang_cang_mobile_leg_status($status, array('Đang kéo lên'), array('Đang kéo về', 'Hoàn thành')));
+    }
+    if (!empty($legs['keo_ve'])) {
+      if ($ref) {
+        $leg = _ke_hoach_hang_cang_mobile_leg('keo_ve', 'Kéo về', $ref, array(
+          _ke_hoach_hang_cang_mobile_stop('kho', 'Kho (lấy cont kéo về)', isset($ref['dia_chi_kho']) ? $ref['dia_chi_kho'] : ''),
+          _ke_hoach_hang_cang_mobile_drop_stop($ref),
+        ), _ke_hoach_hang_cang_mobile_leg_status($status, array('Đang kéo về'), array('Hoàn thành')));
+        $leg['ly_do'] = '';
+      }
+      else {
+        $leg = array('chang' => 'keo_ve', 'nhan' => 'Kéo về', 'cont' => NULL, 'diem' => array(), 'trang_thai' => 'chua_bat_dau', 'ly_do' => 'Chưa có cont kéo về');
+      }
+      $chang[] = $leg;
+    }
+  }
+
+  return array('hinh_thuc_van_tai' => $hinh_thuc, 'chang' => $chang);
+}
+
+function _ke_hoach_hang_cang_mobile_leg($code, $label, array $cont_plan, array $stops, $leg_status) {
+  return array(
+    'chang' => $code,
+    'nhan' => $label,
+    'cont' => array(
+      'nid_ke_hoach' => isset($cont_plan['nid']) ? (int) $cont_plan['nid'] : 0,
+      'so_cont' => isset($cont_plan['so_cont']) ? (string) $cont_plan['so_cont'] : '',
+      'loai_cont' => isset($cont_plan['loai_cont']) ? (string) $cont_plan['loai_cont'] : '',
+      'so_bkg' => isset($cont_plan['so_bkg']) ? (string) $cont_plan['so_bkg'] : '',
+    ),
+    'diem' => $stops,
+    'trang_thai' => $leg_status,
+    'ly_do' => '',
+  );
+}
+
+function _ke_hoach_hang_cang_mobile_stop($type, $label, $name, array $extra = array()) {
+  return array_merge(array('loai' => $type, 'nhan' => $label, 'ten' => trim((string) $name)), $extra);
+}
+
+/** Điểm hạ cont: bãi hạ ngoài nếu có, không thì bãi hạ theo booking; kèm cảng xuất để tham khảo. */
+function _ke_hoach_hang_cang_mobile_drop_stop(array $cont_plan) {
+  $ngoai = isset($cont_plan['bai_ha_ngoai']) ? trim((string) $cont_plan['bai_ha_ngoai']) : '';
+  $booking = isset($cont_plan['bai_ha_cont']) ? trim((string) $cont_plan['bai_ha_cont']) : '';
+  return _ke_hoach_hang_cang_mobile_stop('bai_ha', $ngoai !== '' ? 'Bãi hạ ngoài' : 'Bãi hạ', $ngoai !== '' ? $ngoai : $booking, array(
+    'la_bai_ha_ngoai' => $ngoai !== '',
+    'cang_xuat' => isset($cont_plan['cang_xuat']) ? (string) $cont_plan['cang_xuat'] : '',
+  ));
+}
+
+/** chua_bat_dau | dang_thuc_hien | hoan_thanh theo trạng thái chuyến; chuyến đã huỷ ⇒ da_huy. */
+function _ke_hoach_hang_cang_mobile_leg_status($status, array $doing, array $done) {
+  if ($status === 'Đã huỷ') return 'da_huy';
+  if (in_array($status, $done, TRUE)) return 'hoan_thanh';
+  if (in_array($status, $doing, TRUE)) return 'dang_thuc_hien';
+  return 'chua_bat_dau';
+}
+
+/**
+ * GET /api/mobile/danh-muc-chi-phi — danh sách tên chi phí cho lái xe chọn khi nhập chi phí
+ * (cùng nguồn với tab Chi phí trên web): chi phí mẫu (kèm loại chi trả mặc định) trước, rồi
+ * danh mục phân loại "Chi phí" chưa có trong chi phí mẫu. Xác thực bằng token lái xe như các API mobile khác.
+ */
+function ke_hoach_xep_xe_mobile_cost_catalog() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') return _ke_hoach_xep_xe_method_not_allowed('GET');
+  $identity = _ke_hoach_xep_xe_mobile_driver();
+  if (!is_array($identity) || empty($identity['driver'])) return $identity;
+
+  $items = array();
+  $seen = array();
+  if (db_table_exists('ke_hoach_chi_phi_mau')) {
+    foreach (db_query("SELECT nid, ten, loai_chi_phi FROM {ke_hoach_chi_phi_mau} WHERE hoat_dong = 1 ORDER BY thu_tu ASC, nid ASC") as $row) {
+      $ten = trim((string) $row->ten);
+      $key = mb_strtolower($ten);
+      if ($ten === '' || isset($seen[$key])) continue;
+      $seen[$key] = TRUE;
+      $items[] = array('ten' => $ten, 'loai_chi_phi_mac_dinh' => (string) $row->loai_chi_phi, 'nguon' => 'chi_phi_mau');
+    }
+  }
+  if (db_table_exists('danh_muc')) {
+    foreach (db_query("SELECT ten FROM {danh_muc} WHERE hoat_dong = 1 AND phan_loai = 'Chi phí' ORDER BY ten ASC") as $row) {
+      $ten = trim((string) $row->ten);
+      $key = mb_strtolower($ten);
+      if ($ten === '' || isset($seen[$key])) continue;
+      $seen[$key] = TRUE;
+      $items[] = array('ten' => $ten, 'loai_chi_phi_mac_dinh' => '', 'nguon' => 'danh_muc');
+    }
+  }
+
+  return _ke_hoach_xep_xe_success(array(
+    'items' => $items,
+    'loai_chi_phi' => array(
+      array('value' => 'tinh_cho_khach', 'label' => 'Chi hộ khách hàng'),
+      array('value' => 'cong_ty_chi_tra', 'label' => 'Công ty chi trả'),
+      array('value' => 'lai_xe_tu_chiu', 'label' => 'Lái xe chi trả'),
+    ),
+  ));
 }
 
 function _ke_hoach_xep_xe_mobile_load_trip($id, $driver_id) {
@@ -3491,10 +3640,14 @@ function _ke_hoach_xep_xe_rest_list() {
   // Hàng cảng: người có quyền tạo/sửa nhận thêm thao tác đổi Đã cắt mooc <-> Đủ hàng để thẻ
   // trạng thái cont bấm được. Server quyết định, JS không tự kiểm tra quyền.
   $can_toggle_cont = $loai_ke_hoach === 'thuong' && api_has_permission('ke_hoach_xep_xe_create');
+  $hang_cang_ptkh = $loai_ke_hoach === 'thuong' ? _ke_hoach_hang_cang_ptkh_map($rows) : NULL;
   foreach ($rows as $row) {
     $item = _ke_hoach_xep_xe_enrich_row($row, TRUE, $enrich_options);
     if ($can_toggle_cont) {
       $item['hanh_dong_cont'] = _ke_hoach_port_cont_toggle_actions(isset($item['trang_thai_cont']) ? $item['trang_thai_cont'] : '');
+    }
+    if ($hang_cang_ptkh !== NULL) {
+      $item['phieu_tra_khach_hang'] = isset($hang_cang_ptkh[(int) $row->nid]) ? $hang_cang_ptkh[(int) $row->nid] : NULL;
     }
     $items[] = $item;
   }
@@ -4764,7 +4917,9 @@ function ke_hoach_xep_xe_page_list() {
     ),
   )), 'setting');
 
-  return theme('ke_hoach_hang_cang_list_page');
+  // Nút "Tạo phiếu trả KH" ở header dùng modal chung của module phiếu trả (chỉ có khi module bật + có quyền tạo phiếu).
+  $ptkh_modal = function_exists('phieu_tra_khach_hang_modal_markup') ? phieu_tra_khach_hang_modal_markup() : '';
+  return theme('ke_hoach_hang_cang_list_page') . $ptkh_modal;
 }
 
 function ke_hoach_cont_page_list() {

@@ -41,6 +41,13 @@ function phieu_tra_khach_hang_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
+  $items['api/phieu-tra-khach-hang/%/%'] = array(
+    'page callback' => 'phieu_tra_khach_hang_rest_action',
+    'page arguments' => array(2, 3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
   $items['phieu-tra-khach-hang'] = array(
     'title' => 'Phiếu trả khách hàng',
     'page callback' => 'phieu_tra_khach_hang_page_list',
@@ -65,7 +72,28 @@ function phieu_tra_khach_hang_theme() {
       'template' => 'phieu-tra-khach-hang-list',
       'path' => $path,
     ),
+    'phieu_tra_khach_hang_modal' => array(
+      'template' => 'phieu-tra-khach-hang-modal',
+      'path' => $path,
+    ),
   );
+}
+
+/**
+ * Modal Tạo/Sửa phiếu trả khách hàng (dùng chung): nạp CSS/JS và trả HTML modal để trang nối vào cuối nội dung.
+ * Dùng ở /phieu-tra-khach-hang và /ke-hoach-xep-xe (nút "Tạo phiếu trả KH"). Không có quyền tạo thì trả chuỗi rỗng.
+ * JS: window.PtkhModal.openCreate({onSaved}) / openEdit(id, {onSaved}).
+ */
+function phieu_tra_khach_hang_modal_markup() {
+  if (!api_has_permission('phieu_tra_khach_hang_create')) return '';
+  $module_path = drupal_get_path('module', 'phieu_tra_khach_hang');
+  foreach (array('css' => 'assets/css/phieu_tra_khach_hang_modal.css', 'js' => 'assets/js/phieu_tra_khach_hang_modal.js') as $type => $file) {
+    $path = $module_path . '/' . $file;
+    $version = file_exists($path) ? filemtime($path) . '-' . filesize($path) : REQUEST_TIME;
+    if ($type === 'css') drupal_add_css($path, array('type' => 'file', 'group' => CSS_THEME, 'preprocess' => FALSE, 'version' => $version));
+    else drupal_add_js($path, array('type' => 'file', 'group' => JS_THEME, 'weight' => 5, 'preprocess' => FALSE, 'version' => $version));
+  }
+  return theme('phieu_tra_khach_hang_modal');
 }
 
 function phieu_tra_khach_hang_page_list() {
@@ -87,7 +115,7 @@ function phieu_tra_khach_hang_page_list() {
       'approve' => api_has_permission('phieu_tra_khach_hang_approve'),
     ),
   )), 'setting');
-  return theme('phieu_tra_khach_hang_list_page');
+  return theme('phieu_tra_khach_hang_list_page') . phieu_tra_khach_hang_modal_markup();
 }
 
 function _ptkh_input() {
@@ -218,7 +246,9 @@ function _ptkh_user_info($uid) {
 function _ptkh_status_label($status) {
   $labels = array(
     'chua_duyet' => 'Chờ duyệt',
-    'da_duyet' => 'Đã duyệt',
+    'da_duyet' => 'Khách đã duyệt',
+    'huy' => 'Đã huỷ',
+    // Trạng thái cũ (trước khi đổi luồng), chỉ còn trong lịch sử.
     'khong_duyet' => 'Không duyệt',
   );
   return isset($labels[$status]) ? $labels[$status] : (string) $status;
@@ -300,15 +330,17 @@ function _ptkh_plan_route($row) {
   return implode(' - ', $parts);
 }
 
-function _ptkh_generate_code($nid_khach_hang) {
-  $base = _ptkh_customer_code($nid_khach_hang) . date('ymdHi', REQUEST_TIME);
-  $code = $base;
-  $suffix = 1;
-  while (db_select('phieu_tra_khach_hang', 'p')->fields('p', array('nid'))->condition('ma_phieu', $code)->range(0, 1)->execute()->fetchField()) {
-    $suffix++;
-    $code = $base . '-' . $suffix;
+/**
+ * Mã phiếu tự sinh `PT-yymmdd-NNNN` (cùng kiểu DNTT-/DD-): NNNN tăng theo ngày tạo, sang ngày mới về 0001; phiếu đã huỷ vẫn giữ số.
+ * Mã cũ (mã KH + ngày giờ) giữ nguyên. Không cho nhập tay; mã phiếu khách = mã phiếu.
+ */
+function _ptkh_generate_code($nid_khach_hang = 0) {
+  $prefix = 'PT-' . date('ymd', REQUEST_TIME) . '-';
+  $max = 0;
+  foreach (db_query("SELECT ma_phieu FROM {phieu_tra_khach_hang} WHERE ma_phieu LIKE :p", array(':p' => db_like($prefix) . '%')) as $r) {
+    $max = max($max, (int) substr($r->ma_phieu, strlen($prefix)));
   }
-  return $code;
+  return $prefix . str_pad((string) ($max + 1), 4, '0', STR_PAD_LEFT);
 }
 
 function _ptkh_cost_totals($plan_ids) {
@@ -340,16 +372,21 @@ function _ptkh_blocked_plan_ids($plan_ids = array()) {
   return $blocked;
 }
 
-function _ptkh_plan_voucher_map($plan_ids = array()) {
+/**
+ * Kế hoạch đang nằm trong phiếu trả chưa huỷ (chờ duyệt hoặc đã duyệt) ⇒ thông tin phiếu đó.
+ * $exclude_voucher: bỏ qua phiếu này (lúc sửa chính phiếu đó, kế hoạch của nó vẫn chọn được).
+ */
+function _ptkh_plan_voucher_map($plan_ids = array(), $exclude_voucher = 0) {
   $map = array();
   if (!db_table_exists('phieu_tra_khach_hang_ke_hoach')) return $map;
   $query = db_select('phieu_tra_khach_hang_ke_hoach', 'l');
   $query->innerJoin('phieu_tra_khach_hang', 'p', 'p.nid = l.nid_phieu_tra_khach_hang AND p.hoat_dong = 1');
   $query
     ->fields('l', array('nid_ke_hoach'))
-    ->fields('p', array('nid', 'ma_phieu', 'ma_phieu_khach', 'so_hoa_don', 'trang_thai_duyet'))
+    ->fields('p', array('nid', 'ma_phieu', 'ma_phieu_khach', 'so_hoa_don', 'trang_thai_duyet', 'thang_hach_toan', 'tong_tien', 'created', 'ngay_duyet'))
     ->condition('l.hoat_dong', 1)
-    ->condition('p.trang_thai_duyet', array('chua_duyet', 'da_duyet'), 'IN');
+    ->condition('p.trang_thai_duyet', _ptkh_active_statuses(), 'IN');
+  if ($exclude_voucher) $query->condition('p.nid', (int) $exclude_voucher, '<>');
   $plan_ids = array_values(array_unique(array_filter(array_map('intval', (array) $plan_ids))));
   if (!empty($plan_ids)) $query->condition('l.nid_ke_hoach', $plan_ids, 'IN');
   foreach ($query->execute() as $row) {
@@ -359,7 +396,11 @@ function _ptkh_plan_voucher_map($plan_ids = array()) {
       'nid_phieu_tra_khach_hang' => (int) $row->nid,
       'ma_phieu' => (string) $row->ma_phieu,
       'ma_phieu_khach' => (string) $row->ma_phieu_khach,
-      'so_hoa_don' => (string) $row->so_hoa_don,
+      'so_hoa_don' => $status === 'da_duyet' ? (string) $row->so_hoa_don : '',
+      'thang_hach_toan' => $status === 'da_duyet' ? (string) $row->thang_hach_toan : '',
+      'tong_tien' => (int) $row->tong_tien,
+      'created' => (string) $row->created,
+      'ngay_duyet' => $status === 'da_duyet' ? (string) $row->ngay_duyet : '',
       'trang_thai_duyet' => $status,
       'trang_thai_label' => $status === 'da_duyet' ? 'Đã xuất hóa đơn' : 'Chờ khách duyệt',
     );
@@ -367,40 +408,108 @@ function _ptkh_plan_voucher_map($plan_ids = array()) {
   return $map;
 }
 
+/** Trạng thái phiếu còn giữ kế hoạch (kế hoạch không chọn được cho phiếu khác). Đã huỷ thì nhả. */
+function _ptkh_active_statuses() {
+  return array('chua_duyet', 'da_duyet');
+}
+
+/**
+ * Thông tin phiếu trả của các kế hoạch, cho màn khác hiển thị thẻ nhỏ (vd danh sách hàng cảng).
+ * Trả về map nid_ke_hoach => thông tin phiếu (xem _ptkh_plan_voucher_map()), chỉ kế hoạch đang nằm trong phiếu chưa huỷ.
+ */
+function phieu_tra_khach_hang_plan_badges(array $plan_ids) {
+  $plan_ids = array_values(array_unique(array_filter(array_map('intval', $plan_ids))));
+  if (empty($plan_ids) || !db_table_exists('phieu_tra_khach_hang')) return array();
+  return _ptkh_plan_voucher_map($plan_ids);
+}
+
+/**
+ * "Ngày kế hoạch" dùng để lọc/sắp xếp/hiển thị trong phiếu trả: hàng cảng = ngày của Ngày giờ kế hoạch (hàng cảng không nhập
+ * Ngày bắt đầu), không có thì Ngày bắt đầu; tuyến xa giữ Ngày bắt đầu như trước.
+ */
+function _ptkh_plan_date_sql($alias = 'k') {
+  return "(CASE WHEN $alias.loai_ke_hoach = 'tuyen_xa' THEN $alias.ngay_bat_dau ELSE COALESCE(NULLIF(SUBSTRING($alias.ngay_gio_ke_hoach, 1, 10), ''), $alias.ngay_bat_dau) END)";
+}
+
+function _ptkh_plan_date($row) {
+  if ((!isset($row->loai_ke_hoach) || $row->loai_ke_hoach !== 'tuyen_xa') && !empty($row->ngay_gio_ke_hoach)) {
+    return substr((string) $row->ngay_gio_ke_hoach, 0, 10);
+  }
+  return !empty($row->ngay_bat_dau) ? (string) $row->ngay_bat_dau : '';
+}
+
+/** 1 dòng kế hoạch (dạng dùng ở danh sách chọn, dòng của phiếu và ảnh chụp khi duyệt). */
+function _ptkh_plan_item($row, array $total = NULL) {
+  $total = $total ? $total : array('doanh_thu' => 0, 'tinh_cho_khach' => 0, 'tong_tien' => 0);
+  return array(
+    'nid' => (int) $row->nid,
+    'nid_khach_hang' => (int) $row->nid_khach_hang,
+    'khach_hang' => _ptkh_customer_name($row->nid_khach_hang),
+    'label' => _ptkh_plan_label($row),
+    'ngay' => _ptkh_plan_date($row),
+    'tuyen' => _ptkh_plan_route($row),
+    'so_bkg' => (string) $row->so_bkg,
+    'loai_cont' => (string) $row->loai_cont,
+    'so_cont' => (string) $row->so_cont,
+    'tong_doanh_thu' => (int) $total['doanh_thu'],
+    'tong_chi_ho_khach_hang' => (int) $total['tinh_cho_khach'],
+    'tong_tien' => (int) $total['tong_tien'],
+  );
+}
+
+/**
+ * Kế hoạch chọn được để xuất phiếu: hoàn thành, đúng khách hàng, (lọc theo ngày bắt đầu), chưa nằm trong phiếu chưa huỷ.
+ * Tuỳ chọn (chỉ màn phiếu trả dùng; màn tuyến xa gọi không có nên giữ hành vi cũ):
+ *   exclude_voucher: đang sửa phiếu này ⇒ kế hoạch của chính nó vẫn chọn được, và luôn có trong danh sách dù ngoài khoảng ngày;
+ *   include_blocked: trả cả kế hoạch đang ở phiếu khác, kèm 'phieu_tra' + 'chon_duoc' = FALSE (để hiện mờ thay vì ẩn).
+ */
 function _ptkh_candidate_rows($filters) {
   if (!db_table_exists('ke_hoach_xep_xe')) return array();
   if (empty($filters['nid_khach_hang'])) return array();
+  $exclude_voucher = !empty($filters['exclude_voucher']) ? (int) $filters['exclude_voucher'] : 0;
+  $include_blocked = !empty($filters['include_blocked']);
   $query = db_select('ke_hoach_xep_xe', 'k')->fields('k')->condition('k.hoat_dong', 1)->condition('k.trang_thai_van_chuyen', 'Hoàn thành');
   if (!empty($filters['nid_khach_hang'])) $query->condition('k.nid_khach_hang', (int) $filters['nid_khach_hang']);
-  if (!empty($filters['from_date'])) $query->condition('k.ngay_bat_dau', $filters['from_date'], '>=');
-  if (!empty($filters['to_date'])) $query->condition('k.ngay_bat_dau', $filters['to_date'], '<=');
-  $rows = $query->orderBy('k.ngay_bat_dau', 'ASC')->orderBy('k.nid', 'ASC')->range(0, 500)->execute()->fetchAll();
+  $date_sql = _ptkh_plan_date_sql('k');
+  if (!empty($filters['from_date'])) $query->where("$date_sql >= :ptkh_from", array(':ptkh_from' => $filters['from_date']));
+  if (!empty($filters['to_date'])) $query->where("$date_sql <= :ptkh_to", array(':ptkh_to' => $filters['to_date']));
+  $query->addExpression($date_sql, 'ptkh_ngay');
+  $rows = $query->orderBy('ptkh_ngay', 'ASC')->orderBy('k.nid', 'ASC')->range(0, 500)->execute()->fetchAll();
+  if ($exclude_voucher) {
+    $have = array();
+    foreach ($rows as $row) $have[(int) $row->nid] = TRUE;
+    $own_ids = array_diff(_ptkh_voucher_plan_ids($exclude_voucher), array_keys($have));
+    if ($own_ids) {
+      $own = db_select('ke_hoach_xep_xe', 'k')->fields('k')->condition('k.nid', $own_ids, 'IN')->execute()->fetchAll();
+      $rows = array_merge($own, $rows);
+    }
+  }
   if (empty($rows)) return array();
   $ids = array();
   foreach ($rows as $row) $ids[] = (int) $row->nid;
-  $voucher_map = _ptkh_plan_voucher_map($ids);
+  $voucher_map = _ptkh_plan_voucher_map($ids, $exclude_voucher);
   $totals = _ptkh_cost_totals($ids);
   $items = array();
   foreach ($rows as $row) {
     $id = (int) $row->nid;
-    if (isset($voucher_map[$id])) continue;
-    $total = isset($totals[$id]) ? $totals[$id] : array('doanh_thu' => 0, 'tinh_cho_khach' => 0, 'tong_tien' => 0);
-    $items[] = array(
-      'nid' => $id,
-      'nid_khach_hang' => (int) $row->nid_khach_hang,
-      'khach_hang' => _ptkh_customer_name($row->nid_khach_hang),
-      'label' => _ptkh_plan_label($row),
-      'ngay' => !empty($row->ngay_bat_dau) ? $row->ngay_bat_dau : '',
-      'tuyen' => _ptkh_plan_route($row),
-      'so_bkg' => (string) $row->so_bkg,
-      'loai_cont' => (string) $row->loai_cont,
-      'so_cont' => (string) $row->so_cont,
-      'tong_doanh_thu' => (int) $total['doanh_thu'],
-      'tong_chi_ho_khach_hang' => (int) $total['tinh_cho_khach'],
-      'tong_tien' => (int) $total['tong_tien'],
-    );
+    $blocked = isset($voucher_map[$id]);
+    if ($blocked && !$include_blocked) continue;
+    $item = _ptkh_plan_item($row, isset($totals[$id]) ? $totals[$id] : NULL);
+    if ($include_blocked || $exclude_voucher) {
+      $item['chon_duoc'] = !$blocked;
+      $item['phieu_tra'] = $blocked ? $voucher_map[$id] : NULL;
+    }
+    $items[] = $item;
   }
   return $items;
+}
+
+/** nid các kế hoạch đang thuộc phiếu (dòng còn hiệu lực). */
+function _ptkh_voucher_plan_ids($voucher_id) {
+  if (!db_table_exists('phieu_tra_khach_hang_ke_hoach')) return array();
+  return array_map('intval', db_select('phieu_tra_khach_hang_ke_hoach', 'l')->fields('l', array('nid_ke_hoach'))
+    ->condition('l.nid_phieu_tra_khach_hang', (int) $voucher_id)->condition('l.hoat_dong', 1)
+    ->orderBy('l.id', 'ASC')->execute()->fetchCol());
 }
 
 function _ptkh_load_raw($id) {
@@ -410,50 +519,211 @@ function _ptkh_load_raw($id) {
 function _ptkh_load($id, $with_items = FALSE) {
   $row = _ptkh_load_raw($id);
   if (!$row) return NULL;
+  $status = (string) $row['trang_thai_duyet'];
+  $links = db_select('phieu_tra_khach_hang_ke_hoach', 'l')->fields('l')->condition('l.nid_phieu_tra_khach_hang', (int) $id)->condition('l.hoat_dong', 1)->orderBy('l.id', 'ASC')->execute()->fetchAll();
+  $plan_ids = array();
+  foreach ($links as $link) $plan_ids[] = (int) $link->nid_ke_hoach;
+  $live = _ptkh_cost_totals($plan_ids);
+  $empty_total = array('doanh_thu' => 0, 'tinh_cho_khach' => 0, 'tong_tien' => 0);
+
+  // Chưa duyệt: số tiền luôn lấy mới từ kế hoạch. Đã duyệt / đã huỷ: số đã chốt lưu trong phiếu.
+  $is_live = $status === 'chua_duyet';
+  $tong_doanh_thu = (int) $row['tong_doanh_thu'];
+  $tong_chi_ho = (int) $row['tong_chi_ho_khach_hang'];
+  $tong_tien = (int) $row['tong_tien'];
+  $live_tong = 0;
+  foreach ($plan_ids as $pid) $live_tong += isset($live[$pid]) ? (int) $live[$pid]['tong_tien'] : 0;
+  if ($is_live) {
+    $tong_doanh_thu = 0;
+    $tong_chi_ho = 0;
+    foreach ($plan_ids as $pid) {
+      $t = isset($live[$pid]) ? $live[$pid] : $empty_total;
+      $tong_doanh_thu += (int) $t['doanh_thu'];
+      $tong_chi_ho += (int) $t['tinh_cho_khach'];
+    }
+    $tong_tien = $live_tong;
+  }
+  $da_thanh_toan = (int) $row['da_thanh_toan'];
+
   $result = array(
     'nid' => (int) $row['nid'],
     'ma_phieu' => (string) $row['ma_phieu'],
     'ma_phieu_khach' => (string) $row['ma_phieu_khach'],
-    'so_hoa_don' => (string) $row['so_hoa_don'],
+    'so_hoa_don' => $status === 'da_duyet' ? (string) $row['so_hoa_don'] : '',
+    'nid_khach_hang' => (int) $row['nid_khach_hang'],
     'khach_hang' => _ptkh_customer_info($row['nid_khach_hang']),
     'nguoi_thuc_hien' => _ptkh_user_info(!empty($row['uid_nguoi_tao']) ? $row['uid_nguoi_tao'] : 0),
     'tu_ngay' => (string) $row['tu_ngay'],
     'den_ngay' => (string) $row['den_ngay'],
-    'thang_hach_toan' => (string) $row['thang_hach_toan'],
+    'thang_hach_toan' => $status === 'da_duyet' ? (string) $row['thang_hach_toan'] : '',
     'created' => (string) $row['created'],
     'changed' => (string) $row['changed'],
-    'tong_doanh_thu' => (int) $row['tong_doanh_thu'],
-    'tong_chi_ho_khach_hang' => (int) $row['tong_chi_ho_khach_hang'],
-    'tong_tien' => (int) $row['tong_tien'],
-    'trang_thai_duyet' => (string) $row['trang_thai_duyet'],
-    'trang_thai_duyet_label' => _ptkh_status_label($row['trang_thai_duyet']),
+    'ngay_duyet' => $status === 'da_duyet' ? (string) $row['ngay_duyet'] : '',
+    // Số HĐ / tháng hạch toán đã nhập ở lần duyệt trước (còn giữ sau khi bỏ duyệt) — để điền sẵn khi duyệt lại.
+    'so_hoa_don_da_nhap' => (string) $row['so_hoa_don'],
+    'thang_hach_toan_da_nhap' => (string) $row['thang_hach_toan'],
+    'so_ke_hoach' => count($plan_ids),
+    'tong_doanh_thu' => $tong_doanh_thu,
+    'tong_chi_ho_khach_hang' => $tong_chi_ho,
+    'tong_tien' => $tong_tien,
+    'da_thanh_toan' => $da_thanh_toan,
+    'con_lai_thanh_toan' => max(0, $tong_tien - $da_thanh_toan),
+    // Đã duyệt mà kế hoạch bị sửa sau đó: chênh lệch (số hiện tại trên kế hoạch − số đã chốt). Chỉ cảnh báo, không tự đổi phiếu.
+    'chenh_lech_sau_duyet' => $status === 'da_duyet' ? $live_tong - (int) $row['tong_tien'] : 0,
+    'trang_thai_duyet' => $status,
+    'trang_thai_duyet_label' => _ptkh_status_label($status),
     'ghi_chu' => (string) $row['ghi_chu'],
     'file_url' => (string) $row['file_url'],
     'download_url' => url('phieu-tra-khach-hang/tai/' . (int) $row['nid']),
     'hoat_dong' => (int) $row['hoat_dong'],
+    'hanh_dong' => _ptkh_actions($row),
   );
   if ($with_items) {
-    $items = db_select('phieu_tra_khach_hang_ke_hoach', 'l')->fields('l')->condition('l.nid_phieu_tra_khach_hang', (int) $id)->condition('l.hoat_dong', 1)->orderBy('l.id', 'ASC')->execute()->fetchAll();
+    $plan_rows = array();
+    if ($plan_ids) {
+      foreach (db_select('ke_hoach_xep_xe', 'k')->fields('k')->condition('k.nid', $plan_ids, 'IN')->execute() as $plan) $plan_rows[(int) $plan->nid] = $plan;
+    }
     $result['items'] = array();
-    foreach ($items as $item) {
+    foreach ($links as $item) {
+      $pid = (int) $item->nid_ke_hoach;
       $json = _ptkh_json_decode($item->thong_tin_json);
+      // Chưa duyệt: thông tin + số tiền theo kế hoạch hiện tại; đã chốt: theo ảnh chụp lưu ở dòng phiếu.
+      if ($is_live && isset($plan_rows[$pid])) {
+        $json = _ptkh_plan_item($plan_rows[$pid], isset($live[$pid]) ? $live[$pid] : NULL);
+      }
+      $line_total = $is_live ? (isset($live[$pid]) ? $live[$pid] : $empty_total) : array('doanh_thu' => (int) $item->tong_doanh_thu, 'tinh_cho_khach' => (int) $item->tong_chi_ho_khach_hang, 'tong_tien' => (int) $item->tong_tien);
       $result['items'][] = array(
         'id' => (int) $item->id,
-        'nid_ke_hoach' => (int) $item->nid_ke_hoach,
-        'tong_doanh_thu' => (int) $item->tong_doanh_thu,
-        'tong_chi_ho_khach_hang' => (int) $item->tong_chi_ho_khach_hang,
-        'tong_tien' => (int) $item->tong_tien,
-        'label' => !empty($json['label']) ? $json['label'] : ('Kế hoạch #' . (int) $item->nid_ke_hoach),
+        'nid_ke_hoach' => $pid,
+        'tong_doanh_thu' => (int) $line_total['doanh_thu'],
+        'tong_chi_ho_khach_hang' => (int) $line_total['tinh_cho_khach'],
+        'tong_tien' => (int) $line_total['tong_tien'],
+        'label' => !empty($json['label']) ? $json['label'] : ('Kế hoạch #' . $pid),
         'ngay' => !empty($json['ngay']) ? $json['ngay'] : '',
         'tuyen' => !empty($json['tuyen']) ? $json['tuyen'] : '',
         'so_bkg' => !empty($json['so_bkg']) ? $json['so_bkg'] : '',
         'loai_cont' => !empty($json['loai_cont']) ? $json['loai_cont'] : '',
         'so_cont' => !empty($json['so_cont']) ? $json['so_cont'] : '',
+        'ke_hoach_con_hieu_luc' => isset($plan_rows[$pid]) && (int) $plan_rows[$pid]->hoat_dong === 1,
       );
     }
     $result['lich_su_duyet'] = _ptkh_history_items($row['lich_su_duyet_json']);
   }
   return $result;
+}
+
+/**
+ * Phiếu đã có thanh toán công nợ (kể cả phiếu thu còn chờ duyệt) ⇒ không bỏ duyệt được.
+ * Phiếu thu đã xoá hoặc không duyệt thì không tính.
+ */
+function _ptkh_has_payment(array $row) {
+  if ((int) $row['da_thanh_toan'] > 0) return TRUE;
+  if (!db_table_exists('qltc_phieu_thu_chi')) return FALSE;
+  $id = (int) $row['nid'];
+  $query = db_select('qltc_phieu_thu_chi', 'p')->fields('p', array('nid'))
+    ->condition('p.hoat_dong', 1)
+    ->condition('p.duyet_status', 'khong_duyet', '<>');
+  $query->condition(db_or()
+    ->condition('p.thong_tin_json', '%"phieu_tra_khach_hang_nid":' . $id . ',%', 'LIKE')
+    ->condition('p.thong_tin_json', '%"phieu_tra_khach_hang_nid":' . $id . '}%', 'LIKE')
+    ->condition('p.thong_tin_json', '%"voucher_nid":' . $id . ',%', 'LIKE')
+    ->condition('p.thong_tin_json', '%"voucher_nid":' . $id . '}%', 'LIKE'));
+  return (bool) $query->range(0, 1)->execute()->fetchField();
+}
+
+/**
+ * Thao tác hợp lệ của phiếu — một nguồn duy nhất: giao diện chỉ hiện các mục này, API kiểm tra lại bằng đúng hàm này.
+ * Chờ duyệt: sửa / huỷ (quyền tạo), khách duyệt (quyền duyệt). Đã duyệt: bỏ duyệt (quyền duyệt) khi chưa có thanh toán công nợ;
+ * đã có thì vẫn trả mục kèm 'ly_do' để giao diện hiện mờ. Đã huỷ: không có thao tác.
+ */
+function _ptkh_actions(array $row) {
+  $actions = array();
+  $status = (string) $row['trang_thai_duyet'];
+  $can_create = api_has_permission('phieu_tra_khach_hang_create');
+  $can_approve = api_has_permission('phieu_tra_khach_hang_approve');
+  if ($status === 'chua_duyet') {
+    if ($can_create) $actions[] = array('action' => 'sua', 'label' => 'Sửa phiếu');
+    if ($can_approve) $actions[] = array('action' => 'duyet', 'label' => 'Khách đã duyệt');
+    if ($can_create) $actions[] = array('action' => 'huy', 'label' => 'Huỷ phiếu');
+  }
+  elseif ($status === 'da_duyet' && $can_approve) {
+    $action = array('action' => 'bo_duyet', 'label' => 'Bỏ duyệt');
+    if (_ptkh_has_payment($row)) $action['ly_do'] = 'Phiếu đã có thanh toán công nợ';
+    $actions[] = $action;
+  }
+  return $actions;
+}
+
+function _ptkh_action_allowed(array $row, $action) {
+  foreach (_ptkh_actions($row) as $item) {
+    if ($item['action'] === $action) return empty($item['ly_do']) ? TRUE : $item['ly_do'];
+  }
+  return FALSE;
+}
+
+/** Ghi 1 dòng lịch sử (giữ khoá cũ old_status/new_status để lịch sử cũ vẫn đọc được). */
+function _ptkh_history_append($json, $action, $old_status, $new_status, array $extra = array()) {
+  global $user;
+  $history = _ptkh_json_decode($json);
+  $history[] = array_merge(array(
+    'time' => REQUEST_TIME,
+    'time_text' => format_date(REQUEST_TIME, 'custom', 'd/m/Y H:i:s'),
+    'uid' => isset($user->uid) ? (int) $user->uid : 0,
+    'username' => isset($user->name) ? $user->name : '',
+    'hanh_dong' => $action,
+    'old_status' => $old_status,
+    'new_status' => $new_status,
+    'so_hoa_don' => '',
+    'thang_hach_toan' => '',
+    'ghi_chu' => '',
+  ), $extra);
+  return _ptkh_json_encode($history);
+}
+
+/**
+ * Ghi lại số tiền theo kế hoạch hiện tại vào dòng phiếu + đầu phiếu (+ khoảng ngày, ảnh chụp chi tiết).
+ * Gọi khi tạo/sửa (để danh sách, sắp xếp có số mới) và khi khách duyệt (= chốt số).
+ */
+function _ptkh_store_current_totals($voucher_id) {
+  $plan_ids = _ptkh_voucher_plan_ids($voucher_id);
+  $totals = _ptkh_cost_totals($plan_ids);
+  $rows = array();
+  if ($plan_ids) {
+    foreach (db_select('ke_hoach_xep_xe', 'k')->fields('k')->condition('k.nid', $plan_ids, 'IN')->execute() as $plan) $rows[(int) $plan->nid] = $plan;
+  }
+  $sum = array('doanh_thu' => 0, 'tinh_cho_khach' => 0, 'tong_tien' => 0);
+  $tu = '';
+  $den = '';
+  $snapshot = array();
+  foreach ($plan_ids as $pid) {
+    $t = isset($totals[$pid]) ? $totals[$pid] : array('doanh_thu' => 0, 'tinh_cho_khach' => 0, 'tong_tien' => 0);
+    foreach ($sum as $k => $v) $sum[$k] += (int) $t[$k];
+    $fields = array('tong_doanh_thu' => (int) $t['doanh_thu'], 'tong_chi_ho_khach_hang' => (int) $t['tinh_cho_khach'], 'tong_tien' => (int) $t['tong_tien'], 'changed' => _ptkh_now());
+    if (isset($rows[$pid])) {
+      $item = _ptkh_plan_item($rows[$pid], $t);
+      $snapshot[] = $item;
+      $fields['thong_tin_json'] = _ptkh_json_encode($item);
+      if ($item['ngay'] !== '') {
+        if ($tu === '' || $item['ngay'] < $tu) $tu = $item['ngay'];
+        if ($den === '' || $item['ngay'] > $den) $den = $item['ngay'];
+      }
+    }
+    db_update('phieu_tra_khach_hang_ke_hoach')->fields($fields)
+      ->condition('nid_phieu_tra_khach_hang', (int) $voucher_id)->condition('nid_ke_hoach', $pid)->condition('hoat_dong', 1)->execute();
+  }
+  $header = _ptkh_load_raw($voucher_id);
+  $paid = $header ? (int) $header['da_thanh_toan'] : 0;
+  db_update('phieu_tra_khach_hang')->fields(array(
+    'tong_doanh_thu' => $sum['doanh_thu'],
+    'tong_chi_ho_khach_hang' => $sum['tinh_cho_khach'],
+    'tong_tien' => $sum['tong_tien'],
+    'con_lai_thanh_toan' => max(0, $sum['tong_tien'] - $paid),
+    'tu_ngay' => $tu,
+    'den_ngay' => $den,
+    'chi_tiet_json' => _ptkh_json_encode(array('items' => $snapshot)),
+    'changed' => _ptkh_now(),
+  ))->condition('nid', (int) $voucher_id)->execute();
+  return $sum;
 }
 
 function phieu_tra_khach_hang_rest_collection() {
@@ -472,7 +742,7 @@ function phieu_tra_khach_hang_rest_item($id) {
     case 'GET':
       return _ptkh_rest_get($id);
     case 'PUT':
-      return _ptkh_rest_update_status($id);
+      return _ptkh_rest_update($id);
     default:
       return _ptkh_method_not_allowed('GET, PUT');
   }
@@ -486,6 +756,8 @@ function phieu_tra_khach_hang_candidates_api() {
     'nid_khach_hang' => !empty($_GET['nid_khach_hang']) ? (int) $_GET['nid_khach_hang'] : 0,
     'from_date' => !empty($_GET['from_date']) ? _ptkh_date_to_db($_GET['from_date']) : '',
     'to_date' => !empty($_GET['to_date']) ? _ptkh_date_to_db($_GET['to_date']) : '',
+    'exclude_voucher' => !empty($_GET['nid_phieu']) ? (int) $_GET['nid_phieu'] : 0,
+    'include_blocked' => !empty($_GET['bao_gom_da_xuat']),
   );
   return _ptkh_success(array('items' => _ptkh_candidate_rows($filters)));
 }
@@ -496,7 +768,6 @@ function _ptkh_rest_list() {
   $limit = api_page_limit(20, 100);
   $query = db_select('phieu_tra_khach_hang', 'p')->fields('p')->condition('p.hoat_dong', 1);
   if (!empty($_GET['nid_khach_hang'])) $query->condition('p.nid_khach_hang', (int) $_GET['nid_khach_hang']);
-  if (!empty($_GET['trang_thai_duyet'])) $query->condition('p.trang_thai_duyet', trim((string) $_GET['trang_thai_duyet']));
   if (!empty($_GET['thang_hach_toan'])) $query->condition('p.thang_hach_toan', _ptkh_month_normalize($_GET['thang_hach_toan']));
   if (!empty($_GET['created_from'])) {
     $created_from = _ptkh_date_to_db($_GET['created_from']);
@@ -510,6 +781,21 @@ function _ptkh_rest_list() {
     $like = '%' . db_like(trim((string) $_GET['keyword'])) . '%';
     $query->condition(db_or()->condition('p.ma_phieu', $like, 'LIKE')->condition('p.ma_phieu_khach', $like, 'LIKE')->condition('p.so_hoa_don', $like, 'LIKE'));
   }
+  // Số lượng theo trạng thái (cho các tab), tính trên cùng bộ lọc khác — trước khi lọc theo tab trạng thái.
+  $counts = array('all' => 0, 'chua_duyet' => 0, 'da_duyet' => 0, 'huy' => 0);
+  $count_query = clone $query;
+  // Bỏ mọi cột (query gốc lấy fields('p')) để GROUP BY hợp lệ cả khi MySQL bật ONLY_FULL_GROUP_BY.
+  $count_fields = &$count_query->getFields();
+  $count_fields = array();
+  $count_query->addField('p', 'trang_thai_duyet');
+  $count_query->addExpression('COUNT(*)', 'so_luong');
+  $count_query->groupBy('p.trang_thai_duyet');
+  foreach ($count_query->execute() as $c) {
+    $counts[(string) $c->trang_thai_duyet] = (int) $c->so_luong;
+    $counts['all'] += (int) $c->so_luong;
+  }
+  // Tab "Tất cả" = mọi trạng thái (kể cả đã huỷ).
+  if (!empty($_GET['trang_thai_duyet']) && $_GET['trang_thai_duyet'] !== 'all') $query->condition('p.trang_thai_duyet', trim((string) $_GET['trang_thai_duyet']));
   $count = clone $query;
   $total = (int) $count->countQuery()->execute()->fetchField();
   $total_pages = (int) ceil($total / $limit);
@@ -517,7 +803,7 @@ function _ptkh_rest_list() {
   $rows = $current_page > 0 ? $query->orderBy('p.created', 'DESC')->orderBy('p.nid', 'DESC')->range(($current_page - 1) * $limit, $limit)->execute()->fetchAll() : array();
   $items = array();
   foreach ($rows as $row) $items[] = _ptkh_load($row->nid, FALSE);
-  return _ptkh_success(array('items' => $items, 'total' => $total, 'current_page' => $current_page, 'total_pages' => $total_pages, 'limit' => $limit));
+  return _ptkh_success(array('items' => $items, 'total' => $total, 'current_page' => $current_page, 'total_pages' => $total_pages, 'limit' => $limit, 'status_counts' => $counts));
 }
 
 function _ptkh_rest_get($id) {
@@ -579,7 +865,7 @@ function _ptkh_rest_create() {
     }
     $insert = array(
       'ma_phieu' => $ma_phieu,
-      'ma_phieu_khach' => !empty($input['ma_phieu_khach']) ? trim((string) $input['ma_phieu_khach']) : $ma_phieu,
+      'ma_phieu_khach' => $ma_phieu,
       'nid_khach_hang' => $customer_id,
       'tu_ngay' => $tu_ngay,
       'den_ngay' => $den_ngay,
@@ -591,6 +877,7 @@ function _ptkh_rest_create() {
       'trang_thai_thanh_toan' => 'chua_thanh_toan',
       'ghi_chu' => !empty($input['ghi_chu']) ? trim((string) $input['ghi_chu']) : '',
       'chi_tiet_json' => _ptkh_json_encode(array('items' => $selected)),
+      'lich_su_duyet_json' => _ptkh_history_append('', 'tao', '', 'chua_duyet'),
       'created' => $now,
       'changed' => $now,
       'hoat_dong' => 1,
@@ -598,7 +885,17 @@ function _ptkh_rest_create() {
     if (db_field_exists('phieu_tra_khach_hang', 'uid_nguoi_tao')) {
       $insert['uid_nguoi_tao'] = isset($user->uid) ? (int) $user->uid : 0;
     }
-    $nid = db_insert('phieu_tra_khach_hang')->fields($insert)->execute();
+    // 2 người tạo cùng lúc trùng mã (khoá duy nhất ma_phieu) thì lấy số kế tiếp rồi thử lại.
+    $nid = 0;
+    for ($try = 0; $try < 5 && !$nid; $try++) {
+      try {
+        $nid = db_insert('phieu_tra_khach_hang')->fields($insert)->execute();
+      }
+      catch (PDOException $e) {
+        if ($try === 4) throw $e;
+        $insert['ma_phieu'] = $insert['ma_phieu_khach'] = _ptkh_generate_code($customer_id);
+      }
+    }
     foreach ($selected as $item) {
       db_insert('phieu_tra_khach_hang_ke_hoach')->fields(array(
         'nid_phieu_tra_khach_hang' => $nid,
@@ -623,39 +920,148 @@ function _ptkh_rest_create() {
   return _ptkh_success(_ptkh_load($nid, TRUE));
 }
 
-function _ptkh_rest_update_status($id) {
-  global $user;
-  if (!api_has_permission('phieu_tra_khach_hang_approve')) return _ptkh_unauthorized('Bạn không có quyền duyệt phiếu trả khách hàng');
+/**
+ * PUT /api/phieu-tra-khach-hang/{id} — sửa phiếu chờ duyệt: mã phiếu khách, ghi chú, danh sách kế hoạch.
+ * nid_ke_hoach = TOÀN BỘ danh sách muốn giữ (so với hiện tại để tự suy ra thêm/bớt); không gửi thì giữ nguyên.
+ * Khách hàng của phiếu không đổi được.
+ */
+function _ptkh_rest_update($id) {
   $row = _ptkh_load_raw((int) $id);
   if (!$row) return _ptkh_not_found('Phiếu trả khách hàng không tồn tại');
+  $allowed = _ptkh_action_allowed($row, 'sua');
+  if ($allowed !== TRUE) {
+    if (!api_has_permission('phieu_tra_khach_hang_create')) return _ptkh_unauthorized('Bạn không có quyền sửa phiếu trả khách hàng');
+    return _ptkh_fail(is_string($allowed) ? $allowed : 'Chỉ sửa được phiếu đang chờ duyệt');
+  }
   $input = _ptkh_input();
-  $status = !empty($input['trang_thai_duyet']) ? trim((string) $input['trang_thai_duyet']) : '';
-  if (!in_array($status, array('chua_duyet', 'da_duyet', 'khong_duyet'), TRUE)) return _ptkh_fail('Trạng thái duyệt không hợp lệ');
-  $so_hoa_don = $status === 'da_duyet' && isset($input['so_hoa_don']) ? trim((string) $input['so_hoa_don']) : '';
-  $thang = $status === 'da_duyet' && isset($input['thang_hach_toan']) ? _ptkh_month_normalize($input['thang_hach_toan']) : '';
-  if ($status === 'da_duyet' && $so_hoa_don === '') return _ptkh_fail('Vui lòng nhập số hóa đơn');
-  if ($status === 'da_duyet' && $thang === '') return _ptkh_fail('Vui lòng nhập tháng hạch toán YYYYMM');
-  $history = _ptkh_json_decode($row['lich_su_duyet_json']);
-  $history[] = array(
-    'time' => REQUEST_TIME,
-    'time_text' => format_date(REQUEST_TIME, 'custom', 'd/m/Y H:i:s'),
-    'uid' => isset($user->uid) ? (int) $user->uid : 0,
-    'username' => isset($user->name) ? $user->name : '',
-    'old_status' => $row['trang_thai_duyet'],
-    'new_status' => $status,
-    'so_hoa_don' => $so_hoa_don,
-    'thang_hach_toan' => $thang,
-    'ghi_chu' => !empty($input['ghi_chu']) ? trim((string) $input['ghi_chu']) : '',
-  );
-  db_update('phieu_tra_khach_hang')->fields(array(
-    'trang_thai_duyet' => $status,
-    'so_hoa_don' => $status === 'da_duyet' ? $so_hoa_don : '',
-    'thang_hach_toan' => $status === 'da_duyet' ? $thang : '',
-    'ngay_duyet' => $status === 'da_duyet' ? _ptkh_now() : NULL,
-    'uid_nguoi_duyet' => isset($user->uid) ? (int) $user->uid : 0,
-    'lich_su_duyet_json' => _ptkh_json_encode($history),
-    'changed' => _ptkh_now(),
-  ))->condition('nid', (int) $id)->execute();
+  $fields = array();
+  if (array_key_exists('ghi_chu', $input)) $fields['ghi_chu'] = trim((string) $input['ghi_chu']);
+
+  $current = _ptkh_voucher_plan_ids($id);
+  $add = $remove = array();
+  if (array_key_exists('nid_ke_hoach', $input)) {
+    $wanted = is_array($input['nid_ke_hoach']) ? array_values(array_unique(array_filter(array_map('intval', $input['nid_ke_hoach'])))) : array();
+    if (empty($wanted)) return _ptkh_fail('Phiếu phải có ít nhất 1 kế hoạch. Muốn bỏ hết thì huỷ phiếu.');
+    $add = array_values(array_diff($wanted, $current));
+    $remove = array_values(array_diff($current, $wanted));
+    if ($add) {
+      // Cùng điều kiện với danh sách chọn: hoàn thành, đúng khách hàng, chưa nằm trong phiếu chưa huỷ nào khác.
+      $ok = array_flip(array_map('intval', db_select('ke_hoach_xep_xe', 'k')->fields('k', array('nid'))
+        ->condition('k.nid', $add, 'IN')->condition('k.hoat_dong', 1)->condition('k.trang_thai_van_chuyen', 'Hoàn thành')
+        ->condition('k.nid_khach_hang', (int) $row['nid_khach_hang'])->execute()->fetchCol()));
+      foreach (array_keys(_ptkh_plan_voucher_map($add, (int) $id)) as $blocked) unset($ok[$blocked]);
+      foreach ($add as $pid) {
+        if (empty($ok[$pid])) return _ptkh_fail('Kế hoạch #' . $pid . ' không đủ điều kiện (chưa hoàn thành, khác khách hàng hoặc đã nằm trong phiếu khác)');
+      }
+    }
+  }
+  if (!$fields && !$add && !$remove) return _ptkh_fail('Không có thay đổi để lưu');
+
+  $now = _ptkh_now();
+  $transaction = db_transaction();
+  try {
+    if ($remove) {
+      db_update('phieu_tra_khach_hang_ke_hoach')->fields(array('hoat_dong' => 0, 'changed' => $now))
+        ->condition('nid_phieu_tra_khach_hang', (int) $id)->condition('nid_ke_hoach', $remove, 'IN')->condition('hoat_dong', 1)->execute();
+    }
+    if ($add) {
+      if (_ptkh_plan_voucher_map($add, (int) $id)) throw new Exception('Có kế hoạch vừa được xuất ở phiếu khác. Vui lòng tải lại danh sách.');
+      foreach ($add as $pid) {
+        db_insert('phieu_tra_khach_hang_ke_hoach')->fields(array(
+          'nid_phieu_tra_khach_hang' => (int) $id,
+          'nid_ke_hoach' => $pid,
+          'nid_khach_hang' => (int) $row['nid_khach_hang'],
+          'created' => $now,
+          'changed' => $now,
+          'hoat_dong' => 1,
+        ))->execute();
+      }
+    }
+    $note = array();
+    if ($add) $note[] = 'thêm ' . count($add) . ' kế hoạch';
+    if ($remove) $note[] = 'bớt ' . count($remove) . ' kế hoạch';
+    if (isset($fields['ghi_chu']) && $fields['ghi_chu'] !== (string) $row['ghi_chu']) $note[] = 'sửa ghi chú';
+    $fields['lich_su_duyet_json'] = _ptkh_history_append($row['lich_su_duyet_json'], 'sua', 'chua_duyet', 'chua_duyet', array('ghi_chu' => implode(', ', $note)));
+    $fields['changed'] = $now;
+    db_update('phieu_tra_khach_hang')->fields($fields)->condition('nid', (int) $id)->execute();
+    $sum = _ptkh_store_current_totals((int) $id);
+    if ($sum['tong_tien'] <= 0) throw new Exception('Tổng tiền phiếu phải lớn hơn 0');
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('phieu_tra_khach_hang', 'Lỗi sửa phiếu #@id: @msg', array('@id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ptkh_fail($e->getMessage());
+  }
+  return _ptkh_success(_ptkh_load($id, TRUE));
+}
+
+/**
+ * POST /api/phieu-tra-khach-hang/{id}/{action}: duyet (khách duyệt — bắt buộc số HĐ + tháng hạch toán, chốt số tiền vào phiếu),
+ * bo_duyet (về chờ duyệt, chỉ khi chưa có thanh toán công nợ), huy (nhả kế hoạch). Hợp lệ hay không do _ptkh_actions() quyết định.
+ */
+function phieu_tra_khach_hang_rest_action($id, $action) {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _ptkh_method_not_allowed('POST');
+  $action = str_replace('-', '_', (string) $action);
+  if (!in_array($action, array('duyet', 'bo_duyet', 'huy'), TRUE)) return _ptkh_not_found('Thao tác không tồn tại');
+  $row = _ptkh_load_raw((int) $id);
+  if (!$row) return _ptkh_not_found('Phiếu trả khách hàng không tồn tại');
+  $allowed = _ptkh_action_allowed($row, $action);
+  if ($allowed !== TRUE) {
+    $perm = $action === 'huy' ? 'phieu_tra_khach_hang_create' : 'phieu_tra_khach_hang_approve';
+    if (!api_has_permission($perm)) return _ptkh_unauthorized('Bạn không có quyền thực hiện thao tác này');
+    return _ptkh_fail(is_string($allowed) ? $allowed : 'Trạng thái phiếu hiện tại không cho phép thao tác này');
+  }
+  $input = _ptkh_input();
+  $note = !empty($input['ghi_chu']) ? trim((string) $input['ghi_chu']) : '';
+  $old = (string) $row['trang_thai_duyet'];
+  $now = _ptkh_now();
+  global $user;
+
+  $transaction = db_transaction();
+  try {
+    if ($action === 'duyet') {
+      $so_hoa_don = isset($input['so_hoa_don']) ? trim((string) $input['so_hoa_don']) : '';
+      $thang = isset($input['thang_hach_toan']) ? _ptkh_month_normalize($input['thang_hach_toan']) : '';
+      if ($so_hoa_don === '') throw new Exception('Vui lòng nhập số hóa đơn');
+      if ($thang === '') throw new Exception('Vui lòng nhập tháng hạch toán YYYYMM');
+      // Chốt số tiền theo kế hoạch tại thời điểm duyệt; từ đây công nợ đọc số trong phiếu, không theo kế hoạch nữa.
+      $sum = _ptkh_store_current_totals((int) $id);
+      if ($sum['tong_tien'] <= 0) throw new Exception('Tổng tiền phiếu phải lớn hơn 0');
+      db_update('phieu_tra_khach_hang')->fields(array(
+        'trang_thai_duyet' => 'da_duyet',
+        'so_hoa_don' => $so_hoa_don,
+        'thang_hach_toan' => $thang,
+        'ngay_duyet' => $now,
+        'uid_nguoi_duyet' => isset($user->uid) ? (int) $user->uid : 0,
+        'lich_su_duyet_json' => _ptkh_history_append($row['lich_su_duyet_json'], 'duyet', $old, 'da_duyet', array('so_hoa_don' => $so_hoa_don, 'thang_hach_toan' => $thang, 'ghi_chu' => $note, 'tong_tien' => $sum['tong_tien'])),
+        'changed' => $now,
+      ))->condition('nid', (int) $id)->execute();
+    }
+    elseif ($action === 'bo_duyet') {
+      if (_ptkh_has_payment($row)) throw new Exception('Phiếu đã có thanh toán công nợ, không bỏ duyệt được');
+      // Giữ số HĐ/tháng hạch toán cũ để điền sẵn khi duyệt lại; công nợ chỉ đọc phiếu đã duyệt nên phiếu tự rời công nợ.
+      db_update('phieu_tra_khach_hang')->fields(array(
+        'trang_thai_duyet' => 'chua_duyet',
+        'ngay_duyet' => NULL,
+        'lich_su_duyet_json' => _ptkh_history_append($row['lich_su_duyet_json'], 'bo_duyet', $old, 'chua_duyet', array('ghi_chu' => $note)),
+        'changed' => $now,
+      ))->condition('nid', (int) $id)->execute();
+      _ptkh_store_current_totals((int) $id);
+    }
+    else {
+      // Huỷ: giữ nguyên dòng kế hoạch để xem lại, nhưng phiếu đã huỷ không còn giữ kế hoạch (xem _ptkh_active_statuses()).
+      db_update('phieu_tra_khach_hang')->fields(array(
+        'trang_thai_duyet' => 'huy',
+        'lich_su_duyet_json' => _ptkh_history_append($row['lich_su_duyet_json'], 'huy', $old, 'huy', array('ghi_chu' => $note)),
+        'changed' => $now,
+      ))->condition('nid', (int) $id)->execute();
+    }
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('phieu_tra_khach_hang', 'Lỗi @action phiếu #@id: @msg', array('@action' => $action, '@id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _ptkh_fail($e->getMessage());
+  }
   return _ptkh_success(_ptkh_load($id, TRUE));
 }
 

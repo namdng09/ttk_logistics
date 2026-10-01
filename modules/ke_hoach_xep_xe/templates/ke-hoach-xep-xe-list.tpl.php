@@ -18,8 +18,15 @@ $khxh_can_create_ptkh = api_has_permission('phieu_tra_khach_hang_create');
   <div class="card khxh-port-controls-card">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
       <h4 class="card-title mb-0"><?php print check_plain($list_title); ?></h4>
-      <?php if ($khxh_can_create): ?>
-      <button type="button" class="btn btn-success waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?></button>
+      <?php if ($khxh_can_create || ($khxh_can_create_ptkh && function_exists('phieu_tra_khach_hang_modal_markup'))): ?>
+      <div class="d-flex flex-wrap gap-2">
+        <?php if ($khxh_can_create_ptkh && function_exists('phieu_tra_khach_hang_modal_markup')): ?>
+        <button type="button" class="btn btn-label-primary waves-effect khxh-port-ptkh-create"><i class="ti tabler-file-invoice me-1"></i>Tạo phiếu trả KH</button>
+        <?php endif; ?>
+        <?php if ($khxh_can_create): ?>
+        <button type="button" class="btn btn-success waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?></button>
+        <?php endif; ?>
+      </div>
       <?php endif; ?>
     </div>
     <div class="card-body">
