@@ -110,6 +110,7 @@ function _thu_chi_action_allowed($item, $action) {
 function _thu_chi_source_label($ref_type) {
   $map = array(
     'cong_no_khach_hang' => 'Công nợ khách hàng',
+    'de_nghi_thanh_toan' => 'Đề nghị thanh toán',
     'bcllx_tam_ung_lai_xe' => 'Ứng tiền lái xe',
     'llx_thanh_toan_luong' => 'Thanh toán lương lái xe',
     'bcllx_thanh_toan_luong_lai_xe' => 'Thanh toán lương lái xe',

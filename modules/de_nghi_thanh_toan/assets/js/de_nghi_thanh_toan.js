@@ -589,7 +589,7 @@
     for (var j = 0; j < pays.length; j++) {
       var p = pays[j];
       html += '<tr><td>' + p.dot + '</td><td>' + esc(toDateTimeView(p.created)) + '</td><td class="text-end">' + money(p.so_tien) + '</td><td>' + esc(p.hinh_thuc_label) +
-        '<div class="small text-muted">' + esc(p.quy_ten) + '</div></td><td>' + esc(p.nguoi_thanh_toan) + '</td></tr>';
+        '<div class="small text-muted">' + esc(p.quy_ten) + '</div>' + (p.ma_phieu_chi ? '<div class="small">Phiếu chi <span class="fw-semibold">' + esc(p.ma_phieu_chi) + '</span></div>' : '') + '</td><td>' + esc(p.nguoi_thanh_toan) + '</td></tr>';
     }
     html += '</tbody></table></div>' +
       '<div class="fw-semibold mt-3 mb-2">Ảnh chứng từ</div><div class="small text-muted">Chưa có chứng từ</div></div>' +

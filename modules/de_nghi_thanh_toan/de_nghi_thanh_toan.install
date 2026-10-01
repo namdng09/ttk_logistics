@@ -73,8 +73,10 @@ function de_nghi_thanh_toan_schema() {
       'nid_de_nghi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'so_tien' => array('type' => 'int', 'size' => 'big', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'hinh_thuc_tt' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
-      // Quỹ đã chi (node quỹ của quan_ly_tai_chinh). Chỉ lưu tham chiếu, chưa tạo giao dịch/trừ số dư quỹ.
+      // Quỹ đã chi (quỹ của quan_ly_tai_chinh); tiền ra quỹ qua phiếu chi nid_phieu_thu_chi.
       'nid_quy' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Phiếu chi (qltc_phieu_thu_chi) tự tạo + tự duyệt khi ghi nhận đợt này. 0 = đợt ghi nhận trước khi nối quỹ.
+      'nid_phieu_thu_chi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'ghi_chu' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
       'uid_nguoi_thanh_toan' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
@@ -83,6 +85,7 @@ function de_nghi_thanh_toan_schema() {
     'indexes' => array(
       'nid_de_nghi' => array('nid_de_nghi'),
       'nid_quy' => array('nid_quy'),
+      'nid_phieu_thu_chi' => array('nid_phieu_thu_chi'),
     ),
   );
 
@@ -144,4 +147,16 @@ function de_nghi_thanh_toan_update_7002() {
   db_drop_field('de_nghi_thanh_toan', 'so_hoa_don');
   db_drop_field('de_nghi_thanh_toan', 'ngay_hoa_don');
   return 'Đã chuyển bên phát hành/số hoá đơn/ngày hoá đơn của ' . count($rows) . ' đề nghị xuống dòng chi phí, và xoá 3 cột cũ khỏi de_nghi_thanh_toan.';
+}
+
+/**
+ * Nối ĐNTT với quỹ: thêm cột nid_phieu_thu_chi vào de_nghi_thanh_toan_thanh_toan (mỗi đợt ghi nhận TT tạo 1 phiếu chi tự duyệt).
+ * Các đợt đã ghi nhận trước đó giữ 0 (không tạo bù phiếu chi).
+ */
+function de_nghi_thanh_toan_update_7003() {
+  if (db_field_exists('de_nghi_thanh_toan_thanh_toan', 'nid_phieu_thu_chi')) {
+    return 'Cột nid_phieu_thu_chi đã có, bỏ qua.';
+  }
+  db_add_field('de_nghi_thanh_toan_thanh_toan', 'nid_phieu_thu_chi', array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0), array('indexes' => array('nid_phieu_thu_chi' => array('nid_phieu_thu_chi'))));
+  return 'Đã thêm cột nid_phieu_thu_chi cho de_nghi_thanh_toan_thanh_toan.';
 }

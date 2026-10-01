@@ -131,8 +131,13 @@ function de_nghi_thanh_toan_page_list() {
     return api_denied_page('Bạn không có quyền xem đề nghị thanh toán');
   }
   $path = drupal_get_path('module', 'de_nghi_thanh_toan');
-  drupal_add_css($path . '/assets/css/de_nghi_thanh_toan.css');
-  drupal_add_js($path . '/assets/js/de_nghi_thanh_toan.js');
+  // version theo thời điểm sửa file: upload bản mới là trình duyệt lấy file mới.
+  foreach (array('css', 'js') as $t) {
+    $file = $path . '/assets/' . $t . '/de_nghi_thanh_toan.' . $t;
+    $v = file_exists($file) ? filemtime($file) . '-' . filesize($file) : REQUEST_TIME;
+    if ($t === 'css') drupal_add_css($file, array('preprocess' => FALSE, 'version' => $v));
+    else drupal_add_js($file, array('preprocess' => FALSE, 'version' => $v));
+  }
   drupal_add_js(array('de_nghi_thanh_toan' => array(
     'permissions' => array(
       'view_own' => api_has_permission('de_nghi_thanh_toan_view_own'),
@@ -1001,6 +1006,15 @@ function _de_nghi_thanh_toan_detail($row, $account) {
     $pay_uids[] = (int) $p->uid_nguoi_thanh_toan;
   }
   $pay_names = _de_nghi_thanh_toan_user_names($pay_uids);
+  // Mã phiếu chi ở Thu chi của từng đợt (đợt ghi nhận trước khi nối quỹ không có phiếu).
+  $phieu_ma = array();
+  $phieu_ids = array();
+  foreach ($pay_rows as $p) {
+    if (!empty($p->nid_phieu_thu_chi)) $phieu_ids[] = (int) $p->nid_phieu_thu_chi;
+  }
+  if ($phieu_ids && db_table_exists('qltc_phieu_thu_chi')) {
+    $phieu_ma = db_query("SELECT nid, ma_giao_dich FROM {qltc_phieu_thu_chi} WHERE nid IN (:ids)", array(':ids' => $phieu_ids))->fetchAllKeyed();
+  }
   $payments = array();
   foreach ($pay_rows as $i => $p) {
     $payments[] = array(
@@ -1011,6 +1025,8 @@ function _de_nghi_thanh_toan_detail($row, $account) {
       'nid_quy' => (int) $p->nid_quy,
       'quy_ten' => isset($quys[(int) $p->nid_quy]) ? $quys[(int) $p->nid_quy]['ten'] : '',
       'ghi_chu' => $p->ghi_chu,
+      'nid_phieu_thu_chi' => !empty($p->nid_phieu_thu_chi) ? (int) $p->nid_phieu_thu_chi : 0,
+      'ma_phieu_chi' => !empty($p->nid_phieu_thu_chi) && isset($phieu_ma[(int) $p->nid_phieu_thu_chi]) ? (string) $phieu_ma[(int) $p->nid_phieu_thu_chi] : '',
       'nguoi_thanh_toan' => isset($pay_names[(int) $p->uid_nguoi_thanh_toan]) ? $pay_names[(int) $p->uid_nguoi_thanh_toan] : '',
       'created' => $p->created,
     );
@@ -1865,8 +1881,21 @@ function _de_nghi_thanh_toan_record_payment($row, $account, array $input, array 
   if (mb_strlen($ghi_chu) > 255) {
     return 'Ghi chú tối đa 255 ký tự.';
   }
+  // Tiền ra quỹ: mỗi đợt = 1 phiếu chi ở Thu chi, tự duyệt (đề nghị đã qua duyệt + duyệt TT), quỹ trừ ngay. Không đủ tiền thì chặn.
+  if (!function_exists('thu_chi_giao_dich_save_values') || !function_exists('thu_chi_approve_giao_dich')) {
+    return 'Module Thu chi chưa bật nên chưa ghi nhận thanh toán được (cần tạo phiếu chi trừ quỹ).';
+  }
+  $so_du = function_exists('thu_chi_get_quy_current_balance') ? (float) thu_chi_get_quy_current_balance($nid_quy) : (float) $quys[$nid_quy]['so_du'];
+  if ($so_du < $so_tien) {
+    return 'Quỹ "' . $quys[$nid_quy]['ten'] . '" không đủ tiền: số dư ' . number_format($so_du, 0, ',', '.') . ' đ, cần chi ' . number_format($so_tien, 0, ',', '.') . ' đ.';
+  }
+  $phieu = _de_nghi_thanh_toan_create_phieu_chi($row, $account, $so_tien, $nid_quy, $options[$ht]['label'], $ghi_chu);
+  if (is_string($phieu)) {
+    return $phieu;
+  }
+
   $now = _de_nghi_thanh_toan_now();
-  db_insert('de_nghi_thanh_toan_thanh_toan')->fields(array(
+  $fields = array(
     'nid_de_nghi' => (int) $row->nid,
     'so_tien' => $so_tien,
     'hinh_thuc_tt' => $ht,
@@ -1874,9 +1903,13 @@ function _de_nghi_thanh_toan_record_payment($row, $account, array $input, array 
     'ghi_chu' => $ghi_chu,
     'uid_nguoi_thanh_toan' => (int) $account->uid,
     'created' => $now,
-  ))->execute();
+  );
+  if (db_field_exists('de_nghi_thanh_toan_thanh_toan', 'nid_phieu_thu_chi')) {
+    $fields['nid_phieu_thu_chi'] = (int) $phieu['nid'];
+  }
+  db_insert('de_nghi_thanh_toan_thanh_toan')->fields($fields)->execute();
   $da_tt = $agg['da_tt'] + $so_tien;
-  $text = 'Ghi nhận thanh toán ' . number_format($so_tien, 0, ',', '.') . ' đ (' . $options[$ht]['label'] . ' — ' . $quys[$nid_quy]['ten'] . ')';
+  $text = 'Ghi nhận thanh toán ' . number_format($so_tien, 0, ',', '.') . ' đ (' . $options[$ht]['label'] . ' — ' . $quys[$nid_quy]['ten'] . ', phiếu chi ' . $phieu['ma'] . ')';
   if ($da_tt >= $agg['sau']) {
     _de_nghi_thanh_toan_set_status((int) $row->nid, 'hoan_thanh');
     $text .= ' — đã đủ';
@@ -1888,6 +1921,60 @@ function _de_nghi_thanh_toan_record_payment($row, $account, array $input, array 
   }
   _de_nghi_thanh_toan_log((int) $row->nid, $account, $text);
   return NULL;
+}
+
+/**
+ * Tạo + tự duyệt phiếu chi ở Thu chi cho 1 đợt thanh toán (ref_type = de_nghi_thanh_toan, nid_ref = đề nghị). Phiếu bị khoá ở Thu chi
+ * (thu_chi_locked_reason) vì số tiền đã chốt ở đề nghị. Gọi trong transaction của hành động. Trả array(nid, ma) hoặc chuỗi lỗi.
+ */
+function _de_nghi_thanh_toan_create_phieu_chi($row, $account, $so_tien, $nid_quy, $hinh_thuc_label, $ghi_chu) {
+  $is_do_dau = _de_nghi_thanh_toan_is_do_dau($row);
+  $id = (int) $row->id_ben_nhan_tien;
+  $payee = _de_nghi_thanh_toan_payee_name($row,
+    $row->loai_ben_nhan_tien === 'ncc' ? _de_nghi_thanh_toan_ncc_names(array($id)) : array(),
+    $row->loai_ben_nhan_tien === 'nhan_vien' ? _de_nghi_thanh_toan_user_names(array($id)) : array(),
+    $row->loai_ben_nhan_tien === 'lai_xe' ? _de_nghi_thanh_toan_lai_xe_names(array($id)) : array());
+  $phan_loai = $is_do_dau ? 'Đổ dầu' : 'Đề nghị thanh toán';
+  $category_id = function_exists('thu_chi_get_or_create_category_node') ? (int) thu_chi_get_or_create_category_node($phan_loai) : 0;
+  $noi_dung = 'Thanh toán ' . $row->ma_de_nghi . ($payee !== '' ? ' — ' . $payee : '');
+  $values = array(
+    'loai_phieu' => 'chi',
+    'loai_giao_dich' => $category_id ? array($category_id) : array($phan_loai),
+    'nid_quy' => (int) $nid_quy,
+    'ngay_giao_dich' => date('d/m/Y', REQUEST_TIME),
+    'thang_luong' => date('Ym', REQUEST_TIME),
+    'uid_nguoi_de_xuat' => (int) $account->uid,
+    'nhom_giao_dich' => 'de_nghi_thanh_toan',
+    'ref_type' => 'de_nghi_thanh_toan',
+    'nid_ref' => (int) $row->nid,
+    'ghi_chu' => trim($hinh_thuc_label . ($ghi_chu !== '' ? ' — ' . $ghi_chu : '')),
+    'chi_tiet' => array(array('noi_dung' => $noi_dung, 'don_gia' => (int) $so_tien, 'so_luong' => 1, 'don_vi_tinh' => 'lần', 'vat' => 0)),
+  );
+  if ($row->loai_ben_nhan_tien === 'ncc' && $id) {
+    $values['nid_nha_cung_cap'] = $id;
+  }
+  $result = thu_chi_giao_dich_save_values($values);
+  if (empty($result['success']) || empty($result['gd_id'])) {
+    return 'Không tạo được phiếu chi: ' . (!empty($result['message']) ? $result['message'] : 'lỗi không rõ');
+  }
+  $gd_id = (int) $result['gd_id'];
+  $gd = thu_chi_giao_dich_load($gd_id, TRUE);
+  $json = _de_nghi_thanh_toan_json_decode($gd ? $gd->thong_tin_json : '');
+  $json['created_from'] = 'de_nghi_thanh_toan';
+  $json['de_nghi_thanh_toan'] = array(
+    'nid' => (int) $row->nid,
+    'ma_de_nghi' => (string) $row->ma_de_nghi,
+    'loai_nguon' => $is_do_dau ? 'do_dau' : 'chi_phi',
+    'loai_ben_nhan_tien' => (string) $row->loai_ben_nhan_tien,
+    'id_ben_nhan_tien' => $id,
+    'ben_nhan_tien' => $payee,
+  );
+  db_update('qltc_phieu_thu_chi')->fields(array('thong_tin_json' => json_encode($json), 'changed' => REQUEST_TIME))->condition('nid', $gd_id)->execute();
+  $approve = thu_chi_approve_giao_dich($gd_id, 'duyet');
+  if (empty($approve['success'])) {
+    return 'Không duyệt được phiếu chi: ' . (!empty($approve['message']) ? $approve['message'] : 'lỗi không rõ');
+  }
+  return array('nid' => $gd_id, 'ma' => $gd && !empty($gd->ma_giao_dich) ? (string) $gd->ma_giao_dich : ('#' . $gd_id));
 }
 
 /** Rút 1 dòng chi phí ra khỏi đề nghị (đề nghị còn ở trạng thái sửa được). Hết dòng thì xoá mềm đề nghị. */

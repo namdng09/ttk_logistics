@@ -2801,6 +2801,8 @@ function thu_chi_locked_reason($item) {
   $locked = array(
     // Số đã thu được phân bổ vào từng phiếu trả khách hàng (bảng cong_no_khach_hang_phan_bo) — đổi phiếu ở đây sẽ lệch công nợ.
     'cong_no_khach_hang' => 'Phiếu thu công nợ khách hàng được tạo và chốt ở màn Công nợ khách hàng, không sửa / xoá / đổi trạng thái ở Thu chi.',
+    // Phiếu chi của 1 đợt "Ghi nhận TT" ở Đề nghị thanh toán (cả đề nghị đổ dầu) — đã duyệt 2 bước ở đề nghị, tự duyệt khi tạo.
+    'de_nghi_thanh_toan' => 'Phiếu chi tạo tự động khi ghi nhận thanh toán ở màn Đề nghị thanh toán, không sửa / xoá / đổi trạng thái ở Thu chi.',
   );
   return isset($locked[$ref_type]) ? $locked[$ref_type] : '';
 }
