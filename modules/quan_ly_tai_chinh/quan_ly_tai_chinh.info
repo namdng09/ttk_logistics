@@ -1,11 +1,9 @@
 name = Quản lý tài chính
 core = 7.x
 package = ANDIN JSC API
-description = Quản lý quỹ, thu chi, chuyển quỹ nội bộ.
-version = 7.x-1.6
+description = Quản lý quỹ: số dư, sổ quỹ, chuyển tiền nội bộ, điều chỉnh số dư.
+version = 7.x-2.0
 files[] = quan_ly_tai_chinh.module
 files[] = quan_ly_tai_chinh.install
-; Asset vẫn được khai báo ở .info, nhưng module cũng nạp lại bằng hook_init().
-stylesheets[all][] = css/quan_ly_tai_chinh.css
-scripts[] = js/quan_ly_tai_chinh.js
+files[] = quan_ly_tai_chinh.api.inc
 dependencies[] = api_common

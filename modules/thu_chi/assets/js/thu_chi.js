@@ -620,6 +620,9 @@
     initRange();
     loadOptions(function () {});
     loadList();
+    // Link từ màn khác (vd sổ quỹ ở /quan-ly-quy): /thu-chi#xem-{id} mở luôn chi tiết phiếu.
+    var hash = /^#xem-(\d+)$/.exec(window.location.hash || '');
+    if (hash) openView(hash[1]);
   }
 
   function start() {

@@ -224,3 +224,30 @@ function lai_xe_update_7010() {
     db_add_unique_key('lai_xe', 'uid_nguoi_dung', array('uid_nguoi_dung'));
   }
 }
+
+/**
+ * Sửa vai trò của tài khoản app lái xe: bản cũ gắn cứng rid 7 (trên hệ thống thật là "Nhân viên", còn "Lái xe" là rid 8) nên
+ * tài khoản lái xe mang nhầm vai trò Nhân viên (kèm quyền của vai trò đó). Với mọi tài khoản đang liên kết hồ sơ lái xe:
+ * gắn vai trò "Lái xe" (tìm theo tên) và gỡ vai trò rid 7 nếu rid 7 không phải "Lái xe". Không đụng tài khoản quản trị (uid 1).
+ */
+function lai_xe_update_7011() {
+  module_load_include('module', 'lai_xe');
+  $rid = lai_xe_driver_rid();
+  if (!$rid) {
+    throw new DrupalUpdateException('Chưa có vai trò tên "Lái xe" — tạo vai trò này ở màn Phân quyền rồi chạy lại update.');
+  }
+  $uids = db_query("SELECT DISTINCT uid_nguoi_dung FROM {lai_xe} WHERE uid_nguoi_dung > 1")->fetchCol();
+  $fixed = $removed = 0;
+  foreach ($uids as $uid) {
+    if (!db_query("SELECT 1 FROM {users} WHERE uid = :u", array(':u' => $uid))->fetchField()) continue;
+    db_merge('users_roles')->key(array('uid' => (int) $uid, 'rid' => $rid))->execute();
+    $fixed++;
+    if ($rid !== 7) {
+      $removed += db_delete('users_roles')->condition('uid', (int) $uid)->condition('rid', 7)->execute();
+    }
+  }
+  drupal_static_reset('user_access');
+  drupal_static_reset('user_roles');
+  return 'Đã gắn vai trò "Lái xe" (rid ' . $rid . ') cho ' . $fixed . ' tài khoản app lái xe, gỡ ' . $removed . ' vai trò rid 7 gán nhầm.';
+}
+

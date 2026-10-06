@@ -465,7 +465,35 @@ function _ke_hoach_xep_xe_mobile_enrich_plan($plan, $account_uid = 0) {
   }
   // Lộ trình lái xe chỉ có ở hàng cảng (tuyến xa chưa làm): null với tuyến xa.
   $result['lo_trinh'] = (empty($plan->loai_ke_hoach) || $plan->loai_ke_hoach === 'thuong') ? _ke_hoach_hang_cang_mobile_route($result) : NULL;
+  // Tiền định mức từng chặng cho lái xe xem (chỉ hàng cảng, tuyến xa = null).
+  $result['luong_chuyen'] = (empty($plan->loai_ke_hoach) || $plan->loai_ke_hoach === 'thuong') ? _ke_hoach_hang_cang_mobile_driver_pay($result) : NULL;
   return $result;
+}
+
+/**
+ * Định mức khoán lái xe của 1 chuyến hàng cảng, dạng gọn cho app: tổng + từng chặng (điểm đầu → điểm cuối, trạng thái xe,
+ * số tiền). Cùng nguồn với màn Lương lái xe (thong_tin_json.dinh_muc_khoan_lai_xe), app chỉ hiển thị.
+ */
+function _ke_hoach_hang_cang_mobile_driver_pay(array $plan) {
+  $json = isset($plan['thong_tin_json']) && is_array($plan['thong_tin_json']) ? $plan['thong_tin_json'] : _ke_hoach_xep_xe_json_decode(isset($plan['thong_tin_json']) ? $plan['thong_tin_json'] : '');
+  $dm = !empty($json['dinh_muc_khoan_lai_xe']) && is_array($json['dinh_muc_khoan_lai_xe']) ? $json['dinh_muc_khoan_lai_xe'] : array();
+  $labels = array('v' => 'Vỏ', 'h' => 'Hàng', 't' => 'Trống');
+  $chang = array();
+  $tong = 0;
+  foreach (!empty($dm['items']) && is_array($dm['items']) ? $dm['items'] : array() as $i => $item) {
+    if (!is_array($item)) continue;
+    $tien = (int) round(_ke_hoach_xep_xe_money_value(isset($item['dinh_muc']) ? $item['dinh_muc'] : 0));
+    $xe = isset($item['trang_thai_xe']) ? (string) $item['trang_thai_xe'] : '';
+    $tong += $tien;
+    $chang[] = array(
+      'ten_chang' => !empty($item['ten_chang']) ? (string) $item['ten_chang'] : 'Chặng ' . ($i + 1),
+      'diem_dau' => isset($item['diem_dau']) ? (string) $item['diem_dau'] : '',
+      'diem_cuoi' => isset($item['diem_cuoi']) ? (string) $item['diem_cuoi'] : '',
+      'trang_thai_xe' => isset($labels[$xe]) ? $labels[$xe] : '',
+      'so_tien' => $tien,
+    );
+  }
+  return array('tong' => $tong, 'chang' => $chang);
 }
 
 /**

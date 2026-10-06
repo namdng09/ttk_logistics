@@ -240,9 +240,51 @@ function _lai_xe_phone_username($phone) {
   return $phone;
 }
 
+/**
+ * rid của vai trò "Lái xe" — NGUỒN DUY NHẤT, tìm theo TÊN vai trò (không gắn cứng số: trên hệ thống thật "Lái xe" là rid 8,
+ * rid 7 là "Nhân viên"; bản cũ gắn cứng 7 nên tài khoản lái xe bị gán nhầm vai trò Nhân viên). 0 nếu chưa có vai trò này.
+ * Màn Nhân viên, ĐNTT, đổ dầu… gọi hàm này qua function_exists().
+ */
+function lai_xe_driver_rid() {
+  $rid = &drupal_static(__FUNCTION__);
+  if ($rid === NULL) {
+    $rid = 0;
+    foreach (db_query("SELECT rid, name FROM {role}") as $r) {
+      $name = drupal_strtolower(trim((string) $r->name));
+      if ($name === drupal_strtolower('Lái xe') || $name === 'lai xe') {
+        $rid = (int) $r->rid;
+        break;
+      }
+    }
+  }
+  return $rid;
+}
+
+/** Tài khoản là lái xe: có vai trò "Lái xe" hoặc đang liên kết với 1 hồ sơ lái xe (lai_xe.uid_nguoi_dung — tiêu chí app dùng). */
+function lai_xe_is_driver_account($uid) {
+  $uid = (int) $uid;
+  if (!$uid) return FALSE;
+  $rid = lai_xe_driver_rid();
+  if ($rid && db_query("SELECT 1 FROM {users_roles} WHERE uid = :u AND rid = :r", array(':u' => $uid, ':r' => $rid))->fetchField()) {
+    return TRUE;
+  }
+  return (bool) db_query("SELECT 1 FROM {lai_xe} WHERE uid_nguoi_dung = :u", array(':u' => $uid))->fetchField();
+}
+
+/** Đảm bảo tài khoản đã liên kết lái xe có vai trò "Lái xe" (không đụng các vai trò khác). */
+function lai_xe_ensure_driver_role($uid) {
+  $uid = (int) $uid;
+  $rid = lai_xe_driver_rid();
+  if ($uid > 1 && $rid) {
+    db_merge('users_roles')->key(array('uid' => $uid, 'rid' => $rid))->execute();
+  }
+}
+
 function _lai_xe_driver_role_name() {
+  $rid = lai_xe_driver_rid();
+  if (!$rid) return FALSE;
   $roles = user_roles();
-  return isset($roles[7]) ? $roles[7] : FALSE;
+  return isset($roles[$rid]) ? $roles[$rid] : FALSE;
 }
 
 /**
@@ -278,7 +320,7 @@ function _lai_xe_validate_app_account($input, $driver = NULL) {
     }
   }
   if (!$uid && $enabled && !_lai_xe_driver_role_name()) {
-    return _lai_xe_error('Không tìm thấy role Lái xe (rid 7)');
+    return _lai_xe_error('Không tìm thấy vai trò "Lái xe". Tạo vai trò tên "Lái xe" ở màn Phân quyền trước.');
   }
   if (!$uid && $enabled && empty($input['mat_khau_app'])) {
     return _lai_xe_fail('Vui lòng nhập mật khẩu tài khoản app');
@@ -311,7 +353,7 @@ function _lai_xe_sync_app_account($driver, $input) {
       'pass' => $password,
       'mail' => '',
       'status' => $driver_active ? 1 : 0,
-      'roles' => array(7 => $role_name),
+      'roles' => array(lai_xe_driver_rid() => $role_name),
     );
     $account = user_save(NULL, $edit);
     if (!$account || empty($account->uid)) {
@@ -347,6 +389,7 @@ function _lai_xe_sync_app_account($driver, $input) {
   if ($edit) {
     user_save($account, $edit);
   }
+  lai_xe_ensure_driver_role($uid);
   db_update('users')->fields(array('sdt' => $phone))->condition('uid', $uid)->execute();
 }
 

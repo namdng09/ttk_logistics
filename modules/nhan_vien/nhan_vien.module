@@ -205,13 +205,33 @@ function _nhan_vien_check_unique_number($field, $value, $length, $exclude_uid = 
   return NULL;
 }
 
+/**
+ * rid vai trò "Lái xe" (tìm theo tên, qua lai_xe_driver_rid() nếu module lái xe đang bật). Không gắn cứng số: trên hệ thống thật
+ * rid 7 là "Nhân viên" — bản cũ coi rid 7 là lái xe nên ẩn nhầm nhân viên có vai trò "Nhân viên". 0 nếu không có.
+ */
+function _nhan_vien_driver_rid() {
+  if (function_exists('lai_xe_driver_rid')) return (int) lai_xe_driver_rid();
+  $rid = &drupal_static(__FUNCTION__);
+  if ($rid === NULL) {
+    $rid = 0;
+    foreach (db_query("SELECT rid, name FROM {role}") as $r) {
+      $name = drupal_strtolower(trim((string) $r->name));
+      if ($name === drupal_strtolower('Lái xe') || $name === 'lai xe') {
+        $rid = (int) $r->rid;
+        break;
+      }
+    }
+  }
+  return $rid;
+}
+
 /** Driver accounts are owned exclusively by the Lái xe screen. */
 function _nhan_vien_is_driver_account($uid) {
   $uid = (int) $uid;
   if (!$uid) return FALSE;
   $role = db_query("SELECT 1 FROM {users_roles} WHERE uid = :uid AND rid = :rid", array(
     ':uid' => $uid,
-    ':rid' => 7,
+    ':rid' => _nhan_vien_driver_rid(),
   ))->fetchField();
   if ($role) return TRUE;
   if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
@@ -326,13 +346,13 @@ function nhan_vien_rest_roles() {
 
   $rows = db_query("SELECT rid, name FROM {role} WHERE rid > :auth_rid AND rid <> :driver_rid AND name NOT LIKE '\_\_PQ\_USER\_%' ORDER BY name ASC", array(
     ':auth_rid' => DRUPAL_AUTHENTICATED_RID,
-    ':driver_rid' => 7,
+    ':driver_rid' => _nhan_vien_driver_rid(),
   ))->fetchAll();
 
   $items = array();
   foreach ($rows as $r) {
     $role_label = trim((string) $r->name);
-    if ((int) $r->rid === 7 || drupal_strtolower($role_label) === drupal_strtolower('Lái xe') || drupal_strtolower($role_label) === 'lai xe') {
+    if (drupal_strtolower($role_label) === drupal_strtolower('Lái xe') || drupal_strtolower($role_label) === 'lai xe') {
       continue;
     }
     // Vai trò Quản trị không hiện ở màn nhân viên (cả bộ lọc lẫn modal tạo/sửa) — quản lý ở /phan-quyen.
@@ -499,8 +519,13 @@ function _nhan_vien_rest_list() {
   }
   $query->condition('u.uid', 0, '!=');
   // Driver accounts are managed only from the Lái xe screen, never as staff.
-  $query->leftJoin('users_roles', 'ur_driver', 'ur_driver.uid = u.uid AND ur_driver.rid = :driver_rid', array(':driver_rid' => 7));
+  // Lái xe = có vai trò "Lái xe" HOẶC đang liên kết hồ sơ lái xe (lai_xe.uid_nguoi_dung — tiêu chí app dùng).
+  $query->leftJoin('users_roles', 'ur_driver', 'ur_driver.uid = u.uid AND ur_driver.rid = :driver_rid', array(':driver_rid' => _nhan_vien_driver_rid()));
   $query->isNull('ur_driver.uid');
+  if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
+    $query->leftJoin('lai_xe', 'lx_link', 'lx_link.uid_nguoi_dung = u.uid');
+    $query->isNull('lx_link.nid');
+  }
   // Tài khoản Quản trị không hiện ở màn nhân viên (quản lý ở /phan-quyen).
   $query->leftJoin('users_roles', 'ur_admin', 'ur_admin.uid = u.uid AND ur_admin.rid IN (:admin_rids)', array(':admin_rids' => array_values(_nhan_vien_admin_rids())));
   $query->isNull('ur_admin.uid');
