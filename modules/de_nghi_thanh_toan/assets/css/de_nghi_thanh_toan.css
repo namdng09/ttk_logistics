@@ -271,8 +271,13 @@
 #dn-create-modal .dn-selbar-ghost { color: #fff; border: 1px solid rgba(255, 255, 255, .35); }
 #dn-create-modal .dn-selbar-muted { opacity: .75; }
 #dn-create-modal .dn-selbar-warn { color: #ffc58e; }
-#dn-create-modal .dn-undo { position: sticky; bottom: 8px; z-index: 21; float: right; clear: both; margin-top: 8px; display: flex; align-items: center; gap: 10px; background: #2f2b3d; color: #fff; border-radius: 6px; padding: 8px 14px; font-size: 13px; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); }
+/* Dải "Đã chuyển… / Hoàn tác": nằm trên header của modal (giữa tiêu đề và nút đóng), không đè lên bảng / thanh chọn. */
+#dn-create-modal .dn-undo { margin-left: auto; margin-right: 12px; min-width: 0; max-width: 62%; display: flex; align-items: center; gap: 10px; background: #2f2b3d; color: #fff; border-radius: 6px; padding: 5px 12px; font-size: 12.5px; box-shadow: 0 2px 8px rgba(0, 0, 0, .18); }
+#dn-create-modal .dn-undo > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 #dn-create-modal .dn-undo.d-none { display: none !important; }
+/* Nút đóng của Bootstrap cũng margin-left:auto — khi dải đang hiện thì để dải nhận khoảng trống, nút đóng sát bên phải. */
+#dn-create-modal .dn-undo:not(.d-none) + .btn-close { margin-left: 0 !important; }
+#dn-create-modal .dn-undo-btn { flex-shrink: 0; white-space: nowrap; }
 #dn-create-modal .dn-undo-btn { border: 0; background: none; color: #c8c4f9; font-weight: 600; padding: 0; cursor: pointer; }
 .dn-pop { position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 40; min-width: 280px; max-height: 320px; overflow-y: auto; background: #fff; color: #444050; border: 1px solid #e6e6e8; border-radius: .5rem; box-shadow: 0 .25rem 1.125rem rgba(47, 43, 61, .18); padding: 6px 0; }
 .dn-pop-hd { padding: 4px 14px 6px; font-size: 11px; font-weight: 700; color: #97959e; text-transform: uppercase; letter-spacing: .4px; }

@@ -1037,7 +1037,7 @@
   function showCreateUndo(text, snap) {
     createState.undo = snap || null;
     var $u = $('#dn-create-undo');
-    $u.html('<i class="ti tabler-circle-check me-1"></i><span>' + esc(text) + '</span>' + (snap ? '<button type="button" class="dn-undo-btn"><i class="ti tabler-history me-1"></i>Hoàn tác</button>' : '')).removeClass('d-none');
+    $u.html('<i class="ti tabler-circle-check me-1"></i><span title="' + esc(text) + '">' + esc(text) + '</span>' + (snap ? '<button type="button" class="dn-undo-btn"><i class="ti tabler-history me-1"></i>Hoàn tác</button>' : '')).removeClass('d-none');
     if (createUndoTimer) window.clearTimeout(createUndoTimer);
     createUndoTimer = window.setTimeout(function () { $u.addClass('d-none'); createState.undo = null; }, 8000);
   }
@@ -1060,6 +1060,28 @@
     return res;
   }
 
+  // Chuyển hết dòng ra khỏi 1 hoá đơn đang có thì GIỮ LẠI dòng hoá đơn đó (trống, có nút "Xoá HĐ trống") như hoá đơn
+  // vừa tạo mới — không để nhóm tự biến mất. Gọi TRƯỚC khi đổi hoá đơn của các dòng (đọc model hiện tại).
+  function keepEmptiedInvoices(nids) {
+    var model = createState.model;
+    if (!model) return;
+    var moving = {};
+    for (var i = 0; i < nids.length; i++) {
+      if (!createState.rows[nids[i]]) continue;
+      var cur = createEffectiveLine(createState.rows[nids[i]]);
+      if (!cur.so_hoa_don) continue;
+      var key = createInvKey(parseInt(cur.nid_ncc, 10) || 0, cur.so_hoa_don);
+      moving[key] = (moving[key] || 0) + 1;
+    }
+    for (var k in moving) {
+      if (!moving.hasOwnProperty(k)) continue;
+      var grp = model.byKey[k];
+      if (!grp || grp.none || grp.isNew || !grp.so_hoa_don || moving[k] < grp.lines.length) continue;
+      var exists = $.grep(createState.newInvoices, function (x) { return x.key === k; }).length > 0;
+      if (!exists) createState.newInvoices.push({ key: k, nid_ncc: grp.nid_ncc, ncc_ten: grp.ncc_ten, so_hoa_don: grp.so_hoa_don, ngay_hoa_don: grp.ngay_hoa_don || '' });
+    }
+  }
+
   function moveSummary(res, where) {
     return 'Đã chuyển ' + res.ok + ' dòng vào ' + where +
       (res.ticked ? ' · tự tick ' + res.ticked + ' dòng vào đề nghị' : '') +
@@ -1073,6 +1095,7 @@
     var ngay = grp ? (grp.ngay_hoa_don || '') : '';
     if (grp && grp.isNew && !so) { toast('Nhập số hoá đơn cho hoá đơn mới trước.', false); return; }
     var snap = createSnapshot();
+    keepEmptiedInvoices(nids);
     var res = assignInvoice(nids, nidNcc, so, ngay);
     createState.picked = {};
     renderCreateLines(createRowsArray());
@@ -1634,26 +1657,36 @@
     $('.dn-create-filter').bind('blur', filterRefetch);
     $('#dn-create-lines').delegate('.money-input', 'input', function () { formatMoneyKeepCaret(this); });
     // Click vào dòng (chỗ không phải ô nhập/select2/nút) = CHỌN dòng để sắp xếp hoá đơn (tô tím), không phải tick.
-    // Shift + click = chọn cả dải từ dòng chọn trước đó. Bôi đen chữ (kéo chuột / có vùng chọn) không tính là click.
-    var rowDownX = 0, rowDownY = 0;
+    // Shift + click = chọn cả dải từ dòng chọn trước đó.
+    // Bắt bằng cặp mousedown → mouseup (so theo data-nid), KHÔNG dùng 'click': sửa 1 ô rồi bấm sang dòng khác thì 'change'
+    // của ô đó nổ ra ngay lúc mousedown (blur) và vẽ lại cả bảng — dòng cũ bị thay bằng dòng mới nên trình duyệt không bắn
+    // 'click' lên dòng nữa (mousedown và mouseup rơi vào 2 phần tử khác nhau) ⇒ lúc chọn được lúc không.
+    var rowDown = null;
+    function rowPickBlocked(target) {
+      return $(target).closest('input, select, textarea, button, a, label, .select2-container').length > 0;
+    }
     // Chỉ cho kéo khi nhấn chuột ngoài ô nhập/select2 (tr luôn draggable thì không bôi đen được chữ trong ô nhập).
     $('#dn-create-lines').delegate('tr.dn-create-row', 'mousedown', function (e) {
-      rowDownX = e.pageX; rowDownY = e.pageY;
-      this.draggable = !$(e.target).closest('input, select, textarea, button, .select2-container').length;
+      var blocked = rowPickBlocked(e.target);
+      this.draggable = !blocked;
+      rowDown = (e.which === 1 && !blocked) ? { nid: parseInt($(this).attr('data-nid'), 10), x: e.pageX, y: e.pageY } : null;
+      // Dòng draggable không tự xoá vùng bôi đen cũ trên trang — xoá luôn để thao tác kéo/chọn sạch.
+      if (rowDown && window.getSelection) { try { window.getSelection().removeAllRanges(); } catch (x) {} }
     });
-    $('#dn-create-lines').delegate('tr.dn-create-row', 'click', function (e) {
-      if ($(e.target).closest('input, select, textarea, button, a, label, .select2-container').length) return;
-      if (Math.abs(e.pageX - rowDownX) > 4 || Math.abs(e.pageY - rowDownY) > 4) return;
-      var sel = window.getSelection ? String(window.getSelection()) : '';
-      if (sel && !e.shiftKey) return;
-      if (e.shiftKey && window.getSelection) { try { window.getSelection().removeAllRanges(); } catch (x) {} }
+    $('#dn-create-lines').delegate('tr.dn-create-row', 'mouseup', function (e) {
+      var down = rowDown;
+      rowDown = null;
+      if (!down || e.which !== 1 || rowPickBlocked(e.target)) return;
       var nid = parseInt($(this).attr('data-nid'), 10);
+      if (nid !== down.nid) return;
+      if (Math.abs(e.pageX - down.x) > 4 || Math.abs(e.pageY - down.y) > 4) return;
       var order = createState.renderOrder;
       if (e.shiftKey && createState.anchor !== null) {
         var a = $.inArray(createState.anchor, order), b = $.inArray(nid, order);
         if (a >= 0 && b >= 0) {
           for (var k = Math.min(a, b); k <= Math.max(a, b); k++) createState.picked[order[k]] = true;
         }
+        if (window.getSelection) { try { window.getSelection().removeAllRanges(); } catch (x) {} }
       } else {
         if (createState.picked[nid]) delete createState.picked[nid]; else createState.picked[nid] = true;
         createState.anchor = nid;
@@ -1663,6 +1696,7 @@
       });
       updateCreateSelBar();
     });
+    $('#dn-create-lines').delegate('tr.dn-create-row', 'dragstart', function () { rowDown = null; });
     $('#dn-create-lines').delegate('.dn-create-check', 'change', function () {
       var nid = parseInt($(this).data('nid'), 10);
       if ($(this).is(':checked')) createState.selected[nid] = true; else delete createState.selected[nid];
@@ -1863,6 +1897,7 @@
       // Trùng số HĐ đã có của NCC này: đưa dòng vào chính hoá đơn đó (lấy ngày của hoá đơn đó nếu có).
       if (exist && exist.ngay_hoa_don) ngay = exist.ngay_hoa_don;
       var snap = createSnapshot();
+      keepEmptiedInvoices(pickedIds());
       var res = assignInvoice(pickedIds(), nidNcc, so, ngay || '');
       createState.picked = {};
       renderCreateLines(createRowsArray());
@@ -1874,6 +1909,7 @@
     });
     $('#dn-create-selbar').delegate('.dn-sel-unassign', 'click', function () {
       var ids = pickedIds(), snap = createSnapshot(), n = 0;
+      keepEmptiedInvoices(ids);
       for (var i = 0; i < ids.length; i++) {
         var cur = createEffectiveLine(createState.rows[ids[i]]);
         if (cur.so_hoa_don || cur.ngay_hoa_don) {

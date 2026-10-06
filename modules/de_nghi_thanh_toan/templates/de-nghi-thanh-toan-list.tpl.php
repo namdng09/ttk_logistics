@@ -131,6 +131,7 @@
               <h5 class="modal-title mb-0" id="dn-create-modal-title">Tạo đề nghị thanh toán</h5>
               <span class="badge bg-label-secondary border d-none" id="dn-create-modal-ma"></span>
             </div>
+            <div class="dn-undo d-none" id="dn-create-undo" role="status"></div>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body" style="position:relative;max-height:78vh;overflow-y:auto;overflow-x:hidden;">
@@ -200,7 +201,6 @@
                 <input type="text" class="form-control" id="dn-create-ghi-chu" placeholder="Ghi chú thêm (nếu có)">
               </div>
             </div>
-            <div class="dn-undo d-none" id="dn-create-undo" role="status"></div>
             <div class="dn-selbar d-none" id="dn-create-selbar"></div>
           </div>
           <div class="modal-footer">
