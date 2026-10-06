@@ -1,0 +1,645 @@
+<?php
+
+// Tiện ích dùng chung (khuôn phản hồi, token, phân trang): module api_common. Nạp thẳng khi module chưa bật.
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
+/**
+ * @file
+ * Phân quyền hệ thống — dùng NGUYÊN cơ chế vai trò/quyền có sẵn của Drupal 7 (bảng role, role_permission,
+ * users_roles; code các module vẫn kiểm tra bằng user_access()). Module này chỉ là giao diện + API để thao tác dễ.
+ *
+ * - Ma trận: hàng = quyền do hook_permission() của các module nghiệp vụ khai báo (package "ANDIN JSC API", trừ
+ *   _phan_quyen_excluded_modules()), nhóm theo module, giữ đúng thứ tự khai báo; cột = vai trò (trừ Anonymous).
+ *   Module mới chỉ cần khai báo hook_permission() là tự hiện, không phải sửa module này.
+ * - Cột "Màn hình / API": key tuỳ chọn 'entry' (mảng chuỗi: trang UI / API dùng quyền đó) trong từng quyền của
+ *   hook_permission() — Drupal bỏ qua key lạ nên an toàn. Không khai báo thì cột để trống.
+ * - Quyền riêng 1 người = 1 vai trò ẩn tên "__PQ_USER_<uid>" gắn cho đúng người đó; chỉ CỘNG thêm được (Drupal
+ *   cộng quyền của mọi vai trò, không có "tước bớt"). Vai trò ẩn tự tạo khi cấp quyền đầu tiên, tự xoá khi hết quyền.
+ *   Các màn khác phải bỏ qua vai trò này (nhan_vien đã lọc theo tiền tố).
+ * - Vai trò Quản trị (user_admin_role) luôn có mọi quyền, không sửa từ đây. Authenticated user = mọi tài khoản đã
+ *   đăng nhập, quyền của nó kế thừa xuống mọi vai trò; không cho cấp quyền "restrict access" cho vai trò này.
+ * - Mọi thay đổi ghi vào bảng phan_quyen_lich_su.
+ */
+
+define('PHAN_QUYEN_USER_ROLE_PREFIX', '__PQ_USER_');
+
+/**
+ * Implements hook_permission().
+ */
+function phan_quyen_permission() {
+  return array(
+    'phan_quyen_view' => array(
+      'title' => t('Xem phân quyền'),
+      'entry' => array('/phan-quyen', 'GET /api/phan-quyen'),
+    ),
+    'phan_quyen_manage' => array(
+      'title' => t('Sửa phân quyền và vai trò'),
+      'description' => t('Quyền nhạy cảm: người có quyền này tự cấp được mọi quyền cho mình.'),
+      'restrict access' => TRUE,
+      'entry' => array('POST /api/phan-quyen', '/api/phan-quyen/vai-tro'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function phan_quyen_menu() {
+  $items = array();
+
+  $items['phan-quyen'] = array(
+    'title' => 'Phân quyền hệ thống',
+    'page callback' => 'phan_quyen_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  // GET: toàn bộ dữ liệu ma trận (module/quyền, vai trò, quyền đang cấp, người dùng). POST: lưu danh sách thay đổi.
+  $items['api/phan-quyen'] = array(
+    'page callback' => 'phan_quyen_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/phan-quyen/lich-su'] = array(
+    'page callback' => 'phan_quyen_rest_history',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/phan-quyen/vai-tro'] = array(
+    'page callback' => 'phan_quyen_rest_roles',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/phan-quyen/vai-tro/%'] = array(
+    'page callback' => 'phan_quyen_rest_role_item',
+    'page arguments' => array(3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function phan_quyen_theme() {
+  return array(
+    'phan_quyen_list_page' => array(
+      'template' => 'phan-quyen-list',
+      'path' => drupal_get_path('module', 'phan_quyen') . '/templates',
+    ),
+  );
+}
+
+/**
+ * Implements hook_user_update().
+ *
+ * Màn khác lưu tài khoản bằng cách ghi đè toàn bộ vai trò (vd nhan_vien: $edit['roles'] = 1 vai trò) sẽ làm rơi
+ * vai trò ẩn quyền riêng — gắn lại ngay (user_save đã ghi users_roles xong trước khi gọi hook này).
+ */
+function phan_quyen_user_update(&$edit, $account, $category) {
+  if (empty($account->uid) || (int) $account->uid <= 1) {
+    return;
+  }
+  $rid = _phan_quyen_user_role_rid((int) $account->uid, FALSE);
+  if ($rid) {
+    _phan_quyen_attach_role((int) $account->uid, $rid);
+  }
+}
+
+/**
+ * Implements hook_js_alter().
+ *
+ * Module phân quyền đời cũ nạp .../phan_quyen/js/phan_quyen.js; file đó không còn (JS của module này ở
+ * assets/js/) nên nếu trên server còn nơi nào nạp (theme/module cũ chưa cập nhật), trình duyệt nhận trang lỗi
+ * HTML và báo lỗi MIME. Bỏ luôn đường dẫn cũ đó khỏi trang.
+ */
+function phan_quyen_js_alter(&$javascript) {
+  unset($javascript[drupal_get_path('module', 'phan_quyen') . '/js/phan_quyen.js']);
+}
+
+/**
+ * Implements hook_user_delete().
+ */
+function phan_quyen_user_delete($account) {
+  $rid = !empty($account->uid) ? _phan_quyen_user_role_rid((int) $account->uid, FALSE) : 0;
+  if ($rid) {
+    user_role_delete($rid);
+  }
+}
+
+/*******************************************************************************
+ * UI
+ ******************************************************************************/
+
+function phan_quyen_page_list() {
+  if (!user_access('phan_quyen_view')) {
+    return api_denied_page('Bạn không có quyền xem phân quyền');
+  }
+  $path = drupal_get_path('module', 'phan_quyen');
+  drupal_add_css($path . '/assets/css/phan_quyen.css');
+  drupal_add_js($path . '/assets/js/phan_quyen.js');
+  drupal_add_js(array('phan_quyen' => array(
+    'permissions' => array(
+      'view' => user_access('phan_quyen_view'),
+      'manage' => user_access('phan_quyen_manage'),
+    ),
+  )), 'setting');
+  return theme('phan_quyen_list_page');
+}
+
+/*******************************************************************************
+ * REST
+ ******************************************************************************/
+
+function phan_quyen_rest_collection() {
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      if ($deny = api_require_permission('phan_quyen_view', 'Bạn không có quyền xem phân quyền')) {
+        return $deny;
+      }
+      return api_response_success(_phan_quyen_payload());
+
+    case 'POST':
+      return _phan_quyen_rest_save();
+
+    default:
+      return api_response_method_not_allowed('GET, POST');
+  }
+}
+
+/**
+ * POST /api/phan-quyen — body {changes: [{loai: 'role'|'user', id, quyen, cap: true|false}]}.
+ * Chỉ ghi phần thật sự khác hiện trạng (so lại trên server), trong 1 transaction; trả lại dữ liệu ma trận mới.
+ */
+function _phan_quyen_rest_save() {
+  if ($deny = api_require_permission('phan_quyen_manage', 'Bạn không có quyền sửa phân quyền')) {
+    return $deny;
+  }
+  $input = api_request_input();
+  $changes = isset($input['changes']) && is_array($input['changes']) ? $input['changes'] : array();
+  if (!$changes) {
+    return api_response_fail('Không có thay đổi nào để lưu.');
+  }
+
+  $allowed = _phan_quyen_allowed_permissions(_phan_quyen_modules());
+  $roles = _phan_quyen_roles();
+  $admin_rid = _phan_quyen_admin_rid();
+
+  // Gom theo đối tượng: 'role:5' => array(loai, id, ten, grant => set, revoke => set).
+  $plan = array();
+  foreach ($changes as $c) {
+    if (!is_array($c)) {
+      return api_response_fail('Dữ liệu thay đổi không hợp lệ.');
+    }
+    $loai = isset($c['loai']) ? (string) $c['loai'] : '';
+    $id = isset($c['id']) ? (int) $c['id'] : 0;
+    $key = isset($c['quyen']) ? (string) $c['quyen'] : '';
+    $cap = !empty($c['cap']);
+    if (!isset($allowed[$key])) {
+      return api_response_fail('Quyền không hợp lệ: ' . $key);
+    }
+    if ($loai === 'role') {
+      if (!isset($roles[$id]) || $id === $admin_rid) {
+        return api_response_fail('Vai trò không hợp lệ hoặc không được sửa quyền.');
+      }
+      if ($cap && $id === DRUPAL_AUTHENTICATED_RID && $allowed[$key]['restrict']) {
+        return api_response_fail('Không cấp quyền nhạy cảm "' . $allowed[$key]['title'] . '" cho Authenticated user (mọi tài khoản).');
+      }
+      $ten = $roles[$id]['ten'];
+    }
+    elseif ($loai === 'user') {
+      $ten = _phan_quyen_user_label($id);
+      if ($ten === NULL) {
+        return api_response_fail('Người dùng không tồn tại hoặc đã khoá.');
+      }
+    }
+    else {
+      return api_response_fail('Loại đối tượng không hợp lệ.');
+    }
+    $sk = $loai . ':' . $id;
+    if (!isset($plan[$sk])) {
+      $plan[$sk] = array('loai' => $loai, 'id' => $id, 'ten' => $ten, 'grant' => array(), 'revoke' => array());
+    }
+    $plan[$sk][$cap ? 'grant' : 'revoke'][$key] = TRUE;
+  }
+
+  $saved = 0;
+  $transaction = db_transaction();
+  try {
+    foreach ($plan as $p) {
+      if ($p['loai'] === 'role') {
+        $rid = $p['id'];
+      }
+      else {
+        $rid = _phan_quyen_user_role_rid($p['id'], !empty($p['grant']));
+      }
+      $current = $rid ? _phan_quyen_role_permission_set($rid) : array();
+      $grant = array_keys(array_diff_key($p['grant'], $current));
+      $revoke = array_keys(array_intersect_key($p['revoke'], $current));
+      if ($grant) {
+        user_role_grant_permissions($rid, $grant);
+      }
+      if ($revoke) {
+        user_role_revoke_permissions($rid, $revoke);
+      }
+      // Người dùng hết quyền riêng: bỏ luôn vai trò ẩn cho sạch.
+      if ($p['loai'] === 'user' && $rid && !_phan_quyen_role_permission_set($rid)) {
+        user_role_delete($rid);
+      }
+      $label = $p['loai'] === 'user' ? $p['ten'] . ' (quyền riêng)' : $p['ten'];
+      foreach ($grant as $k) {
+        _phan_quyen_log($p['loai'], $p['id'], $label, 'them_quyen', $k, $allowed[$k]['title']);
+      }
+      foreach ($revoke as $k) {
+        _phan_quyen_log($p['loai'], $p['id'], $label, 'bo_quyen', $k, $allowed[$k]['title']);
+      }
+      $saved += count($grant) + count($revoke);
+    }
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('phan_quyen', 'Lỗi lưu phân quyền: @m', array('@m' => $e->getMessage()), WATCHDOG_ERROR);
+    return api_response_error('Không lưu được phân quyền: ' . $e->getMessage());
+  }
+  unset($transaction);
+  drupal_static_reset('user_access');
+
+  $data = _phan_quyen_payload();
+  $data['saved'] = $saved;
+  return api_response_success($data);
+}
+
+/**
+ * POST /api/phan-quyen/vai-tro — body {ten}: tạo vai trò mới.
+ */
+function phan_quyen_rest_roles() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    return api_response_method_not_allowed('POST');
+  }
+  if ($deny = api_require_permission('phan_quyen_manage', 'Bạn không có quyền quản lý vai trò')) {
+    return $deny;
+  }
+  $input = api_request_input();
+  $ten = _phan_quyen_validate_role_name(isset($input['ten']) ? $input['ten'] : '', 0);
+  if (is_array($ten)) {
+    return $ten;
+  }
+  $role = (object) array('name' => $ten);
+  user_role_save($role);
+  _phan_quyen_log('role', (int) $role->rid, $ten, 'tao_vai_tro');
+  return api_response_success(_phan_quyen_payload());
+}
+
+/**
+ * PUT /api/phan-quyen/vai-tro/{rid} — body {ten}: đổi tên. DELETE: xoá vai trò (Drupal gỡ luôn khỏi mọi tài khoản).
+ */
+function phan_quyen_rest_role_item($rid) {
+  $method = $_SERVER['REQUEST_METHOD'];
+  if ($method !== 'PUT' && $method !== 'DELETE') {
+    return api_response_method_not_allowed('PUT, DELETE');
+  }
+  if ($deny = api_require_permission('phan_quyen_manage', 'Bạn không có quyền quản lý vai trò')) {
+    return $deny;
+  }
+  $rid = (int) $rid;
+  $roles = _phan_quyen_roles();
+  if (!isset($roles[$rid])) {
+    return api_response_not_found('Không tìm thấy vai trò.');
+  }
+  if ($roles[$rid]['loai'] !== 'thuong') {
+    return api_response_fail('Không được sửa/xoá vai trò hệ thống "' . $roles[$rid]['ten'] . '".');
+  }
+
+  if ($method === 'PUT') {
+    $input = api_request_input();
+    $ten = _phan_quyen_validate_role_name(isset($input['ten']) ? $input['ten'] : '', $rid);
+    if (is_array($ten)) {
+      return $ten;
+    }
+    if ($ten !== $roles[$rid]['ten']) {
+      $role = user_role_load($rid);
+      $role->name = $ten;
+      user_role_save($role);
+      _phan_quyen_log('role', $rid, $ten, 'doi_ten_vai_tro', '', '', 'Tên cũ: ' . $roles[$rid]['ten']);
+    }
+    return api_response_success(_phan_quyen_payload());
+  }
+
+  user_role_delete($rid);
+  _phan_quyen_log('role', $rid, $roles[$rid]['ten'], 'xoa_vai_tro', '', '', $roles[$rid]['so_thanh_vien'] . ' thành viên bị gỡ vai trò');
+  return api_response_success(_phan_quyen_payload());
+}
+
+/**
+ * GET /api/phan-quyen/lich-su?page=&limit=&keyword= — mới nhất trước.
+ */
+function phan_quyen_rest_history() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    return api_response_method_not_allowed('GET');
+  }
+  if ($deny = api_require_permission('phan_quyen_view', 'Bạn không có quyền xem lịch sử phân quyền')) {
+    return $deny;
+  }
+  $pg = api_page_params(30, 100);
+  $query = db_select('phan_quyen_lich_su', 'l')->fields('l');
+  $kw = isset($_GET['keyword']) ? trim((string) $_GET['keyword']) : '';
+  if ($kw !== '') {
+    $like = '%' . db_like($kw) . '%';
+    $query->condition(db_or()->condition('l.ten_doi_tuong', $like, 'LIKE')->condition('l.ten_quyen', $like, 'LIKE')->condition('l.quyen', $like, 'LIKE'));
+  }
+  $total = (int) $query->countQuery()->execute()->fetchField();
+  $rows = $query->orderBy('l.nid', 'DESC')->range($pg['offset'], $pg['limit'])->execute()->fetchAll();
+
+  $names = _phan_quyen_user_names(array_map(function ($r) { return (int) $r->uid_nguoi_thuc_hien; }, $rows));
+  $items = array();
+  foreach ($rows as $r) {
+    $items[] = array(
+      'nid' => (int) $r->nid,
+      'created' => $r->created,
+      'nguoi_thuc_hien' => isset($names[(int) $r->uid_nguoi_thuc_hien]) ? $names[(int) $r->uid_nguoi_thuc_hien] : '',
+      'loai_doi_tuong' => $r->loai_doi_tuong,
+      'ten_doi_tuong' => $r->ten_doi_tuong,
+      'hanh_dong' => $r->hanh_dong,
+      'quyen' => $r->quyen,
+      'ten_quyen' => $r->ten_quyen,
+      'ghi_chu' => $r->ghi_chu,
+    );
+  }
+  return api_response_success(api_page_result($items, $total, $pg['page'], $pg['limit']));
+}
+
+/*******************************************************************************
+ * DỮ LIỆU MA TRẬN
+ ******************************************************************************/
+
+/** Toàn bộ dữ liệu màn hình: modules (quyền), roles, grants (rid => [quyền]), users, admin_rid. */
+function _phan_quyen_payload() {
+  $modules = _phan_quyen_modules();
+  $keys = array_keys(_phan_quyen_allowed_permissions($modules));
+  $roles = _phan_quyen_roles();
+  return array(
+    'modules' => $modules,
+    'roles' => array_values($roles),
+    'grants' => (object) _phan_quyen_role_grants(array_keys($roles), $keys),
+    'users' => _phan_quyen_users($keys),
+    'admin_rid' => _phan_quyen_admin_rid(),
+  );
+}
+
+/** Module KHÔNG đưa vào ma trận dù đúng package (module cũ chỉ để tham khảo...). */
+function _phan_quyen_excluded_modules() {
+  return array('crm_dntt');
+}
+
+/** Module nghiệp vụ nào có quyền được hiện: package "ANDIN JSC API". */
+function _phan_quyen_is_business_module($module) {
+  if (in_array($module, _phan_quyen_excluded_modules(), TRUE)) {
+    return FALSE;
+  }
+  $info = system_get_info('module', $module);
+  return !empty($info['package']) && drupal_strtolower(trim($info['package'])) === 'andin jsc api';
+}
+
+/**
+ * Các module + quyền của chúng, sắp theo tên module; quyền giữ đúng thứ tự khai báo trong hook_permission()
+ * (thường là Xem → Tạo/sửa → Xoá → quyền đặc thù, dễ đọc hơn sắp theo chữ cái).
+ */
+function _phan_quyen_modules() {
+  $out = array();
+  foreach (module_implements('permission') as $module) {
+    if (!_phan_quyen_is_business_module($module)) {
+      continue;
+    }
+    $perms = module_invoke($module, 'permission');
+    if (empty($perms) || !is_array($perms)) {
+      continue;
+    }
+    $info = system_get_info('module', $module);
+    $list = array();
+    foreach ($perms as $key => $p) {
+      $p = is_array($p) ? $p : array();
+      $list[] = array(
+        'key' => (string) $key,
+        'title' => isset($p['title']) ? strip_tags((string) $p['title']) : (string) $key,
+        'description' => isset($p['description']) ? strip_tags((string) $p['description']) : '',
+        'entry' => isset($p['entry']) ? array_values(array_map('strval', (array) $p['entry'])) : array(),
+        'restrict' => !empty($p['restrict access']),
+      );
+    }
+    $out[] = array(
+      'id' => $module,
+      'ten' => !empty($info['name']) ? $info['name'] : $module,
+      'quyen' => $list,
+    );
+  }
+  usort($out, function ($a, $b) { return strnatcasecmp($a['ten'], $b['ten']); });
+  return $out;
+}
+
+/** Map quyền => array(title, module, restrict) của mọi quyền đang hiện trên ma trận. */
+function _phan_quyen_allowed_permissions(array $modules) {
+  $map = array();
+  foreach ($modules as $m) {
+    foreach ($m['quyen'] as $p) {
+      $map[$p['key']] = array('title' => $p['title'], 'module' => $m['ten'], 'restrict' => $p['restrict']);
+    }
+  }
+  return $map;
+}
+
+/** rid của vai trò Quản trị (luôn có mọi quyền): cấu hình user_admin_role của Drupal, không có thì theo tên. */
+function _phan_quyen_admin_rid() {
+  $rid = (int) variable_get('user_admin_role', 0);
+  if ($rid > DRUPAL_AUTHENTICATED_RID) {
+    return $rid;
+  }
+  return (int) db_query("SELECT rid FROM {role} WHERE LOWER(name) IN ('administrator', 'admin') ORDER BY rid ASC")->fetchField();
+}
+
+/**
+ * Vai trò hiện trên ma trận, key = rid: Authenticated user + mọi vai trò (trừ Anonymous và vai trò ẩn quyền riêng).
+ * loai: auth | admin | thuong. so_thanh_vien: số tài khoản đang hoạt động (Authenticated: NULL = mọi tài khoản).
+ */
+function _phan_quyen_roles() {
+  $admin_rid = _phan_quyen_admin_rid();
+  $counts = db_query("SELECT ur.rid, COUNT(*) AS n FROM {users_roles} ur INNER JOIN {users} u ON u.uid = ur.uid AND u.status = 1 GROUP BY ur.rid")->fetchAllKeyed();
+  $roles = array();
+  $rows = db_query("SELECT rid, name FROM {role} WHERE rid >= :auth AND name NOT LIKE :p ORDER BY weight ASC, name ASC", array(
+    ':auth' => DRUPAL_AUTHENTICATED_RID,
+    ':p' => db_like(PHAN_QUYEN_USER_ROLE_PREFIX) . '%',
+  ));
+  foreach ($rows as $r) {
+    $rid = (int) $r->rid;
+    $loai = $rid === DRUPAL_AUTHENTICATED_RID ? 'auth' : ($rid === $admin_rid ? 'admin' : 'thuong');
+    $roles[$rid] = array(
+      'rid' => $rid,
+      'ten' => $r->name,
+      'loai' => $loai,
+      'so_thanh_vien' => $loai === 'auth' ? NULL : (int) (isset($counts[$rid]) ? $counts[$rid] : 0),
+    );
+  }
+  return $roles;
+}
+
+/** rid => [quyền] (chỉ trong danh sách quyền $keys đang hiện). */
+function _phan_quyen_role_grants(array $rids, array $keys) {
+  $out = array();
+  if (!$rids || !$keys) {
+    return $out;
+  }
+  $rows = db_query("SELECT rid, permission FROM {role_permission} WHERE rid IN (:rids) AND permission IN (:keys)", array(':rids' => $rids, ':keys' => $keys));
+  foreach ($rows as $r) {
+    $out[(int) $r->rid][] = $r->permission;
+  }
+  return $out;
+}
+
+/** Tập quyền (key => TRUE) của 1 vai trò, mọi quyền (không lọc). */
+function _phan_quyen_role_permission_set($rid) {
+  return array_fill_keys(db_query("SELECT permission FROM {role_permission} WHERE rid = :rid", array(':rid' => (int) $rid))->fetchCol(), TRUE);
+}
+
+/**
+ * Tài khoản đang hoạt động (trừ uid 1 — luôn toàn quyền): uid, ten, name, roles (rid vai trò thường, không gồm
+ * Authenticated / vai trò ẩn), direct (quyền riêng trong danh sách $keys).
+ */
+function _phan_quyen_users(array $keys) {
+  $has_ten = db_field_exists('users', 'ten');
+  $query = db_select('users', 'u')->fields('u', array('uid', 'name'))->condition('u.uid', 1, '>')->condition('u.status', 1);
+  if ($has_ten) {
+    $query->addField('u', 'ten');
+  }
+  $users = array();
+  foreach ($query->execute() as $u) {
+    $ten = $has_ten && trim((string) $u->ten) !== '' ? trim($u->ten) : $u->name;
+    $users[(int) $u->uid] = array('uid' => (int) $u->uid, 'ten' => $ten, 'name' => $u->name, 'roles' => array(), 'direct' => array());
+  }
+  if (!$users) {
+    return array();
+  }
+  $rows = db_query("SELECT ur.uid, ur.rid, r.name FROM {users_roles} ur INNER JOIN {role} r ON r.rid = ur.rid WHERE ur.uid IN (:uids)", array(':uids' => array_keys($users)));
+  $pq_rids = array();
+  foreach ($rows as $r) {
+    if (strpos($r->name, PHAN_QUYEN_USER_ROLE_PREFIX) === 0) {
+      $pq_rids[(int) $r->rid] = (int) $r->uid;
+    }
+    elseif ((int) $r->rid > DRUPAL_AUTHENTICATED_RID) {
+      $users[(int) $r->uid]['roles'][] = (int) $r->rid;
+    }
+  }
+  if ($pq_rids && $keys) {
+    foreach (db_query("SELECT rid, permission FROM {role_permission} WHERE rid IN (:rids) AND permission IN (:keys)", array(':rids' => array_keys($pq_rids), ':keys' => $keys)) as $r) {
+      $users[$pq_rids[(int) $r->rid]]['direct'][] = $r->permission;
+    }
+  }
+  $users = array_values($users);
+  usort($users, function ($a, $b) { return strnatcasecmp($a['ten'], $b['ten']); });
+  return $users;
+}
+
+/*******************************************************************************
+ * VAI TRÒ ẨN (QUYỀN RIÊNG 1 NGƯỜI)
+ ******************************************************************************/
+
+/** rid vai trò ẩn của 1 người; $create = TRUE thì tạo (và gắn cho người đó) nếu chưa có. 0 nếu không có. */
+function _phan_quyen_user_role_rid($uid, $create) {
+  $uid = (int) $uid;
+  if ($uid <= 1) {
+    return 0;
+  }
+  $name = PHAN_QUYEN_USER_ROLE_PREFIX . $uid;
+  $rid = (int) db_query("SELECT rid FROM {role} WHERE name = :n", array(':n' => $name))->fetchField();
+  if (!$rid && $create) {
+    $role = (object) array('name' => $name, 'weight' => 100);
+    user_role_save($role);
+    $rid = (int) $role->rid;
+  }
+  if ($rid) {
+    _phan_quyen_attach_role($uid, $rid);
+  }
+  return $rid;
+}
+
+function _phan_quyen_attach_role($uid, $rid) {
+  db_merge('users_roles')->key(array('uid' => (int) $uid, 'rid' => (int) $rid))->execute();
+}
+
+/*******************************************************************************
+ * HELPERS
+ ******************************************************************************/
+
+/** Tên hiển thị của 1 tài khoản đang hoạt động (uid > 1); NULL nếu không có/đã khoá. */
+function _phan_quyen_user_label($uid) {
+  $uid = (int) $uid;
+  if ($uid <= 1) {
+    return NULL;
+  }
+  $names = _phan_quyen_user_names(array($uid), TRUE);
+  return isset($names[$uid]) ? $names[$uid] : NULL;
+}
+
+/** uid => tên hiển thị ({users}.ten nếu có, không thì tên đăng nhập). */
+function _phan_quyen_user_names(array $uids, $active_only = FALSE) {
+  $uids = array_values(array_unique(array_filter(array_map('intval', $uids))));
+  if (!$uids) {
+    return array();
+  }
+  $has_ten = db_field_exists('users', 'ten');
+  $query = db_select('users', 'u')->fields('u', array('uid', 'name'))->condition('u.uid', $uids, 'IN');
+  if ($has_ten) {
+    $query->addField('u', 'ten');
+  }
+  if ($active_only) {
+    $query->condition('u.status', 1);
+  }
+  $out = array();
+  foreach ($query->execute() as $u) {
+    $out[(int) $u->uid] = $has_ten && trim((string) $u->ten) !== '' ? trim($u->ten) : $u->name;
+  }
+  return $out;
+}
+
+/**
+ * Tên vai trò hợp lệ (dùng cho tạo/đổi tên): trả chuỗi đã trim, hoặc sẵn phản hồi lỗi (mảng) nếu không hợp lệ.
+ */
+function _phan_quyen_validate_role_name($ten, $rid) {
+  $ten = trim((string) $ten);
+  if ($ten === '') {
+    return api_response_fail('Vui lòng nhập tên vai trò.');
+  }
+  if (drupal_strlen($ten) > 64) {
+    return api_response_fail('Tên vai trò tối đa 64 ký tự.');
+  }
+  if (strpos($ten, PHAN_QUYEN_USER_ROLE_PREFIX) === 0) {
+    return api_response_fail('Tên vai trò không được bắt đầu bằng ' . PHAN_QUYEN_USER_ROLE_PREFIX . ' (dành cho quyền riêng).');
+  }
+  $dup = db_query("SELECT rid FROM {role} WHERE LOWER(name) = LOWER(:n) AND rid <> :rid", array(':n' => $ten, ':rid' => (int) $rid))->fetchField();
+  if ($dup) {
+    return api_response_fail('Đã có vai trò tên "' . $ten . '".');
+  }
+  return $ten;
+}
+
+function _phan_quyen_log($loai, $id, $ten, $hanh_dong, $quyen = '', $ten_quyen = '', $ghi_chu = '') {
+  global $user;
+  $account = api_current_account();
+  db_insert('phan_quyen_lich_su')->fields(array(
+    'created' => date('Y-m-d H:i:s', REQUEST_TIME),
+    'uid_nguoi_thuc_hien' => $account ? (int) $account->uid : (int) $user->uid,
+    'loai_doi_tuong' => $loai,
+    'id_doi_tuong' => (int) $id,
+    'ten_doi_tuong' => drupal_substr((string) $ten, 0, 255),
+    'hanh_dong' => $hanh_dong,
+    'quyen' => drupal_substr((string) $quyen, 0, 128),
+    'ten_quyen' => drupal_substr((string) $ten_quyen, 0, 255),
+    'ghi_chu' => drupal_substr((string) $ghi_chu, 0, 255),
+  ))->execute();
+}

@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Phương Tiện - Lái Xe — Gán tài xế cho xe. Custom schema, RESTful API.
@@ -10,9 +16,9 @@
  */
 function phuong_tien_lai_xe_permission() {
   return array(
-    'ptlx_view' => array('title' => t('Xem quan hệ PT-LX')),
-    'ptlx_create' => array('title' => t('Gán/sửa lái xe cho phương tiện')),
-    'ptlx_delete' => array('title' => t('Xoá quan hệ PT-LX')),
+    'ptlx_view' => array('title' => t('Xem quan hệ PT-LX'), 'entry' => array('GET /api/phuong-tien-lai-xe', 'GET /api/phuong-tien-lai-xe/{id}')),
+    'ptlx_create' => array('title' => t('Gán/sửa lái xe cho phương tiện'), 'entry' => array('/phuong-tien (Chọn lái xe)', 'POST /api/phuong-tien-lai-xe', 'PUT /api/phuong-tien-lai-xe/{id}')),
+    'ptlx_delete' => array('title' => t('Bỏ gán lái xe khỏi phương tiện'), 'entry' => array('/phuong-tien (Chọn lái xe → để trống)', 'POST /api/phuong-tien-lai-xe (nid_lai_xe = 0)', 'DELETE /api/phuong-tien-lai-xe/{id}')),
   );
 }
 
@@ -61,39 +67,31 @@ function phuong_tien_lai_xe_menu() {
  ******************************************************************************/
 
 function _ptlx_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _ptlx_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) { $response['data'] = $data; }
-  return $response;
+  return api_response_success($data);
 }
 
 function _ptlx_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _ptlx_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _ptlx_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _ptlx_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _ptlx_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 /*******************************************************************************
@@ -111,7 +109,17 @@ function ptlx_rest_collection() {
   }
 }
 
+/**
+ * Đọc quan hệ phương tiện – lái xe: ptlx_view, hoặc phuong_tien_view (danh sách phương tiện vốn đã hiện lái xe đang gán).
+ */
+function _ptlx_can_read() {
+  return api_has_permission('ptlx_view') || api_has_permission('phuong_tien_view');
+}
+
 function _ptlx_rest_list() {
+  if (!_ptlx_can_read()) {
+    return _ptlx_unauthorized('Bạn không có quyền xem lái xe của phương tiện');
+  }
   $params = array_merge($_GET, array());
 
   $page = isset($params['page']) ? max(1, (int) $params['page']) : 1;
@@ -194,7 +202,7 @@ function _ptlx_deactivate_old($nid_phuong_tien, $exclude_id = 0) {
 }
 
 function _ptlx_rest_create() {
-  if (!user_access('ptlx_create')) {
+  if (!api_has_permission('ptlx_create')) {
     return _ptlx_unauthorized('Bạn không có quyền gán lái xe');
   }
 
@@ -211,8 +219,11 @@ function _ptlx_rest_create() {
     return _ptlx_fail('Phương tiện không tồn tại hoặc đã bị xoá');
   }
 
-  // Cho phép gửi lái xe rỗng để bỏ gán lái xe hiện tại.
+  // Cho phép gửi lái xe rỗng để bỏ gán lái xe hiện tại — đây là xoá quan hệ nên cần thêm ptlx_delete.
   if ($nid_lx <= 0) {
+    if (!api_has_permission('ptlx_delete')) {
+      return _ptlx_unauthorized('Bạn không có quyền bỏ gán lái xe khỏi phương tiện');
+    }
     $transaction = db_transaction();
     try {
       _ptlx_deactivate_old($nid_pt);
@@ -290,6 +301,9 @@ function ptlx_rest_item($id) {
 }
 
 function _ptlx_rest_get($id) {
+  if (!_ptlx_can_read()) {
+    return _ptlx_unauthorized('Bạn không có quyền xem lái xe của phương tiện');
+  }
   $row = db_query("SELECT * FROM {phuong_tien_lai_xe} WHERE id = :id", array(':id' => $id))->fetch();
   if (!$row) {
     return _ptlx_not_found('Không tìm thấy bản ghi');
@@ -300,7 +314,7 @@ function _ptlx_rest_get($id) {
 }
 
 function _ptlx_rest_update($id) {
-  if (!user_access('ptlx_create')) {
+  if (!api_has_permission('ptlx_create')) {
     return _ptlx_unauthorized('Bạn không có quyền cập nhật');
   }
 
@@ -345,7 +359,7 @@ function _ptlx_rest_update($id) {
 }
 
 function _ptlx_rest_delete($id) {
-  if (!user_access('ptlx_delete')) {
+  if (!api_has_permission('ptlx_delete')) {
     return _ptlx_unauthorized('Bạn không có quyền xoá');
   }
 

@@ -271,11 +271,25 @@ function ke_hoach_xep_xe_schema() {
       'tong_truoc_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
       'vat_percent' => array('type' => 'numeric', 'precision' => 5, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
       'tong_sau_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      // Bên phát hành hoá đơn (khach_hang có phân loại Nhà cung cấp). 0 = chưa chọn / không áp dụng.
+      'nid_ncc' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Hoá đơn của DÒNG này (không còn ở đề nghị thanh toán): "hoá đơn" = cặp (nid_ncc, so_hoa_don).
+      // Không bắt buộc — dòng có thể lập trước khi có hoá đơn, điền bù sau (kể cả từ modal đề nghị thanh toán).
+      'so_hoa_don' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => ''),
+      'ngay_hoa_don' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
+      // Chi hộ khách hàng nào: server tự điền theo khách hàng của kế hoạch khi loai_chi_phi = tinh_cho_khach, ngược lại 0.
+      'nid_khach_hang' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Bên nhận tiền của dòng: '' + 0 = trùng nhà cung cấp (nid_ncc, đi theo khi đổi NCC); còn lại là
+      // 'ncc' (nid khach_hang) | 'nhan_vien' (uid Drupal) | 'lai_xe' (nid lai_xe). Chỉ dòng KH/CT mới có.
+      'loai_ben_nhan_tien' => array('type' => 'varchar', 'length' => 20, 'not null' => TRUE, 'default' => ''),
+      'id_ben_nhan_tien' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'trang_thai_duyet' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'khong_can_duyet'),
       'nid_de_nghi_chi_phi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'nid_ledger' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'ghi_chu' => array('type' => 'text', 'not null' => FALSE),
       'thong_tin_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      // Ai nhập dòng chi phí này (uid Drupal); set 1 lần lúc tạo, không đổi khi sửa.
+      'uid_nguoi_tao' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
       'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
       'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
@@ -286,11 +300,17 @@ function ke_hoach_xep_xe_schema() {
       'loai_ke_hoach' => array('loai_ke_hoach'),
       'nid_lai_xe' => array('nid_lai_xe'),
       'loai_chi_phi' => array('loai_chi_phi'),
+      'nid_ncc' => array('nid_ncc'),
+      'nid_khach_hang' => array('nid_khach_hang'),
+      'ben_nhan_tien' => array('loai_ben_nhan_tien', 'id_ben_nhan_tien'),
       'trang_thai_duyet' => array('trang_thai_duyet'),
       'nid_de_nghi_chi_phi' => array('nid_de_nghi_chi_phi'),
       'nid_ledger' => array('nid_ledger'),
       'hoat_dong' => array('hoat_dong'),
       'created' => array('created'),
+      'uid_nguoi_tao' => array('uid_nguoi_tao'),
+      // "Hoá đơn" ảo = cặp (nid_ncc, so_hoa_don); index gộp để gom nhóm/lọc theo hoá đơn nhanh.
+      'hoa_don' => array('nid_ncc', 'so_hoa_don'),
     ),
   );
 
@@ -834,3 +854,103 @@ function ke_hoach_xep_xe_update_7025() {
   return 'Đã đổi ha_bai_ngoai thành bai_ha_ngoai (varchar 255); chép ' . $copied . ' bãi hạ thực tế của hàng cảng sang bãi hạ ngoài.';
 }
 
+/**
+ * Thêm cột uid_nguoi_tao cho ke_hoach_chi_phi — ghi ai nhập dòng chi phí (uid Drupal),
+ * set 1 lần lúc tạo. Chi phí đã có từ trước không xác định được ai nhập, để mặc định 0.
+ */
+function ke_hoach_xep_xe_update_7026() {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return 'Bảng ke_hoach_chi_phi chưa tồn tại, bỏ qua.';
+  }
+  if (!db_field_exists('ke_hoach_chi_phi', 'uid_nguoi_tao')) {
+    db_add_field('ke_hoach_chi_phi', 'uid_nguoi_tao', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 0,
+    ));
+  }
+  if (!db_index_exists('ke_hoach_chi_phi', 'uid_nguoi_tao')) {
+    db_add_index('ke_hoach_chi_phi', 'uid_nguoi_tao', array('uid_nguoi_tao'));
+  }
+  return 'Đã thêm cột uid_nguoi_tao cho ke_hoach_chi_phi.';
+}
+
+/**
+ * Thêm nid_ncc (bên phát hành hoá đơn) và nid_khach_hang (chi hộ khách hàng) cho
+ * ke_hoach_chi_phi, phục vụ module de_nghi_thanh_toan. Dòng cũ để mặc định 0.
+ */
+function ke_hoach_xep_xe_update_7027() {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return 'Bảng ke_hoach_chi_phi chưa tồn tại, bỏ qua.';
+  }
+  foreach (array('nid_ncc', 'nid_khach_hang') as $field) {
+    if (!db_field_exists('ke_hoach_chi_phi', $field)) {
+      db_add_field('ke_hoach_chi_phi', $field, array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ));
+    }
+    if (!db_index_exists('ke_hoach_chi_phi', $field)) {
+      db_add_index('ke_hoach_chi_phi', $field, array($field));
+    }
+  }
+  return 'Đã thêm cột nid_ncc, nid_khach_hang cho ke_hoach_chi_phi.';
+}
+
+/**
+ * Thêm bên nhận tiền vào từng dòng chi phí (loai_ben_nhan_tien + id_ben_nhan_tien), làm căn cứ để gom
+ * dòng vào đề nghị thanh toán. Dòng cũ để rỗng = trùng nhà cung cấp của dòng.
+ */
+function ke_hoach_xep_xe_update_7028() {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return 'Bảng ke_hoach_chi_phi chưa tồn tại, bỏ qua.';
+  }
+  if (!db_field_exists('ke_hoach_chi_phi', 'loai_ben_nhan_tien')) {
+    db_add_field('ke_hoach_chi_phi', 'loai_ben_nhan_tien', array(
+      'type' => 'varchar',
+      'length' => 20,
+      'not null' => TRUE,
+      'default' => '',
+    ));
+  }
+  if (!db_field_exists('ke_hoach_chi_phi', 'id_ben_nhan_tien')) {
+    db_add_field('ke_hoach_chi_phi', 'id_ben_nhan_tien', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 0,
+    ));
+  }
+  if (!db_index_exists('ke_hoach_chi_phi', 'ben_nhan_tien')) {
+    db_add_index('ke_hoach_chi_phi', 'ben_nhan_tien', array('loai_ben_nhan_tien', 'id_ben_nhan_tien'));
+  }
+  return 'Đã thêm cột loai_ben_nhan_tien, id_ben_nhan_tien cho ke_hoach_chi_phi.';
+}
+
+/**
+ * Số hoá đơn + ngày hoá đơn chuyển xuống TỪNG DÒNG chi phí (không còn ở đề nghị thanh toán, vì 1 đề nghị
+ * giờ có thể gộp nhiều hoá đơn của nhiều NCC khác nhau — xem de_nghi_thanh_toan_update_7002()). "Hoá đơn"
+ * là cặp ảo (nid_ncc, so_hoa_don), không có bảng riêng.
+ */
+function ke_hoach_xep_xe_update_7029() {
+  if (!db_table_exists('ke_hoach_chi_phi')) {
+    return 'Bảng ke_hoach_chi_phi chưa tồn tại, bỏ qua.';
+  }
+  foreach (array('so_hoa_don' => 50, 'ngay_hoa_don' => 10) as $field => $len) {
+    if (!db_field_exists('ke_hoach_chi_phi', $field)) {
+      db_add_field('ke_hoach_chi_phi', $field, array(
+        'type' => 'varchar',
+        'length' => $len,
+        'not null' => TRUE,
+        'default' => '',
+      ));
+    }
+  }
+  if (!db_index_exists('ke_hoach_chi_phi', 'hoa_don')) {
+    db_add_index('ke_hoach_chi_phi', 'hoa_don', array('nid_ncc', 'so_hoa_don'));
+  }
+  return 'Đã thêm cột so_hoa_don, ngay_hoa_don cho ke_hoach_chi_phi.';
+}

@@ -34,10 +34,17 @@
             <option value="">Tất cả trạng thái</option>
             <option value="moi">Mới</option>
             <option value="cho_duyet">Chờ duyệt</option>
-            <option value="da_duyet">Đã duyệt</option>
+            <option value="da_duyet">Chờ duyệt TT</option>
+            <option value="cho_thanh_toan">Chờ thanh toán</option>
             <option value="tu_choi">Từ chối</option>
-            <option value="da_tt">Đã TT</option>
             <option value="tu_choi_tt">Từ chối TT</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" id="filter-loai-tien">
+            <option value="">Tất cả tiền tệ</option>
+            <option value="VND">Có dòng VND</option>
+            <option value="USD">Có dòng USD</option>
           </select>
         </div>
         <div class="col-md-3">
@@ -82,3 +89,4 @@
     </div>
   </div>
 </div>
+

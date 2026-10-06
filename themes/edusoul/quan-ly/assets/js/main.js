@@ -773,6 +773,10 @@ const notyf = new CustomNotyf({
 });
 
 $(document).ajaxError(function(event, jqxhr, settings, thrownError) {
+  // Gọi /api/*: màn hình tự báo lỗi bằng message server trả về — không bật thêm toast chung (tránh báo 2 lần).
+  if (settings && /(^|\/)api\//.test(String(settings.url || '').replace(/^https?:\/\/[^\/]+/, ''))) {
+    return;
+  }
   // Kiểm tra nếu lỗi là 403 (Forbidden)
   if (jqxhr.status == 403) {
     const notificationOptions = {

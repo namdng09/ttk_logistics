@@ -32,7 +32,6 @@ function crm_dntt_verify_callback() {
     'ben_phat_hanh_id' => 1,
     'doi_tac_nhan_tien_id' => 2,
     'hinh_thuc_tt' => 'CK',
-    'loai_tien' => 'VND',
     'ti_gia' => 1,
     'tong_tien' => 0,
     'trang_thai' => 'moi',
@@ -62,7 +61,7 @@ function crm_dntt_verify_callback() {
 
   // Permissions.
   $perms = module_invoke('crm_dntt', 'permission');
-  foreach (array('dntt_create', 'dntt_view_own', 'dntt_view_all', 'dntt_approve', 'dntt_pay') as $p) {
+  foreach (array('dntt_create', 'dntt_view_own', 'dntt_view_all', 'dntt_approve', 'dntt_approve_payment', 'dntt_pay') as $p) {
     $check("01: Permission '$p'", isset($perms[$p]));
   }
 
@@ -76,7 +75,7 @@ function crm_dntt_verify_callback() {
     'so_dntt' => $so1,
     'loai_dntt' => 'thanh_toan',
     'ben_phat_hanh_id' => 1, 'doi_tac_nhan_tien_id' => 2,
-    'hinh_thuc_tt' => 'CK', 'loai_tien' => 'VND', 'ti_gia' => 1,
+    'hinh_thuc_tt' => 'CK', 'ti_gia' => 1,
     'tong_tien' => 0, 'trang_thai' => 'moi', 'uid' => 1,
     'created' => REQUEST_TIME, 'changed' => REQUEST_TIME,
   ));
@@ -87,7 +86,7 @@ function crm_dntt_verify_callback() {
     'so_dntt' => $so2,
     'loai_dntt' => 'thanh_toan',
     'ben_phat_hanh_id' => 1, 'doi_tac_nhan_tien_id' => 2,
-    'hinh_thuc_tt' => 'CK', 'loai_tien' => 'VND', 'ti_gia' => 1,
+    'hinh_thuc_tt' => 'CK', 'ti_gia' => 1,
     'tong_tien' => 0, 'trang_thai' => 'moi', 'uid' => 1,
     'created' => REQUEST_TIME, 'changed' => REQUEST_TIME,
   ));
@@ -108,12 +107,12 @@ function crm_dntt_verify_callback() {
   $check('02: Get DNTT → success', $get_result['success'] === TRUE);
   $check('02: Get DNTT → so_dntt', $get_result['data']['so_dntt'] === $so1);
 
-  // Delete — only moi/tu_choi allowed.
-  $d1->trang_thai = 'da_tt';
+  // Delete — only moi/tu_choi/tu_choi_tt allowed (Issue 07: da_tt đã bỏ).
+  $d1->trang_thai = 'cho_thanh_toan';
   entity_save('dntt', $d1);
   entity_get_controller('dntt')->resetCache(array($d1->dntt_id));
   $del_locked = crm_dntt_api_delete_test(array('dntt_id' => $d1->dntt_id));
-  $check('02: Delete da_tt → blocked', $del_locked['success'] === FALSE);
+  $check('02: Delete cho_thanh_toan → blocked', $del_locked['success'] === FALSE);
 
   $d1->trang_thai = 'moi';
   entity_save('dntt', $d1);
@@ -134,7 +133,7 @@ function crm_dntt_verify_callback() {
     'so_dntt' => $so3,
     'loai_dntt' => 'thanh_toan',
     'ben_phat_hanh_id' => 1, 'doi_tac_nhan_tien_id' => 2,
-    'hinh_thuc_tt' => 'CK', 'loai_tien' => 'VND', 'ti_gia' => 1,
+    'hinh_thuc_tt' => 'CK', 'ti_gia' => 1,
     'tong_tien' => 0, 'trang_thai' => 'moi', 'uid' => 1,
     'created' => REQUEST_TIME, 'changed' => REQUEST_TIME,
   ));
@@ -221,7 +220,7 @@ function crm_dntt_verify_callback() {
     'so_dntt' => crm_dntt_generate_so_dntt(),
     'loai_dntt' => 'thanh_toan',
     'ben_phat_hanh_id' => 1, 'doi_tac_nhan_tien_id' => 2,
-    'hinh_thuc_tt' => 'CK', 'loai_tien' => 'VND', 'ti_gia' => 1,
+    'hinh_thuc_tt' => 'CK', 'ti_gia' => 1,
     'tong_tien' => 0, 'trang_thai' => 'moi', 'uid' => 1,
     'created' => REQUEST_TIME, 'changed' => REQUEST_TIME,
   ));
@@ -229,24 +228,37 @@ function crm_dntt_verify_callback() {
 
   // --- Valid transitions ---
   $t1 = crm_dntt_transition($d6->dntt_id, 'cho_duyet');
-  $check('06: moi → cho_duyet', $t1['success'] === TRUE);
+  $check('06: moi → cho_duyet direct BLOCKED', $t1['success'] === FALSE);
+
+  db_update('dntt')->fields(array('trang_thai' => 'cho_duyet'))->condition('dntt_id', $d6->dntt_id)->execute();
+  entity_get_controller('dntt')->resetCache(array($d6->dntt_id));
 
   $t2 = crm_dntt_transition($d6->dntt_id, 'da_duyet');
   $check('06: cho_duyet → da_duyet', $t2['success'] === TRUE);
 
+  // Issue 07: da_tt không còn là trạng thái workflow — mọi transition sang nó bị chặn.
   $t3 = crm_dntt_transition($d6->dntt_id, 'da_tt');
-  $check('06: da_duyet → da_tt', $t3['success'] === TRUE);
+  $check('06: da_duyet → da_tt BLOCKED (da_tt đã bỏ)', $t3['success'] === FALSE);
+
+  $t4 = crm_dntt_transition($d6->dntt_id, 'cho_thanh_toan');
+  $check('06: da_duyet → cho_thanh_toan', $t4['success'] === TRUE);
+
+  $t5 = crm_dntt_transition($d6->dntt_id, 'da_tt');
+  $check('06: cho_thanh_toan → da_tt BLOCKED (da_tt đã bỏ)', $t5['success'] === FALSE);
+
+  $t6 = crm_dntt_transition($d6->dntt_id, 'tu_choi_tt');
+  $check('06: cho_thanh_toan → tu_choi_tt', $t6['success'] === TRUE);
 
   // --- Invalid transitions ---
-  $t_bad1 = crm_dntt_transition($d6->dntt_id, 'moi');
-  $check('06: da_tt → moi BLOCKED', $t_bad1['success'] === FALSE);
+  $t_bad1 = crm_dntt_transition($d6->dntt_id, 'da_duyet');
+  $check('06: tu_choi_tt → da_duyet BLOCKED', $t_bad1['success'] === FALSE);
 
   // Reset to moi via DB for further tests.
   db_update('dntt')->fields(array('trang_thai' => 'moi'))->condition('dntt_id', $d6->dntt_id)->execute();
   entity_get_controller('dntt')->resetCache(array($d6->dntt_id));
 
   $t_bad2 = crm_dntt_transition($d6->dntt_id, 'da_tt');
-  $check('06: moi → da_tt BLOCKED', $t_bad2['success'] === FALSE);
+  $check('06: moi → da_tt BLOCKED (da_tt đã bỏ)', $t_bad2['success'] === FALSE);
 
   // --- tu_choi → moi ---
   db_update('dntt')->fields(array('trang_thai' => 'tu_choi'))->condition('dntt_id', $d6->dntt_id)->execute();
@@ -255,7 +267,8 @@ function crm_dntt_verify_callback() {
   $check('06: tu_choi → moi', $t_tc['success'] === TRUE);
 
   // --- cho_duyet → moi (gỡ trình) ---
-  crm_dntt_transition($d6->dntt_id, 'cho_duyet');
+  db_update('dntt')->fields(array('trang_thai' => 'cho_duyet'))->condition('dntt_id', $d6->dntt_id)->execute();
+  entity_get_controller('dntt')->resetCache(array($d6->dntt_id));
   $t_go = crm_dntt_transition($d6->dntt_id, 'moi');
   $check('06: cho_duyet → moi (gỡ trình)', $t_go['success'] === TRUE);
 
@@ -270,7 +283,7 @@ function crm_dntt_verify_callback() {
   $check('06: is_editable(tu_choi) = TRUE', crm_dntt_is_editable('tu_choi') === TRUE);
   $check('06: is_editable(cho_duyet) = FALSE', crm_dntt_is_editable('cho_duyet') === FALSE);
   $check('06: is_editable(da_duyet) = FALSE', crm_dntt_is_editable('da_duyet') === FALSE);
-  $check('06: is_editable(da_tt) = FALSE', crm_dntt_is_editable('da_tt') === FALSE);
+  $check('06: is_editable(cho_thanh_toan) = FALSE', crm_dntt_is_editable('cho_thanh_toan') === FALSE);
 
   // --- Lock: save blocked when cho_duyet ---
   db_update('dntt')->fields(array('trang_thai' => 'cho_duyet'))->condition('dntt_id', $d6->dntt_id)->execute();

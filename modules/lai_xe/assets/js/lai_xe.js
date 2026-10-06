@@ -388,7 +388,8 @@
       url: '/api/lai-xe',
       type: 'GET',
       dataType: 'json',
-      data: { page: currentPage, keyword: currentKeyword },
+      // Danh sách chỉ lấy các cột hiển thị; xem/sửa gọi GET /api/lai-xe/{id} riêng.
+      data: { page: currentPage, keyword: currentKeyword, select: 'nid,ten,ma_nhan_vien,sdt,cccd,so_bang_lai,loai_bang_lai,dod,tai_khoan_app' },
       success: function (res) {
         $('#loading-row').remove();
 
@@ -437,7 +438,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="10" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append(loadErrorRow(10, jqXHR));
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -1229,6 +1230,14 @@
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
+  }
+
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
   }
 
   function apiMsg(jqXHR) {

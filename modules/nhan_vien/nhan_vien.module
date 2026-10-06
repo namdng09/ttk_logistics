@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Nhân Viên — Employee management.
@@ -91,73 +97,33 @@ function nhan_vien_theme() {
  ******************************************************************************/
 
 function _nhan_vien_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _nhan_vien_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _nhan_vien_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _nhan_vien_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _nhan_vien_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _nhan_vien_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _nhan_vien_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
-/**
- * Require auth via Bearer token. Returns user object or fail response.
- */
-function _nhan_vien_require_auth() {
-  $token = NULL;
-  if (function_exists('getallheaders')) {
-    $headers = getallheaders();
-    if (!empty($headers['Authorization'])) {
-      $token = str_replace('Bearer ', '', $headers['Authorization']);
-    }
-  }
-  if (!$token && !empty($_GET['token'])) {
-    $token = $_GET['token'];
-  }
-  if (!$token) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Thiếu token xác thực');
-  }
-  module_load_include('module', 'user_login_api', 'user_login_api');
-  if (!function_exists('api_validate_token')) {
-    drupal_add_http_header('Status', '500 Internal Server Error');
-    return array('status' => 'error', 'message' => 'Hệ thống xác thực chưa sẵn sàng');
-  }
-  $user = api_validate_token($token);
-  if (!$user) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Token không hợp lệ');
-  }
-  return $user;
-}
 
 /**
  * Load full nhan_vien record including custom fields and role.
@@ -165,13 +131,13 @@ function _nhan_vien_require_auth() {
 function _nhan_vien_load_row($uid) {
   $uid = (int) $uid;
   if (!$uid) return NULL;
-  if (_nhan_vien_is_driver_account($uid)) return NULL;
+  if (_nhan_vien_is_driver_account($uid) || _nhan_vien_is_admin_account($uid)) return NULL;
 
   $u = db_query("SELECT * FROM {users} WHERE uid = :uid", array(':uid' => $uid))->fetch();
   if (!$u || $u->uid == 0) return NULL;
 
   // Get single custom role (excluding anonymous + authenticated)
-  $rid = db_query("SELECT ur.rid FROM {users_roles} ur WHERE ur.uid = :uid AND ur.rid > :auth_rid ORDER BY ur.rid ASC", array(
+  $rid = db_query("SELECT ur.rid FROM {users_roles} ur WHERE ur.uid = :uid AND ur.rid > :auth_rid AND ur.rid NOT IN (SELECT r_pq.rid FROM {role} r_pq WHERE r_pq.name LIKE '\_\_PQ\_USER\_%') ORDER BY ur.rid ASC", array(
     ':uid' => $uid,
     ':auth_rid' => DRUPAL_AUTHENTICATED_RID,
   ))->fetchField();
@@ -239,13 +205,33 @@ function _nhan_vien_check_unique_number($field, $value, $length, $exclude_uid = 
   return NULL;
 }
 
+/**
+ * rid vai trò "Lái xe" (tìm theo tên, qua lai_xe_driver_rid() nếu module lái xe đang bật). Không gắn cứng số: trên hệ thống thật
+ * rid 7 là "Nhân viên" — bản cũ coi rid 7 là lái xe nên ẩn nhầm nhân viên có vai trò "Nhân viên". 0 nếu không có.
+ */
+function _nhan_vien_driver_rid() {
+  if (function_exists('lai_xe_driver_rid')) return (int) lai_xe_driver_rid();
+  $rid = &drupal_static(__FUNCTION__);
+  if ($rid === NULL) {
+    $rid = 0;
+    foreach (db_query("SELECT rid, name FROM {role}") as $r) {
+      $name = drupal_strtolower(trim((string) $r->name));
+      if ($name === drupal_strtolower('Lái xe') || $name === 'lai xe') {
+        $rid = (int) $r->rid;
+        break;
+      }
+    }
+  }
+  return $rid;
+}
+
 /** Driver accounts are owned exclusively by the Lái xe screen. */
 function _nhan_vien_is_driver_account($uid) {
   $uid = (int) $uid;
   if (!$uid) return FALSE;
   $role = db_query("SELECT 1 FROM {users_roles} WHERE uid = :uid AND rid = :rid", array(
     ':uid' => $uid,
-    ':rid' => 7,
+    ':rid' => _nhan_vien_driver_rid(),
   ))->fetchField();
   if ($role) return TRUE;
   if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
@@ -319,6 +305,34 @@ function _nhan_vien_check_unique_mail($value, $exclude_uid = NULL) {
  * REST: ROLES — GET /api/roles
  ******************************************************************************/
 
+/** rid cố định của vai trò Quản trị (administrator) trên hệ thống TTK — luôn tính là quản trị dù biến user_admin_role trỏ chỗ khác. */
+define('NHAN_VIEN_ADMIN_RID', 3);
+
+/**
+ * Các rid vai trò Quản trị: rid 3 (administrator), user_admin_role và vai trò tên administrator/admin.
+ * Màn nhân viên không gán được các vai trò này và không làm mất chúng ở tài khoản đang có (quản lý ở /phan-quyen).
+ */
+function _nhan_vien_admin_rids() {
+  $rids = array(NHAN_VIEN_ADMIN_RID => NHAN_VIEN_ADMIN_RID);
+  $var = (int) variable_get('user_admin_role', 0);
+  if ($var) $rids[$var] = $var;
+  foreach (db_query("SELECT rid FROM {role} WHERE LOWER(TRIM(name)) IN ('administrator', 'admin')")->fetchCol() as $rid) $rids[(int) $rid] = (int) $rid;
+  return $rids;
+}
+
+/** Tài khoản đang có vai trò Quản trị ⇒ không hiện / không xem-sửa-xoá ở màn nhân viên (như tài khoản lái xe). */
+function _nhan_vien_is_admin_account($uid) {
+  $uid = (int) $uid;
+  if (!$uid) return FALSE;
+  return (bool) db_query_range("SELECT 1 FROM {users_roles} WHERE uid = :uid AND rid IN (:rids)", 0, 1, array(':uid' => $uid, ':rids' => array_values(_nhan_vien_admin_rids())))->fetchField();
+}
+
+function _nhan_vien_is_admin_rid($rid) {
+  $rid = (int) $rid;
+  $rids = _nhan_vien_admin_rids();
+  return $rid > 0 && isset($rids[$rid]);
+}
+
 function nhan_vien_rest_roles() {
   $method = $_SERVER['REQUEST_METHOD'];
   if ($method !== 'GET') {
@@ -326,21 +340,23 @@ function nhan_vien_rest_roles() {
   }
 
   
-  if (!user_access('nhan_vien_view')) {
+  if (!api_has_permission('nhan_vien_view')) {
     return _nhan_vien_unauthorized('Bạn không có quyền xem danh sách role');
   }
 
-  $rows = db_query("SELECT rid, name FROM {role} WHERE rid > :auth_rid AND rid <> :driver_rid ORDER BY name ASC", array(
+  $rows = db_query("SELECT rid, name FROM {role} WHERE rid > :auth_rid AND rid <> :driver_rid AND name NOT LIKE '\_\_PQ\_USER\_%' ORDER BY name ASC", array(
     ':auth_rid' => DRUPAL_AUTHENTICATED_RID,
-    ':driver_rid' => 7,
+    ':driver_rid' => _nhan_vien_driver_rid(),
   ))->fetchAll();
 
   $items = array();
   foreach ($rows as $r) {
     $role_label = trim((string) $r->name);
-    if ((int) $r->rid === 7 || drupal_strtolower($role_label) === drupal_strtolower('Lái xe') || drupal_strtolower($role_label) === 'lai xe') {
+    if (drupal_strtolower($role_label) === drupal_strtolower('Lái xe') || drupal_strtolower($role_label) === 'lai xe') {
       continue;
     }
+    // Vai trò Quản trị không hiện ở màn nhân viên (cả bộ lọc lẫn modal tạo/sửa) — quản lý ở /phan-quyen.
+    if (_nhan_vien_is_admin_rid($r->rid)) continue;
     $items[] = array('rid' => (int) $r->rid, 'name' => $r->name);
   }
 
@@ -362,23 +378,157 @@ function nhan_vien_rest_collection() {
   }
 }
 
+/**
+ * Danh sách trắng cho ?select=: trường trong JSON → cột SQL của {users} (NULL = trường tính thêm, chỉ tính khi được chọn).
+ * phong_ban / chuc_vu / role là trường tính thêm (tra danh_muc, role), gom 1 truy vấn cho cả trang.
+ */
+function _nhan_vien_select_map() {
+  return array(
+    'uid' => 'uid',
+    'name' => 'name',
+    'mail' => 'mail',
+    'status' => 'status',
+    'ma_nhan_vien' => 'ma_nhan_vien',
+    'ten' => 'ten',
+    'dob' => 'dob',
+    'cccd' => 'cccd',
+    'sdt' => 'sdt',
+    'dia_chi' => 'dia_chi',
+    'so_tk_ngan_hang' => 'so_tk_ngan_hang',
+    'ngan_hang' => 'ngan_hang',
+    'phong_ban' => NULL,
+    'chuc_vu' => NULL,
+    'role' => NULL,
+  );
+}
+
+function _nhan_vien_select_request() {
+  $raw = isset($_GET['select']) ? $_GET['select'] : '';
+  if (is_array($raw) ? !$raw : trim((string) $raw) === '') {
+    return array('active' => FALSE);
+  }
+  // Module api_common chưa bật (vd đưa JS lên trước khi bật module): bỏ qua select, trả như cũ thay vì làm hỏng màn hình.
+  if (!function_exists('api_select_parse')) {
+    return array('active' => FALSE);
+  }
+  return api_select_parse($raw, array_keys(_nhan_vien_select_map()), 'uid');
+}
+
+function _nhan_vien_select_columns(array $fields) {
+  $map = _nhan_vien_select_map();
+  $cols = array('uid');
+  foreach ($fields as $f) {
+    if (!empty($map[$f])) {
+      $cols[] = $map[$f];
+    }
+  }
+  foreach (array('phong_ban', 'chuc_vu') as $f) {
+    if (in_array($f, $fields, TRUE)) {
+      $cols[] = $f;
+    }
+  }
+  return api_select_existing_columns('users', array_values(array_unique($cols)));
+}
+
+/** Dựng dòng theo ?select=; giá trị giống list không select (phong_ban/chuc_vu/role là object {nid, ten} hoặc NULL). */
+function _nhan_vien_select_rows(array $rows, array $fields) {
+  $uids = array();
+  $dm_ids = array();
+  foreach ($rows as $u) {
+    $uids[] = (int) $u->uid;
+    foreach (array('phong_ban', 'chuc_vu') as $f) {
+      if (in_array($f, $fields, TRUE) && !empty($u->$f)) {
+        $dm_ids[(int) $u->$f] = (int) $u->$f;
+      }
+    }
+  }
+  $dm_names = array();
+  if ($dm_ids) {
+    foreach (db_query("SELECT nid, ten FROM {danh_muc} WHERE nid IN (:ids)", array(':ids' => array_values($dm_ids))) as $d) {
+      $dm_names[(int) $d->nid] = $d->ten;
+    }
+  }
+  $first_rid = array();
+  $role_names = array();
+  if ($uids && in_array('role', $fields, TRUE)) {
+    foreach (db_query("SELECT ur.uid, ur.rid FROM {users_roles} ur WHERE ur.uid IN (:uids) AND ur.rid > :auth AND ur.rid NOT IN (SELECT r_pq.rid FROM {role} r_pq WHERE r_pq.name LIKE '\_\_PQ\_USER\_%') ORDER BY ur.rid ASC", array(':uids' => $uids, ':auth' => DRUPAL_AUTHENTICATED_RID)) as $r) {
+      if (!isset($first_rid[(int) $r->uid])) {
+        $first_rid[(int) $r->uid] = (int) $r->rid;
+      }
+    }
+    if ($first_rid) {
+      foreach (db_query("SELECT rid, name FROM {role} WHERE rid IN (:rids)", array(':rids' => array_values(array_unique($first_rid)))) as $ro) {
+        $role_names[(int) $ro->rid] = $ro->name;
+      }
+    }
+  }
+  $items = array();
+  foreach ($rows as $u) {
+    $row = array();
+    foreach ($fields as $f) {
+      switch ($f) {
+        case 'uid':
+        case 'status':
+          $row[$f] = (int) $u->$f;
+          break;
+
+        case 'phong_ban':
+        case 'chuc_vu':
+          $row[$f] = !empty($u->$f) ? array('nid' => (int) $u->$f, 'ten' => isset($dm_names[(int) $u->$f]) ? $dm_names[(int) $u->$f] : '') : NULL;
+          break;
+
+        case 'role':
+          $rid = isset($first_rid[(int) $u->uid]) ? $first_rid[(int) $u->uid] : 0;
+          $row[$f] = $rid ? array('nid' => $rid, 'ten' => isset($role_names[$rid]) ? $role_names[$rid] : '') : NULL;
+          break;
+
+        default:
+          $row[$f] = isset($u->$f) ? $u->$f : '';
+      }
+    }
+    $items[] = $row;
+  }
+  return $items;
+}
+
 function _nhan_vien_rest_list() {
   
-  if (!user_access('nhan_vien_view')) {
+  if (!api_has_permission('nhan_vien_view')) {
     return _nhan_vien_unauthorized('Bạn không có quyền xem danh sách nhân viên');
   }
 
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  // select=a,b,-c (module api_common): chỉ lấy/loại trừ trường; không có thì trả như cũ.
+  $sel = _nhan_vien_select_request();
+  if (!empty($sel['error'])) {
+    return _nhan_vien_fail($sel['error']);
+  }
+  $select = !empty($sel['active']) ? $sel['fields'] : NULL;
+
+  $page = api_page_number();
+  $limit = $select !== NULL ? api_select_limit(TRUE, 100) : api_page_limit(20, 100);
   $offset = ($page - 1) * $limit;
 
-  $query = db_select('users', 'u');
-  $query->fields('u');
-  $query->condition('u.uid', 0, '!=');
   _nhan_vien_ensure_sdt_field();
+  $query = db_select('users', 'u');
+  if ($select !== NULL) {
+    // Chỉ các cột được chọn: bảng users còn có pass, init... không bao giờ được chọn theo tên client gửi.
+    $query->fields('u', _nhan_vien_select_columns($select));
+  }
+  else {
+    $query->fields('u');
+  }
+  $query->condition('u.uid', 0, '!=');
   // Driver accounts are managed only from the Lái xe screen, never as staff.
-  $query->leftJoin('users_roles', 'ur_driver', 'ur_driver.uid = u.uid AND ur_driver.rid = :driver_rid', array(':driver_rid' => 7));
+  // Lái xe = có vai trò "Lái xe" HOẶC đang liên kết hồ sơ lái xe (lai_xe.uid_nguoi_dung — tiêu chí app dùng).
+  $query->leftJoin('users_roles', 'ur_driver', 'ur_driver.uid = u.uid AND ur_driver.rid = :driver_rid', array(':driver_rid' => _nhan_vien_driver_rid()));
   $query->isNull('ur_driver.uid');
+  if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
+    $query->leftJoin('lai_xe', 'lx_link', 'lx_link.uid_nguoi_dung = u.uid');
+    $query->isNull('lx_link.nid');
+  }
+  // Tài khoản Quản trị không hiện ở màn nhân viên (quản lý ở /phan-quyen).
+  $query->leftJoin('users_roles', 'ur_admin', 'ur_admin.uid = u.uid AND ur_admin.rid IN (:admin_rids)', array(':admin_rids' => array_values(_nhan_vien_admin_rids())));
+  $query->isNull('ur_admin.uid');
   if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
     $query->leftJoin('lai_xe', 'lx_driver', 'lx_driver.uid_nguoi_dung = u.uid');
     $query->isNull('lx_driver.nid');
@@ -415,10 +565,21 @@ function _nhan_vien_rest_list() {
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();
 
+  if ($select !== NULL) {
+    $total_pages = (int) ceil($total / $limit);
+    return _nhan_vien_success(array(
+      'items' => _nhan_vien_select_rows($rows, $select),
+      'total' => (int) $total,
+      'current_page' => $total_pages > 0 ? $page : 0,
+      'total_pages' => $total_pages,
+      'limit' => $limit,
+    ));
+  }
+
   // Build response items with role + danh_muc ten
   $items = array();
   foreach ($rows as $u) {
-    $rid = db_query("SELECT ur.rid FROM {users_roles} ur WHERE ur.uid = :uid AND ur.rid > :auth ORDER BY ur.rid ASC", array(
+    $rid = db_query("SELECT ur.rid FROM {users_roles} ur WHERE ur.uid = :uid AND ur.rid > :auth AND ur.rid NOT IN (SELECT r_pq.rid FROM {role} r_pq WHERE r_pq.name LIKE '\_\_PQ\_USER\_%') ORDER BY ur.rid ASC", array(
       ':uid' => $u->uid,
       ':auth' => DRUPAL_AUTHENTICATED_RID,
     ))->fetchField();
@@ -468,7 +629,7 @@ function _nhan_vien_rest_list() {
 
 function _nhan_vien_rest_create() {
   
-  if (!user_access('nhan_vien_create')) {
+  if (!api_has_permission('nhan_vien_create')) {
     return _nhan_vien_unauthorized('Bạn không có quyền tạo nhân viên');
   }
 
@@ -501,6 +662,9 @@ function _nhan_vien_rest_create() {
 
   $dupUser = _nhan_vien_check_unique_username($input['username']);
   if ($dupUser) return $dupUser;
+  if (!empty($input['role_rid']) && _nhan_vien_is_admin_rid($input['role_rid'])) {
+    return _nhan_vien_fail('Không gán vai trò Quản trị từ màn nhân viên (phân quyền ở màn Phân quyền)');
+  }
 
   $transaction = db_transaction();
   try {
@@ -516,6 +680,9 @@ function _nhan_vien_rest_create() {
     // Role assignment
     if (!empty($input['role_rid'])) {
       $rid = (int) $input['role_rid'];
+      if (_nhan_vien_is_admin_rid($rid)) {
+        throw new Exception('Không gán vai trò Quản trị từ màn nhân viên');
+      }
       $role_name = db_query("SELECT name FROM {role} WHERE rid = :rid", array(':rid' => $rid))->fetchField();
       if ($role_name) {
         $edit['roles'] = array($rid => $role_name);
@@ -587,7 +754,7 @@ function nhan_vien_rest_item($id) {
 
 function _nhan_vien_rest_get($id) {
   
-  if (!user_access('nhan_vien_view')) {
+  if (!api_has_permission('nhan_vien_view')) {
     return _nhan_vien_unauthorized('Bạn không có quyền xem nhân viên');
   }
 
@@ -600,12 +767,12 @@ function _nhan_vien_rest_get($id) {
 
 function _nhan_vien_rest_update($id) {
   
-  if (!user_access('nhan_vien_create')) {
+  if (!api_has_permission('nhan_vien_create')) {
     return _nhan_vien_unauthorized('Bạn không có quyền sửa nhân viên');
   }
 
   $existing = user_load($id);
-  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id)) {
+  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id) || _nhan_vien_is_admin_account($id)) {
     return _nhan_vien_not_found('Nhân viên không tồn tại');
   }
 
@@ -635,6 +802,9 @@ function _nhan_vien_rest_update($id) {
 
   $dupMa = _nhan_vien_check_unique_ma(isset($input['ma_nhan_vien']) ? $input['ma_nhan_vien'] : '', $id);
   if ($dupMa) return $dupMa;
+  if (!empty($input['role_rid']) && _nhan_vien_is_admin_rid($input['role_rid']) && empty($existing->roles[(int) $input['role_rid']])) {
+    return _nhan_vien_fail('Không gán vai trò Quản trị từ màn nhân viên (phân quyền ở màn Phân quyền)');
+  }
 
   $transaction = db_transaction();
   try {
@@ -651,13 +821,22 @@ function _nhan_vien_rest_update($id) {
     }
 
     // Update role
+    // Vai trò Quản trị tài khoản đang có: luôn giữ nguyên (màn này không gán/không gỡ quản trị).
+    $kept_admin_roles = array_intersect_key((array) $existing->roles, _nhan_vien_admin_rids());
+    $is_admin_account = !empty($kept_admin_roles);
     if (isset($input['role_rid'])) {
       $rid = (int) $input['role_rid'];
+      if (_nhan_vien_is_admin_rid($rid) && empty($existing->roles[$rid])) {
+        throw new Exception('Không gán vai trò Quản trị từ màn nhân viên');
+      }
       if ($rid > 0) {
         $role_name = db_query("SELECT name FROM {role} WHERE rid = :rid", array(':rid' => $rid))->fetchField();
         if ($role_name) {
-          $edit['roles'] = array($rid => $role_name);
+          $edit['roles'] = array($rid => $role_name) + $kept_admin_roles;
         }
+      }
+      elseif ($is_admin_account) {
+        // Ô vai trò để trống với tài khoản Quản trị (không có trong danh sách chọn) = giữ nguyên vai trò.
       }
       else {
         // Empty role_rid = remove all custom roles
@@ -703,12 +882,12 @@ function _nhan_vien_rest_update($id) {
 
 function _nhan_vien_rest_delete($id) {
   
-  if (!user_access('nhan_vien_delete')) {
+  if (!api_has_permission('nhan_vien_delete')) {
     return _nhan_vien_unauthorized('Bạn không có quyền xoá nhân viên');
   }
 
   $existing = user_load($id);
-  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id)) {
+  if (!$existing || $existing->uid == 0 || _nhan_vien_is_driver_account($id) || _nhan_vien_is_admin_account($id)) {
     return _nhan_vien_not_found('Nhân viên không tồn tại');
   }
 
@@ -739,19 +918,24 @@ function _nhan_vien_rest_delete($id) {
  ******************************************************************************/
 
 function nhan_vien_page_list() {
+  if (!api_has_permission('nhan_vien_view')) {
+    return api_denied_page('Bạn không có quyền xem nhân viên');
+  }
   drupal_add_css(drupal_get_path('module', 'nhan_vien') . '/assets/css/nhan_vien.css');
   // Bump the asset version whenever role filtering changes; otherwise an old
   // aggregated/browser-cached JS can keep showing role Lái xe.
-  drupal_add_js(drupal_get_path('module', 'nhan_vien') . '/assets/js/nhan_vien.js', array(
+  // version theo thời điểm sửa file: URL đổi mỗi lần nạp bản mới, trình duyệt/proxy không giữ JS cũ (số cố định trước đây làm bản cũ bị cache).
+  $nv_js = drupal_get_path('module', 'nhan_vien') . '/assets/js/nhan_vien.js';
+  drupal_add_js($nv_js, array(
     'group' => JS_THEME,
-    'version' => 2026090904,
+    'version' => file_exists($nv_js) ? filemtime($nv_js) . '-' . filesize($nv_js) : REQUEST_TIME,
   ));
 
   drupal_add_js(array('nhan_vien' => array(
     'permissions' => array(
-      'nhan_vien_view' => user_access('nhan_vien_view'),
-      'nhan_vien_create' => user_access('nhan_vien_create'),
-      'nhan_vien_delete' => user_access('nhan_vien_delete'),
+      'nhan_vien_view' => api_has_permission('nhan_vien_view'),
+      'nhan_vien_create' => api_has_permission('nhan_vien_create'),
+      'nhan_vien_delete' => api_has_permission('nhan_vien_delete'),
     ),
   )), 'setting');
 

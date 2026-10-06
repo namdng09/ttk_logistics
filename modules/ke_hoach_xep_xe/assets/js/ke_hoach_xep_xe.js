@@ -28,6 +28,12 @@
     customersLoaded: false,
     candidates: []
   };
+  // Modal xếp xe hàng cảng đã lưu xong: danh sách phía sau chỉ tải lại 1 lần khi modal đóng (không tải ngay sau mỗi lần lưu).
+  var listReloadAfterModal = false;
+  // Như trên nhưng cho modal xếp xe tuyến xa (tách riêng: không dùng chung logic làm nổi bật dòng của hàng cảng).
+  var tuyenXaListReloadAfterModal = false;
+  // Kế hoạch đã tính tổng chi phí cho cột bên trong lần mở modal này (đặt lại mỗi lần mở modal); lưu xong không tính lại.
+  var portCostSummaryLoadedFor = 0;
   var listSearchDropdownData = {
     customers: [],
     kho: [],
@@ -39,6 +45,32 @@
 
   function currentPlanType() {
     return settings.plan_type === 'tuyen_xa' ? 'tuyen_xa' : 'thuong';
+  }
+
+  // Nguồn dữ liệu danh mục dùng chung của màn hàng cảng (ke_hoach_hang_cang_master.js). Tuyến xa, hoặc trang chưa nạp file đó,
+  // trả NULL và tiếp tục đi đường tải riêng như cũ.
+  function hangCangMaster() {
+    if (currentPlanType() === 'tuyen_xa' || !window.Drupal || !Drupal.keHoachHangCangMaster) return null;
+    // Dùng đúng bản jQuery của file này (trang có nhiều bản jQuery, có bản không có ajax/Deferred).
+    Drupal.keHoachHangCangMaster.use($);
+    return Drupal.keHoachHangCangMaster;
+  }
+
+  // Tuyến xa có nguồn dữ liệu riêng (ke_hoach_tuyen_xa_master.js, namespace tách khỏi hàng cảng); cùng cách dùng.
+  function tuyenXaMaster() {
+    if (currentPlanType() !== 'tuyen_xa' || !window.Drupal || !Drupal.keHoachTuyenXaMaster) return null;
+    Drupal.keHoachTuyenXaMaster.use($);
+    return Drupal.keHoachTuyenXaMaster;
+  }
+
+  // Nguồn danh mục của màn đang mở (hàng cảng hoặc tuyến xa); NULL nếu trang chưa nạp file tương ứng → đường tải riêng cũ.
+  function planMaster() {
+    return hangCangMaster() || tuyenXaMaster();
+  }
+
+  function persistHangCangMaster() {
+    var master = planMaster();
+    if (master) master.persist();
   }
 
   function updatePortDateSortButton() {
@@ -123,12 +155,14 @@
     roi_cont: 'bg-label-secondary',
     ket_hop: 'bg-label-info'
   };
+  // Không đánh số cứng trong nhãn: hàng cảng chỉ có 4 nhóm (không Tăng bo), đánh số ở
+  // renderPlanFilesHtml() theo đúng thứ tự đang hiển thị, tránh nhảy số khi thiếu Tăng bo.
   var PLAN_FILE_GROUPS = {
-    lay_cont_rong: '1. Nhận cont rỗng',
-    tang_bo: '2. Tăng bo',
-    giao_cont_rong_cho_kho: '3. Giao cont rỗng',
-    nhan_cont_hang_tu_kho: '4. Nhận cont hàng',
-    ha_cont: '5. Hạ cont hàng'
+    lay_cont_rong: 'Nhận cont rỗng',
+    tang_bo: 'Tăng bo',
+    giao_cont_rong_cho_kho: 'Giao cont rỗng',
+    nhan_cont_hang_tu_kho: 'Nhận cont hàng',
+    ha_cont: 'Hạ cont hàng'
   };
   var PLAN_FILE_GROUP_ORDER = ['lay_cont_rong', 'giao_cont_rong_cho_kho', 'nhan_cont_hang_tu_kho', 'ha_cont'];
   var planFilePreviewMap = {};
@@ -173,6 +207,14 @@
   function formatTransportSelect2Option(option) {
     if (!option || !option.id) return option ? option.text : '';
     return $('<span class="badge ' + hinhThucColor(option.id) + '">' + escHtml(hinhThucLabel(option.id) || option.text) + '</span>');
+  }
+
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
   }
 
   function apiMsg(jqXHR) {
@@ -336,9 +378,10 @@
     for (var g = 0; g < groups.length; g++) {
       var key = groups[g];
       var groupFiles = byGroup[key] || [];
+      var groupLabel = (g + 1) + '. ' + (PLAN_FILE_GROUPS[key] || '');
       html += '<div class="khxh-plan-file-group" data-group="' + escHtml(key) + '">' +
         '<div class="khxh-plan-file-group-title">' +
-          '<span>' + escHtml(PLAN_FILE_GROUPS[key]) + '</span>' +
+          '<span>' + escHtml(groupLabel) + '</span>' +
           '<span class="badge rounded-pill bg-label-secondary border">' + groupFiles.length + '</span>' +
         '</div>';
       if (!groupFiles.length) {
@@ -354,7 +397,7 @@
           var fileMeta = (f.uploaded_text || '') + (fileSize ? ' · ' + fileSize : '');
           var fileTooltip = [
             fileName ? 'Tên file: ' + fileName : '',
-            PLAN_FILE_GROUPS[key] ? 'Mốc nghiệp vụ: ' + PLAN_FILE_GROUPS[key] : '',
+            PLAN_FILE_GROUPS[key] ? 'Mốc nghiệp vụ: ' + groupLabel : '',
             f.uploaded_text ? 'Thời gian upload: ' + f.uploaded_text : '',
             fileSize ? 'Dung lượng: ' + fileSize : ''
           ].filter(Boolean).join('\n');
@@ -801,6 +844,12 @@
       e.preventDefault();
       openPtkhCreateModal();
     });
+    // Hàng cảng: nút "Tạo phiếu trả KH" ở header mở modal chung của module phiếu trả (phieu_tra_khach_hang_modal.js);
+    // tạo xong tải lại danh sách để thẻ PT hiện ở các kế hoạch vừa gom.
+    $(document).on('click', '.khxh-port-ptkh-create', function (e) {
+      e.preventDefault();
+      if (window.PtkhModal) window.PtkhModal.openCreate({ onSaved: function () { loadList(); } });
+    });
     $(document).on('click', '#khxh-ptkh-load-candidates', loadPtkhCandidates);
     $(document).on('change', '#khxh-ptkh-check-all', function () {
       $('.khxh-ptkh-plan-check:not(:disabled)').prop('checked', this.checked);
@@ -850,6 +899,25 @@
     if (ptkhCreateState.customersLoaded) {
       initSelect2($select[0], 'Chọn khách hàng', { dropdownParent: $('#khxh-ptkh-create-modal') });
       if (done) done();
+      return;
+    }
+    var master = planMaster();
+    if (master) {
+      $select.prop('disabled', true);
+      master.load(['customers']).done(function () {
+        var html = '<option value="">Chọn khách hàng</option>';
+        $.each(master.get('customers'), function (_, item) {
+          html += '<option value="' + escHtml(item.nid) + '">' + escHtml(customerPlanLabel(item) || ('Khách hàng #' + item.nid)) + '</option>';
+        });
+        $select.html(html);
+        ptkhCreateState.customersLoaded = true;
+      }).fail(function () {
+        notifyPtkh('Không tải được danh sách khách hàng', 'error');
+      }).always(function () {
+        $select.prop('disabled', false);
+        initSelect2($select[0], 'Chọn khách hàng', { dropdownParent: $('#khxh-ptkh-create-modal') });
+        if (done) done();
+      });
       return;
     }
     $select.prop('disabled', true);
@@ -1129,16 +1197,21 @@
     var costAction = isHangCang
       ? '<li><button type="button" class="dropdown-item btn-open-port-cost-tab" data-id="' + nid + '"><i class="ti tabler-receipt-2 me-2 text-success"></i>Nhập chi phí</button></li>'
       : '<li><button type="button" class="dropdown-item btn-open-ke-hoach-chi-phi" data-id="' + nid + '" data-nid-lai-xe="' + nidLaiXe + '" data-loai-ke-hoach="' + escHtml(loaiKeHoach) + '"><i class="ti tabler-receipt-2 me-2 text-success"></i>Chi phí</button></li>';
-    var statusActions = isHangCang ? hangCangStatusActionHtml(row) : '';
+    // Không có quyền thì không hiện mục (server vẫn kiểm tra lại): tạo/sửa ⇒ Xếp xe, chi phí, đổi trạng thái; xoá ⇒ Xoá.
+    var canCreate = !!perms.create;
+    var canDelete = !!perms.delete;
+    var statusActions = isHangCang && canCreate ? hangCangStatusActionHtml(row) : '';
+    var deleteAction = canDelete
+      ? '<li><button type="button" class="dropdown-item text-danger btn-delete-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-trash me-2"></i>Xoá</button></li>'
+      : '';
     return '<div class="dropdown">' +
       '<button class="btn btn-sm btn-icon btn-label-secondary rounded-pill"><i class="ti tabler-dots-vertical"></i></button>' +
       '<ul class="dropdown-menu">' +
       '<li><button type="button" class="dropdown-item btn-view-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-eye me-2 text-info"></i>Xem chi tiết</button></li>' +
-      '<li><button type="button" class="dropdown-item btn-edit-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-truck-delivery me-2 text-primary"></i>Xếp xe</button></li>' +
-      costAction +
-      '<li><hr class="dropdown-divider"></li>' +
+      (canCreate ? '<li><button type="button" class="dropdown-item btn-edit-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-truck-delivery me-2 text-primary"></i>Xếp xe</button></li>' + costAction : '') +
+      (statusActions || deleteAction ? '<li><hr class="dropdown-divider"></li>' : '') +
       statusActions +
-      '<li><button type="button" class="dropdown-item text-danger btn-delete-ke-hoach-xep-xe" data-id="' + nid + '"><i class="ti tabler-trash me-2"></i>Xoá</button></li>' +
+      deleteAction +
       '</ul></div>';
   }
 
@@ -1355,6 +1428,7 @@
     id = parseInt(id, 10) || 0;
     if (!id) return;
     var isTuyenXa = (options.planType || currentPlanType()) === 'tuyen_xa';
+    portCostSummaryLoadedFor = 0;
     var modalId = isTuyenXa ? 'ke-hoach-tuyen-xa-edit-fullscreen-modal' : 'ke-hoach-edit-fullscreen-modal';
     var templateId = isTuyenXa ? 'ke-hoach-tuyen-xa-edit-modal-template' : 'ke-hoach-edit-modal-template';
     var contentId = isTuyenXa ? 'ke-hoach-tuyen-xa-edit-modal-content' : 'ke-hoach-edit-modal-content';
@@ -1693,7 +1767,38 @@
     }
   }
 
+  // Bộ lọc danh sách hàng cảng: lấy từ nguồn dùng chung (mỗi API đúng 1 lần, chia sẻ với modal xếp xe).
+  function loadListSearchDropdownsFromMaster(master, done) {
+    if (listSearchDropdownsLoaded) {
+      if (done) done();
+      return;
+    }
+    if (done) listSearchDropdownCallbacks.push(done);
+    if (listSearchDropdownsLoading) return;
+    listSearchDropdownsLoading = true;
+    master.load(['customers', 'vehicles', 'drivers', 'diaDiem']).always(function () {
+      listSearchDropdownData.customers = master.get('customers');
+      listSearchDropdownData.vehicles = [];
+      listSearchDropdownData.moocs = [];
+      $.each(master.get('vehicles'), function (_, item) {
+        if (String(item.loai_phuong_tien || '').toLowerCase().indexOf('mooc') !== -1) listSearchDropdownData.moocs.push(item);
+        else listSearchDropdownData.vehicles.push(item);
+      });
+      listSearchDropdownData.kho = master.get('diaDiem').kho.slice();
+      listSearchDropdownData.drivers = master.get('drivers');
+      listSearchDropdownsLoaded = true;
+      listSearchDropdownsLoading = false;
+      var callbacks = listSearchDropdownCallbacks.splice(0);
+      for (var i = 0; i < callbacks.length; i++) callbacks[i]();
+    });
+  }
+
   function loadListSearchDropdowns(done) {
+    var master = planMaster();
+    if (master) {
+      loadListSearchDropdownsFromMaster(master, done);
+      return;
+    }
     if (listSearchDropdownsLoaded) {
       if (done) done();
       return;
@@ -1990,6 +2095,14 @@
         if (id) {
           $('#list-body tr.khxh-row-menu-active').removeClass('khxh-row-menu-active');
           openEditFullscreenModal(id);
+          return;
+        }
+        // Không có quyền tạo/sửa (không có mục Xếp xe) ⇒ double-click mở Xem chi tiết.
+        var viewButton = this.querySelector('.btn-view-ke-hoach-xep-xe');
+        var viewId = viewButton && parseInt(viewButton.getAttribute('data-id'), 10);
+        if (viewId) {
+          $('#list-body tr.khxh-row-menu-active').removeClass('khxh-row-menu-active');
+          openDetailModal(viewId);
         }
       })
       // Chọn một chức năng nghĩa là đã rời khỏi thao tác chọn dòng. Bỏ nền
@@ -2236,7 +2349,16 @@
     });
     $(document).off('hidden.bs.modal.khxhTouched').on('hidden.bs.modal.khxhTouched', '#ke-hoach-edit-fullscreen-modal, #ke-hoach-fullscreen-modal', function (e) {
       if (e.target !== this) return;
+      if (listReloadAfterModal) {
+        listReloadAfterModal = false;
+        if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
+      }
       setTimeout(hangCangApplyTouchedRow, 50);
+    });
+    $(document).off('hidden.bs.modal.khxhTuyenXaReload').on('hidden.bs.modal.khxhTuyenXaReload', '#ke-hoach-tuyen-xa-edit-fullscreen-modal', function (e) {
+      if (e.target !== this || !tuyenXaListReloadAfterModal) return;
+      tuyenXaListReloadAfterModal = false;
+      if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
     });
     $('#ke-hoach-edit-fullscreen-modal, #ke-hoach-tuyen-xa-edit-fullscreen-modal').on('hidden.bs.modal', function (e) {
       if (e.target !== this) return;
@@ -2386,13 +2508,27 @@
   // chọn xe/mooc/cont); dữ liệu nạp hay gán bằng code không làm modal "bẩn".
   var hangCangEditDirty = false;
   var hangCangEditCloseConfirmed = false;
+  // Tách riêng phần "thông tin xếp xe" (mọi thứ ngoài .khxh-hang-cang-cost-mount) và phần "chi phí" (trong đó, tab Chi
+  // phí nhúng) để nút Lưu chỉ gọi API của phần thực sự có sửa — xem $form('#save-btn').on('click', ...). Luôn được set
+  // đồng thời với hangCangEditDirty (cùng sự kiện), không thay đổi gì cho cơ chế "cảnh báo chưa lưu" đang có.
+  var hangCangPlanDirty = false;
+  var hangCangCostMountDirty = false;
 
   function markHangCangEditDirty() {
     hangCangEditDirty = true;
   }
 
+  // target: phần tử gốc của sự kiện vừa xảy ra — xác định nó thuộc "thông tin xếp xe" hay "chi phí" theo vị trí DOM
+  // thật (không theo tên class/id, vì 1 số class như .btn-add-row/.btn-delete-row dùng chung cho cả 2 nơi).
+  function markHangCangSectionDirty(target) {
+    if ($(target).closest('.khxh-hang-cang-cost-mount').length) hangCangCostMountDirty = true;
+    else hangCangPlanDirty = true;
+  }
+
   function resetHangCangEditDirty() {
     hangCangEditDirty = false;
+    hangCangPlanDirty = false;
+    hangCangCostMountDirty = false;
   }
 
   function isHangCangDirtyIgnoredTarget(target) {
@@ -2409,12 +2545,17 @@
     $modal.on('input change', function (e) {
       if (!e.originalEvent || isHangCangDirtyIgnoredTarget(e.target)) return;
       markHangCangEditDirty();
+      markHangCangSectionDirty(e.target);
     });
     $modal.on('select2:select select2:unselect select2:clear', function (e) {
       if (isHangCangDirtyIgnoredTarget(e.target)) return;
       markHangCangEditDirty();
+      markHangCangSectionDirty(e.target);
     });
-    $modal.on('click', '.btn-add-row, .btn-add-cost-row, #khcp-dm-add-row, .btn-oil-add-group, .btn-oil-delete-row, #khcp-driver-pay-mode-btn, #khcp-dm-rebuild, .btn-dm-recalc-row, .btn-dm-delete-row, .btn-delete-row, .btn-remove-cont-ref', markHangCangEditDirty);
+    $modal.on('click', '.btn-add-row, .btn-add-cost-row, #khcp-dm-add-row, .btn-oil-add-group, .btn-oil-delete-row, #khcp-driver-pay-mode-btn, #khcp-dm-rebuild, .btn-dm-recalc-row, .btn-dm-delete-row, .btn-delete-row, .btn-remove-cont-ref', function (e) {
+      markHangCangEditDirty();
+      markHangCangSectionDirty(e.target);
+    });
     // Chặn đóng modal khi còn thay đổi chưa lưu. Đăng ký trước handler modal lồng
     // để việc quay lại kế hoạch cha cũng được hỏi.
     $modal.on('hide.bs.modal', function (e) {
@@ -2491,7 +2632,7 @@
     var rowActionMenu = '<span class="khxh-row-action-menu">' + buildActions(row) + '</span>';
     return '<tr data-plan-id="' + escHtml(row.nid) + '">' +
       rowActionsTriggerHtml(stt) +
-      '<td class="khxh-date-cell"><div class="khxh-date-stack">' + (dateOnlyStack(row.ngay_gio_ke_hoach) || '<span class="text-muted">—</span>') + hangCangPlanTimeHtml(row.ngay_gio_ke_hoach) + '</div>' + rowActionMenu + '</td>' +
+      '<td class="khxh-date-cell"><div class="khxh-date-stack">' + (dateOnlyStack(row.ngay_gio_ke_hoach) || '<span class="text-muted">—</span>') + hangCangPlanTimeAndPtkhHtml(row) + '</div>' + rowActionMenu + '</td>' +
       '<td class="khxh-common-cell">' +
         '<div class="khxh-customer-cell" title="' + escHtml(customerTitle) + '">' + customerDisplay + '</div>' +
         '<div class="khxh-htvt-cell">' +
@@ -2513,6 +2654,37 @@
       '<td class="khxh-cang-cell" title="Cảng xuất: ' + escHtml(row.cang_xuat || 'Chưa có') + '">' + (row.cang_xuat ? escHtml(row.cang_xuat) : '_') + '</td>' +
       '<td class="khxh-status-cell"><div class="khxh-status-stack"><span class="badge ' + hangCangPlanStatusColor(planStatus) + '" title="Trạng thái chuyến (lái xe): ' + escHtml(planStatus) + '">' + escHtml(planStatus) + '</span>' + portContStatusBadgeHtml(row) + '</div></td>' +
       '</tr>';
+  }
+
+  // Hàng cảng: thẻ nhỏ khi kế hoạch đang nằm trong phiếu trả khách hàng (server trả row.phieu_tra_khach_hang).
+  // Vàng "PT: mã phiếu" = chờ khách duyệt; xanh "HĐ: số hoá đơn" = khách đã duyệt (đã xuất hoá đơn). Di chuột xem đủ thông tin.
+  function hangCangPtkhBadgeHtml(row) {
+    var pt = row && row.phieu_tra_khach_hang;
+    if (!pt) return '';
+    var approved = pt.trang_thai_duyet === 'da_duyet';
+    var money = String(parseInt(pt.tong_tien || 0, 10) || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' đ';
+    var lines = [
+      'Phiếu trả KH: ' + (pt.ma_phieu || ''),
+      'Trạng thái: ' + (pt.trang_thai_label || ''),
+      'Tổng tiền phiếu: ' + money,
+      'Ngày tạo: ' + (pt.created || '-')
+    ];
+    if (approved) {
+      lines.push('Số hoá đơn: ' + (pt.so_hoa_don || '-'));
+      lines.push('Tháng hạch toán: ' + (pt.thang_hach_toan ? pt.thang_hach_toan.slice(4) + '/' + pt.thang_hach_toan.slice(0, 4) : '-'));
+      lines.push('Ngày duyệt: ' + (pt.ngay_duyet || '-'));
+    }
+    // Chỉ 2 ký tự (PT / HĐ), cùng kiểu thẻ giờ kế hoạch; đầy đủ thông tin nằm trong tooltip.
+    return '<span class="khxh-port-time khxh-port-ptkh ' + (approved ? 'khxh-port-ptkh-hd' : 'khxh-port-ptkh-pt') + '" title="' + escHtml(lines.join('\n')) + '">' +
+      (approved ? 'HĐ' : 'PT') + '</span>';
+  }
+
+  // Cột Ngày KH: thẻ giờ kế hoạch + thẻ PT/HĐ đứng cạnh nhau trên cùng 1 dòng (dưới ngày).
+  function hangCangPlanTimeAndPtkhHtml(row) {
+    var time = hangCangPlanTimeHtml(row.ngay_gio_ke_hoach);
+    var ptkh = hangCangPtkhBadgeHtml(row);
+    if (!ptkh) return time;
+    return (time || '<br>') + (time ? ' ' : '') + ptkh;
   }
 
   // Tuyến xa (/ke-hoach-tuyen-xa).
@@ -2644,7 +2816,7 @@
         // Request bị huỷ do có lần tải mới hơn: bỏ qua, lần tải mới sẽ tự cập nhật bảng.
         if (textStatus === 'abort' || currentXhr !== listXhr) return;
         $('#loading-row').remove();
-        tbody.innerHTML = '<tr><td colspan="' + listColumnCount + '" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>';
+        tbody.innerHTML = loadErrorRow(listColumnCount, jqXHR);
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -3288,10 +3460,18 @@
     }
 
     function loadPortCostSummary(planId) {
-      resetPortCostSummary();
       planId = parseInt(planId, 10) || 0;
-      if (!planId || currentPlanType() === 'tuyen_xa') return;
-      $.getJSON('/api/ke-hoach-chi-phi', { nid_ke_hoach: planId, limit: 100 }).done(function (res) {
+      if (!planId || currentPlanType() === 'tuyen_xa') { resetPortCostSummary(); return; }
+      // Đã tính cho kế hoạch này trong lần mở modal: sau khi lưu, tab Chi phí (nếu đã mở) tự cập nhật tổng qua sự kiện
+      // khcp:summary-changed, còn chưa mở tab thì chi phí không đổi — không gọi lại.
+      if (portCostSummaryLoadedFor === planId) return;
+      portCostSummaryLoadedFor = planId;
+      resetPortCostSummary();
+      // Gọi qua chi phí JS để tab Chi phí dùng lại đúng lần gọi này khi mở (không gọi lần 2).
+      var costRequest = Drupal.keHoachChiPhi && typeof Drupal.keHoachChiPhi.prefetchRows === 'function'
+        ? Drupal.keHoachChiPhi.prefetchRows(planId)
+        : $.getJSON('/api/ke-hoach-chi-phi', { nid_ke_hoach: planId, limit: 100 });
+      costRequest.done(function (res) {
         var currentPlanId = parseInt($form('#nid-input').val(), 10) || 0;
         if (currentPlanId && currentPlanId !== planId) return;
         var items = res && res.data && $.isArray(res.data.items) ? res.data.items : [];
@@ -3303,6 +3483,8 @@
         });
         state.costSummary.total = state.costSummary.customer + state.costSummary.company + state.costSummary.driver_self;
         updateTuyenXaSidebar();
+      }).fail(function () {
+        if (portCostSummaryLoadedFor === planId) portCostSummaryLoadedFor = 0;
       });
     }
 
@@ -3339,8 +3521,6 @@
         var normalRoute = [line.bai_lay_cont || '', line.dia_chi_kho || '', line.bai_ha_cont || '', line.cang_xuat || ''].filter(Boolean).join(' → ');
         var normalPlanDatetime = apiToDatetime(line.ngay_gio_ke_hoach || '');
         var normalFilesCount = planFilesFromRow(editData).length;
-        var normalCost = state.costSummary || {};
-        var normalCostText = summaryMoney(normalCost.total);
         var normalNav = $form('.khxh-section-nav[data-line-key="' + line.key + '"]');
         normalNav.find('.khxh-nav-return-count').text(line.ke_hoach_cont_ref_nid ? '1' : '0');
         normalNav.find('.khxh-nav-files-count').text(normalFilesCount + '/25');
@@ -3355,7 +3535,6 @@
           summaryRow('Mooc', normalMooc, '') +
           summaryRow('Lái xe', normalDriver, '') +
           summaryRow('Hình thức', line.hinh_thuc_van_tai ? hinhThucLabel(line.hinh_thuc_van_tai) : '', normalPlanDatetime) +
-          summaryRow('Chi phí', normalCostText, '') +
           summaryRow('Cont kéo về', line.cont_ref ? (line.cont_ref.so_cont || ('#' + line.ke_hoach_cont_ref_nid)) : '', '') +
           summaryRow('Chứng từ', normalFilesCount + '/25 file', '')
         );
@@ -3452,6 +3631,7 @@
       if (!key) return;
       if (state.diaDiem[key].indexOf(ten) === -1) state.diaDiem[key].push(ten);
       if (key === 'kho') state.cauHinh.diaChiKho = state.diaDiem.kho.slice();
+      persistHangCangMaster();
     }
 
     function addCustomerToState(customer) {
@@ -3461,10 +3641,12 @@
       for (var i = 0; i < state.customers.length; i++) {
         if ((parseInt(state.customers[i].nid, 10) || 0) === id) {
           state.customers[i] = $.extend({}, state.customers[i], customer);
+          persistHangCangMaster();
           return;
         }
       }
       state.customers.unshift(customer);
+      persistHangCangMaster();
     }
 
     function openDanhMucCreate(phanLoai, onCreated) {
@@ -5934,7 +6116,41 @@
       });
     }
 
+    // Modal xếp xe/tạo kế hoạch hàng cảng: dùng nguồn dùng chung (đã nạp sẵn khi vào trang nên thường không phải chờ).
+    function loadDropdownsFromMaster(master, done) {
+      if (dropdownsLoaded) {
+        if (done) done();
+        return;
+      }
+      master.load(['customers', 'drivers', 'vehicles', 'diaDiem']).done(function () {
+        applyDropdownData({
+          customers: master.get('customers'),
+          drivers: master.get('drivers'),
+          vehicles: master.get('vehicles'),
+          diaDiem: master.get('diaDiem')
+        });
+        dropdownsLoaded = true;
+        dropdownsLoading = false;
+        if (done) done();
+      }).fail(function () {
+        // Có nguồn lỗi: dùng phần đã có, không đánh dấu đã nạp để lần mở sau thử lại.
+        applyDropdownData({
+          customers: master.get('customers'),
+          drivers: master.get('drivers'),
+          vehicles: master.get('vehicles'),
+          diaDiem: master.get('diaDiem')
+        });
+        if (notyf) notyf.error('Không tải đủ danh mục (khách hàng, lái xe, phương tiện, kho...). Đóng mở lại để thử lại.');
+        if (done) done();
+      });
+    }
+
     function loadDropdowns(done) {
+      var master = planMaster();
+      if (master) {
+        loadDropdownsFromMaster(master, done);
+        return;
+      }
       var cached = getFormDropdownCache();
       if (cached) {
         applyDropdownData(cached);
@@ -6584,71 +6800,141 @@
         $form('#save-btn').trigger('click');
       });
     }
+    // Tải lại đúng kế hoạch đang sửa từ server (không qua cache), dùng khi bấm Lưu mà không sửa gì (xem bên dưới).
+    function reloadHangCangPlan(id, done) {
+      $.ajax({
+        url: '/api/ke-hoach-xep-xe/' + id,
+        type: 'GET',
+        dataType: 'json',
+        success: function (res) {
+          if (res.status === 'success' && res.data) populateEdit(res.data);
+          else if (notyf) notyf.error((res && res.message) || 'Không tải được kế hoạch');
+          done();
+        },
+        error: function (jqXHR) {
+          if (notyf) notyf.error(apiMsg(jqXHR));
+          done();
+        }
+      });
+    }
+
     $form('#save-btn').on('click', function () {
       // Việc cần làm sau khi lưu thành công (vd. "Lưu và đẩy cho lái xe"); mỗi lần bấm chỉ dùng một lần.
       var afterSave = state.afterSave;
       state.afterSave = null;
-      if (!reportPortCreateRequiredValidity()) return;
-      if (!validateForm()) return;
-      if (planType !== 'tuyen_xa' && Drupal.keHoachChiPhi && typeof Drupal.keHoachChiPhi.validatePortTab === 'function' && !Drupal.keHoachChiPhi.validatePortTab()) return;
-      showLoading(true);
       var nid = $form('#nid-input').val();
-      $.ajax({
-        url: nid ? '/api/ke-hoach-xep-xe/' + nid : '/api/ke-hoach-xep-xe',
-        method: nid ? 'PUT' : 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(nid ? gatherEditPayload() : gatherCreatePayload()),
-        success: function (res) {
-          if (res.status !== 'success') {
-            showLoading(false);
-            if (notyf) notyf.error(res.message || 'Lưu thất bại');
-            return;
-          }
+      var hasEmbeddedCost = planType !== 'tuyen_xa' && Drupal.keHoachChiPhi && typeof Drupal.keHoachChiPhi.hasPortTab === 'function' && Drupal.keHoachChiPhi.hasPortTab();
+      // Lưu theo đúng phần có sửa chỉ áp dụng khi đang SỬA kế hoạch đã có (nid) và tab Chi phí đã mở nhúng trong modal
+      // — đúng nơi 1 nút Lưu đang gộp 2 API độc lập (PUT kế hoạch + POST bulk chi phí). Tạo mới hoặc tuyến xa (chi phí
+      // là modal riêng, không nhúng ở đây) giữ nguyên luồng cũ: luôn lưu kế hoạch.
+      var smartSave = !!nid && hasEmbeddedCost;
+      var savePlan = !smartSave || hangCangPlanDirty;
+      var saveCost = hasEmbeddedCost && (!smartSave || hangCangCostMountDirty);
 
-          invalidateContCandidateCache();
-          markPlanTouched(nid || (res.data && res.data.nid));
-          flushPendingContDestinationUpdates().done(function () {
-            var hasEmbeddedCost = planType !== 'tuyen_xa' && Drupal.keHoachChiPhi && typeof Drupal.keHoachChiPhi.hasPortTab === 'function' && Drupal.keHoachChiPhi.hasPortTab();
-            var costSave = hasEmbeddedCost && typeof Drupal.keHoachChiPhi.savePortTab === 'function'
-              ? Drupal.keHoachChiPhi.savePortTab()
-              : $.Deferred().resolve().promise();
-            costSave.done(function () {
-              showLoading(false);
-              if (notyf) notyf.success(nid ? (hasEmbeddedCost ? 'Đã lưu kế hoạch và chi phí' : 'Đã cập nhật kế hoạch') : 'Đã tạo kế hoạch');
-              if (nid) {
-                markForceReloadList();
-                if ($('#ke-hoach-edit-fullscreen-modal').hasClass('show') || $('#ke-hoach-tuyen-xa-edit-fullscreen-modal').hasClass('show')) {
-                  if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
-                }
-              }
-              if (nid) {
-                if (res.data) {
-                  populateEdit(res.data);
-                }
-                if (typeof afterSave === 'function') afterSave();
-              } else {
-                if (formModal) formModal.hide();
-                var formEl = $form('#ke-hoach-form')[0];
-                if (formEl) formEl.reset();
-                $form('#nid_khach_hang-input, .line-customer-select').val('0').trigger('change');
-                state.lines = [];
-                addLine({});
-                if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
-              }
-            }).fail(function (error) {
-              showLoading(false);
-              if (notyf) notyf.error('Kế hoạch đã lưu nhưng chi phí chưa lưu: ' + (error && error.responseText ? apiMsg(error) : (error && error.message ? error.message : 'Vui lòng kiểm tra lại dữ liệu chi phí.')));
-            });
-          }).fail(function (jqXHR) {
+      if (smartSave && !hangCangPlanDirty && !hangCangCostMountDirty) {
+        // Không sửa gì cả: dùng nút Lưu để tải lại dữ liệu mới nhất từ server, phòng người khác vừa sửa trong lúc
+        // mình đang mở modal — nhưng chỉ tải lại đúng TAB đang xem, không đụng tab kia. Ở tab Chi phí: chỉ danh sách
+        // dòng chi phí (định mức khoán/doanh thu/nhật ký dầu chỉ nạp khi mở tab lần đầu, không tải lại ở đây).
+        var onCostTab = $form('[data-khxh-port-tab].is-active').data('khxh-port-tab') === 'cost';
+        showLoading(true);
+        if (onCostTab && typeof Drupal.keHoachChiPhi.api !== 'undefined' && typeof Drupal.keHoachChiPhi.api.reload === 'function') {
+          Drupal.keHoachChiPhi.api.reload().always(function () {
             showLoading(false);
-            if (notyf) notyf.error(apiMsg(jqXHR));
+            if (notyf) notyf.success('Không có thay đổi — đã tải lại chi phí mới nhất');
+            if (typeof afterSave === 'function') afterSave();
           });
-        },
-        error: function (jqXHR) {
+        }
+        else {
+          reloadHangCangPlan(nid, function () {
+            showLoading(false);
+            if (notyf) notyf.success('Không có thay đổi — đã tải lại thông tin kế hoạch mới nhất');
+            if (typeof afterSave === 'function') afterSave();
+          });
+        }
+        return;
+      }
+
+      if (savePlan) {
+        if (!reportPortCreateRequiredValidity()) return;
+        if (!validateForm()) return;
+      }
+      if (saveCost && typeof Drupal.keHoachChiPhi.validatePortTab === 'function' && !Drupal.keHoachChiPhi.validatePortTab()) return;
+
+      showLoading(true);
+
+      // Chạy tiếp phần chi phí (nếu cần) sau khi phần kế hoạch đã xong (đã lưu, hoặc không cần lưu vì không đổi).
+      // planData: dữ liệu trả về từ PUT/POST kế hoạch, hoặc null nếu lần này không lưu phần kế hoạch.
+      function afterPlanReady(planId, planData) {
+        invalidateContCandidateCache();
+        markPlanTouched(planId);
+        flushPendingContDestinationUpdates().done(function () {
+          var costSave = saveCost && typeof Drupal.keHoachChiPhi.savePortTab === 'function'
+            ? Drupal.keHoachChiPhi.savePortTab()
+            : $.Deferred().resolve().promise();
+          costSave.done(function () {
+            showLoading(false);
+            var message = !nid ? 'Đã tạo kế hoạch'
+              : (savePlan && saveCost) ? 'Đã lưu kế hoạch và chi phí'
+              : saveCost ? 'Đã lưu chi phí'
+              : 'Đã cập nhật kế hoạch';
+            if (notyf) notyf.success(message);
+            if (nid) {
+              markForceReloadList();
+              if ($('#ke-hoach-edit-fullscreen-modal').hasClass('show')) {
+                // Hàng cảng: danh sách phía sau modal chưa ai nhìn thấy, tải 1 lần khi modal đóng (xem khxhTouched).
+                if ($('#ke-hoach-list-app').length) listReloadAfterModal = true;
+              }
+              else if ($('#ke-hoach-tuyen-xa-edit-fullscreen-modal').hasClass('show')) {
+                // Tuyến xa: danh sách phía sau modal tải 1 lần khi modal đóng, không tải ngay sau mỗi lần lưu.
+                if ($('#ke-hoach-list-app').length) tuyenXaListReloadAfterModal = true;
+              }
+            }
+            if (nid) {
+              if (savePlan && planData) populateEdit(planData);
+              else resetHangCangEditDirty(); // chỉ lưu chi phí xong: coi phần đó đã sạch cho lần bấm Lưu sau
+              if (typeof afterSave === 'function') afterSave();
+            } else {
+              if (formModal) formModal.hide();
+              var formEl = $form('#ke-hoach-form')[0];
+              if (formEl) formEl.reset();
+              $form('#nid_khach_hang-input, .line-customer-select').val('0').trigger('change');
+              state.lines = [];
+              addLine({});
+              if (typeof loadList === 'function' && $('#ke-hoach-list-app').length) loadList();
+            }
+          }).fail(function (error) {
+            showLoading(false);
+            if (notyf) notyf.error((savePlan ? 'Kế hoạch đã lưu nhưng chi phí chưa lưu: ' : 'Lưu chi phí lỗi: ') + (error && error.responseText ? apiMsg(error) : (error && error.message ? error.message : 'Vui lòng kiểm tra lại dữ liệu chi phí.')));
+          });
+        }).fail(function (jqXHR) {
           showLoading(false);
           if (notyf) notyf.error(apiMsg(jqXHR));
-        }
-      });
+        });
+      }
+
+      if (savePlan) {
+        $.ajax({
+          url: nid ? '/api/ke-hoach-xep-xe/' + nid : '/api/ke-hoach-xep-xe',
+          method: nid ? 'PUT' : 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify(nid ? gatherEditPayload() : gatherCreatePayload()),
+          success: function (res) {
+            if (res.status !== 'success') {
+              showLoading(false);
+              if (notyf) notyf.error(res.message || 'Lưu thất bại');
+              return;
+            }
+            afterPlanReady(nid || (res.data && res.data.nid), res.data);
+          },
+          error: function (jqXHR) {
+            showLoading(false);
+            if (notyf) notyf.error(apiMsg(jqXHR));
+          }
+        });
+      } else {
+        // Chỉ chi phí có sửa: nid chắc chắn đã có (saveCost chỉ true khi smartSave, mà smartSave cần !!nid).
+        afterPlanReady(nid, null);
+      }
     });
 
     $(document).on('click', '.btn-open-vehicle-modal', function () {
@@ -7257,6 +7543,17 @@
     initContList._bound = true;
 
     function loadCustomers() {
+      var master = planMaster();
+      if (master) {
+        master.load(['customers']).always(function () {
+          var html = '<option value="">Khách hàng</option>';
+          $.each(master.get('customers'), function (_, item) {
+            html += '<option value="' + item.nid + '">' + escHtml(item.ten || '') + '</option>';
+          });
+          $('#cont-filter-khach-hang').html(html);
+        });
+        return;
+      }
       $.getJSON('/api/khach-hang', { limit: 500 }, function (res) {
         if (res.status === 'success' && res.data && res.data.items) {
           var html = '<option value="">Khách hàng</option>';
@@ -7414,7 +7711,7 @@
         }
       },
       error: function (jqXHR) {
-        $('#detail-body').html('<tr><td colspan="2" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>');
+        $('#detail-body').html(loadErrorRow(2, jqXHR));
       }
     });
   }

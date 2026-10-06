@@ -70,16 +70,11 @@ function crm_dntt_schema() {
         'unsigned' => TRUE,
         'not null' => FALSE,
       ),
-      'loai_tien' => array(
-        'type' => 'varchar',
-        'length' => 5,
-        'not null' => TRUE,
-        'default' => 'VND',
-      ),
       'ti_gia' => array(
+        'description' => 'Tỷ giá VND/USD của phiếu, chỉ có ý nghĩa khi có dòng chi tiết USD.',
         'type' => 'numeric',
-        'precision' => 15,
-        'scale' => 2,
+        'precision' => 18,
+        'scale' => 4,
         'not null' => TRUE,
         'default' => 1,
       ),
@@ -150,10 +145,14 @@ function crm_dntt_schema() {
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
+      // Nullable (ADR-0016 van-hanh): NULL = dòng chi phí nháp, nhập tay ở tab
+      // "Chi phí (DNTT)" của modal đơn hàng, CHƯA gộp vào một DNTT nào. Trước
+      // ADR-0016 mọi dòng phải thuộc sẵn một DNTT ngay khi tạo — khái niệm "dòng
+      // độc lập" không tồn tại.
       'dntt_id' => array(
         'type' => 'int',
         'unsigned' => TRUE,
-        'not null' => TRUE,
+        'not null' => FALSE,
       ),
       'lo_hang_nid' => array(
         'type' => 'int',
@@ -182,6 +181,12 @@ function crm_dntt_schema() {
         'scale' => 2,
         'not null' => TRUE,
         'default' => 0,
+      ),
+      'loai_tien' => array(
+        'type' => 'varchar',
+        'length' => 5,
+        'not null' => TRUE,
+        'default' => 'VND',
       ),
       'so_luong' => array(
         'type' => 'numeric',
@@ -218,6 +223,13 @@ function crm_dntt_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      'tien_sau_vat_vnd' => array(
+        'type' => 'numeric',
+        'precision' => 18,
+        'scale' => 2,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
       'ghi_chu' => array(
         'type' => 'text',
         'size' => 'normal',
@@ -228,6 +240,39 @@ function crm_dntt_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      // Khoá về chuyến vận tải (ADR-0011 van-hanh, quyết định 4). NULLABLE vì
+      // phần lớn dòng chi phí — freight, local charge, phí văn phòng — không liên
+      // quan chuyến nào; ép `not null` là buộc mọi đường tạo DNTT hiện có phải bịa
+      // ra một chuyến.
+      //
+      // Cột này ở đây chứ không ở module `trucking`, dù nhu cầu đến từ đó: bảng là
+      // của crm_dntt, nên bản khai schema và `hook_update_N` phải cùng nằm ở đây.
+      // Khai một bên và update một bên là để cột có ở máy vừa cài mà thiếu ở máy
+      // vừa update — và cái lệch đó im lặng cho tới lượt INSERT đầu tiên trên
+      // production.
+      //
+      // Không khai `foreign keys` sang `trucking_chuyen`: crm_dntt cài được mà
+      // không có trucking, và Drupal 7 dù sao cũng không dựng ràng buộc thật từ
+      // khoá đó. Dòng chi tiết trỏ vào một chuyến đã bị xoá vẫn là một dòng chi
+      // phí đúng — tiền đã thoả thuận rồi.
+      'chuyen_id' => array(
+        'description' => 'chuyen_id của {trucking_chuyen}. NULL = dòng không thuộc chuyến vận tải nào.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      // NCC/đối tác nhận tiền CỦA RIÊNG DÒNG (ADR-0016 van-hanh). Có ý nghĩa
+      // CHỈ khi `dntt_id` còn NULL: một dòng độc lập chưa gộp vào DNTT nào thì
+      // không có header nào để giữ `dntt.doi_tac_nhan_tien_id`, mà tab vẫn cần
+      // biết dòng nào cùng NCC để cho tick-gộp (ticket 04). Sau khi gộp vào một
+      // DNTT thật, cột này thành vestigial — NCC chính thức đọc từ
+      // `dntt.doi_tac_nhan_tien_id` của DNTT chứa dòng, KHÔNG đọc lại cột này.
+      'doi_tac_nhan_tien_id' => array(
+        'description' => 'NCC của dòng độc lập (dntt_id NULL). Bỏ qua khi dòng đã gộp vào một DNTT.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
     ),
     'primary key' => array('chi_tiet_id'),
     'indexes' => array(
@@ -235,6 +280,11 @@ function crm_dntt_schema() {
       'lo_hang_nid' => array('lo_hang_nid'),
       'nhom_chi_phi_id' => array('nhom_chi_phi_id'),
       'loai_chi_phi_id' => array('loai_chi_phi_id'),
+      // Màn vận tải đọc theo cột này để hiện số DNTT của một tập chuyến, một lượt
+      // cho cả bảng.
+      'chuyen_id' => array('chuyen_id'),
+      // Tab Chi phí lọc "các dòng nháp cùng NCC" theo cột này (ticket 04).
+      'doi_tac_nhan_tien_id' => array('doi_tac_nhan_tien_id'),
     ),
     'foreign keys' => array(
       'dntt' => array(
@@ -329,4 +379,289 @@ function crm_dntt_schema() {
   );
 
   return $schema;
+}
+
+/**
+ * Add mixed VND/USD detail-line fields for DNTT.
+ */
+function crm_dntt_update_7002() {
+  $fields = array(
+    'don_gia_vnd' => array(
+      'type' => 'numeric',
+      'precision' => 18,
+      'scale' => 2,
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'don_gia_usd' => array(
+      'type' => 'numeric',
+      'precision' => 18,
+      'scale' => 2,
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'tien_sau_vat_vnd' => array(
+      'type' => 'numeric',
+      'precision' => 18,
+      'scale' => 2,
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+  );
+
+  foreach ($fields as $name => $spec) {
+    if (!db_field_exists('dntt_chi_tiet', $name)) {
+      db_add_field('dntt_chi_tiet', $name, $spec);
+    }
+  }
+}
+
+function crm_dntt_migrate_existing_currency_rows() {
+  if (!db_field_exists('dntt_chi_tiet', 'don_gia_vnd') || !db_field_exists('dntt_chi_tiet', 'don_gia_usd') || !db_field_exists('dntt', 'loai_tien')) {
+    return 0;
+  }
+
+  $rows = db_query(
+    "SELECT ct.*, d.loai_tien, d.ti_gia, d.lo_dntt_id
+     FROM {dntt_chi_tiet} ct
+     INNER JOIN {dntt} d ON d.dntt_id = ct.dntt_id
+     WHERE COALESCE(ct.don_gia_vnd, 0) = 0
+       AND COALESCE(ct.don_gia_usd, 0) = 0
+       AND COALESCE(ct.don_gia, 0) > 0"
+  )->fetchAll();
+
+  $dntt_ids = array();
+  $lo_ids = array();
+  foreach ($rows as $row) {
+    $is_usd = strtoupper((string) $row->loai_tien) === 'USD';
+    $don_gia_vnd = $is_usd ? 0 : (float) $row->don_gia;
+    $don_gia_usd = $is_usd ? (float) $row->don_gia : 0;
+    $rate = $is_usd ? (float) $row->ti_gia : 1;
+    $tien_truoc_vat = (float) $row->don_gia * (float) $row->so_luong;
+    $vat_override = isset($row->so_tien_vat) && $row->so_tien_vat !== '' && $row->so_tien_vat !== NULL;
+    $so_tien_vat = $vat_override ? round((float) $row->so_tien_vat, 2) : round($tien_truoc_vat * (float) $row->vat_phan_tram / 100, 2);
+    $tien_sau_vat = $tien_truoc_vat + $so_tien_vat;
+
+    db_update('dntt_chi_tiet')
+      ->fields(array(
+        'don_gia_vnd' => $don_gia_vnd,
+        'don_gia_usd' => $don_gia_usd,
+        'tien_truoc_vat' => $tien_truoc_vat,
+        'so_tien_vat' => $so_tien_vat,
+        'tien_sau_vat' => $tien_sau_vat,
+        'tien_sau_vat_vnd' => round($tien_sau_vat * $rate, 0),
+      ))
+      ->condition('chi_tiet_id', $row->chi_tiet_id)
+      ->execute();
+    entity_get_controller('dntt_chi_tiet')->resetCache(array($row->chi_tiet_id));
+    $dntt_ids[$row->dntt_id] = $row->dntt_id;
+    if (!empty($row->lo_dntt_id)) {
+      $lo_ids[$row->lo_dntt_id] = $row->lo_dntt_id;
+    }
+  }
+
+  foreach ($dntt_ids as $dntt_id) {
+    crm_dntt_recalculate_tong_tien($dntt_id);
+  }
+  foreach ($lo_ids as $lo_id) {
+    crm_dntt_recalculate_lo_dntt_tong_tien($lo_id);
+  }
+
+  return count($rows);
+}
+
+function crm_dntt_backfill_don_gia_loai_tien() {
+  if (!db_field_exists('dntt_chi_tiet', 'don_gia_vnd') || !db_field_exists('dntt_chi_tiet', 'don_gia_usd')) {
+    return 0;
+  }
+
+  $rows = db_query(
+    "SELECT chi_tiet_id, don_gia_vnd, don_gia_usd
+     FROM {dntt_chi_tiet}"
+  )->fetchAll();
+
+  foreach ($rows as $row) {
+    $is_usd = (float) $row->don_gia_usd > 0;
+    db_update('dntt_chi_tiet')
+      ->fields(array(
+        'don_gia' => $is_usd ? (float) $row->don_gia_usd : (float) $row->don_gia_vnd,
+        'loai_tien' => $is_usd ? 'USD' : 'VND',
+      ))
+      ->condition('chi_tiet_id', $row->chi_tiet_id)
+      ->execute();
+    entity_get_controller('dntt_chi_tiet')->resetCache(array($row->chi_tiet_id));
+  }
+
+  return count($rows);
+}
+
+/**
+ * Migrate existing single-price rows into VND/USD unit-price columns.
+ */
+function crm_dntt_update_7003() {
+  if (!function_exists('crm_dntt_migrate_existing_currency_rows')) {
+    module_load_include('module', 'crm_dntt');
+  }
+  $count = crm_dntt_migrate_existing_currency_rows();
+  return t('Migrated @count DNTT detail rows to mixed-currency columns.', array('@count' => $count));
+}
+
+/**
+ * Phase 1 (ADR-0004): add dntt_chi_tiet.loai_tien, backfill don_gia + loai_tien.
+ *
+ * Keeps deprecated columns in place for existing update chains; update 7005 drops
+ * them after the cutover.
+ */
+function crm_dntt_update_7004() {
+  if (!db_field_exists('dntt_chi_tiet', 'loai_tien')) {
+    db_add_field('dntt_chi_tiet', 'loai_tien', array(
+      'type' => 'varchar',
+      'length' => 5,
+      'not null' => TRUE,
+      'default' => 'VND',
+    ));
+  }
+
+  if (!function_exists('crm_dntt_backfill_don_gia_loai_tien')) {
+    module_load_include('module', 'crm_dntt');
+  }
+  $count = crm_dntt_backfill_don_gia_loai_tien();
+  return t('Backfilled @count DNTT detail rows to don_gia + loai_tien.', array('@count' => $count));
+}
+
+/**
+ * Phase 4 (ADR-0004): drop deprecated currency columns after cutover.
+ */
+function crm_dntt_update_7005() {
+  if (!function_exists('crm_dntt_backfill_don_gia_loai_tien')) {
+    module_load_include('module', 'crm_dntt');
+  }
+  crm_dntt_backfill_don_gia_loai_tien();
+
+  if (db_field_exists('dntt_chi_tiet', 'don_gia_vnd')) {
+    db_drop_field('dntt_chi_tiet', 'don_gia_vnd');
+  }
+  if (db_field_exists('dntt_chi_tiet', 'don_gia_usd')) {
+    db_drop_field('dntt_chi_tiet', 'don_gia_usd');
+  }
+  if (db_field_exists('dntt', 'loai_tien')) {
+    db_drop_field('dntt', 'loai_tien');
+  }
+
+  return t('Dropped deprecated DNTT currency columns.');
+}
+
+/**
+ * Thêm khoá về chuyến vận tải cho dòng chi tiết (ADR-0011 van-hanh, quyết định 4).
+ *
+ * Nullable, và có `db_field_exists()` trước: môi trường vừa cài đã có cột qua
+ * `hook_schema()`, và `db_add_field()` trên một cột đã tồn tại là một exception
+ * giữa lượt `drush updb`.
+ *
+ * KHÔNG sửa và KHÔNG xoá dữ liệu nào — chỉ thêm một cột rỗng. Dòng chi tiết đã có
+ * giữ NULL, nghĩa đúng của nó là "không thuộc chuyến vận tải nào".
+ */
+function crm_dntt_update_7006() {
+  if (db_field_exists('dntt_chi_tiet', 'chuyen_id')) {
+    return t('Cột dntt_chi_tiet.chuyen_id đã có, không làm gì.');
+  }
+
+  db_add_field('dntt_chi_tiet', 'chuyen_id', array(
+    'description' => 'chuyen_id của {trucking_chuyen}. NULL = dòng không thuộc chuyến vận tải nào.',
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => FALSE,
+  ), array(
+    'indexes' => array(
+      'chuyen_id' => array('chuyen_id'),
+    ),
+  ));
+
+  return t('Đã thêm cột dntt_chi_tiet.chuyen_id.');
+}
+
+/**
+ * ADR-0016 van-hanh: cho dòng chi phí độc lập tồn tại trước khi gộp vào DNTT.
+ *
+ * Hai việc, cả hai KHÔNG sửa/xoá dữ liệu cũ:
+ *
+ * 1. `dntt_id` NOT NULL → nullable. Dữ liệu cũ toàn bộ đã có `dntt_id` hợp lệ
+ *    nên không cần backfill — `db_change_field()` chỉ nới constraint.
+ * 2. Thêm `doi_tac_nhan_tien_id` — NCC của riêng dòng, có nghĩa CHỈ khi
+ *    `dntt_id` còn NULL (xem docblock cột trong `crm_dntt_schema()`). Cột mới,
+ *    mọi dòng đã có giữ NULL — đúng nghĩa của chúng ("đã gộp vào DNTT, NCC đọc
+ *    từ header").
+ *
+ * `db_field_exists()` trước mỗi bước, cùng lý do với update 7006: môi trường
+ * vừa cài đã có cả hai qua `hook_schema()`.
+ */
+function crm_dntt_update_7007() {
+  $lam = array();
+
+  if (db_field_exists('dntt_chi_tiet', 'dntt_id')) {
+    // KHÔNG khai lại 'indexes' ở $keys_new: index 'dntt_id' đã tồn tại từ
+    // hook_schema() gốc, và db_change_field() coi $keys_new là keys/indexes
+    // CẦN TẠO MỚI — khai lại cái đã có là "Duplicate key name" giữa lượt updb.
+    db_change_field('dntt_chi_tiet', 'dntt_id', 'dntt_id', array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+    ));
+    $lam[] = 'dntt_id nullable';
+  }
+
+  if (!db_field_exists('dntt_chi_tiet', 'doi_tac_nhan_tien_id')) {
+    db_add_field('dntt_chi_tiet', 'doi_tac_nhan_tien_id', array(
+      'description' => 'NCC của dòng độc lập (dntt_id NULL). Bỏ qua khi dòng đã gộp vào một DNTT.',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+    ), array(
+      'indexes' => array(
+        'doi_tac_nhan_tien_id' => array('doi_tac_nhan_tien_id'),
+      ),
+    ));
+    $lam[] = 'thêm cột doi_tac_nhan_tien_id';
+  }
+
+  return $lam ? t('Đã: @viec.', array('@viec' => implode(', ', $lam))) : t('Không có gì để làm.');
+}
+
+/**
+ * Mở rộng precision `dntt.ti_gia` từ numeric(15,2) sang numeric(18,4)
+ * (ticket 11, ADR-0004 quyết định #9).
+ *
+ * Ngoại lệ duy nhất trong các cột tiêu thụ tỷ giá chung: cột nguồn
+ * `cau_hinh_ty_gia_lich_su` (ticket 08) lưu numeric(18,4), còn precision cũ ở
+ * đây (15,2) cắt cụt 2 chữ số thập phân mỗi lần snapshot — mở rộng khớp nguồn
+ * thay vì round-on-read như các cột tiêu thụ còn lại (ADR quyết định #10 chấp
+ * nhận mất precision cho phần còn lại, DNTT là ngoại lệ vì đằng nào cũng
+ * migrate schema cho ticket 08).
+ *
+ * KHÔNG khác `db_add_field()` ở 7004/7006/7007: `db_change_field()` với cùng
+ * $spec đích chạy lại nhiều lần không lỗi (MySQL ALTER TABLE ... MODIFY COLUMN
+ * không phân biệt "đã đúng kiểu" hay chưa), nên không cần cờ đánh dấu đã chạy
+ * — chỉ giữ hai guard rõ ràng cho thông báo, không phải để tránh exception.
+ *
+ * KHÔNG đổi dữ liệu: mở rộng precision/scale của một cột numeric hiện có giữ
+ * nguyên giá trị số của mọi dòng đã có, MySQL không làm tròn khi NỚI RỘNG.
+ */
+function crm_dntt_update_7008() {
+  if (!db_table_exists('dntt')) {
+    return t('Bảng dntt chưa có — chạy hook_install() trước.');
+  }
+  if (!db_field_exists('dntt', 'ti_gia')) {
+    return t('Cột dntt.ti_gia chưa có — kiểm tra schema.');
+  }
+
+  db_change_field('dntt', 'ti_gia', 'ti_gia', array(
+    'description' => 'Tỷ giá VND/USD của phiếu, chỉ có ý nghĩa khi có dòng chi tiết USD.',
+    'type' => 'numeric',
+    'precision' => 18,
+    'scale' => 4,
+    'not null' => TRUE,
+    'default' => 1,
+  ));
+
+  return t('Đã mở rộng dntt.ti_gia từ numeric(15,2) sang numeric(18,4).');
 }

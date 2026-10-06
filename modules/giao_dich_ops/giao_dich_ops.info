@@ -3,3 +3,4 @@ description = "Sổ giao dịch ví OPS và API đề nghị ứng - hoàn ứng
 core = 7.x
 package = ANDIN JSC API
 dependencies[] = user_login_api
+dependencies[] = api_common

@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Danh Mục — Catalog management (Danh mục chung + địa điểm/phụ phí).
@@ -10,9 +16,9 @@
  */
 function danh_muc_permission() {
   return array(
-    'danh_muc_view' => array('title' => t('Xem danh mục')),
-    'danh_muc_create' => array('title' => t('Tạo/sửa danh mục')),
-    'danh_muc_delete' => array('title' => t('Xoá danh mục')),
+    'danh_muc_view' => array('title' => t('Xem danh mục'), 'entry' => array('/danh-muc', 'GET /api/danh-muc', 'GET /api/danh-muc/{id}')),
+    'danh_muc_create' => array('title' => t('Tạo/sửa danh mục'), 'entry' => array('POST /api/danh-muc', 'PUT /api/danh-muc/{id}')),
+    'danh_muc_delete' => array('title' => t('Xoá danh mục'), 'entry' => array('DELETE /api/danh-muc/{id}')),
   );
 }
 
@@ -87,7 +93,7 @@ function danh_muc_theme() {
  ******************************************************************************/
 
 function _danh_muc_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _danh_muc_now() {
@@ -95,37 +101,27 @@ function _danh_muc_now() {
 }
 
 function _danh_muc_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _danh_muc_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _danh_muc_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _danh_muc_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _danh_muc_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _danh_muc_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 /**
@@ -156,7 +152,8 @@ function _danh_muc_check_unique($input, $exclude_nid = NULL) {
  * Allowed phan_loai values for generic screen.
  */
 function _danh_muc_phan_loai_options() {
-  return array('Phòng ban', 'Chức vụ', 'Chi phí', 'Kho', 'Cửa khẩu', 'Bãi', 'Cảng', 'Loại hàng');
+  // 'Phân loại thu chi': phiếu thu chi chọn 1 phân loại (tiền thu/chi cho việc gì) — module thu_chi đọc/ tự tạo theo tên.
+  return array('Phòng ban', 'Chức vụ', 'Chi phí', 'Kho', 'Cửa khẩu', 'Bãi', 'Cảng', 'Loại hàng', 'Phân loại thu chi');
 }
 
 function _danh_muc_validate_phan_loai($value) {
@@ -258,6 +255,24 @@ function _danh_muc_bai_save_phu_phi($danh_muc_id, $items, $phan_loai) {
  * REST: COLLECTION — GET /api/danh-muc, POST /api/danh-muc
  ******************************************************************************/
 
+/**
+ * Quyền đọc danh mục qua API. Ngoài quyền xem danh mục, các màn dùng danh mục làm ô chọn (Kho/Bãi/Cảng/Chi phí,
+ * phòng ban/chức vụ...) cũng đọc được — đúng quyền xem của chính màn đó (như `dia_diem` của /api/ke-hoach-xep-xe/tuy-chon).
+ * Thêm màn mới gọi /api/danh-muc thì thêm quyền xem của màn đó vào đây. Màn /danh-muc vẫn chỉ cho danh_muc_view.
+ */
+function _danh_muc_read_permissions() {
+  return array('danh_muc_view', 'ke_hoach_xep_xe_view', 'nhan_vien_view', 'dinh_muc_khoan_view');
+}
+
+function _danh_muc_can_read() {
+  foreach (_danh_muc_read_permissions() as $perm) {
+    if (api_has_permission($perm)) {
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 function danh_muc_rest_collection() {
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'GET':
@@ -269,13 +284,88 @@ function danh_muc_rest_collection() {
   }
 }
 
+/**
+ * Danh sách trắng cho ?select= (module api_common): trường trong JSON → cột SQL (NULL = trường tính thêm).
+ * `thong_tin` là bản giải mã của `thong_tin_json`, chỉ giải mã khi được chọn.
+ */
+function _danh_muc_select_map() {
+  return array(
+    'nid' => 'nid',
+    'ten' => 'ten',
+    'phan_loai' => 'phan_loai',
+    'thong_tin_json' => 'thong_tin_json',
+    'thong_tin' => NULL,
+    'hoat_dong' => 'hoat_dong',
+    'created' => 'created',
+    'changed' => 'changed',
+  );
+}
+
+function _danh_muc_select_request() {
+  $raw = isset($_GET['select']) ? $_GET['select'] : '';
+  if (is_array($raw) ? !$raw : trim((string) $raw) === '') {
+    return array('active' => FALSE);
+  }
+  // Module api_common chưa bật (vd đưa JS lên trước khi bật module): bỏ qua select, trả như cũ thay vì làm hỏng màn hình.
+  if (!function_exists('api_select_parse')) {
+    return array('active' => FALSE);
+  }
+  return api_select_parse($raw, array_keys(_danh_muc_select_map()), 'nid');
+}
+
+function _danh_muc_select_columns(array $fields) {
+  $map = _danh_muc_select_map();
+  $cols = array('nid');
+  foreach ($fields as $f) {
+    if (!empty($map[$f])) {
+      $cols[] = $map[$f];
+    }
+  }
+  if (in_array('thong_tin', $fields, TRUE)) {
+    $cols[] = 'thong_tin_json';
+  }
+  return api_select_existing_columns('danh_muc', array_values(array_unique($cols)));
+}
+
+function _danh_muc_select_rows(array $rows, array $fields) {
+  $items = array();
+  foreach ($rows as $row) {
+    $out = array();
+    foreach ($fields as $f) {
+      if ($f === 'thong_tin') {
+        $out[$f] = _danh_muc_decode_thong_tin(isset($row->thong_tin_json) ? $row->thong_tin_json : '');
+      }
+      else {
+        $out[$f] = isset($row->$f) ? $row->$f : NULL;
+      }
+    }
+    $items[] = $out;
+  }
+  return $items;
+}
+
 function _danh_muc_rest_list() {
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(500, (int) $_GET['limit'])) : 20;
+  if (!_danh_muc_can_read()) {
+    return _danh_muc_unauthorized('Bạn không có quyền xem danh mục');
+  }
+  // select=a,b,-c (module api_common): chỉ lấy/loại trừ trường; không có thì trả như cũ.
+  $sel = _danh_muc_select_request();
+  if (!empty($sel['error'])) {
+    return _danh_muc_fail($sel['error']);
+  }
+  $select = !empty($sel['active']) ? $sel['fields'] : NULL;
+
+  $page = api_page_number();
+  $limit = $select !== NULL ? api_select_limit(TRUE, 500) : api_page_limit(20, 500);
   $offset = ($page - 1) * $limit;
 
   $query = db_select('danh_muc', 'dm');
-  $query->fields('dm');
+  if ($select !== NULL) {
+    $query->fields('dm', _danh_muc_select_columns($select));
+  }
+  else {
+    $query->fields('dm');
+  }
 
   $query->condition('dm.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
@@ -319,8 +409,13 @@ function _danh_muc_rest_list() {
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();
   $items = array();
-  foreach ($rows as $row) {
-    $items[] = _danh_muc_enrich_row($row);
+  if ($select !== NULL) {
+    $items = _danh_muc_select_rows($rows, $select);
+  }
+  else {
+    foreach ($rows as $row) {
+      $items[] = _danh_muc_enrich_row($row);
+    }
   }
 
   $total_pages = (int) ceil($total / $limit);
@@ -335,7 +430,7 @@ function _danh_muc_rest_list() {
 }
 
 function _danh_muc_rest_create() {
-  if (!user_access('danh_muc_create')) {
+  if (!api_has_permission('danh_muc_create')) {
     return _danh_muc_unauthorized('Bạn không có quyền tạo danh mục');
   }
 
@@ -411,6 +506,9 @@ function danh_muc_rest_item($id) {
 }
 
 function _danh_muc_rest_get($id) {
+  if (!_danh_muc_can_read()) {
+    return _danh_muc_unauthorized('Bạn không có quyền xem danh mục');
+  }
   $row = db_query("SELECT * FROM {danh_muc} WHERE nid = :id", array(':id' => $id))->fetch();
   if (!$row) {
     return _danh_muc_not_found('Danh mục không tồn tại');
@@ -419,7 +517,7 @@ function _danh_muc_rest_get($id) {
 }
 
 function _danh_muc_rest_update($id) {
-  if (!user_access('danh_muc_create')) {
+  if (!api_has_permission('danh_muc_create')) {
     return _danh_muc_unauthorized('Bạn không có quyền sửa danh mục');
   }
 
@@ -478,7 +576,7 @@ function _danh_muc_rest_update($id) {
 }
 
 function _danh_muc_rest_delete($id) {
-  if (!user_access('danh_muc_delete')) {
+  if (!api_has_permission('danh_muc_delete')) {
     return _danh_muc_unauthorized('Bạn không có quyền xoá danh mục');
   }
 
@@ -513,6 +611,9 @@ function _danh_muc_rest_delete($id) {
  ******************************************************************************/
 
 function danh_muc_page_list() {
+  if (!api_has_permission('danh_muc_view')) {
+    return api_denied_page('Bạn không có quyền xem danh mục');
+  }
   danh_muc_add_modal_assets();
 
   return theme('danh_muc_list_page');
@@ -528,9 +629,9 @@ function danh_muc_add_modal_assets() {
 
   drupal_add_js(array('danh_muc' => array(
     'permissions' => array(
-      'danh_muc_view' => user_access('danh_muc_view'),
-      'danh_muc_create' => user_access('danh_muc_create'),
-      'danh_muc_delete' => user_access('danh_muc_delete'),
+      'danh_muc_view' => api_has_permission('danh_muc_view'),
+      'danh_muc_create' => api_has_permission('danh_muc_create'),
+      'danh_muc_delete' => api_has_permission('danh_muc_delete'),
     ),
     'phan_loai_options' => _danh_muc_phan_loai_options(),
     'phan_loai_co_phu_phi' => _danh_muc_phan_loai_co_phu_phi(),

@@ -1,0 +1,88 @@
+/* Màn /quan-ly-quy — bố cục 2 card như /de-nghi-thanh-toan, /thu-chi (bản riêng, tiền tố qq-, không dùng chung selector). */
+#qq-app.qq-list-app { display: flex; flex-direction: column; gap: 1rem; }
+#qq-app .qq-title-icon { color: #7367f0; font-size: 1.35rem; vertical-align: -3px; }
+
+/* Dải số dư hiện tại theo loại quỹ. */
+#qq-app .qq-sum-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.75rem; }
+#qq-app .qq-sum-item { display: flex; align-items: baseline; gap: .5rem; }
+#qq-app .qq-sum-label { font-size: .78rem; color: #6d6b77; }
+#qq-app .qq-sum-value { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Bộ lọc 1 dòng. */
+#qq-app .qq-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.2fr) minmax(220px, 1fr) max-content;
+  align-items: flex-end;
+  gap: .75rem;
+  max-width: 820px;
+}
+#qq-app .qq-filter-field { min-width: 0; }
+#qq-app .qq-filter-field .form-label { margin-bottom: .35rem; font-size: .76rem; font-weight: 600; color: #566a7f; white-space: nowrap; }
+#qq-app .qq-filter-field .form-control { font-size: .85rem; }
+#qq-app .qq-filter-actions { display: flex; align-items: center; gap: .5rem; }
+#qq-app .qq-filter-reset { display: inline-flex; align-items: center; justify-content: center; width: 38px; min-width: 38px; height: 38px; padding: 0; }
+#qq-app .qq-filter-reset > i { margin: 0 !important; font-size: 1.05rem; line-height: 1; }
+@media (max-width: 767.98px) {
+  #qq-app .qq-filter-grid { grid-template-columns: 1fr; }
+}
+
+/* Select2 trong màn + modal: cùng chiều cao ô nhập. */
+#qq-app .select2-container { width: 100% !important; font-family: inherit; }
+#qq-app .select2-container .select2-selection--single { height: calc(1.5em + 0.75rem + 2px); padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-size: 0.9rem; line-height: 1.5; }
+#qq-app .select2-container .select2-selection--single .select2-selection__rendered { line-height: 1.5; padding: 0; padding-right: 1.75rem; }
+#qq-app .select2-container .select2-selection--single .select2-selection__arrow { height: 100%; top: 0; right: 0.375rem; width: 1rem; }
+#qq-app .is-invalid + .select2-container .select2-selection { border-color: #ff4c51; }
+
+/* Tab loại quỹ. */
+#qq-app .qq-status-tabs-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .5rem 1rem; border-bottom: 1px solid #eef0f4; background: #fff; }
+#qq-app .qq-status-tabs { gap: 6px; flex-wrap: wrap; }
+#qq-app .qq-status-tabs .nav-link { border: 0; cursor: pointer; padding-left: 7px; padding-right: 7px; }
+#qq-app .qq-status-tabs .nav-link .badge { pointer-events: none; }
+
+/* Bảng: chỉ nội dung bảng cuộn, tiêu đề dính. */
+#qq-app .qq-table-scroll { min-height: 240px; max-height: min(620px, calc(100vh - 330px)); overflow: auto; }
+#qq-app .qq-table-scroll .table-responsive { overflow: visible; }
+#qq-app .qq-list-table { min-width: 1250px; }
+#qq-app .qq-list-table th { white-space: nowrap; font-size: 12px; }
+#qq-app .qq-list-table td { vertical-align: middle; font-size: 13px; }
+#qq-app .qq-table-scroll .qq-list-table thead th { position: sticky; top: 0; z-index: 2; background: var(--bs-table-bg, #f8f9fa); }
+#qq-app .qq-list-table tfoot td { background: #f8f7fa; font-weight: 700; font-size: 13px; }
+#qq-app .qq-name { color: #7367f0; font-weight: 700; text-decoration: none; }
+#qq-app .qq-name:hover { text-decoration: underline; }
+#qq-app .qq-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+#qq-app .qq-plus { color: #1f9d55; }
+#qq-app .qq-minus { color: #ea5455; }
+#qq-app .qq-chip { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; padding: 1px 8px; border-radius: 50rem; font-weight: 600; white-space: nowrap; }
+#qq-app .qq-chip-tien_mat { background: #fff1e3; color: #c26a00; }
+#qq-app .qq-chip-ngan_hang { background: #e7f1ff; color: #1a5fb4; }
+#qq-app .qq-chip-vi_noi_bo { background: #efe9ff; color: #6a4fd8; }
+
+/* Loading overlay trong modal. */
+.qq-loading { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; background: rgba(255, 255, 255, .85); }
+.qq-loading.is-visible { display: flex; }
+
+/* Modal chi tiết. */
+#qq-view-modal .qq-box { border: 1px solid #e7e9ee; border-radius: .5rem; padding: 10px 14px; background: #fbfcfe; height: 100%; }
+#qq-view-modal .qq-box span { display: block; font-size: .76rem; color: #6d6b77; }
+#qq-view-modal .qq-box strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
+#qq-view-modal .qq-view-tabs .nav-link { cursor: pointer; }
+#qq-view-modal .qq-lines > thead > tr > th {
+  height: 30px; padding: 3px 6px; vertical-align: middle; background: #eef3f8; color: #344054;
+  font-size: 12px; font-weight: 650; white-space: nowrap; text-transform: none; letter-spacing: normal; border-bottom: 1px solid #d9e2ec;
+}
+#qq-view-modal .qq-lines td { font-size: 13px; vertical-align: middle; }
+#qq-view-modal .qq-lines .qq-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+#qq-view-modal .qq-lines tr.qq-row-total td { background: #f8f7fa; font-weight: 700; }
+#qq-view-modal .qq-lines tr.qq-row-cancel td { color: #a5a3ae; text-decoration: line-through; }
+#qq-view-modal .qq-lines tr.qq-row-cancel td.qq-no-strike { text-decoration: none; }
+#qq-view-modal .qq-ledger-wrap { max-height: 460px; overflow: auto; }
+#qq-view-modal .qq-ledger-wrap thead th { position: sticky; top: 0; z-index: 1; }
+#qq-view-modal .qq-ledger-sum { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; font-size: .82rem; }
+#qq-view-modal .qq-ledger-sum b { font-variant-numeric: tabular-nums; }
+#qq-view-modal .qq-dien-giai { white-space: pre-line; }
+
+.flatpickr-calendar { z-index: 99999 !important; }
+.daterangepicker.qq-daterangepicker .drp-buttons { display: flex !important; align-items: center; gap: .35rem; }
+.daterangepicker.qq-daterangepicker .drp-selected,
+.daterangepicker.qq-daterangepicker .applyBtn { display: none !important; }
+.daterangepicker.qq-daterangepicker .qq-date-quick { display: inline-flex; gap: .35rem; margin-right: auto; }

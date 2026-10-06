@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Lịch Sử Sửa Xe — custom schema, RESTful API + modal CRUD.
@@ -83,41 +89,31 @@ function lich_su_sua_xe_theme() {
  ******************************************************************************/
 
 function _lssx_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function _lssx_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _lssx_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _lssx_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _lssx_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _lssx_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _lssx_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 function _lssx_json_decode($raw) {
@@ -321,12 +317,12 @@ function lich_su_sua_xe_rest_collection() {
 }
 
 function _lssx_rest_list() {
-  if (!user_access('lich_su_sua_xe_view')) {
+  if (!api_has_permission('lich_su_sua_xe_view')) {
     return _lssx_unauthorized('Bạn không có quyền xem lịch sử sửa xe');
   }
 
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(200, (int) $_GET['limit'])) : 20;
+  $page = api_page_number();
+  $limit = api_page_limit(20, 200);
   $offset = ($page - 1) * $limit;
   $query = _lssx_select_query();
   $query->condition('lssx.hoat_dong', 1);
@@ -379,7 +375,7 @@ function _lssx_rest_list() {
 }
 
 function _lssx_rest_create() {
-  if (!user_access('lich_su_sua_xe_create')) {
+  if (!api_has_permission('lich_su_sua_xe_create')) {
     return _lssx_unauthorized('Bạn không có quyền tạo lịch sử sửa xe');
   }
   $input = _lssx_input();
@@ -425,7 +421,7 @@ function lich_su_sua_xe_rest_item($id) {
 }
 
 function _lssx_rest_get($id) {
-  if (!user_access('lich_su_sua_xe_view')) {
+  if (!api_has_permission('lich_su_sua_xe_view')) {
     return _lssx_unauthorized('Bạn không có quyền xem lịch sử sửa xe');
   }
   $row = _lssx_load_record($id);
@@ -434,7 +430,7 @@ function _lssx_rest_get($id) {
 }
 
 function _lssx_rest_update($id) {
-  if (!user_access('lich_su_sua_xe_create')) {
+  if (!api_has_permission('lich_su_sua_xe_create')) {
     return _lssx_unauthorized('Bạn không có quyền sửa lịch sử sửa xe');
   }
   $existing = db_query("SELECT * FROM {lich_su_sua_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
@@ -466,7 +462,7 @@ function _lssx_rest_update($id) {
 }
 
 function _lssx_rest_delete($id) {
-  if (!user_access('lich_su_sua_xe_delete')) {
+  if (!api_has_permission('lich_su_sua_xe_delete')) {
     return _lssx_unauthorized('Bạn không có quyền xoá lịch sử sửa xe');
   }
   $existing = db_query("SELECT nid FROM {lich_su_sua_xe} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
@@ -540,7 +536,7 @@ function lich_su_sua_xe_rest_file_collection($id) {
   $id = (int) $id;
   if (!$id) return _lssx_fail('ID không hợp lệ');
   if ($_SERVER['REQUEST_METHOD'] !== 'POST') return _lssx_method_not_allowed('POST');
-  if (!user_access('lich_su_sua_xe_create')) return _lssx_unauthorized('Bạn không có quyền upload file');
+  if (!api_has_permission('lich_su_sua_xe_create')) return _lssx_unauthorized('Bạn không có quyền upload file');
 
   $context = _lssx_load_file_context($id);
   if (!$context) return _lssx_not_found('Lịch sử sửa xe không tồn tại');
@@ -575,7 +571,7 @@ function lich_su_sua_xe_rest_file_item($id, $file_id) {
   $file_id = trim((string) $file_id);
   if (!$id || $file_id === '') return _lssx_fail('Thông tin file không hợp lệ');
   if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') return _lssx_method_not_allowed('DELETE');
-  if (!user_access('lich_su_sua_xe_create')) return _lssx_unauthorized('Bạn không có quyền xoá file');
+  if (!api_has_permission('lich_su_sua_xe_create')) return _lssx_unauthorized('Bạn không có quyền xoá file');
 
   $context = _lssx_load_file_context($id);
   if (!$context) return _lssx_not_found('Lịch sử sửa xe không tồn tại');
@@ -597,13 +593,16 @@ function lich_su_sua_xe_rest_file_item($id, $file_id) {
  ******************************************************************************/
 
 function lich_su_sua_xe_page_list() {
+  if (!api_has_permission('lich_su_sua_xe_view')) {
+    return api_denied_page('Bạn không có quyền xem lịch sử sửa xe');
+  }
   drupal_add_css(drupal_get_path('module', 'lich_su_sua_xe') . '/assets/css/lich_su_sua_xe.css');
   drupal_add_js(drupal_get_path('module', 'lich_su_sua_xe') . '/assets/js/lich_su_sua_xe.js');
   drupal_add_js(array('lich_su_sua_xe' => array(
     'permissions' => array(
-      'view' => user_access('lich_su_sua_xe_view'),
-      'create' => user_access('lich_su_sua_xe_create'),
-      'delete' => user_access('lich_su_sua_xe_delete'),
+      'view' => api_has_permission('lich_su_sua_xe_view'),
+      'create' => api_has_permission('lich_su_sua_xe_create'),
+      'delete' => api_has_permission('lich_su_sua_xe_delete'),
     ),
   )), 'setting');
   return theme('lich_su_sua_xe_list_page');

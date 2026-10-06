@@ -7,7 +7,11 @@
     items: [],
     page: 1,
     expanded: {},
-    payment: null
+    payment: null,
+    // Kỳ công nợ: from/to = 'YYYYMM' ('' = không giới hạn). Mặc định cả năm hiện tại.
+    period: { from: '', to: '' },
+    periodPick: '',
+    periodYear: new Date().getFullYear()
   };
   var BANK_LIST = [];
   var BANK_LIST_LOADED = false;
@@ -43,6 +47,14 @@
 
   function moneyText(v) {
     return money(v) + ' đ';
+  }
+
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
   }
 
   function apiMsg(xhr) {
@@ -156,30 +168,165 @@
     initSelect2($select, { placeholder: 'Chọn ngân hàng', dropdownParent: $('#cnkh-payment-modal') });
   }
 
-  function initMonthYearFilters() {
+  // --- Ô "Kỳ công nợ": chọn khoảng tháng (bấm tháng bắt đầu rồi tháng kết thúc), thay cho 4 ô Từ tháng/năm – Đến tháng/năm.
+  function ym(year, month) { return String(year) + pad(month); }
+
+  function periodLabel(value) {
+    return value ? value.slice(4) + '/' + value.slice(0, 4) : '';
+  }
+
+  function periodText() {
+    var p = state.period;
+    if (!p.from && !p.to) return 'Tất cả thời gian';
+    if (p.from === p.to) return 'Tháng ' + periodLabel(p.from);
+    if (p.from.slice(0, 4) === p.to.slice(0, 4) && p.from.slice(4) === '01' && p.to.slice(4) === '12') return 'Năm ' + p.from.slice(0, 4);
+    return periodLabel(p.from) + ' – ' + periodLabel(p.to);
+  }
+
+  function setPeriod(from, to, reload) {
+    if (from && to && from > to) { var t = from; from = to; to = t; }
+    state.period = { from: from || '', to: to || '' };
+    state.periodPick = '';
+    $('#cnkh-period-text').text(periodText());
+    $('#cnkh-period-pop').addClass('d-none');
+    if (reload && !state.suppressFilter) {
+      state.page = 1;
+      state.expanded = {};
+      loadList();
+    }
+  }
+
+  function defaultPeriod() {
+    var y = new Date().getFullYear();
+    return { from: ym(y, 1), to: ym(y, 12) };
+  }
+
+  function renderPeriodPop() {
+    var year = state.periodYear;
     var now = new Date();
-    var currentYear = now.getFullYear();
-    var monthHtml = '';
-    for (var i = 1; i <= 12; i++) monthHtml += '<option value="' + i + '">' + pad(i) + '</option>';
-    $('.cnkh-month-select').html(monthHtml);
-    var yearHtml = '<option value="">Tất cả</option>';
-    for (var y = currentYear + 1; y >= currentYear - 5; y--) yearHtml += '<option value="' + y + '">' + y + '</option>';
-    $('.cnkh-year-select').html(yearHtml);
-    $('#cnkh-filter-from-month').val(1);
-    $('#cnkh-filter-to-month').val(12);
-    $('#cnkh-filter-from-year,#cnkh-filter-to-year').val(currentYear);
+    var current = ym(now.getFullYear(), now.getMonth() + 1);
+    var from = state.periodPick || state.period.from;
+    var to = state.periodPick ? state.periodPick : state.period.to;
+    var html = '<div class="cnkh-period-head">' +
+      '<button type="button" class="cnkh-period-nav" data-period-year="-1" title="Năm trước"><i class="ti tabler-chevron-left"></i></button>' +
+      '<strong>' + year + '</strong>' +
+      '<button type="button" class="cnkh-period-nav" data-period-year="1" title="Năm sau"><i class="ti tabler-chevron-right"></i></button></div>' +
+      '<div class="cnkh-period-grid">';
+    for (var m = 1; m <= 12; m++) {
+      var v = ym(year, m);
+      var cls = 'cnkh-period-month';
+      if (from && to && v >= from && v <= to) cls += ' is-range';
+      if (v === from || v === to) cls += ' is-edge';
+      if (v === current) cls += ' is-current';
+      html += '<button type="button" class="' + cls + '" data-period-month="' + v + '">Th ' + m + '</button>';
+    }
+    html += '</div><div class="cnkh-period-hint">' + (state.periodPick ? 'Chọn tháng kết thúc (bấm lại tháng này = chỉ 1 tháng)' : 'Bấm tháng bắt đầu, rồi tháng kết thúc') + '</div>' +
+      '<div class="cnkh-period-quick">' +
+      '<button type="button" class="btn btn-label-secondary" data-period-quick="month">Tháng này</button>' +
+      '<button type="button" class="btn btn-label-secondary" data-period-quick="quarter">Quý này</button>' +
+      '<button type="button" class="btn btn-label-secondary" data-period-quick="year">Năm nay</button>' +
+      '<button type="button" class="btn btn-label-secondary" data-period-quick="last_year">Năm trước</button>' +
+      '<button type="button" class="btn btn-label-secondary" data-period-quick="all">Tất cả</button>' +
+      '</div>';
+    $('#cnkh-period-pop').html(html);
+  }
+
+  function initPeriodPicker() {
+    var d = defaultPeriod();
+    state.period = d;
+    $('#cnkh-period-text').text(periodText());
+    $('#cnkh-period-input').on('click', function (e) {
+      e.stopPropagation();
+      var $pop = $('#cnkh-period-pop');
+      if (!$pop.hasClass('d-none')) { $pop.addClass('d-none'); state.periodPick = ''; return; }
+      state.periodPick = '';
+      state.periodYear = parseInt((state.period.to || state.period.from || ym(new Date().getFullYear(), 1)).slice(0, 4), 10);
+      renderPeriodPop();
+      $pop.removeClass('d-none');
+    });
+    $('#cnkh-period-pop').on('click', function (e) {
+      e.stopPropagation();
+      var $t = $(e.target).closest('button');
+      if (!$t.length) return;
+      if ($t.is('[data-period-year]')) {
+        state.periodYear += parseInt($t.attr('data-period-year'), 10);
+        renderPeriodPop();
+      } else if ($t.is('[data-period-month]')) {
+        var v = String($t.attr('data-period-month'));
+        if (!state.periodPick) { state.periodPick = v; renderPeriodPop(); }
+        else setPeriod(state.periodPick, v, true);
+      } else if ($t.is('[data-period-quick]')) {
+        var now = new Date();
+        var y = now.getFullYear();
+        var m = now.getMonth() + 1;
+        var q = $t.attr('data-period-quick');
+        if (q === 'month') setPeriod(ym(y, m), ym(y, m), true);
+        else if (q === 'quarter') { var qs = Math.floor((m - 1) / 3) * 3 + 1; setPeriod(ym(y, qs), ym(y, qs + 2), true); }
+        else if (q === 'year') setPeriod(ym(y, 1), ym(y, 12), true);
+        else if (q === 'last_year') setPeriod(ym(y - 1, 1), ym(y - 1, 12), true);
+        else setPeriod('', '', true);
+      }
+    });
+    $(document).on('click.cnkhPeriod', function () {
+      if (!$('#cnkh-period-pop').hasClass('d-none')) { $('#cnkh-period-pop').addClass('d-none'); state.periodPick = ''; }
+    }).on('keydown.cnkhPeriod', function (e) {
+      if (e.which === 27) { $('#cnkh-period-pop').addClass('d-none'); state.periodPick = ''; }
+    });
+  }
+
+  // Tải đủ mọi trang của 1 API danh sách: trang 1 cho biết total_pages, các trang còn lại gọi song song (mỗi lần tối đa 100 dòng
+  // khi dùng select, tối đa 50 trang). done(items) khi đủ, fail(jqXHR|undefined) nếu có trang lỗi.
+  function fetchAllPages(url, params, done, fail) {
+    function request(page) {
+      return $.ajax({ url: url, type: 'GET', dataType: 'json', data: $.extend({ page: page }, params) });
+    }
+    request(1).done(function (res) {
+      if (!(res && res.status === 'success' && res.data && res.data.items)) {
+        fail();
+        return;
+      }
+      var first = res.data.items;
+      var pages = Math.min(50, Math.max(1, parseInt(res.data.total_pages, 10) || 1));
+      if (pages === 1) {
+        done(first);
+        return;
+      }
+      var chunks = [];
+      var left = pages - 1;
+      var failed = false;
+      for (var page = 2; page <= pages; page++) {
+        (function (p) {
+          request(p).done(function (r) {
+            if (r && r.status === 'success' && r.data && r.data.items) chunks[p - 2] = r.data.items; else failed = true;
+          }).fail(function () {
+            failed = true;
+          }).always(function () {
+            left -= 1;
+            if (left > 0) return;
+            if (failed) { fail(); return; }
+            var all = first;
+            for (var c = 0; c < chunks.length; c++) all = all.concat(chunks[c]);
+            done(all);
+          });
+        })(page);
+      }
+    }).fail(function (jqXHR) {
+      fail(jqXHR);
+    });
   }
 
   function loadCustomers() {
-    $.getJSON('/api/khach-hang', { limit: 500 }).done(function (res) {
+    // Chỉ lấy nid, tên, mã KH (đủ để dựng ô chọn); tải đủ mọi trang.
+    fetchAllPages('/api/khach-hang', { limit: 100, select: 'nid,ten,ma_kh' }, function (items) {
       var html = '<option value="">Tất cả</option>';
-      $.each((res.data && res.data.items) || [], function (_, item) {
-        var label = item.ten || item.ma_kh || ('Khách hàng #' + item.nid);
+      $.each(items, function (_, item) {
+        // Hiện mã KH (tên ngắn gọn), chưa có mã thì tên — cùng quy ước các màn khác.
+        var label = item.ma_kh || item.ten || ('Khách hàng #' + item.nid);
         html += '<option value="' + esc(item.nid) + '">' + esc(label) + '</option>';
       });
       $('#cnkh-filter-customer').html(html);
       initSelect2($('#cnkh-filter-customer'), { placeholder: 'Tất cả' });
-    });
+    }, function () {});
   }
 
   function loadFunds() {
@@ -197,10 +344,10 @@
       page: state.page,
       limit: 20,
       nid_khach_hang: $('#cnkh-filter-customer').val() || '',
-      from_month: $('#cnkh-filter-from-month').val() || '',
-      from_year: $('#cnkh-filter-from-year').val() || '',
-      to_month: $('#cnkh-filter-to-month').val() || '',
-      to_year: $('#cnkh-filter-to-year').val() || '',
+      from_month: state.period.from ? parseInt(state.period.from.slice(4), 10) : '',
+      from_year: state.period.from ? state.period.from.slice(0, 4) : '',
+      to_month: state.period.to ? parseInt(state.period.to.slice(4), 10) : '',
+      to_year: state.period.to ? state.period.to.slice(0, 4) : '',
       trang_thai: $('#cnkh-filter-status').val() || ''
     };
   }
@@ -226,7 +373,7 @@
       renderTable();
       renderPagination(data);
     }).fail(function (xhr) {
-      $('#cnkh-table-body').html('<tr><td colspan="9" class="text-center text-danger py-4">' + esc(apiMsg(xhr)) + '</td></tr>');
+      $('#cnkh-table-body').html(loadErrorRow(9, xhr));
     });
   }
 
@@ -600,21 +747,23 @@
   }
 
   function bindEvents() {
-    $('#cnkh-search').on('click', function () {
+    function applyFilters() {
+      if (state.suppressFilter) return;
       state.page = 1;
       state.expanded = {};
       loadList();
-    });
+    }
+    $('#cnkh-search').on('click', applyFilters);
+    // Các ô chọn (khách hàng, trạng thái) đổi là tải lại ngay; kỳ công nợ tự tải lại khi chọn xong (setPeriod()).
+    $('#cnkh-filter-customer, #cnkh-filter-status').on('change', applyFilters);
     $('#cnkh-reset').on('click', function () {
-      var now = new Date();
+      state.suppressFilter = true;
       $('#cnkh-filter-customer').val('').trigger('change');
       $('#cnkh-filter-status').val('').trigger('change');
-      $('#cnkh-filter-from-month').val(1);
-      $('#cnkh-filter-to-month').val(12);
-      $('#cnkh-filter-from-year,#cnkh-filter-to-year').val(now.getFullYear());
-      state.page = 1;
-      state.expanded = {};
-      loadList();
+      var d = defaultPeriod();
+      setPeriod(d.from, d.to, false);
+      state.suppressFilter = false;
+      applyFilters();
     });
     $(document).on('click', '.cnkh-expand,.cnkh-toggle-detail', function (e) {
       e.preventDefault();
@@ -693,7 +842,7 @@
   }
 
   $(function () {
-    initMonthYearFilters();
+    initPeriodPicker();
     loadCustomers();
     loadFunds();
     initSelect2($('#cnkh-filter-status'), { placeholder: 'Tất cả' });

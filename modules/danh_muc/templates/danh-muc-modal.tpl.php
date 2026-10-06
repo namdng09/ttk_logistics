@@ -33,6 +33,7 @@
                 <option value="Bãi">Bãi</option>
                 <option value="Cảng">Cảng</option>
                 <option value="Loại hàng">Loại hàng</option>
+                <option value="Phân loại thu chi">Phân loại thu chi</option>
               </select>
               <div class="invalid-feedback">Vui lòng chọn phân loại</div>
             </div>

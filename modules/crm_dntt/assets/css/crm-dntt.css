@@ -169,3 +169,244 @@
     background: #fff;
   }
 }
+
+/* ===================================================================
+   Issue 16 — DNTT detail workspace layout (75/25 + sticky bar)
+   =================================================================== */
+
+.crm-dntt-workspace {
+  display: flex;
+  flex-direction: column;
+}
+
+.crm-dntt-ws-body {
+  display: flex;
+  align-items: flex-start;
+  border: 1px solid var(--bs-border-color, #e7e7e8);
+  border-radius: .5rem;
+  background: #fff;
+}
+
+/* Cột trái 75% */
+.crm-dntt-ws-main {
+  flex: 0 0 75%;
+  max-width: 75%;
+  padding: 1.25rem;
+}
+
+/* Sidebar phải 25% */
+.crm-dntt-ws-sidebar {
+  flex: 0 0 25%;
+  max-width: 25%;
+  border-left: 1px solid var(--bs-border-color, #e7e7e8);
+  display: flex;
+  flex-direction: column;
+  background: #fbfbfc;
+}
+
+/* Bảng chi tiết cuộn ngang gọn trong cột trái */
+.crm-dntt-detail-scroll {
+  border: 1px solid var(--bs-border-color, #e7e7e8);
+  border-radius: .375rem;
+}
+
+/* Section label */
+.crm-dntt-workspace .section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5d596c;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  display: flex;
+  align-items: center;
+}
+.crm-dntt-workspace .section-label i {
+  font-size: 15px;
+  color: #7367f0;
+}
+
+/* Sidebar tabs */
+.crm-dntt-ws-main,
+.crm-dntt-ws-sidebar {
+  transition: flex-basis .18s ease, max-width .18s ease;
+}
+.crm-dntt-ws-main { min-width: 0; }
+.crm-dntt-ws-sidebar { overflow: hidden; }
+
+.dntt-sidebar-toolbar {
+  min-height: 42px;
+  padding: .35rem .5rem .35rem .75rem;
+  background: #fff;
+}
+.dntt-sidebar-title { white-space: nowrap; }
+
+.crm-dntt-ws-sidebar .sidebar-tab {
+  border-bottom: 2px solid transparent;
+  transition: all .15s;
+  color: #a8aaae;
+  white-space: nowrap;
+}
+.crm-dntt-ws-sidebar .sidebar-tab:hover { color: #6f6b7d; }
+.crm-dntt-ws-sidebar .sidebar-tab.active {
+  color: #7367f0;
+  border-bottom-color: #7367f0;
+}
+.cursor-pointer { cursor: pointer; }
+
+@media (min-width: 992px) {
+  .crm-dntt-workspace.sidebar-collapsed .crm-dntt-ws-main {
+    flex: 0 0 calc(100% - 52px);
+    max-width: calc(100% - 52px);
+  }
+  .crm-dntt-workspace.sidebar-collapsed .crm-dntt-ws-sidebar {
+    flex: 0 0 52px;
+    max-width: 52px;
+  }
+  .crm-dntt-workspace.sidebar-collapsed .dntt-sidebar-toolbar {
+    justify-content: center !important;
+    padding-left: .25rem;
+    padding-right: .25rem;
+  }
+  .crm-dntt-workspace.sidebar-collapsed .dntt-sidebar-title,
+  .crm-dntt-workspace.sidebar-collapsed .sidebar-tab-label {
+    display: none;
+  }
+  .crm-dntt-workspace.sidebar-collapsed #dntt-sidebar-toggle {
+    width: 36px;
+    height: 36px;
+  }
+  .crm-dntt-workspace.sidebar-collapsed #dntt-sidebar-tabs {
+    flex-direction: column;
+    align-items: center;
+  }
+  .crm-dntt-workspace.sidebar-collapsed .crm-dntt-ws-sidebar .sidebar-tab {
+    position: relative;
+    justify-content: center;
+    width: 100%;
+    min-height: 44px;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    border-bottom: 0;
+    border-left: 2px solid transparent;
+  }
+  .crm-dntt-workspace.sidebar-collapsed .crm-dntt-ws-sidebar .sidebar-tab.active {
+    border-bottom-color: transparent;
+    border-left-color: #7367f0;
+    background: #f3f2fb;
+  }
+  .crm-dntt-workspace.sidebar-collapsed #dntt-lo-hang-count {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    margin-left: 0 !important;
+    font-size: 9px;
+    line-height: 1;
+    padding: 2px 4px;
+  }
+  .crm-dntt-workspace.sidebar-collapsed .sidebar-panel {
+    display: none !important;
+  }
+}
+
+/* Sticky bar đáy */
+.crm-dntt-ws-stickybar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+  margin-top: .75rem;
+  padding: .65rem 1rem;
+  border: 1px solid var(--bs-border-color, #e7e7e8);
+  border-radius: .5rem;
+  background: #f8f7fa;
+}
+.crm-dntt-sticky-summary { flex: 1 1 auto; min-width: 0; }
+.crm-dntt-sticky-total { flex: 0 0 auto; padding-right: 1rem; border-right: 1px solid var(--bs-border-color, #e7e7e8); }
+.crm-dntt-sticky-actions { flex: 0 0 auto; }
+.crm-dntt-sticky-total .fs-4 { font-variant-numeric: tabular-nums; }
+
+/* Sidebar summary list */
+.dntt-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .3rem 0;
+  border-bottom: 1px dashed #ededed;
+  font-size: .8125rem;
+}
+.dntt-summary-row .lbl { color: #a8aaae; }
+.dntt-summary-row .val { color: #5d596c; font-weight: 500; text-align: right; }
+
+/* Sidebar accordion — lô hàng liên quan */
+.dntt-acc-item { border-bottom: 1px solid #e7e7e8; }
+.dntt-acc-header {
+  display: flex;
+  align-items: center;
+  padding: 9px 12px;
+  cursor: pointer;
+  gap: 7px;
+  user-select: none;
+  transition: background .1s;
+}
+.dntt-acc-header:hover { background: #f3f2fb; }
+.dntt-acc-chevron { font-size: 13px; color: #a8aaae; transition: transform .2s; flex-shrink: 0; }
+.dntt-acc-item.open .dntt-acc-chevron { transform: rotate(180deg); }
+.dntt-acc-id { font-size: 11px; font-weight: 600; color: #7367f0; }
+.dntt-acc-amount { font-size: 12px; font-weight: 600; white-space: nowrap; margin-left: auto; }
+.dntt-acc-body { display: none; padding: 0 12px 10px; }
+.dntt-acc-item.open .dntt-acc-body { display: block; }
+.dntt-acc-line {
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: 5px 0;
+  border-top: 1px solid #f1f0f5;
+  font-size: 11px;
+}
+.dntt-acc-line .ten { color: #6f6b7d; min-width: 0; }
+.dntt-acc-line .ten .nhom { color: #a8aaae; font-size: 10px; }
+.dntt-acc-line .amt { color: #5d596c; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Lock mode — workspace */
+.crm-dntt-workspace.locked .crm-dntt-ws-main input:not([type="hidden"]),
+.crm-dntt-workspace.locked .crm-dntt-ws-main select,
+.crm-dntt-workspace.locked .crm-dntt-ws-main textarea,
+.crm-dntt-workspace.locked .crm-dntt-ws-main .select2-container {
+  pointer-events: none;
+  opacity: .65;
+  background-color: var(--bs-secondary-bg, #f5f5f9);
+}
+.crm-dntt-workspace.locked #btn-add-row,
+.crm-dntt-workspace.locked .btn-delete-row {
+  display: none !important;
+}
+
+/* Responsive: màn nhỏ cho sidebar xuống dưới */
+@media (max-width: 991.98px) {
+  .crm-dntt-workspace { height: auto; }
+  .crm-dntt-ws-body { flex-direction: column; overflow: visible; }
+  .crm-dntt-ws-main,
+  .crm-dntt-ws-sidebar,
+  .crm-dntt-workspace.sidebar-collapsed .crm-dntt-ws-main,
+  .crm-dntt-workspace.sidebar-collapsed .crm-dntt-ws-sidebar { flex: 1 1 100%; max-width: 100%; }
+  .crm-dntt-ws-sidebar { border-left: 0; border-top: 1px solid var(--bs-border-color, #e7e7e8); }
+  #dntt-sidebar-toggle { display: none; }
+}
+
+/*
+  Số cont của chuyến — dòng phụ mờ dưới ô Jobfile của bảng chi tiết
+  (ticket 03 "Số cont trên dòng chi phí").
+
+  `max-width` khoá theo chính `width="180"` của <th> Jobfile: ô <td> đang
+  `white-space: nowrap`, nên không có nó thì một số cont dài sẽ nong cột ra.
+  Ẩn/hiện do JS bật `.d-none`, không phải `:empty` — jQuery `.text('')` không
+  phải cách duy nhất ô này thành rỗng.
+*/
+.crm-dntt-detail-table .ct-so-cont {
+  max-width: 168px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: .75rem;
+  line-height: 1.15;
+  margin-top: 1px;
+}

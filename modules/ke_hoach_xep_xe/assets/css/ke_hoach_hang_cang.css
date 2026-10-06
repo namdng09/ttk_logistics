@@ -435,12 +435,23 @@
   display: none;
 }
 
+/* Cuộn giống bảng danh sách hàng cảng (.khxh-port-table-scroll): một vùng cuộn duy nhất
+ * cho cả 2 chiều, cao theo viewport, header dính (th sticky ở trên). */
 #ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-table-wrap {
-  /* Không dùng vh: zoom làm viewport CSS thay đổi và bảng co đột ngột.
-   * Danh sách chi phí tự cuộn trong vùng cố định; modal vẫn có thể cuộn khi
-   * màn hình thấp. */
-  height: 620px;
-  max-height: none;
+  min-height: 280px;
+  max-height: min(620px, calc(100vh - 310px));
+  height: auto;
+  overflow: auto;
+  /* Cuộn hết bảng (lên đầu/xuống cuối) thì dừng lại tại đây, không đẩy tiếp ra vùng cuộn bên ngoài (modal/trang) —
+   * cùng cách dùng ở #vehicle-picker-modal .table-responsive. */
+  overscroll-behavior: contain;
+}
+
+/* Card bọc bảng không được tự cuộn (focus/scrollIntoView làm nội dung card bị dịch lên). */
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-main-card,
+#ke-hoach-edit-fullscreen-modal .khxh-hang-cang-cost-mount .khcp-dm-card {
+  overflow: hidden;
+  overflow: clip;
 }
 
 @media (max-width: 1199.98px) {
@@ -702,3 +713,8 @@
   align-items: center;
   /* align-self: center; */
 }
+
+/* Thẻ phiếu trả khách hàng (PT = chờ khách duyệt, HĐ = đã xuất hoá đơn) cạnh thẻ giờ ở cột Ngày KH — cùng khuôn .khxh-port-time. */
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-ptkh { cursor: help; }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-ptkh-pt { color: #b7791f; background: rgba(255, 193, 7, .2); }
+#ke-hoach-hang-cang-screen .khxh-list-table .khxh-port-ptkh-hd { color: #1f9254; background: rgba(40, 199, 111, .16); }

@@ -1,71 +1,77 @@
-<div class="card luong-lai-xe-page">
-  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <h4 class="card-title mb-0">Lương lái xe</h4>
-  </div>
-
-  <div class="card-body">
-    <div class="row mb-3 align-items-center g-2">
-      <div class="col-6 col-md-3 col-xl-2">
-        <label class="form-label" for="llx-ky-luong-from">Từ kỳ</label>
-        <input type="text" class="form-control flatpickr-month" id="llx-ky-luong-from" placeholder="MM/yyyy">
-      </div>
-      <div class="col-6 col-md-3 col-xl-2">
-        <label class="form-label" for="llx-ky-luong-to">Đến kỳ</label>
-        <input type="text" class="form-control flatpickr-month" id="llx-ky-luong-to" placeholder="MM/yyyy">
-      </div>
-      <div class="col-12 col-md-6 col-xl-7">
-        <label class="form-label" for="llx-keyword">Tìm lái xe</label>
-        <div class="input-group">
-          <input type="text" class="form-control" id="llx-keyword" placeholder="Tên, mã nhân viên, SĐT, số tài khoản ngân hàng...">
-          <button type="button" class="btn btn-label-primary" id="llx-search-btn" title="Tìm kiếm"><i class="ti tabler-search"></i></button>
+<?php
+/**
+ * @file
+ * Màn /luong-lai-xe — bố cục 2 card như /de-nghi-thanh-toan (bản riêng, tiền tố llx-): card trên = tiêu đề + dải tổng + bộ lọc
+ * (kỳ lương, tìm lái xe); card dưới = tab trạng thái trả lương có số lượng + bảng + phân trang. JS: assets/js/luong_lai_xe.js.
+ */
+?>
+<div id="llx-app" class="llx-list-app luong-lai-xe-page">
+  <div class="card llx-controls-card">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <h4 class="card-title mb-0"><i class="ti tabler-report-money me-2 llx-title-icon"></i>Lương lái xe</h4>
+      <div class="llx-sum-bar" id="llx-sum"></div>
+    </div>
+    <div class="card-body llx-filter-body">
+      <div class="llx-filter-grid">
+        <div class="llx-filter-field">
+          <label class="form-label" for="llx-period-input">Kỳ lương</label>
+          <!-- Chọn khoảng tháng như ô "Kỳ công nợ" (/cong-no-khach-hang): bấm tháng bắt đầu rồi tháng kết thúc — initPeriodPicker(). -->
+          <div class="llx-period" id="llx-period">
+            <button type="button" class="form-select llx-period-input" id="llx-period-input"><i class="ti tabler-calendar-month me-1"></i><span id="llx-period-text"></span></button>
+            <div class="llx-period-pop d-none" id="llx-period-pop"></div>
+          </div>
+        </div>
+        <div class="llx-filter-field">
+          <label class="form-label" for="llx-keyword">Tìm lái xe</label>
+          <input type="text" class="form-control" id="llx-keyword" placeholder="Tên, mã NV, SĐT, số tài khoản...">
+        </div>
+        <div class="llx-filter-actions">
+          <button type="button" class="btn btn-primary" id="llx-search-btn"><i class="ti tabler-search me-1"></i>Tìm</button>
+          <button type="button" class="btn btn-label-secondary llx-filter-reset" id="llx-btn-reload" title="Reset bộ lọc" aria-label="Reset bộ lọc"><i class="ti tabler-refresh"></i></button>
         </div>
       </div>
-      <div class="col-auto col-xl-1 text-end">
-        <label class="form-label d-none d-xl-block">&nbsp;</label>
-        <button type="button" class="btn btn-label-secondary btn-icon" id="llx-btn-reload" title="Làm mới">
-          <i class="ti tabler-refresh"></i>
-        </button>
+    </div>
+  </div>
+
+  <div class="card llx-list-card">
+    <div class="card-body p-0">
+      <div class="llx-status-tabs-wrap">
+        <ul class="nav nav-pills llx-status-tabs" id="llx-tabs" role="tablist"></ul>
       </div>
-    </div>
-
-    <div class="table-responsive">
-      <table class="table table-bordered table-hover llx-table">
-        <thead class="table-light">
-          <tr>
-            <th class="llx-col-actions">CN</th>
-            <th class="llx-col-stt">#</th>
-            <th class="llx-col-driver">Lái xe</th>
-            <th class="llx-col-period">Thời gian</th>
-            <th class="llx-col-count text-center">Số chuyến</th>
-            <th class="llx-col-money text-end">Tổng lương</th>
-            <th class="llx-col-money text-end">Hoàn chi phí</th>
-            <th class="llx-col-money text-end">Tạm ứng</th>
-            <th class="llx-col-money text-end">Khấu trừ</th>
-            <th class="llx-col-money text-end">Thực lãnh</th>
-          </tr>
-        </thead>
-        <tbody id="llx-table-body">
-          <tr>
-            <td colspan="10" class="text-center py-4">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Đang tải...</span>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div id="llx-pagination" class="mt-3" style="display:none;">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div class="text-muted small" id="llx-pagination-info"></div>
-        <nav>
-          <ul class="pagination justify-content-center mb-0"></ul>
-        </nav>
-        <div class="d-flex align-items-center gap-2">
-          <span class="text-muted small">Trang</span>
-          <input type="text" class="form-control form-control-sm" id="llx-pagination-jump" style="width:60px;text-align:center;" inputmode="numeric">
-          <span class="text-muted small" id="llx-pagination-total"></span>
+      <div class="llx-table-scroll">
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover mb-0 llx-table">
+            <thead class="table-light">
+              <tr>
+                <th class="llx-col-actions">CN</th>
+                <th class="llx-col-driver">Lái xe</th>
+                <th class="llx-col-period">Kỳ lương</th>
+                <th class="llx-col-count text-center">Số chuyến</th>
+                <th class="llx-col-money text-end">Tổng lương</th>
+                <th class="llx-col-money text-end">Tạm ứng</th>
+                <th class="llx-col-money text-end">Khấu trừ</th>
+                <th class="llx-col-money text-end">Thực lĩnh</th>
+                <th class="llx-col-money text-end">Đã trả</th>
+                <th class="llx-col-money text-end">Còn phải trả</th>
+                <th class="llx-col-money text-end" title="Chi phí chuyến công ty đã trả lại cho lái xe qua đề nghị thanh toán; dòng Chờ hoàn = chưa trả xong (chỉ đối chiếu, không cộng vào lương)">Hoàn chi phí</th>
+                <th class="llx-col-status">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="llx-table-body">
+              <tr><td colspan="12" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div id="llx-pagination" class="mt-3 px-3 pb-3" style="display:none;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div class="text-muted small" id="llx-pagination-info"></div>
+          <nav><ul class="pagination justify-content-center mb-0"></ul></nav>
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small">Trang</span>
+            <input type="text" class="form-control form-control-sm" id="llx-pagination-jump" style="width:60px;text-align:center;" inputmode="numeric">
+            <span class="text-muted small" id="llx-pagination-total"></span>
+          </div>
         </div>
       </div>
     </div>

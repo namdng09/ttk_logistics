@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Phương Tiện — Vehicle management. Custom schema, RESTful API + UI.
@@ -120,69 +126,39 @@ function phuong_tien_theme() {
  ******************************************************************************/
 
 function _phuong_tien_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
-function _phuong_tien_require_auth() {
-  $token = NULL;
-  if (function_exists('getallheaders')) {
-    $headers = getallheaders();
-    if (!empty($headers['Authorization'])) {
-      $token = str_replace('Bearer ', '', $headers['Authorization']);
-    }
-  }
-  if (!$token && !empty($_GET['token'])) {
-    $token = $_GET['token'];
-  }
-  if (!$token) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Thiếu token xác thực');
-  }
-  module_load_include('module', 'user_login_api', 'user_login_api');
-  if (!function_exists('api_validate_token')) {
-    drupal_add_http_header('Status', '500 Internal Server Error');
-    return array('status' => 'error', 'message' => 'Hệ thống xác thực chưa sẵn sàng');
-  }
-  $user = api_validate_token($token);
-  if (!$user) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Token không hợp lệ');
-  }
-  return $user;
+
+/**
+ * Tài khoản đang gọi API (phiên đăng nhập hoặc Bearer token), NULL nếu là khách vãng lai. Xem api_common.module.
+ */
+function _phuong_tien_current_account() {
+  return api_current_account();
 }
 
 function _phuong_tien_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _phuong_tien_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _phuong_tien_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _phuong_tien_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _phuong_tien_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _phuong_tien_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 function _phuong_tien_json_decode($raw) {
@@ -424,25 +400,109 @@ function phuong_tien_rest_collection() {
   }
 }
 
+/**
+ * Danh sách trắng cho ?select=: trường trong JSON → cột SQL (NULL = trường tính thêm, chỉ tính khi được chọn).
+ * `lai_xe` (object lái xe đang gán, cần join), `files` và `thong_tin_json` (giải mã JSON nặng) là trường tính thêm.
+ */
+function _phuong_tien_select_map() {
+  $map = array();
+  foreach (array('nid', 'bks', 'ma_tai_san', 'loai_phuong_tien', 'hang_xe', 'mau_sac', 'nam_san_xuat', 'nuoc_san_xuat', 'so_khung', 'so_may',
+      'tai_trong', 'tu_trong', 'so_cau', 'loai_mooc', 'so_truc', 'chieu_dai_mooc', 'gia_mua', 'ngay_mua', 'so_dang_kiem', 'ngay_dang_kiem',
+      'nien_han_su_dung', 'so_phu_hieu', 'han_dang_kiem', 'so_bao_hiem_than_vo', 'han_bao_hiem_than_vo', 'so_bao_hiem_tnds', 'han_bao_hiem_tnds',
+      'ngay_phu_hieu', 'han_phu_hieu', 'so_giay_phep_lien_van', 'han_giay_phep_lien_van') as $c) {
+    $map[$c] = $c;
+  }
+  $map['lai_xe'] = NULL;
+  $map['files'] = NULL;
+  $map['thong_tin_json'] = NULL;
+  $map['hoat_dong'] = 'hoat_dong';
+  $map['created'] = 'created';
+  $map['changed'] = 'changed';
+  return $map;
+}
+
+function _phuong_tien_select_request() {
+  $raw = isset($_GET['select']) ? $_GET['select'] : '';
+  if (is_array($raw) ? !$raw : trim((string) $raw) === '') {
+    return array('active' => FALSE);
+  }
+  // Module api_common chưa bật (vd đưa JS lên trước khi bật module): bỏ qua select, trả như cũ thay vì làm hỏng màn hình.
+  if (!function_exists('api_select_parse')) {
+    return array('active' => FALSE);
+  }
+  return api_select_parse($raw, array_keys(_phuong_tien_select_map()), 'nid');
+}
+
+function _phuong_tien_select_columns(array $fields) {
+  $map = _phuong_tien_select_map();
+  $cols = array('nid');
+  foreach ($fields as $f) {
+    if (!empty($map[$f])) {
+      $cols[] = $map[$f];
+    }
+  }
+  if (in_array('files', $fields, TRUE) || in_array('thong_tin_json', $fields, TRUE)) {
+    $cols[] = 'thong_tin_json';
+  }
+  return api_select_existing_columns('phuong_tien', array_values(array_unique($cols)));
+}
+
+/** Dựng dòng theo ?select=; giá trị các trường giống list không select (cột giữ nguyên kiểu, files/thong_tin_json qua normalize). */
+function _phuong_tien_select_rows(array $rows, array $fields) {
+  $need_json = in_array('files', $fields, TRUE) || in_array('thong_tin_json', $fields, TRUE);
+  $items = array();
+  foreach ($rows as $row) {
+    if (in_array('lai_xe', $fields, TRUE)) {
+      $row->lai_xe = !empty($row->nid_lai_xe) ? (object) array(
+        'nid' => (int) $row->nid_lai_xe,
+        'ten' => $row->lai_xe_ten,
+        'sdt' => $row->lai_xe_sdt,
+        'so_bang_lai' => $row->lai_xe_bang_lai,
+      ) : NULL;
+    }
+    if ($need_json) {
+      _phuong_tien_normalize_record($row);
+    }
+    $items[] = api_select_pick($row, $fields);
+  }
+  return $items;
+}
+
 function _phuong_tien_rest_list() {
+  if (!api_has_permission('phuong_tien_view')) {
+    return _phuong_tien_unauthorized('Bạn không có quyền xem danh sách phương tiện');
+  }
   _phuong_tien_ensure_extended_fields();
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(500, (int) $_GET['limit'])) : 20;
+  // select=a,b,-c (module api_common): chỉ lấy/loại trừ trường; không có thì trả như cũ.
+  $sel = _phuong_tien_select_request();
+  if (!empty($sel['error'])) {
+    return _phuong_tien_fail($sel['error']);
+  }
+  $select = !empty($sel['active']) ? $sel['fields'] : NULL;
+  $page = api_page_number();
+  $limit = $select !== NULL ? api_select_limit(TRUE, 500) : api_page_limit(20, 500);
   $offset = ($page - 1) * $limit;
 
   $query = db_select('phuong_tien', 'pt');
-  $query->fields('pt');
+  if ($select !== NULL) {
+    $query->fields('pt', _phuong_tien_select_columns($select));
+  }
+  else {
+    $query->fields('pt');
+  }
 
-  // Join active driver assignment
-  $query->leftJoin('phuong_tien_lai_xe', 'ptlx', 'pt.nid = ptlx.nid_phuong_tien AND ptlx.hoat_dong = 1');
-  $query->addField('ptlx', 'id', 'ptlx_id');
-  $query->addField('ptlx', 'nid_lai_xe', 'nid_lai_xe');
+  // Join lái xe đang gán + tên lái xe: chỉ khi cần (không select, hoặc select có lai_xe).
+  $with_driver = $select === NULL || in_array('lai_xe', $select, TRUE);
+  if ($with_driver) {
+    $query->leftJoin('phuong_tien_lai_xe', 'ptlx', 'pt.nid = ptlx.nid_phuong_tien AND ptlx.hoat_dong = 1');
+    $query->addField('ptlx', 'id', 'ptlx_id');
+    $query->addField('ptlx', 'nid_lai_xe', 'nid_lai_xe');
 
-  // Join lai_xe for name
-  $query->leftJoin('lai_xe', 'lx', 'ptlx.nid_lai_xe = lx.nid');
-  $query->addField('lx', 'ten', 'lai_xe_ten');
-  $query->addField('lx', 'sdt', 'lai_xe_sdt');
-  $query->addField('lx', 'so_bang_lai', 'lai_xe_bang_lai');
+    $query->leftJoin('lai_xe', 'lx', 'ptlx.nid_lai_xe = lx.nid');
+    $query->addField('lx', 'ten', 'lai_xe_ten');
+    $query->addField('lx', 'sdt', 'lai_xe_sdt');
+    $query->addField('lx', 'so_bang_lai', 'lai_xe_bang_lai');
+  }
 
   $query->condition('pt.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
@@ -466,6 +526,18 @@ function _phuong_tien_rest_list() {
   $query->orderBy('pt.nid', 'DESC');
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();
+
+  if ($select !== NULL) {
+    $items = _phuong_tien_select_rows($rows, $select);
+    $total_pages = (int) ceil($total / $limit);
+    return _phuong_tien_success(array(
+      'items' => $items,
+      'total' => (int) $total,
+      'current_page' => $total_pages > 0 ? $page : 0,
+      'total_pages' => $total_pages,
+      'limit' => $limit,
+    ));
+  }
 
   // Build nested lai_xe object
   foreach ($rows as &$row) {
@@ -500,7 +572,7 @@ function _phuong_tien_rest_list() {
 }
 
 function _phuong_tien_rest_create() {
-  if (!user_access('phuong_tien_create')) {
+  if (!api_has_permission('phuong_tien_create')) {
     return _phuong_tien_unauthorized('Bạn không có quyền tạo phương tiện');
   }
 
@@ -612,6 +684,9 @@ function phuong_tien_rest_item($id) {
 }
 
 function _phuong_tien_rest_get($id) {
+  if (!api_has_permission('phuong_tien_view')) {
+    return _phuong_tien_unauthorized('Bạn không có quyền xem phương tiện');
+  }
   _phuong_tien_ensure_extended_fields();
   $query = db_select('phuong_tien', 'pt');
   $query->fields('pt');
@@ -651,7 +726,7 @@ function _phuong_tien_rest_get($id) {
 
 function _phuong_tien_rest_update($id) {
   _phuong_tien_ensure_extended_fields();
-  if (!user_access('phuong_tien_create')) {
+  if (!api_has_permission('phuong_tien_create')) {
     return _phuong_tien_unauthorized('Bạn không có quyền sửa phương tiện');
   }
 
@@ -731,7 +806,7 @@ function _phuong_tien_rest_update($id) {
 }
 
 function _phuong_tien_rest_delete($id) {
-  if (!user_access('phuong_tien_delete')) {
+  if (!api_has_permission('phuong_tien_delete')) {
     return _phuong_tien_unauthorized('Bạn không có quyền xoá phương tiện');
   }
 
@@ -819,7 +894,7 @@ function _phuong_tien_save_file_context($id, $json) {
 }
 
 function _phuong_tien_rest_file_upload($id) {
-  if (!user_access('phuong_tien_create')) {
+  if (!api_has_permission('phuong_tien_create')) {
     return _phuong_tien_unauthorized('Bạn không có quyền upload hồ sơ phương tiện');
   }
 
@@ -875,7 +950,7 @@ function _phuong_tien_rest_file_upload($id) {
 }
 
 function _phuong_tien_rest_file_update($id, $file_id) {
-  if (!user_access('phuong_tien_create')) {
+  if (!api_has_permission('phuong_tien_create')) {
     return _phuong_tien_unauthorized('Bạn không có quyền sửa hồ sơ phương tiện');
   }
 
@@ -910,7 +985,7 @@ function _phuong_tien_rest_file_update($id, $file_id) {
 }
 
 function _phuong_tien_rest_file_delete($id, $file_id) {
-  if (!user_access('phuong_tien_create')) {
+  if (!api_has_permission('phuong_tien_create')) {
     return _phuong_tien_unauthorized('Bạn không có quyền xoá hồ sơ phương tiện');
   }
 
@@ -953,6 +1028,9 @@ function _phuong_tien_rest_file_delete($id, $file_id) {
  ******************************************************************************/
 
 function phuong_tien_page_list() {
+  if (!api_has_permission('phuong_tien_view')) {
+    return api_denied_page('Bạn không có quyền xem phương tiện');
+  }
   drupal_add_css(drupal_get_path('module', 'phuong_tien') . '/assets/css/phuong_tien.css');
   drupal_add_js(drupal_get_path('module', 'phuong_tien') . '/assets/js/phuong_tien.js');
 
@@ -965,9 +1043,13 @@ function phuong_tien_page_list() {
 
   drupal_add_js(array('phuong_tien' => array(
     'permissions' => array(
-      'phuong_tien_view' => user_access('phuong_tien_view'),
-      'phuong_tien_create' => user_access('phuong_tien_create'),
-      'phuong_tien_delete' => user_access('phuong_tien_delete'),
+      'phuong_tien_view' => api_has_permission('phuong_tien_view'),
+      'phuong_tien_create' => api_has_permission('phuong_tien_create'),
+      'phuong_tien_delete' => api_has_permission('phuong_tien_delete'),
+      // "Chọn lái xe" gọi POST /api/phuong-tien-lai-xe — server kiểm tra ptlx_create (module phuong_tien_lai_xe).
+      'ptlx_create' => module_exists('phuong_tien_lai_xe') && api_has_permission('ptlx_create'),
+      // Để trống lái xe rồi Lưu = bỏ gán — server kiểm tra thêm ptlx_delete.
+      'ptlx_delete' => module_exists('phuong_tien_lai_xe') && api_has_permission('ptlx_delete'),
     ),
   )), 'setting');
 
@@ -975,6 +1057,9 @@ function phuong_tien_page_list() {
 }
 
 function phuong_tien_page_han($type) {
+  if (!api_has_permission('phuong_tien_view')) {
+    return api_denied_page('Bạn không có quyền xem phương tiện');
+  }
   $valid_types = array('dang-kiem', 'bao-hiem-than-vo', 'tnds', 'phu-hieu', 'giay-phep-lien-van');
   if (!in_array($type, $valid_types)) {
     drupal_not_found();
@@ -987,7 +1072,7 @@ function phuong_tien_page_han($type) {
   drupal_add_js(array('phuong_tien_han' => array(
     'type' => $type,
     'permissions' => array(
-      'phuong_tien_view' => user_access('phuong_tien_view'),
+      'phuong_tien_view' => api_has_permission('phuong_tien_view'),
     ),
   )), 'setting');
 

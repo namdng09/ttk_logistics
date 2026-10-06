@@ -1,0 +1,44 @@
+/* Modal Tạo/Sửa phiếu trả khách hàng (dùng chung /phieu-tra-khach-hang và /ke-hoach-xep-xe).
+ * Cùng kiểu với modal "Tạo đề nghị thanh toán" (#dn-create-modal): thead gọn có màu, bảng cuộn ngang trong khung,
+ * cả dòng bấm được để tick. */
+.ptkh-m-loading { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; background: rgba(255, 255, 255, .85); }
+.ptkh-m-loading.is-visible { display: flex; }
+
+#ptkh-m-table-wrap { max-width: 100%; overflow-x: auto; max-height: 52vh; overflow-y: auto; }
+#ptkh-m-table-wrap .ptkh-m-lines { width: 100%; min-width: 1100px; table-layout: fixed; }
+#ptkh-m-modal .ptkh-m-lines > thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 30px !important;
+  padding: 3px 5px !important;
+  line-height: 1.2 !important;
+  vertical-align: middle !important;
+  border-bottom: 1px solid #d9e2ec !important;
+  background: #eef3f8 !important;
+  color: #344054 !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: normal;
+}
+#ptkh-m-modal .ptkh-m-lines td { font-size: 12.5px; vertical-align: middle; word-break: break-word; }
+#ptkh-m-modal .ptkh-m-lines tr.ptkh-m-row { cursor: pointer; }
+#ptkh-m-modal .ptkh-m-lines tr.ptkh-m-row.is-checked td { background: #f4f3ff; }
+#ptkh-m-modal .ptkh-m-lines tfoot td { background: #f8f9fa; }
+#ptkh-m-modal .ptkh-m-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+#ptkh-m-modal .select2-container { width: 100% !important; font-family: inherit; }
+#ptkh-m-modal .select2-container .select2-selection--single { height: calc(1.5em + 0.75rem + 2px); padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-size: 0.85rem; line-height: 1.5; }
+#ptkh-m-modal .select2-container .select2-selection--single .select2-selection__rendered { line-height: 1.5; padding: 0; padding-right: 1.75rem; font-size: 0.85rem; }
+#ptkh-m-modal .select2-container .select2-selection--single .select2-selection__arrow { height: 100%; top: 0; right: 0.375rem; width: 1rem; }
+#ptkh-m-modal .select2-container--default .select2-results > .select2-results__options { max-height: 320px; overflow-y: auto; }
+#ptkh-m-modal .is-invalid + .select2-container .select2-selection { border-color: #ff4c51; }
+
+/* Khoảng ngày: lịch nổi trên modal (modal z-index 1090 > daterangepicker mặc định). */
+.daterangepicker.ptkh-m-daterangepicker { z-index: 100000 !important; }
+.daterangepicker.ptkh-m-daterangepicker .drp-buttons { display: flex !important; align-items: center; gap: .35rem; }
+.daterangepicker.ptkh-m-daterangepicker .drp-selected,
+.daterangepicker.ptkh-m-daterangepicker .applyBtn { display: none !important; }
+.daterangepicker.ptkh-m-daterangepicker .ptkh-m-date-quick { display: inline-flex; gap: .35rem; margin-right: auto; }

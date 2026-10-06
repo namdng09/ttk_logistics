@@ -4,3 +4,4 @@ core = 7.x
 package = ANDIN JSC API
 dependencies[] = user_login_api
 dependencies[] = khach_hang
+dependencies[] = api_common

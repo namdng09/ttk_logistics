@@ -449,7 +449,8 @@
       url: '/api/phuong-tien',
       type: 'GET',
       dataType: 'json',
-      data: { page: currentPage, keyword: currentKeyword, loai_phuong_tien: currentLoai },
+      // Danh sách chỉ lấy các cột hiển thị (kèm lai_xe cho cột lái xe và hộp gán lái xe); xem/sửa gọi GET /api/phuong-tien/{id} riêng.
+      data: { page: currentPage, keyword: currentKeyword, loai_phuong_tien: currentLoai, select: 'nid,bks,ma_tai_san,loai_phuong_tien,hang_xe,mau_sac,tai_trong,tu_trong,so_cau,loai_mooc,so_truc,chieu_dai_mooc,lai_xe' },
       success: function (res) {
         $('#loading-row').remove();
 
@@ -506,7 +507,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="8" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append(loadErrorRow(8, jqXHR));
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -620,9 +621,10 @@
     }
     if (perms.phuong_tien_create) {
       items += '<li><button type="button" class="dropdown-item btn-edit-phuong-tien" data-id="' + nid + '"><i class="ti tabler-edit me-2"></i>Sửa</button></li>';
-      if (!item || item.loai_phuong_tien === 'dau_keo') {
-        items += '<li><button type="button" class="dropdown-item btn-assign-lai-xe" data-id="' + nid + '"><i class="ti tabler-steering-wheel me-2"></i>Chọn lái xe</button></li>';
-      }
+    }
+    // Gán lái xe là quyền riêng của module phuong_tien_lai_xe (ptlx_create), không đi theo quyền sửa phương tiện.
+    if (perms.ptlx_create && (!item || item.loai_phuong_tien === 'dau_keo')) {
+      items += '<li><button type="button" class="dropdown-item btn-assign-lai-xe" data-id="' + nid + '"><i class="ti tabler-steering-wheel me-2"></i>Chọn lái xe</button></li>';
     }
     if (perms.phuong_tien_delete) {
       items += '<li><hr class="dropdown-divider"></li>';
@@ -1181,6 +1183,14 @@
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
+  }
+
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
   }
 
   function apiMsg(jqXHR) {

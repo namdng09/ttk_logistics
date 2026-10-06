@@ -170,20 +170,76 @@
     return { key: 'con_han', label: 'Còn hạn', cls: 'badge-con-han' };
   }
 
-  var STORAGE_KEY = 'phuong_tien_all_items';
+  // Chỉ lấy các cột màn hình dùng: nhận diện xe + số/hạn của đúng loại giấy tờ đang xem. Cache theo từng loại giấy tờ
+  // (mỗi loại có cột khác nhau), hạn 10 phút; mỗi lần gọi tối đa 100 dòng, tải đủ các trang song song.
+  var HAN_CACHE_TTL_MS = 10 * 60 * 1000;
+
+  function hanStorageKey() {
+    return 'phuong_tien_han_' + screenType + '_v2';
+  }
+
+  function hanSelect() {
+    var cfg = TYPE_CONFIG[screenType];
+    var fields = ['nid', 'bks', 'ma_tai_san', 'loai_phuong_tien'];
+    if (cfg && cfg.soField) fields.push(cfg.soField);
+    if (cfg && cfg.hanField) fields.push(cfg.hanField);
+    return fields.join(',');
+  }
+
+  function fetchAllVehiclePages(done, fail) {
+    var params = { limit: 100, select: hanSelect() };
+    $.ajax({ url: '/api/phuong-tien', type: 'GET', dataType: 'json', data: $.extend({ page: 1 }, params) }).done(function (res) {
+      if (!(res && res.status === 'success' && res.data && res.data.items)) {
+        fail();
+        return;
+      }
+      var first = res.data.items;
+      var pages = Math.min(50, Math.max(1, parseInt(res.data.total_pages, 10) || 1));
+      if (pages === 1) {
+        done(first);
+        return;
+      }
+      var chunks = [];
+      var left = pages - 1;
+      var failed = false;
+      for (var page = 2; page <= pages; page++) {
+        (function (p) {
+          $.ajax({ url: '/api/phuong-tien', type: 'GET', dataType: 'json', data: $.extend({ page: p }, params) }).done(function (r) {
+            if (r && r.status === 'success' && r.data && r.data.items) chunks[p - 2] = r.data.items; else failed = true;
+          }).fail(function () {
+            failed = true;
+          }).always(function () {
+            left -= 1;
+            if (left > 0) return;
+            if (failed) { fail(); return; }
+            var all = first;
+            for (var c = 0; c < chunks.length; c++) all = all.concat(chunks[c]);
+            done(all);
+          });
+        })(page);
+      }
+    }).fail(function (jqXHR) {
+      fail(jqXHR);
+    });
+  }
 
   function loadAllItems() {
     var tbody = $('#table-han-tbody');
 
-    var cached = sessionStorage.getItem(STORAGE_KEY);
+    var cached = null;
+    try { cached = sessionStorage.getItem(hanStorageKey()); } catch (e) {}
     if (cached) {
       try {
-        allItems = JSON.parse(cached);
-        applyFilters();
-        return;
+        var saved = JSON.parse(cached);
+        if (saved && saved.items && new Date().getTime() - (Number(saved.t) || 0) < HAN_CACHE_TTL_MS) {
+          allItems = saved.items;
+          applyFilters();
+          return;
+        }
       } catch (e) {
-        sessionStorage.removeItem(STORAGE_KEY);
+        // Dữ liệu cache hỏng: bỏ và tải mới.
       }
+      try { sessionStorage.removeItem(hanStorageKey()); } catch (e) {}
     }
 
     tbody.html(
@@ -192,25 +248,14 @@
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
 
-    $.ajax({
-      url: '/api/phuong-tien',
-      type: 'GET',
-      dataType: 'json',
-      data: { page: 1, limit: 9999 },
-      success: function (res) {
-        if (res.status === 'success' && res.data && res.data.items) {
-          allItems = res.data.items;
-        } else {
-          allItems = [];
-        }
-        try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(allItems)); } catch (e) {}
-        applyFilters();
-      },
-      error: function (jqXHR) {
-        allItems = [];
-        applyFilters();
-        if (notyf) notyf.error(apiMsg(jqXHR));
-      }
+    fetchAllVehiclePages(function (items) {
+      allItems = items;
+      try { sessionStorage.setItem(hanStorageKey(), JSON.stringify({ t: new Date().getTime(), items: allItems })); } catch (e) {}
+      applyFilters();
+    }, function (jqXHR) {
+      allItems = [];
+      applyFilters();
+      if (notyf) notyf.error(jqXHR ? apiMsg(jqXHR) : 'Không tải đủ dữ liệu phương tiện');
     });
   }
 

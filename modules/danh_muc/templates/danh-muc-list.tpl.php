@@ -23,14 +23,17 @@
           <option value="Kho">Kho</option>
           <option value="Bãi">Bãi</option>
           <option value="Cảng">Cảng</option>
+          <option value="Phân loại thu chi">Phân loại thu chi</option>
           <option value="Cửa khẩu">Cửa khẩu</option>
         </select>
       </div>
       <div class="col-6 col-md-5">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
+          <?php if (api_has_permission('danh_muc_create')): ?>
           <button type="button" class="btn btn-primary btn-them-danh-muc" data-bs-toggle="modal" data-bs-target="#danh-muc-modal">
             <i class="ti tabler-plus me-1"></i>Thêm danh mục
           </button>
+          <?php endif; ?>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-danh-muc">
             <i class="ti tabler-refresh"></i>
           </button>

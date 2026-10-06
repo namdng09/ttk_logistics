@@ -10,7 +10,7 @@
   var modalBound = false;
   var settings = Drupal.settings.danh_muc || {};
   var PHAN_LOAI_CO_PHU_PHI = settings.phan_loai_co_phu_phi || ['Bãi', 'Cảng', 'Kho'];
-  var PHAN_LOAI_OPTIONS = ['Phòng ban', 'Chức vụ', 'Chi phí', 'Kho', 'Cửa khẩu', 'Bãi', 'Cảng', 'Loại hàng'];
+  var PHAN_LOAI_OPTIONS = ['Phòng ban', 'Chức vụ', 'Chi phí', 'Kho', 'Cửa khẩu', 'Bãi', 'Cảng', 'Loại hàng', 'Phân loại thu chi'];
 
   function hasPhuPhi(phanLoai) {
     return PHAN_LOAI_CO_PHU_PHI.indexOf(phanLoai) !== -1;
@@ -493,7 +493,8 @@
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
 
-    var params = { page: currentPage, keyword: currentKeyword };
+    // Danh sách chỉ lấy các cột hiển thị (thong_tin = phụ phí, cột "Phụ phí"); xem/sửa gọi GET /api/danh-muc/{id} riêng.
+    var params = { page: currentPage, keyword: currentKeyword, select: 'nid,ten,phan_loai,thong_tin' };
     if (currentPhanLoai) {
       params.phan_loai = currentPhanLoai;
     }
@@ -540,7 +541,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="5" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append(loadErrorRow(5, jqXHR));
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -791,6 +792,14 @@
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
+  }
+
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
   }
 
   function apiMsg(jqXHR) {

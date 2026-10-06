@@ -1,5 +1,11 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
  * Lái Xe — Driver management. Custom schema, RESTful API + Modal CRUD.
@@ -97,65 +103,32 @@ function lai_xe_theme() {
  ******************************************************************************/
 
 function _lai_xe_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
-function _lai_xe_require_auth() {
-  $params = _lai_xe_input();
-  foreach ($_GET as $k => $v) { $params[$k] = $v; }
-
-  $email = isset($params['created_email']) ? trim($params['created_email']) : '';
-  $token = isset($params['token']) ? trim($params['token']) : '';
-
-  if ($email === '' || $token === '') {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Thiếu thông tin xác thực');
-  }
-  module_load_include('module', 'user_login_api', 'user_login_api');
-  if (!function_exists('api_check_token')) {
-    drupal_add_http_header('Status', '500 Internal Server Error');
-    return array('status' => 'error', 'message' => 'Hệ thống xác thực chưa sẵn sàng');
-  }
-  $result = api_check_token($token, $email);
-  if ($result === FALSE) {
-    drupal_add_http_header('Status', '401 Unauthorized');
-    return array('status' => 'fail', 'message' => 'Token không hợp lệ');
-  }
-  return $result;
-}
 
 function _lai_xe_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _lai_xe_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _lai_xe_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _lai_xe_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _lai_xe_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _lai_xe_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 function _lai_xe_json_decode($raw) {
@@ -267,9 +240,51 @@ function _lai_xe_phone_username($phone) {
   return $phone;
 }
 
+/**
+ * rid của vai trò "Lái xe" — NGUỒN DUY NHẤT, tìm theo TÊN vai trò (không gắn cứng số: trên hệ thống thật "Lái xe" là rid 8,
+ * rid 7 là "Nhân viên"; bản cũ gắn cứng 7 nên tài khoản lái xe bị gán nhầm vai trò Nhân viên). 0 nếu chưa có vai trò này.
+ * Màn Nhân viên, ĐNTT, đổ dầu… gọi hàm này qua function_exists().
+ */
+function lai_xe_driver_rid() {
+  $rid = &drupal_static(__FUNCTION__);
+  if ($rid === NULL) {
+    $rid = 0;
+    foreach (db_query("SELECT rid, name FROM {role}") as $r) {
+      $name = drupal_strtolower(trim((string) $r->name));
+      if ($name === drupal_strtolower('Lái xe') || $name === 'lai xe') {
+        $rid = (int) $r->rid;
+        break;
+      }
+    }
+  }
+  return $rid;
+}
+
+/** Tài khoản là lái xe: có vai trò "Lái xe" hoặc đang liên kết với 1 hồ sơ lái xe (lai_xe.uid_nguoi_dung — tiêu chí app dùng). */
+function lai_xe_is_driver_account($uid) {
+  $uid = (int) $uid;
+  if (!$uid) return FALSE;
+  $rid = lai_xe_driver_rid();
+  if ($rid && db_query("SELECT 1 FROM {users_roles} WHERE uid = :u AND rid = :r", array(':u' => $uid, ':r' => $rid))->fetchField()) {
+    return TRUE;
+  }
+  return (bool) db_query("SELECT 1 FROM {lai_xe} WHERE uid_nguoi_dung = :u", array(':u' => $uid))->fetchField();
+}
+
+/** Đảm bảo tài khoản đã liên kết lái xe có vai trò "Lái xe" (không đụng các vai trò khác). */
+function lai_xe_ensure_driver_role($uid) {
+  $uid = (int) $uid;
+  $rid = lai_xe_driver_rid();
+  if ($uid > 1 && $rid) {
+    db_merge('users_roles')->key(array('uid' => $uid, 'rid' => $rid))->execute();
+  }
+}
+
 function _lai_xe_driver_role_name() {
+  $rid = lai_xe_driver_rid();
+  if (!$rid) return FALSE;
   $roles = user_roles();
-  return isset($roles[7]) ? $roles[7] : FALSE;
+  return isset($roles[$rid]) ? $roles[$rid] : FALSE;
 }
 
 /**
@@ -305,7 +320,7 @@ function _lai_xe_validate_app_account($input, $driver = NULL) {
     }
   }
   if (!$uid && $enabled && !_lai_xe_driver_role_name()) {
-    return _lai_xe_error('Không tìm thấy role Lái xe (rid 7)');
+    return _lai_xe_error('Không tìm thấy vai trò "Lái xe". Tạo vai trò tên "Lái xe" ở màn Phân quyền trước.');
   }
   if (!$uid && $enabled && empty($input['mat_khau_app'])) {
     return _lai_xe_fail('Vui lòng nhập mật khẩu tài khoản app');
@@ -338,7 +353,7 @@ function _lai_xe_sync_app_account($driver, $input) {
       'pass' => $password,
       'mail' => '',
       'status' => $driver_active ? 1 : 0,
-      'roles' => array(7 => $role_name),
+      'roles' => array(lai_xe_driver_rid() => $role_name),
     );
     $account = user_save(NULL, $edit);
     if (!$account || empty($account->uid)) {
@@ -374,6 +389,7 @@ function _lai_xe_sync_app_account($driver, $input) {
   if ($edit) {
     user_save($account, $edit);
   }
+  lai_xe_ensure_driver_role($uid);
   db_update('users')->fields(array('sdt' => $phone))->condition('uid', $uid)->execute();
 }
 
@@ -527,13 +543,140 @@ function lai_xe_rest_collection() {
   }
 }
 
+/**
+ * Danh sách trắng cho ?select=: trường trong JSON → cột SQL (NULL = trường tính thêm, chỉ tính khi được chọn).
+ * `files` / `thong_tin_json` (giải mã JSON nặng), `thong_tin_ngan_hang` (giải mã) và `tai_khoan_app` (tra bảng users) là trường tính thêm
+ * hoặc có xử lý riêng; các cột còn lại trả nguyên giá trị.
+ */
+function _lai_xe_select_map() {
+  $map = array();
+  foreach (array('nid', 'ten', 'ma_nhan_vien', 'sdt', 'cccd', 'ngay_cap', 'noi_cap', 'han_cccd', 'so_bang_lai', 'loai_bang_lai', 'han_bang_lai', 'ngay_nhan_viec', 'dod') as $c) {
+    $map[$c] = $c;
+  }
+  $map['thong_tin_ngan_hang'] = 'thong_tin_ngan_hang';
+  $map['thong_tin_json'] = 'thong_tin_json';
+  $map['files'] = NULL;
+  $map['uid_nguoi_dung'] = 'uid_nguoi_dung';
+  $map['tai_khoan_app'] = NULL;
+  foreach (array('hoat_dong', 'phuong_tien_lai_xe_id', 'created', 'changed') as $c) {
+    $map[$c] = $c;
+  }
+  return $map;
+}
+
+function _lai_xe_select_request() {
+  $raw = isset($_GET['select']) ? $_GET['select'] : '';
+  if (is_array($raw) ? !$raw : trim((string) $raw) === '') {
+    return array('active' => FALSE);
+  }
+  // Module api_common chưa bật (vd đưa JS lên trước khi bật module): bỏ qua select, trả như cũ thay vì làm hỏng màn hình.
+  if (!function_exists('api_select_parse')) {
+    return array('active' => FALSE);
+  }
+  return api_select_parse($raw, array_keys(_lai_xe_select_map()), 'nid');
+}
+
+function _lai_xe_select_columns(array $fields) {
+  $map = _lai_xe_select_map();
+  $cols = array('nid');
+  foreach ($fields as $f) {
+    if (!empty($map[$f])) {
+      $cols[] = $map[$f];
+    }
+  }
+  if (in_array('files', $fields, TRUE)) {
+    $cols[] = 'thong_tin_json';
+  }
+  if (in_array('tai_khoan_app', $fields, TRUE)) {
+    $cols[] = 'uid_nguoi_dung';
+  }
+  return api_select_existing_columns('lai_xe', array_values(array_unique($cols)));
+}
+
+/** Dựng dòng theo ?select=; giá trị giống _lai_xe_normalize_record() nhưng chỉ tính phần được chọn (tài khoản app tra 1 lần cho cả trang). */
+function _lai_xe_select_rows(array $rows, array $fields) {
+  $accounts = array();
+  if (in_array('tai_khoan_app', $fields, TRUE)) {
+    $uids = array();
+    foreach ($rows as $r) {
+      if (!empty($r->uid_nguoi_dung)) {
+        $uids[(int) $r->uid_nguoi_dung] = (int) $r->uid_nguoi_dung;
+      }
+    }
+    if ($uids) {
+      foreach (db_query("SELECT uid, name, status FROM {users} WHERE uid IN (:uids)", array(':uids' => array_values($uids))) as $a) {
+        $accounts[(int) $a->uid] = $a;
+      }
+    }
+  }
+  $items = array();
+  foreach ($rows as $r) {
+    $row = array();
+    $json = NULL;
+    foreach ($fields as $f) {
+      switch ($f) {
+        case 'thong_tin_ngan_hang':
+          $decoded = !empty($r->thong_tin_ngan_hang) ? json_decode($r->thong_tin_ngan_hang, TRUE) : NULL;
+          $row[$f] = is_array($decoded) ? $decoded : array();
+          break;
+
+        case 'thong_tin_json':
+        case 'files':
+          if ($json === NULL) {
+            $json = _lai_xe_json_decode(isset($r->thong_tin_json) ? $r->thong_tin_json : '');
+            if (empty($json['files']) || !is_array($json['files'])) {
+              $json['files'] = array();
+            }
+            foreach ($json['files'] as &$file) {
+              if (!empty($file['uri'])) {
+                $file['url'] = file_create_url($file['uri']);
+              }
+            }
+            unset($file);
+          }
+          $row[$f] = $f === 'files' ? $json['files'] : $json;
+          break;
+
+        case 'uid_nguoi_dung':
+          $row[$f] = isset($r->uid_nguoi_dung) ? (int) $r->uid_nguoi_dung : 0;
+          break;
+
+        case 'tai_khoan_app':
+          $uid = isset($r->uid_nguoi_dung) ? (int) $r->uid_nguoi_dung : 0;
+          $row[$f] = array('co_tai_khoan' => FALSE, 'kich_hoat' => FALSE, 'username' => '');
+          if ($uid && isset($accounts[$uid])) {
+            $row[$f] = array('co_tai_khoan' => TRUE, 'kich_hoat' => (bool) $accounts[$uid]->status, 'username' => (string) $accounts[$uid]->name);
+          }
+          break;
+
+        default:
+          $row[$f] = isset($r->$f) ? $r->$f : NULL;
+      }
+    }
+    $items[] = $row;
+  }
+  return $items;
+}
+
 function _lai_xe_rest_list() {
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  // select=a,b,-c (module api_common): chỉ lấy/loại trừ trường; không có thì trả như cũ.
+  $sel = _lai_xe_select_request();
+  if (!empty($sel['error'])) {
+    return _lai_xe_fail($sel['error']);
+  }
+  $select = !empty($sel['active']) ? $sel['fields'] : NULL;
+
+  $page = api_page_number();
+  $limit = $select !== NULL ? api_select_limit(TRUE, 100) : api_page_limit(20, 100);
   $offset = ($page - 1) * $limit;
 
   $query = db_select('lai_xe', 'lx');
-  $query->fields('lx');
+  if ($select !== NULL) {
+    $query->fields('lx', _lai_xe_select_columns($select));
+  }
+  else {
+    $query->fields('lx');
+  }
 
   $query->condition('lx.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
@@ -572,7 +715,10 @@ function _lai_xe_rest_list() {
   $total_pages = (int) ceil($total / $limit);
 
   $items = array();
-  if ($rows) {
+  if ($select !== NULL) {
+    $items = _lai_xe_select_rows($rows, $select);
+  }
+  elseif ($rows) {
     foreach ($rows as $row) {
       $items[] = _lai_xe_normalize_record($row);
     }
@@ -588,7 +734,7 @@ function _lai_xe_rest_list() {
 }
 
 function _lai_xe_rest_create() {
-  if (!user_access('lai_xe_create')) {
+  if (!api_has_permission('lai_xe_create')) {
     return _lai_xe_unauthorized('Bạn không có quyền tạo lái xe');
   }
 
@@ -687,7 +833,7 @@ function _lai_xe_rest_get($id) {
 }
 
 function _lai_xe_rest_update($id) {
-  if (!user_access('lai_xe_create')) {
+  if (!api_has_permission('lai_xe_create')) {
     return _lai_xe_unauthorized('Bạn không có quyền sửa lái xe');
   }
 
@@ -755,7 +901,7 @@ function _lai_xe_rest_update($id) {
 }
 
 function _lai_xe_rest_delete($id) {
-  if (!user_access('lai_xe_delete')) {
+  if (!api_has_permission('lai_xe_delete')) {
     return _lai_xe_unauthorized('Bạn không có quyền xoá lái xe');
   }
 
@@ -850,7 +996,7 @@ function _lai_xe_save_file_context($id, $json) {
 }
 
 function _lai_xe_rest_file_upload($id) {
-  if (!user_access('lai_xe_create')) {
+  if (!api_has_permission('lai_xe_create')) {
     return _lai_xe_unauthorized('Bạn không có quyền upload hồ sơ lái xe');
   }
 
@@ -906,7 +1052,7 @@ function _lai_xe_rest_file_upload($id) {
 }
 
 function _lai_xe_rest_file_update($id, $file_id) {
-  if (!user_access('lai_xe_create')) {
+  if (!api_has_permission('lai_xe_create')) {
     return _lai_xe_unauthorized('Bạn không có quyền sửa hồ sơ lái xe');
   }
 
@@ -941,7 +1087,7 @@ function _lai_xe_rest_file_update($id, $file_id) {
 }
 
 function _lai_xe_rest_file_delete($id, $file_id) {
-  if (!user_access('lai_xe_create')) {
+  if (!api_has_permission('lai_xe_create')) {
     return _lai_xe_unauthorized('Bạn không có quyền xoá hồ sơ lái xe');
   }
 
@@ -984,14 +1130,17 @@ function _lai_xe_rest_file_delete($id, $file_id) {
  ******************************************************************************/
 
 function lai_xe_page_list() {
+  if (!api_has_permission('lai_xe_view')) {
+    return api_denied_page('Bạn không có quyền xem lái xe');
+  }
   drupal_add_css(drupal_get_path('module', 'lai_xe') . '/assets/css/lai_xe.css');
   drupal_add_js(drupal_get_path('module', 'lai_xe') . '/assets/js/lai_xe.js');
 
   drupal_add_js(array('lai_xe' => array(
     'permissions' => array(
-      'lai_xe_view' => user_access('lai_xe_view'),
-      'lai_xe_create' => user_access('lai_xe_create'),
-      'lai_xe_delete' => user_access('lai_xe_delete'),
+      'lai_xe_view' => api_has_permission('lai_xe_view'),
+      'lai_xe_create' => api_has_permission('lai_xe_create'),
+      'lai_xe_delete' => api_has_permission('lai_xe_delete'),
     ),
   )), 'setting');
 

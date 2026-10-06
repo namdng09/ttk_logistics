@@ -1,0 +1,93 @@
+<?php
+
+/**
+ * @file
+ * Schema phiếu đổ dầu.
+ *
+ * - do_dau: 1 phiếu = 1 lần đổ dầu của 1 đầu kéo tại 1 cây xăng (khach_hang có phân loại Nhà cung cấp),
+ *   kèm 1 số hoá đơn. Trạng thái LƯU ở bảng này chỉ là phần trước thanh toán
+ *   (cho_duyet, thu_hoi, da_duyet, tu_choi, huy). Các bước thanh toán sẽ do đề nghị thanh toán
+ *   (nid_de_nghi) quyết định, không sao chép sang đây.
+ * - Tiền tính giống ke_hoach_chi_phi: tong_truoc_vat = round(so_lit * don_gia),
+ *   tong_sau_vat = round(tong_truoc_vat * (1 + vat_percent / 100)), đều là số nguyên đồng.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function do_dau_schema() {
+  $schema['do_dau'] = array(
+    'description' => 'Phiếu đổ dầu (1 hoá đơn của 1 cây xăng cho 1 đầu kéo).',
+    'fields' => array(
+      'nid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      // DD-yymmdd-NNNN, NNNN tăng theo ngày tạo.
+      'ma_phieu' => array('type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => ''),
+      // Y-m-d
+      'ngay_do' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE, 'default' => ''),
+      'nid_phuong_tien' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Lái xe được chọn lúc tạo phiếu (không tự đổi khi xe đổi lái xe về sau).
+      'nid_lai_xe' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Cây xăng: khach_hang có phân loại Nhà cung cấp.
+      'nid_ncc' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Bên nhận tiền: luôn lưu đủ, kể cả khi trùng bên phát hành ('ncc' + nid_ncc).
+      // 'ncc' => nid khach_hang; 'nhan_vien' => uid Drupal; 'lai_xe' => nid lai_xe (lái xe chưa có tài khoản vẫn chọn được).
+      'loai_ben_nhan_tien' => array('type' => 'varchar', 'length' => 20, 'not null' => TRUE, 'default' => 'ncc'),
+      'id_ben_nhan_tien' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'so_hoa_don' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => ''),
+      // Số công tơ mét (km) lúc đổ, không bắt buộc.
+      'so_cong_to_met' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE),
+      'so_lit' => array('type' => 'numeric', 'precision' => 12, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      // Đơn giá chưa VAT (đ/lít).
+      'don_gia' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'vat_percent' => array('type' => 'numeric', 'precision' => 5, 'scale' => 2, 'not null' => TRUE, 'default' => 0),
+      'tong_truoc_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'tong_sau_vat' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'ghi_chu' => array('type' => 'text', 'size' => 'normal', 'not null' => FALSE),
+      // Chỉ phần trước thanh toán: cho_duyet | thu_hoi | da_duyet | tu_choi | huy.
+      'trang_thai' => array('type' => 'varchar', 'length' => 20, 'not null' => TRUE, 'default' => 'cho_duyet'),
+      'ly_do_tu_choi' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      'uid_nguoi_duyet' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'ngay_duyet' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      // Đề nghị thanh toán đã lập cho phiếu (0 = chưa có). Dùng ở giai đoạn nối với đề nghị thanh toán.
+      'nid_de_nghi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      // Nhật ký các bước (mảng JSON {at, uid, text}) để hiện "Lịch sử trạng thái".
+      'lich_su_json' => array('type' => 'text', 'size' => 'big', 'not null' => FALSE),
+      'uid_nguoi_tao' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'changed' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+    ),
+    'primary key' => array('nid'),
+    'unique keys' => array(
+      'ma_phieu' => array('ma_phieu'),
+    ),
+    'indexes' => array(
+      'ngay_do' => array('ngay_do'),
+      'nid_phuong_tien' => array('nid_phuong_tien'),
+      'nid_lai_xe' => array('nid_lai_xe'),
+      'nid_ncc' => array('nid_ncc'),
+      'ben_nhan_tien' => array('loai_ben_nhan_tien', 'id_ben_nhan_tien'),
+      'trang_thai' => array('trang_thai'),
+      'nid_de_nghi' => array('nid_de_nghi'),
+      'uid_nguoi_tao' => array('uid_nguoi_tao'),
+      'hoat_dong' => array('hoat_dong'),
+    ),
+  );
+  return $schema;
+}
+
+/**
+ * Thêm bên nhận tiền vào phiếu đổ dầu. Phiếu đã có mặc định là "trùng bên phát hành".
+ */
+function do_dau_update_7001() {
+  if (!db_field_exists('do_dau', 'loai_ben_nhan_tien')) {
+    db_add_field('do_dau', 'loai_ben_nhan_tien', array('type' => 'varchar', 'length' => 20, 'not null' => TRUE, 'default' => 'ncc'));
+  }
+  if (!db_field_exists('do_dau', 'id_ben_nhan_tien')) {
+    db_add_field('do_dau', 'id_ben_nhan_tien', array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0));
+  }
+  if (!db_index_exists('do_dau', 'ben_nhan_tien')) {
+    db_add_index('do_dau', 'ben_nhan_tien', array('loai_ben_nhan_tien', 'id_ben_nhan_tien'));
+  }
+  db_query("UPDATE {do_dau} SET loai_ben_nhan_tien = 'ncc', id_ben_nhan_tien = nid_ncc WHERE id_ben_nhan_tien = 0");
+}

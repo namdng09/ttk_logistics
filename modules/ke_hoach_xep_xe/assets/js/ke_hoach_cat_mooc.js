@@ -66,6 +66,14 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
+  }
+
   function apiMsg(jqXHR) {
     try {
       var r = JSON.parse(jqXHR.responseText);
@@ -278,7 +286,7 @@
       },
       error: function (jqXHR, textStatus) {
         if (textStatus === 'abort' || currentXhr !== listXhr) return;
-        $body.html('<tr><td colspan="9" class="text-center text-danger py-4">Lỗi tải dữ liệu</td></tr>');
+        $body.html(loadErrorRow(9, jqXHR));
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -426,11 +434,51 @@
     initCreateSelect($('#cm-create-lai-xe'), '— Chọn lái xe —');
   }
 
+  // Bỏ tên trùng/rỗng, giữ thứ tự.
+  function uniqueNames(names) {
+    var seen = {};
+    var out = [];
+    $.each(names || [], function (_, raw) {
+      var name = String(raw || '').trim();
+      if (name && !seen[name]) { seen[name] = true; out.push(name); }
+    });
+    return out;
+  }
+
+  // Nguồn danh mục dùng chung của các màn hàng cảng (ke_hoach_hang_cang_master.js): mỗi API tải 1 lần, chia sẻ với các màn khác.
+  function catMoocMaster() {
+    if (!window.Drupal || !Drupal.keHoachHangCangMaster) return null;
+    // Dùng đúng bản jQuery của file này (trang có nhiều bản jQuery, có bản không có ajax/Deferred).
+    Drupal.keHoachHangCangMaster.use($);
+    return Drupal.keHoachHangCangMaster;
+  }
+
   // Nạp một lần danh sách khách hàng, kho, xe, lái xe cho form.
   function ensureCreateData(done) {
     if (create.loaded) { done(); return; }
     if (create.loading) return;
     create.loading = true;
+    var master = catMoocMaster();
+    if (master) {
+      master.load(['customers', 'drivers', 'vehicles', 'diaDiem']).always(function () {
+        var diaDiem = master.get('diaDiem');
+        create.customers = master.get('customers');
+        create.kho = uniqueNames(diaDiem.kho);
+        create.bai = uniqueNames(diaDiem.bai);
+        create.vehicles = [];
+        create.moocs = [];
+        $.each(master.get('vehicles'), function (_, item) {
+          if (String(item.loai_phuong_tien || '').toLowerCase().indexOf('mooc') !== -1) create.moocs.push(item);
+          else create.vehicles.push(item);
+        });
+        create.drivers = master.get('drivers');
+        create.loading = false;
+        create.loaded = true;
+        fillCreateSelects();
+        done();
+      });
+      return;
+    }
     var pending = 5;
     var finish = function () {
       pending -= 1;
@@ -817,6 +865,21 @@
 
   // Khách hàng: nhãn là mã KH (ngắn gọn), chọn nhiều.
   function loadCustomerFilter() {
+    var master = catMoocMaster();
+    if (master) {
+      master.load(['customers']).always(function () {
+        var html = '';
+        $.each(master.get('customers'), function (_, customer) {
+          if (!customer || !customer.nid) return;
+          html += '<option value="' + customer.nid + '">' + escHtml(customerLabel(customer)) + '</option>';
+        });
+        $('#cm-filter-khach-hang').html(html);
+        initFilterSelect2($('#cm-filter-khach-hang'), { placeholder: '— Chọn một hoặc nhiều khách hàng —', closeOnSelect: false });
+      }).fail(function () {
+        if (notyf) notyf.error('Không tải được danh sách khách hàng');
+      });
+      return;
+    }
     $.getJSON('/api/khach-hang', { limit: 500 }, function (res) {
       var html = '';
       if (res.status === 'success' && res.data && res.data.items) {
@@ -834,6 +897,20 @@
 
   // Kho: lấy đầy đủ từ danh mục Kho (cùng nguồn với màn hàng cảng), không chỉ kho đang có cont.
   function loadKhoFilter() {
+    var master = catMoocMaster();
+    if (master) {
+      master.load(['diaDiem']).always(function () {
+        var html = '<option></option>';
+        $.each(uniqueNames(master.get('diaDiem').kho), function (_, name) {
+          html += '<option value="' + escHtml(name) + '">' + escHtml(name) + '</option>';
+        });
+        $('#cm-filter-dia-chi-kho').html(html);
+        initFilterSelect2($('#cm-filter-dia-chi-kho'), { placeholder: '— Chọn địa chỉ kho —' });
+      }).fail(function () {
+        if (notyf) notyf.error('Không tải được danh sách kho');
+      });
+      return;
+    }
     $.getJSON('/api/danh-muc', { phan_loai: 'Kho', limit: 500 }, function (res) {
       var html = '<option></option>';
       var seen = {};

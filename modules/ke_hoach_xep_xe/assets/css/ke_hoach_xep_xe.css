@@ -3590,6 +3590,7 @@ button.khxh-cont-ref-number:focus {
 }
 
 .khcp-cost-type-toggle {
+  position: relative;
   display: inline-flex;
   width: 29px;
   height: 27px;
@@ -3606,8 +3607,13 @@ button.khxh-cont-ref-number:focus {
   transition: all .15s ease;
 }
 
+/* Checkbox ẩn (chỉ nhãn KH/CT/LX hiện ra) phải neo vào chính ô .khcp-cost-type-toggle (position: relative ở trên).
+ * Thiếu điều đó, "position: absolute" không có gốc toạ độ nào gần nên trình duyệt tính sai vị trí tĩnh của nó bên trong
+ * ô bảng — bấm chọn hoặc Tab vào (focus) làm cả trang tự cuộn xuống cuối để "đưa checkbox vào tầm nhìn". */
 .khcp-cost-type-toggle input {
   position: absolute;
+  top: 0;
+  left: 0;
   opacity: 0;
   pointer-events: none;
 }

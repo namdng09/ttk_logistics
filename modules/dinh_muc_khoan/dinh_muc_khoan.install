@@ -1,0 +1,102 @@
+<?php
+
+/**
+ * @file
+ * Schema cho định mức khoán lái xe — dùng chung toàn hệ thống, không theo
+ * từng khách hàng (khác với bảng giá bán ở module cau_hinh_gia_ban).
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function dinh_muc_khoan_schema() {
+  $schema['dinh_muc_khoan'] = array(
+    'description' => 'Định mức khoán lái xe theo tuyến, dùng chung toàn hệ thống.',
+    'fields' => array(
+      'nid' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'diem_dau' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      // Mảng JSON các tên gọi khác của cùng điểm đầu, để so khớp không bị lệch
+      // do lập kế hoạch gõ tên hơi khác — xem AGENTS.md phần định mức.
+      'diem_dau_alias' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'diem_cuoi' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'diem_cuoi_alias' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'khoang_cach' => array(
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      // 3 mức tiền theo trạng thái xe khi chạy chặng: Vỏ / Hàng / Trống.
+      'gia_vo' => array(
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'gia_hang' => array(
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'gia_trong' => array(
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'uid_nguoi_tao' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'created' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
+      ),
+      'changed' => array(
+        'type' => 'varchar',
+        'length' => 19,
+        'not null' => FALSE,
+      ),
+      'hoat_dong' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'diem_dau' => array('diem_dau'),
+      'diem_cuoi' => array('diem_cuoi'),
+      'hoat_dong' => array('hoat_dong'),
+      'created' => array('created'),
+    ),
+  );
+
+  return $schema;
+}
+

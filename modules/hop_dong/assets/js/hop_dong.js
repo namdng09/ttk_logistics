@@ -227,15 +227,59 @@
     section.style.display = '';
   }
 
+  // Tải đủ mọi trang của 1 API danh sách: trang 1 cho biết total_pages, các trang còn lại gọi song song (mỗi lần tối đa 100 dòng
+  // khi dùng select, tối đa 50 trang). done(items) khi đủ, fail(jqXHR|undefined) nếu có trang lỗi.
+  // Dùng callback success/error/complete (không dùng .done/.fail/.always): lúc file này chạy, $ là jQuery cũ của Drupal
+  // core, $.ajax() của bản đó không trả về Deferred.
+  function fetchAllPages(url, params, done, fail) {
+    function request(page, onSuccess, onError, onComplete) {
+      $.ajax({
+        url: url, type: 'GET', dataType: 'json', data: $.extend({ page: page }, params),
+        success: onSuccess, error: onError, complete: onComplete
+      });
+    }
+    request(1, function (res) {
+      if (!(res && res.status === 'success' && res.data && res.data.items)) {
+        fail();
+        return;
+      }
+      var first = res.data.items;
+      var pages = Math.min(50, Math.max(1, parseInt(res.data.total_pages, 10) || 1));
+      if (pages === 1) {
+        done(first);
+        return;
+      }
+      var chunks = [];
+      var left = pages - 1;
+      var failed = false;
+      for (var page = 2; page <= pages; page++) {
+        (function (p) {
+          request(p, function (r) {
+            if (r && r.status === 'success' && r.data && r.data.items) chunks[p - 2] = r.data.items; else failed = true;
+          }, function () {
+            failed = true;
+          }, function () {
+            left -= 1;
+            if (left > 0) return;
+            if (failed) { fail(); return; }
+            var all = first;
+            for (var c = 0; c < chunks.length; c++) all = all.concat(chunks[c]);
+            done(all);
+          });
+        })(page);
+      }
+    }, function (jqXHR) {
+      fail(jqXHR);
+    });
+  }
+
   function loadKhachHangSelect() {
-    $.ajax({
-      url: IS_EMPLOYEE_CONTRACT ? '/api/nhan-vien' : '/api/khach-hang',
-      type: 'GET',
-      dataType: 'json',
-      data: IS_EMPLOYEE_CONTRACT ? { limit: 500, status: 1 } : { limit: 500 },
-      success: function (res) {
-        if (res.status === 'success' && res.data) {
-          var items = res.data.items || [];
+    // Chỉ lấy trường ô chọn dùng (mã + tên; khách hàng kèm nv_kinh_doanh để hiện NV phụ trách); tải đủ mọi trang, mỗi lần 100 dòng.
+    fetchAllPages(
+      IS_EMPLOYEE_CONTRACT ? '/api/nhan-vien' : '/api/khach-hang',
+      IS_EMPLOYEE_CONTRACT ? { limit: 100, status: 1, select: 'uid,ten,name,ma_nhan_vien' } : { limit: 100, select: 'nid,ten,ma_kh,nv_kinh_doanh' },
+      function (items) {
+        {
           var select = document.getElementById('select-khach-hang');
           var filter = document.getElementById('filter-khach-hang');
           if (select) {
@@ -273,10 +317,10 @@
           initFilterSelect2();
         }
       },
-      error: function (jqXHR) {
-        if (notyf) notyf.error(apiMsg(jqXHR));
+      function (jqXHR) {
+        if (notyf) notyf.error(jqXHR ? apiMsg(jqXHR) : 'Không tải đủ danh sách');
       }
-    });
+    );
   }
 
   function initSelect2() {
@@ -400,7 +444,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="' + (IS_EMPLOYEE_CONTRACT ? 7 : 8) + '" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append(loadErrorRow(IS_EMPLOYEE_CONTRACT ? 7 : 8, jqXHR));
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -965,6 +1009,14 @@
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
+  }
+
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
   }
 
   function apiMsg(jqXHR) {

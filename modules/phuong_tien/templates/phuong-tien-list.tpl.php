@@ -24,9 +24,11 @@
       </div>
       <div class="col-6 col-md-5">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
+          <?php if (api_has_permission('phuong_tien_create')): ?>
           <button type="button" class="btn btn-primary btn-them-phuong-tien" data-bs-toggle="modal" data-bs-target="#phuong-tien-modal">
             <i class="ti tabler-plus me-1"></i>Thêm phương tiện
           </button>
+          <?php endif; ?>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-phuong-tien">
             <i class="ti tabler-refresh"></i>
           </button>

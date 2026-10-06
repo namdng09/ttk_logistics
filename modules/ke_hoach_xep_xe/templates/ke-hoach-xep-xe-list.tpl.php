@@ -3,6 +3,9 @@ $is_tuyen_xa = isset($plan_type) && $plan_type === 'tuyen_xa';
 $list_title = $is_tuyen_xa ? 'Kế hoạch tuyến xa' : 'Kế hoạch hàng cảng';
 $create_title = $is_tuyen_xa ? 'Tạo kế hoạch tuyến xa' : 'Tạo kế hoạch xếp xe';
 $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
+// Nút tạo/xếp xe chỉ hiện khi có quyền (server vẫn kiểm tra lại ở API).
+$khxh_can_create = api_has_permission('ke_hoach_xep_xe_create');
+$khxh_can_create_ptkh = api_has_permission('phieu_tra_khach_hang_create');
 ?>
 <?php if ($is_tuyen_xa): ?>
 <div class="card" id="ke-hoach-list-app">
@@ -15,7 +18,16 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
   <div class="card khxh-port-controls-card">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
       <h4 class="card-title mb-0"><?php print check_plain($list_title); ?></h4>
-      <button type="button" class="btn btn-success waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?></button>
+      <?php if ($khxh_can_create || ($khxh_can_create_ptkh && function_exists('phieu_tra_khach_hang_modal_markup'))): ?>
+      <div class="d-flex flex-wrap gap-2">
+        <?php if ($khxh_can_create_ptkh && function_exists('phieu_tra_khach_hang_modal_markup')): ?>
+        <button type="button" class="btn btn-label-primary waves-effect khxh-port-ptkh-create"><i class="ti tabler-file-invoice me-1"></i>Tạo phiếu trả KH</button>
+        <?php endif; ?>
+        <?php if ($khxh_can_create): ?>
+        <button type="button" class="btn btn-success waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i><?php print check_plain($create_button_text); ?></button>
+        <?php endif; ?>
+      </div>
+      <?php endif; ?>
     </div>
     <div class="card-body">
 <?php endif; ?>
@@ -33,9 +45,15 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
           <div class="khxh-filter-actions khxh-filter-actions-tx">
             <button class="btn btn-primary" type="button" id="search-btn"><i class="ti tabler-search me-1"></i>Tìm</button>
             <button type="button" class="btn btn-label-secondary btn-reload waves-effect"><i class="ti tabler-refresh me-1"></i>Reset</button>
+            <?php if ($khxh_can_create || $khxh_can_create_ptkh): ?>
             <div class="khxh-filter-actions-sep"></div>
+            <?php endif; ?>
+            <?php if ($khxh_can_create_ptkh): ?>
             <button type="button" class="btn btn-label-primary waves-effect btn-open-ptkh-create"><i class="ti tabler-file-plus me-1"></i>Tạo phiếu trả KH</button>
+            <?php endif; ?>
+            <?php if ($khxh_can_create): ?>
             <button type="button" class="btn btn-success waves-effect waves-light btn-open-create-ke-hoach"><i class="ti tabler-plus me-1"></i>Tạo tuyến xa</button>
+            <?php endif; ?>
           </div>
         </div>
       </div>
@@ -225,9 +243,11 @@ $create_button_text = $is_tuyen_xa ? 'Tạo tuyến xa' : 'Tạo hàng cảng';
         <div id="ke-hoach-detail-content"></div>
       </div>
       <div class="modal-footer">
+        <?php if ($khxh_can_create): ?>
         <a href="#" class="btn btn-primary" id="ke-hoach-detail-edit-btn">
           <i class="ti tabler-truck-delivery me-1"></i>Xếp xe
         </a>
+        <?php endif; ?>
         <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng lại</button>
       </div>
     </div>

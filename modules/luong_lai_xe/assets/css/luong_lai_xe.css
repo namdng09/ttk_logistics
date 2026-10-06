@@ -1,28 +1,59 @@
-.llx-table {
-  table-layout: fixed;
-  min-width: 1080px;
+/* Màn /luong-lai-xe — bố cục 2 card như /de-nghi-thanh-toan (bản riêng, tiền tố llx-). */
+#llx-app.llx-list-app { display: flex; flex-direction: column; gap: 1rem; }
+#llx-app .llx-title-icon { color: #7367f0; font-size: 1.35rem; vertical-align: -3px; }
+
+/* Dải tổng ở tiêu đề card trên. */
+#llx-app .llx-sum-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.75rem; }
+#llx-app .llx-sum-item { display: flex; align-items: baseline; gap: .5rem; }
+#llx-app .llx-sum-label { font-size: .78rem; color: #6d6b77; }
+#llx-app .llx-sum-value { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Bộ lọc 1 dòng. */
+#llx-app .llx-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, .8fr) minmax(260px, 1.6fr) max-content;
+  align-items: flex-end;
+  gap: .75rem;
+}
+#llx-app .llx-filter-field { min-width: 0; }
+#llx-app .llx-filter-field .form-label { margin-bottom: .35rem; font-size: .76rem; font-weight: 600; color: #566a7f; white-space: nowrap; }
+#llx-app .llx-filter-field .form-control { font-size: .85rem; }
+#llx-app .llx-filter-actions { display: flex; align-items: center; gap: .5rem; }
+#llx-app .llx-filter-reset { display: inline-flex; align-items: center; justify-content: center; width: 38px; min-width: 38px; height: 38px; padding: 0; }
+#llx-app .llx-filter-reset > i { margin: 0 !important; font-size: 1.05rem; line-height: 1; }
+@media (max-width: 767.98px) {
+  #llx-app .llx-filter-grid { grid-template-columns: 1fr; }
 }
 
+/* Tab trạng thái trả lương. */
+#llx-app .llx-status-tabs-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .5rem 1rem; border-bottom: 1px solid #eef0f4; background: #fff; }
+#llx-app .llx-status-tabs { gap: 6px; flex-wrap: wrap; }
+#llx-app .llx-status-tabs .nav-link { border: 0; cursor: pointer; padding-left: 7px; padding-right: 7px; }
+#llx-app .llx-status-tabs .nav-link .badge { pointer-events: none; }
+
+/* Bảng: chỉ nội dung bảng cuộn, tiêu đề dính. */
+#llx-app .llx-table-scroll { min-height: 280px; max-height: min(620px, calc(100vh - 320px)); overflow: auto; }
+#llx-app .llx-table-scroll .table-responsive { overflow: visible; }
+#llx-app .llx-table-scroll .llx-table thead th { position: sticky; top: 0; z-index: 2; background: var(--bs-table-bg, #f8f9fa); }
+.llx-table { table-layout: fixed; min-width: 1400px; }
+.llx-table td { font-size: 13px; }
+.llx-table th { font-size: 12px; }
 .llx-table th,
 .llx-table td,
 .llx-detail-table th,
-.llx-detail-table td {
-  vertical-align: middle;
-}
-
+.llx-detail-table td { vertical-align: middle; }
 .llx-table thead th,
-.llx-detail-table thead th {
-  height: 34px;
-  padding: 6px 8px;
-  white-space: nowrap;
-}
+.llx-detail-table thead th { height: 34px; padding: 6px 8px; white-space: nowrap; }
+.llx-table .llx-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.llx-table .llx-period { display: inline-block; padding: 1px 8px; border-radius: 50rem; background: #f1f0f2; color: #444050; font-size: .76rem; font-weight: 600; white-space: nowrap; }
 
-.llx-col-actions { width: 58px; text-align: center !important; }
+.llx-col-actions { width: 56px; text-align: center !important; }
 .llx-col-stt { width: 50px; text-align: center !important; }
-.llx-col-period { width: 88px; }
-.llx-col-driver { width: 240px; }
-.llx-col-count { width: 86px; }
-.llx-col-money { width: 128px; }
+.llx-col-period { width: 96px; }
+.llx-col-driver { width: 230px; }
+.llx-col-count { width: 82px; }
+.llx-col-money { width: 120px; }
+.llx-col-status { width: 110px; }
 
 .llx-driver-name {
   font-weight: 650;
@@ -87,3 +118,25 @@
   font-size: 12px;
   margin-bottom: 2px;
 }
+
+/* Ô "Kỳ lương": chọn khoảng tháng (cùng cách với ô "Kỳ công nợ" ở /cong-no-khach-hang, bản riêng tiền tố llx-). */
+.llx-period { position: relative; }
+.llx-period-input { display: flex; align-items: center; width: 100%; text-align: left; background-color: #fff; cursor: pointer; font-size: .85rem; }
+.llx-period-input .ti { color: #7367f0; }
+.llx-period-pop {
+  position: absolute; z-index: 1060; top: calc(100% + 6px); left: 0; width: 300px;
+  background: #fff; border: 1px solid #e6e6e8; border-radius: .5rem; box-shadow: 0 .5rem 1.5rem rgba(47, 43, 61, .14); padding: .75rem;
+}
+.llx-period-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+.llx-period-head strong { font-size: 1rem; color: #444050; }
+.llx-period-nav { border: 0; background: transparent; width: 30px; height: 30px; border-radius: .375rem; color: #6d6b77; cursor: pointer; }
+.llx-period-nav:hover { background: #f1f0f2; }
+.llx-period-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.llx-period-month { border: 1px solid transparent; background: #f8f7fa; border-radius: .375rem; padding: .4rem 0; font-size: .82rem; color: #444050; cursor: pointer; }
+.llx-period-month:hover { border-color: #7367f0; }
+.llx-period-month.is-range { background: #eeecfd; color: #5d55c9; }
+.llx-period-month.is-edge { background: #7367f0; color: #fff; font-weight: 600; }
+.llx-period-month.is-current { box-shadow: inset 0 0 0 1px #7367f0; }
+.llx-period-hint { margin: .5rem 0; font-size: .75rem; color: #8a8794; min-height: 1em; }
+.llx-period-quick { display: flex; flex-wrap: wrap; gap: 4px; border-top: 1px solid #eef0f4; padding-top: .5rem; }
+.llx-period-quick .btn { padding: .2rem .5rem; font-size: .75rem; }

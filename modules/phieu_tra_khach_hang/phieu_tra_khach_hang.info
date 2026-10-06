@@ -3,4 +3,4 @@ description = Quản lý phiếu trả khách hàng từ kế hoạch hoàn thà
 core = 7.x
 package = ANDIN JSC API
 version = 7.x-1.0
-
+dependencies[] = api_common

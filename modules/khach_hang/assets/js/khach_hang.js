@@ -24,24 +24,10 @@
   var BANK_LIST_LOADED = false;
   var DIADIEM_LIST = [];
   var NV_KINH_DOANH_LOADED = false;
-  var DIADIEM_LIST_LOADED = false;
-  var DINH_MUC_LOCATION_LIST = [];
-  var DINH_MUC_LOCATION_LIST_LOADED = false;
-  var DINH_MUC_RULE_FILTER = '';
-  var DINH_MUC_RENDERING = false;
   var FORM_SUPPORT_DATA_LOADED = false;
   var FORM_SUPPORT_DATA_LOADING = false;
   var FORM_SUPPORT_DATA_CALLBACKS = [];
   var moneyFormatter = new Intl.NumberFormat('vi-VN');
-  var DINH_MUC_STATE = {
-    customerId: 0,
-    customerName: '',
-    original: null,
-    data: { routes: [] },
-    changed: false
-  };
-  var tagifyDinhMucFrom = null;
-  var tagifyDinhMucTo = null;
 
   function modalShow(id) {
     var el = document.getElementById(id);
@@ -134,16 +120,16 @@
     }
     var modal = ensureModal();
     if (!modal) {
-      if (notyf) notyf.error('Không tải được form tạo khách hàng');
+      if (notyf) notyf.error('Không tải được form tạo đối tác');
       return;
     }
     resetForm();
     setFormMode('create');
-    document.getElementById('khach-hang-modal-title').textContent = config.title || 'Thêm khách hàng';
+    document.getElementById('khach-hang-modal-title').textContent = config.title || 'Thêm đối tác';
     quickCreateCallback = typeof config.onCreated === 'function' ? config.onCreated : null;
     ensureFormSupportData(function () {
       initTagify();
-      setTagifyValue(config.phanLoai || ['Khách hàng']);
+      setTagifyValue(config.phanLoai || ['Đối tác']);
       initRepeater();
       initDatePickers();
     });
@@ -294,11 +280,6 @@
             openEditModal(t.getAttribute('data-id'));
             return;
           }
-          if (t.classList.contains('btn-dinh-muc-khach-hang')) {
-            e.preventDefault();
-            openDinhMucModal(t.getAttribute('data-id'));
-            return;
-          }
           if (t.classList.contains('btn-delete-khach-hang')) {
             e.preventDefault();
             confirmDelete(t.getAttribute('data-id'));
@@ -350,11 +331,6 @@
             if (kCard2) refreshKhoSummary(kCard2);
             return;
           }
-          if (t.classList.contains('kh-dm-remove-location')) {
-            e.preventDefault();
-            removeDinhMucLocation(t.getAttribute('data-location'));
-            return;
-          }
           if (t.classList.contains('page-link')) {
             var pageLink = parseInt(t.getAttribute('data-page'));
             if (pageLink && pageLink !== currentPage) {
@@ -383,10 +359,6 @@
         var kCard = t.closest('.kho-card');
         if (kCard) refreshKhoSummary(kCard);
       }
-      if (t && t.classList && t.classList.contains('kh-dm-rule-number')) {
-        normalizeDinhMucRuleNumber(t);
-        updateDinhMucRowNumber(t);
-      }
     });
 
     doc.addEventListener('blur', function (e) {
@@ -396,34 +368,6 @@
       }
     }, true);
 
-    var dmAddRule = doc.getElementById('kh-dm-add-rule');
-    if (dmAddRule) dmAddRule.addEventListener('click', addDinhMucRuleFromForm);
-    var dmResetRule = doc.getElementById('kh-dm-reset-rule');
-    if (dmResetRule) dmResetRule.addEventListener('click', resetDinhMucRuleForm);
-    var dmRuleSearch = doc.getElementById('kh-dm-rule-search');
-    if (dmRuleSearch) {
-      dmRuleSearch.addEventListener('input', function () {
-        DINH_MUC_RULE_FILTER = $.trim(dmRuleSearch.value || '');
-        renderDinhMucRules();
-      });
-    }
-    var dmExport = doc.getElementById('kh-dm-export');
-    if (dmExport) dmExport.addEventListener('click', exportDinhMucExcel);
-    var dmImport = doc.getElementById('kh-dm-import');
-    var dmImportFile = doc.getElementById('kh-dm-import-file');
-    if (dmImport && dmImportFile) {
-      dmImport.addEventListener('click', function () {
-        dmImportFile.value = '';
-        dmImportFile.click();
-      });
-      dmImportFile.addEventListener('change', handleDinhMucImportFile);
-    }
-    var dmSave = doc.getElementById('kh-dm-save');
-    if (dmSave) dmSave.addEventListener('click', saveDinhMucData);
-    var dmRuleBody = doc.getElementById('kh-dm-rule-body');
-    if (dmRuleBody) {
-      dmRuleBody.addEventListener('click', handleDinhMucRuleAction);
-    }
 
     // Pagination jump keypress
     var paginationJump = doc.getElementById('pagination-jump');
@@ -485,43 +429,7 @@
     return moneyFormatter.format(n);
   }
 
-  /* =====================================================
-     NV Kinh Doanh
-     ===================================================== */
 
-  function loadNvKinhDoanh() {
-    if (NV_KINH_DOANH_LOADED) return;
-    $.ajax({
-      url: '/api/nhan-vien',
-      type: 'GET',
-      dataType: 'json',
-      data: { limit: 100, chuc_vu: 28 },
-      success: function (res) {
-        if (res.status === 'success' && res.data) {
-          var items = res.data.items || [];
-          var map = {};
-          var sel = document.getElementById('nv-kinh-doanh-select');
-          if (!sel) return;
-          sel.innerHTML = '<option value="">Chọn nhân viên</option>';
-          for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            var text = item.ten || item.name || '';
-            if (item.ma_nhan_vien) text += ' - ' + item.ma_nhan_vien;
-            map[String(item.uid)] = text;
-            var opt = document.createElement('option');
-            opt.value = item.uid;
-            opt.textContent = text;
-            sel.appendChild(opt);
-          }
-          NV_KINH_DOANH_MAP = map;
-          NV_KINH_DOANH_LOADED = true;
-        }
-      },
-      error: function (jqXHR) {
-        if (notyf) notyf.error(apiMsg(jqXHR));
-      }
-    });
-  }
 
   /* =====================================================
      Tagify (Phân loại)
@@ -775,36 +683,7 @@
     }
   }
 
-  /* =====================================================
-     Dia Diem (for warehouse address selects)
-     ===================================================== */
 
-  function loadDiaDiem() {
-    if (DIADIEM_LIST_LOADED) return;
-    $.ajax({
-      url: '/api/danh-muc',
-      type: 'GET',
-      dataType: 'json',
-      data: { phan_loai: 'Kho', limit: 500 },
-      success: function (res) {
-        if (res.status === 'success' && res.data && res.data.items) {
-          var names = [];
-          for (var i = 0; i < res.data.items.length; i++) {
-            var ten = res.data.items[i].ten;
-            if (ten) names.push(ten);
-          }
-          DIADIEM_LIST = names;
-          DIADIEM_LIST_LOADED = true;
-          var selects = document.querySelectorAll('.kho-dia-chi');
-          for (var j = 0; j < selects.length; j++) {
-            var curVal = selects[j].value;
-            initDiaDiemSelect(selects[j], curVal || null);
-          }
-        }
-      },
-      error: function () {}
-    });
-  }
 
   function ensureFormSupportData(callback) {
     if (FORM_SUPPORT_DATA_LOADED) {
@@ -822,7 +701,8 @@
 
     FORM_SUPPORT_DATA_LOADING = true;
 
-    var remaining = 3;
+    // Ngân hàng + NV kinh doanh. (Danh mục Kho không tải nữa: mục Địa chỉ kho & Bảng giá đang ẩn; giá trị kho đã lưu vẫn hiện được.)
+    var remaining = 2;
     function finishOne() {
       remaining--;
       if (remaining > 0) return;
@@ -858,7 +738,8 @@
         url: '/api/nhan-vien',
         type: 'GET',
         dataType: 'json',
-        data: { limit: 100, chuc_vu: 28 },
+        // Chỉ các trường dùng để dựng ô chọn: uid, tên, tên đăng nhập, mã nhân viên.
+        data: { limit: 100, chuc_vu: 28, select: 'uid,ten,name,ma_nhan_vien' },
         success: function (res) {
           if (res.status === 'success' && res.data) {
             var items = res.data.items || [];
@@ -888,34 +769,9 @@
       });
     }
 
-    function finishDiaDiem() {
-      if (DIADIEM_LIST_LOADED) {
-        finishOne();
-        return;
-      }
-      $.ajax({
-        url: '/api/danh-muc',
-        type: 'GET',
-        dataType: 'json',
-        data: { phan_loai: 'Kho', limit: 500 },
-        success: function (res) {
-          if (res.status === 'success' && res.data && res.data.items) {
-            var names = [];
-            for (var i = 0; i < res.data.items.length; i++) {
-              var ten = res.data.items[i].ten;
-              if (ten) names.push(ten);
-            }
-            DIADIEM_LIST = names;
-            DIADIEM_LIST_LOADED = true;
-          }
-        },
-        complete: finishOne
-      });
-    }
 
     loadBankList(finishOne);
     finishNv();
-    finishDiaDiem();
   }
 
   function initDiaDiemSelect(selEl, value) {
@@ -1215,7 +1071,8 @@
       '<span class="visually-hidden">Đang tải...</span></div></td></tr>'
     );
 
-    var params = { page: currentPage, keyword: currentKeyword };
+    // Danh sách chỉ lấy các cột hiển thị; xem/sửa gọi GET /api/khach-hang/{id} riêng.
+    var params = { page: currentPage, keyword: currentKeyword, select: 'nid,ten,ma_kh,cccd_mst,sdt,dia_chi,phan_loai,ghi_chu' };
     if (currentPhanLoai) {
       params.phan_loai = currentPhanLoai;
     }
@@ -1268,7 +1125,7 @@
       },
       error: function (jqXHR) {
         $('#loading-row').remove();
-        tbody.append('<tr><td colspan="9" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>');
+        tbody.append(loadErrorRow(9, jqXHR));
         if (notyf) notyf.error(apiMsg(jqXHR));
       }
     });
@@ -1284,7 +1141,6 @@
     }
     if (perms.khach_hang_create) {
       items += '<li><button type="button" class="dropdown-item btn-edit-khach-hang" data-id="' + nid + '"><i class="ti tabler-edit me-2"></i>Sửa</button></li>';
-      items += '<li><button type="button" class="dropdown-item btn-dinh-muc-khach-hang" data-id="' + nid + '"><i class="ti tabler-map-dollar me-2"></i>Định mức</button></li>';
     }
     if (perms.khach_hang_delete) {
       items += '<li><hr class="dropdown-divider"></li>';
@@ -1355,19 +1211,19 @@
     id = parseInt(id, 10) || 0;
     var modal = ensureModal();
     if (!id || !modal) {
-      if (notyf) notyf.error('Không mở được form xem chi tiết khách hàng');
+      if (notyf) notyf.error('Không mở được form xem chi tiết đối tác');
       return;
     }
     var title = modal.querySelector('#khach-hang-modal-title');
     var saveButton = modal.querySelector('.btn-luu-khach-hang');
     if (!title || !saveButton || !modal.querySelector('#form-khach-hang')) {
-      if (notyf) notyf.error('Form xem chi tiết khách hàng chưa sẵn sàng');
+      if (notyf) notyf.error('Form xem chi tiết đối tác chưa sẵn sàng');
       return;
     }
     showLoading(true);
     if (!modalShow('khach-hang-modal')) {
       showLoading(false);
-      if (notyf) notyf.error('Không thể hiển thị modal khách hàng');
+      if (notyf) notyf.error('Không thể hiển thị modal đối tác');
       return;
     }
 
@@ -1377,13 +1233,13 @@
     try {
       resetForm();
       setFormMode('view');
-      title.textContent = 'Chi tiết khách hàng';
+      title.textContent = 'Chi tiết đối tác';
       saveButton.style.display = 'none';
       showLoading(true);
     } catch (err) {
       showLoading(false);
-      if (window.console && console.error) console.error('[Khách hàng] Không khởi tạo được form xem:', err);
-      if (notyf) notyf.error('Không thể chuẩn bị form xem chi tiết khách hàng');
+      if (window.console && console.error) console.error('[Đối tác] Không khởi tạo được form xem:', err);
+      if (notyf) notyf.error('Không thể chuẩn bị form xem chi tiết đối tác');
       return;
     }
 
@@ -1412,7 +1268,7 @@
 
   function openEditModal(id) {
     setFormMode('edit');
-    document.getElementById('khach-hang-modal-title').textContent = 'Cập nhật khách hàng';
+    document.getElementById('khach-hang-modal-title').textContent = 'Cập nhật đối tác';
     document.querySelector('#form-khach-hang input[name="nid"]').value = id;
     var btn = document.querySelector('.btn-luu-khach-hang');
     btn.removeAttribute('disabled');
@@ -1551,7 +1407,7 @@
     document.querySelector('#form-khach-hang input[name="nid"]').value = '';
     var nvSel = document.getElementById('nv-kinh-doanh-select');
     if (nvSel) nvSel.value = '';
-    document.getElementById('khach-hang-modal-title').textContent = 'Thêm khách hàng';
+    document.getElementById('khach-hang-modal-title').textContent = 'Thêm đối tác';
     initRepeater();
     // Reset warehouse list
     var khoList = document.getElementById('kho-list');
@@ -1630,7 +1486,7 @@
     if (typeof Swal !== 'undefined') {
       Swal.fire({
         title: 'Xác nhận xoá',
-        text: 'Bạn có chắc chắn muốn xoá khách hàng này?',
+        text: 'Bạn có chắc chắn muốn xoá đối tác này?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Xoá',
@@ -1644,7 +1500,7 @@
         }
       });
     } else {
-      if (confirm('Xác nhận xoá khách hàng này?')) {
+      if (confirm('Xác nhận xoá đối tác này?')) {
         deleteItem(id);
       }
     }
@@ -1670,872 +1526,16 @@
   }
 
   /* =====================================================
-     Định mức khách hàng
-     ===================================================== */
-
-  function cloneData(value) {
-    return JSON.parse(JSON.stringify(value || {}));
-  }
-
-  function setDinhMucLoading(show) {
-    var loading = document.getElementById('khach-hang-dinh-muc-loading');
-    var modal = document.getElementById('khach-hang-dinh-muc-modal');
-    if (loading) {
-      loading.classList.toggle('is-active', !!show);
-      loading.style.display = show ? 'flex' : 'none';
-    }
-    if (modal) {
-      modal.querySelectorAll('input, button').forEach(function (el) {
-        if (el.id === 'kh-dm-from-tags' || el.id === 'kh-dm-to-tags') return;
-        if (!el.classList.contains('btn-close')) el.disabled = !!show;
-      });
-    }
-    if (!show) {
-      if (tagifyDinhMucFrom) {
-        tagifyDinhMucFrom.setReadonly(false);
-        tagifyDinhMucFrom.settings.whitelist = DINH_MUC_LOCATION_LIST;
-      }
-      if (tagifyDinhMucTo) {
-        tagifyDinhMucTo.setReadonly(false);
-        tagifyDinhMucTo.settings.whitelist = DINH_MUC_LOCATION_LIST;
-      }
-    }
-  }
-
-  function setDinhMucStatus(text, state) {
-    var el = document.getElementById('kh-dm-status');
-    if (!el) return;
-    el.textContent = text;
-    el.classList.toggle('is-unsaved', state === 'unsaved');
-    el.classList.toggle('is-error', state === 'error');
-  }
-
-  function normalizeDinhMucPayload(payload) {
-    payload = payload || {};
-    var routes = [];
-    $.each(payload.routes || [], function (_, route) {
-      route = normalizeDinhMucRule(route);
-      if (route) routes.push(route);
-    });
-    return {
-      routes: routes
-    };
-  }
-
-  function openDinhMucModal(id) {
-    id = parseInt(id, 10) || 0;
-    if (!id) return;
-
-    ensureDinhMucLocationTags();
-    DINH_MUC_STATE.customerId = id;
-    DINH_MUC_STATE.customerName = '';
-    DINH_MUC_STATE.original = null;
-    DINH_MUC_STATE.data = { routes: [] };
-    DINH_MUC_STATE.changed = false;
-    DINH_MUC_RULE_FILTER = '';
-    document.getElementById('kh-dm-customer-name').value = '';
-    var searchInput = document.getElementById('kh-dm-rule-search');
-    if (searchInput) searchInput.value = '';
-    resetDinhMucRuleForm();
-    document.getElementById('kh-dm-rule-body').innerHTML = '';
-    updateDinhMucRuleCount();
-    setDinhMucStatus('Đã lưu');
-    setDinhMucLoading(true);
-    modalShow('khach-hang-dinh-muc-modal');
-
-    $.ajax({
-      url: '/api/khach-hang/' + id + '/dinh-muc',
-      type: 'GET',
-      dataType: 'json',
-      success: function (res) {
-        setDinhMucLoading(false);
-        if (res.status !== 'success' || !res.data) {
-          if (notyf) notyf.error(res.message || 'Không tải được định mức');
-          return;
-        }
-        DINH_MUC_STATE.customerName = res.data.khach_hang && res.data.khach_hang.ten ? res.data.khach_hang.ten : '';
-        DINH_MUC_STATE.data = normalizeDinhMucPayload(res.data);
-        DINH_MUC_STATE.original = cloneData(DINH_MUC_STATE.data);
-        DINH_MUC_STATE.changed = false;
-        document.getElementById('khach-hang-dinh-muc-title').textContent = 'Định mức - ' + DINH_MUC_STATE.customerName;
-        document.getElementById('kh-dm-customer-name').value = DINH_MUC_STATE.customerName;
-        renderDinhMucRules();
-        setDinhMucStatus('Đã lưu');
-      },
-      error: function (jqXHR) {
-        setDinhMucLoading(false);
-        if (notyf) notyf.error(apiMsg(jqXHR));
-      }
-    });
-  }
-
-  function initDinhMucLocationTags() {
-    initDinhMucTagify('kh-dm-from-tags', 'from');
-    initDinhMucTagify('kh-dm-to-tags', 'to');
-  }
-
-  function initDinhMucTagify(id, type) {
-    var el = document.getElementById(id);
-    if (!el || typeof Tagify === 'undefined') return;
-    var current = type === 'from' ? tagifyDinhMucFrom : tagifyDinhMucTo;
-    if (current) {
-      current.settings.whitelist = DINH_MUC_LOCATION_LIST;
-      return;
-    }
-    var instance = new Tagify(el, {
-      whitelist: DINH_MUC_LOCATION_LIST,
-      enforceWhitelist: false,
-      dropdown: {
-        enabled: 0,
-        maxItems: 100,
-        closeOnSelect: false
-      }
-    });
-    if (type === 'from') tagifyDinhMucFrom = instance;
-    else tagifyDinhMucTo = instance;
-    instance.on('change', updateDinhMucAddTagWhitelists);
-    updateDinhMucAddTagWhitelists();
-  }
-
-  function ensureDinhMucLocationTags() {
-    if (DINH_MUC_LOCATION_LIST_LOADED) {
-      initDinhMucLocationTags();
-      return;
-    }
-
-    var seen = {};
-    var names = [];
-
-    function collect(res) {
-      if (res.status === 'success' && res.data && res.data.items) {
-        for (var i = 0; i < res.data.items.length; i++) {
-          var ten = $.trim(res.data.items[i].ten || '');
-          var key = ten.toLowerCase();
-          if (ten && !seen[key]) {
-            seen[key] = true;
-            names.push(ten);
-          }
-        }
-      }
-    }
-
-    $.ajax({
-      url: '/api/danh-muc',
-      type: 'GET',
-      dataType: 'json',
-      data: { phan_loai: 'Kho,Bãi,Cảng', limit: 500 },
-      success: collect,
-      complete: function () {
-        DINH_MUC_LOCATION_LIST = names;
-        DINH_MUC_LOCATION_LIST_LOADED = true;
-        initDinhMucLocationTags();
-        refreshDinhMucTagWhitelists();
-      }
-    });
-  }
-
-  function getDinhMucTagValues(instance) {
-    if (!instance) return [];
-    var values = [];
-    $.each(instance.value || [], function (_, item) {
-      var value = $.trim(item.value || '');
-      if (value && values.indexOf(value) === -1) values.push(value);
-    });
-    return values;
-  }
-
-  function filterDinhMucLocationWhitelist(excludedItems) {
-    var excluded = {};
-    $.each(excludedItems || [], function (_, item) {
-      excluded[normalizeDinhMucLocationKey(item)] = true;
-    });
-    var result = [];
-    $.each(DINH_MUC_LOCATION_LIST || [], function (_, item) {
-      if (!excluded[normalizeDinhMucLocationKey(item)]) result.push(item);
-    });
-    return result;
-  }
-
-  function updateTagifyWhitelist(instance, excludedItems) {
-    if (!instance) return;
-    instance.settings.whitelist = filterDinhMucLocationWhitelist(excludedItems);
-  }
-
-  function updateDinhMucAddTagWhitelists() {
-    updateTagifyWhitelist(tagifyDinhMucFrom, getDinhMucTagValues(tagifyDinhMucTo));
-    updateTagifyWhitelist(tagifyDinhMucTo, getDinhMucTagValues(tagifyDinhMucFrom));
-  }
-
-  function resetDinhMucRuleForm() {
-    if (tagifyDinhMucFrom) tagifyDinhMucFrom.removeAllTags();
-    if (tagifyDinhMucTo) tagifyDinhMucTo.removeAllTags();
-    ['kh-dm-from-tags', 'kh-dm-to-tags', 'kh-dm-rule-km', 'kh-dm-rule-t', 'kh-dm-rule-v', 'kh-dm-rule-h'].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) el.value = '';
-    });
-    updateDinhMucAddTagWhitelists();
-  }
-
-  function normalizeDinhMucRuleNumber(input) {
-    if (!input || !input.classList || !input.classList.contains('kh-dm-rule-number')) return;
-    var field = input.getAttribute('data-field') || '';
-    var isKm = input.id === 'kh-dm-rule-km' || field === 'km';
-    var value = String(input.value || '').replace(',', '.').replace(isKm ? /[^0-9.]/g : /[^0-9]/g, '');
-    if (isKm) {
-      var dot = value.indexOf('.');
-      if (dot !== -1) value = value.slice(0, dot + 1) + value.slice(dot + 1).replace(/\./g, '');
-      input.value = value;
-    }
-    else {
-      formatMoneyInputKeepingCaret(input);
-    }
-  }
-
-  function getDinhMucRuleFormData() {
-    return normalizeDinhMucRule({
-      from: getDinhMucTagValues(tagifyDinhMucFrom),
-      to: getDinhMucTagValues(tagifyDinhMucTo),
-      km: parseDistanceValue(document.getElementById('kh-dm-rule-km').value),
-      t: parseMoney(document.getElementById('kh-dm-rule-t').value),
-      v: parseMoney(document.getElementById('kh-dm-rule-v').value),
-      h: parseMoney(document.getElementById('kh-dm-rule-h').value)
-    });
-  }
-
-  function markDinhMucChanged(cell) {
-    if (DINH_MUC_RENDERING) return;
-    DINH_MUC_STATE.changed = true;
-    setDinhMucStatus('Chưa lưu', 'unsaved');
-    if (cell) cell.classList.add('is-changed');
-  }
-
-  function markDinhMucSaved() {
-    DINH_MUC_STATE.changed = false;
-    setDinhMucStatus('Đã lưu');
-  }
-
-  function normalizeDinhMucRule(route) {
-    if (!route || !$.isArray(route.from) || !$.isArray(route.to)) return null;
-    var from = uniqueStringList(route.from);
-    var to = uniqueStringList(route.to);
-    if (!from.length || !to.length) return null;
-    var km = parseDistanceValue(route.km);
-    var t = parseMoney(route.t);
-    var v = parseMoney(route.v);
-    var h = parseMoney(route.h);
-    return { from: from, to: to, km: km === '' ? 0 : km, t: t, v: v, h: h };
-  }
-
-  function uniqueStringList(items) {
-    var result = [];
-    $.each(items || [], function (_, item) {
-      item = $.trim(String(item || ''));
-      if (item && result.indexOf(item) === -1) result.push(item);
-    });
-    return result;
-  }
-
-  function addDinhMucRuleFromForm() {
-    var route = getDinhMucRuleFormData();
-    if (!route) {
-      setDinhMucStatus('Thiếu dữ liệu định mức', 'error');
-      return;
-    }
-    if (hasDinhMucSameLocation(route)) {
-      setDinhMucStatus('Hai nhóm địa điểm không được trùng', 'error');
-      if (notyf) notyf.error('Hai nhóm địa điểm không được trùng nhau');
-      return;
-    }
-    var conflictIndexes = getDinhMucConflictIndexes(route);
-    if (conflictIndexes.length) {
-      highlightDinhMucRows(conflictIndexes);
-      setDinhMucStatus('Trùng tuyến đã có', 'error');
-      if (notyf) notyf.error('Định mức bị trùng cặp địa điểm');
-      return;
-    }
-    DINH_MUC_STATE.data.routes.push(route);
-    resetDinhMucRuleForm();
-    markDinhMucChanged();
-    renderDinhMucRules();
-  }
-
-  function getDinhMucConflictIndexes(route, ignoreIndex) {
-    var existing = {};
-    $.each(DINH_MUC_STATE.data.routes || [], function (index, item) {
-      if (index === ignoreIndex) return;
-      addDinhMucRouteKeys(existing, item, index);
-    });
-    var indexes = [];
-    $.each(route.from || [], function (_, from) {
-      $.each(route.to || [], function (_, to) {
-        var pairIndexes = existing[dinhMucRoutePairKey(from, to)] || [];
-        $.each(pairIndexes, function (_, index) {
-          if (indexes.indexOf(index) === -1) indexes.push(index);
-        });
-      });
-    });
-    return indexes;
-  }
-
-  function hasDinhMucSameLocation(route) {
-    var seen = {};
-    var duplicate = false;
-    $.each(route.from || [], function (_, item) {
-      seen[normalizeDinhMucLocationKey(item)] = true;
-    });
-    $.each(route.to || [], function (_, item) {
-      if (seen[normalizeDinhMucLocationKey(item)]) duplicate = true;
-    });
-    return duplicate;
-  }
-
-  function addDinhMucRouteKeys(map, route, index) {
-    $.each(route.from || [], function (_, from) {
-      $.each(route.to || [], function (_, to) {
-        var key = dinhMucRoutePairKey(from, to);
-        if (!map[key]) map[key] = [];
-        if (typeof index !== 'undefined' && map[key].indexOf(index) === -1) {
-          map[key].push(index);
-        }
-      });
-    });
-  }
-
-  function dinhMucRoutePairKey(from, to) {
-    return normalizeDinhMucLocationKey(from) + '=>' + normalizeDinhMucLocationKey(to);
-  }
-
-  function normalizeDinhMucLocationKey(value) {
-    return $.trim(String(value || '')).toLowerCase();
-  }
-
-  function duplicateDinhMucRule(index) {
-    index = parseInt(index, 10);
-    if (isNaN(index) || index < 0 || index >= DINH_MUC_STATE.data.routes.length) return;
-    var route = DINH_MUC_STATE.data.routes[index];
-    DINH_MUC_STATE.data.routes.splice(index + 1, 0, cloneData(route));
-    markDinhMucChanged();
-    renderDinhMucRules();
-    window.setTimeout(highlightDinhMucDuplicateRows, 0);
-  }
-
-  function removeDinhMucRule(index) {
-    index = parseInt(index, 10);
-    if (isNaN(index) || index < 0 || index >= DINH_MUC_STATE.data.routes.length) return;
-    if (typeof Swal !== 'undefined') {
-      Swal.fire({
-        title: 'Xác nhận xoá',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Xoá',
-        cancelButtonText: 'Huỷ',
-        confirmButtonColor: '#d33',
-        customClass: { confirmButton: 'btn btn-danger', cancelButton: 'btn btn-label-secondary ms-1' },
-        buttonsStyling: false
-      }).then(function (result) {
-        if (result.isConfirmed) {
-          doRemoveDinhMucRule(index);
-        }
-      });
-      return;
-    }
-    if (window.confirm('Xóa định mức này?')) {
-      doRemoveDinhMucRule(index);
-    }
-  }
-
-  function doRemoveDinhMucRule(index) {
-    DINH_MUC_STATE.data.routes.splice(index, 1);
-    markDinhMucChanged();
-    renderDinhMucRules();
-  }
-
-  function handleDinhMucRuleAction(e) {
-    var btn = e.target.closest ? e.target.closest('[data-dm-action]') : null;
-    if (!btn) return;
-    var index = btn.getAttribute('data-index');
-    if (btn.getAttribute('data-dm-action') === 'duplicate') {
-      duplicateDinhMucRule(index);
-    }
-    else if (btn.getAttribute('data-dm-action') === 'delete') {
-      removeDinhMucRule(index);
-    }
-  }
-
-  function renderDinhMucRules() {
-    var body = document.getElementById('kh-dm-rule-body');
-    if (!body) return;
-    DINH_MUC_RENDERING = true;
-    var routes = DINH_MUC_STATE.data.routes || [];
-    if (!routes.length) {
-      body.innerHTML = '<tr><td colspan="8" class="kh-dm-rule-empty">Chưa có định mức</td></tr>';
-      updateDinhMucRuleCount();
-      window.setTimeout(function () {
-        DINH_MUC_RENDERING = false;
-      }, 250);
-      return;
-    }
-    var filtered = getFilteredDinhMucRoutes(routes);
-    if (!filtered.length) {
-      body.innerHTML = '<tr><td colspan="8" class="kh-dm-rule-empty">Không có kết quả</td></tr>';
-      updateDinhMucRuleCount();
-      window.setTimeout(function () {
-        DINH_MUC_RENDERING = false;
-      }, 250);
-      return;
-    }
-    var html = '';
-    $.each(filtered, function (visibleIndex, item) {
-      var index = item.index;
-      var route = item.route;
-      html += '<tr data-index="' + index + '">' +
-        '<td class="text-center"><span class="kh-dm-stt">' + (visibleIndex + 1) + '</span></td>' +
-        '<td><input type="text" class="form-control kh-dm-row-tags kh-dm-row-from" data-index="' + index + '" data-field="from" placeholder="Địa điểm 1"></td>' +
-        '<td><input type="text" class="form-control kh-dm-row-tags kh-dm-row-to" data-index="' + index + '" data-field="to" placeholder="Địa điểm 2"></td>' +
-        '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number" data-index="' + index + '" data-field="km" inputmode="decimal" value="' + escapeHtml(route.km === '' ? '' : route.km) + '"></td>' +
-        '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number money-input" data-index="' + index + '" data-field="t" inputmode="numeric" value="' + escapeHtml(formatMoneyValue(route.t)) + '"></td>' +
-        '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number money-input" data-index="' + index + '" data-field="v" inputmode="numeric" value="' + escapeHtml(formatMoneyValue(route.v)) + '"></td>' +
-        '<td><input type="text" class="form-control kh-dm-rule-number kh-dm-row-number money-input" data-index="' + index + '" data-field="h" inputmode="numeric" value="' + escapeHtml(formatMoneyValue(route.h)) + '"></td>' +
-        '<td class="text-center"><div class="kh-dm-row-actions">' +
-          '<button type="button" class="btn btn-sm btn-icon btn-label-primary" data-dm-action="duplicate" data-index="' + index + '" title="Nhân bản"><i class="ti tabler-copy"></i></button>' +
-          '<button type="button" class="btn btn-sm btn-icon btn-label-danger" data-dm-action="delete" data-index="' + index + '"><i class="ti tabler-trash"></i></button>' +
-        '</div></td>' +
-        '</tr>';
-    });
-    body.innerHTML = html;
-    initDinhMucRowTags();
-    window.setTimeout(function () {
-      DINH_MUC_RENDERING = false;
-    }, 250);
-    updateDinhMucRuleCount();
-  }
-
-  function getFilteredDinhMucRoutes(routes) {
-    var keyword = normalizeDinhMucSearchText(DINH_MUC_RULE_FILTER);
-    var result = [];
-    $.each(routes || [], function (index, route) {
-      if (!keyword || normalizeDinhMucSearchText([
-        (route.from || []).join(' '),
-        (route.to || []).join(' '),
-        route.km,
-        route.t,
-        route.v,
-        route.h
-      ].join(' ')).indexOf(keyword) !== -1) {
-        result.push({ index: index, route: route });
-      }
-    });
-    return result;
-  }
-
-  function normalizeDinhMucSearchText(value) {
-    return removeVietnameseMarks(String(value || '').toLowerCase()).replace(/\s+/g, ' ').trim();
-  }
-
-  function initDinhMucRowTags() {
-    var inputs = document.querySelectorAll('#kh-dm-rule-body .kh-dm-row-tags');
-    for (var i = 0; i < inputs.length; i++) {
-      initDinhMucRowTagify(inputs[i]);
-    }
-  }
-
-  function initDinhMucRowTagify(el) {
-    if (!el || typeof Tagify === 'undefined') return;
-    var index = parseInt(el.getAttribute('data-index'), 10);
-    var field = el.getAttribute('data-field');
-    var route = DINH_MUC_STATE.data.routes[index];
-    if (!route || (field !== 'from' && field !== 'to')) return;
-    if (el.__tagify) {
-      updateDinhMucRowTagWhitelists(index);
-      return;
-    }
-
-    var instance = new Tagify(el, {
-      whitelist: filterDinhMucLocationWhitelist(field === 'from' ? route.to : route.from),
-      enforceWhitelist: false,
-      dropdown: {
-        enabled: 0,
-        maxItems: 100,
-        closeOnSelect: false
-      }
-    });
-    instance.addTags(route[field] || []);
-    instance.on('change', function () {
-      var next = getDinhMucTagValues(instance);
-      DINH_MUC_STATE.data.routes[index][field] = next;
-      updateDinhMucRowTagWhitelists(index);
-      markDinhMucChanged(el.closest('tr'));
-      highlightDinhMucDuplicateRows();
-      updateDinhMucRuleCount();
-    });
-  }
-
-  function updateDinhMucRowTagWhitelists(index) {
-    var route = DINH_MUC_STATE.data.routes[index];
-    if (!route) return;
-    var fromEl = document.querySelector('#kh-dm-rule-body .kh-dm-row-tags[data-index="' + index + '"][data-field="from"]');
-    var toEl = document.querySelector('#kh-dm-rule-body .kh-dm-row-tags[data-index="' + index + '"][data-field="to"]');
-    if (fromEl && fromEl.__tagify) updateTagifyWhitelist(fromEl.__tagify, route.to);
-    if (toEl && toEl.__tagify) updateTagifyWhitelist(toEl.__tagify, route.from);
-  }
-
-  function updateDinhMucRowNumber(input) {
-    if (!input || !input.classList || !input.classList.contains('kh-dm-row-number')) return;
-    var index = parseInt(input.getAttribute('data-index'), 10);
-    var field = input.getAttribute('data-field');
-    if (isNaN(index) || !DINH_MUC_STATE.data.routes[index] || ['km', 't', 'v', 'h'].indexOf(field) === -1) return;
-    DINH_MUC_STATE.data.routes[index][field] = field === 'km' ? parseDistanceValue(input.value) : parseMoney(input.value);
-    markDinhMucChanged(input.closest('tr'));
-    highlightDinhMucDuplicateRows();
-  }
-
-  function clearDinhMucRowHighlights() {
-    var rows = document.querySelectorAll('#kh-dm-rule-body tr');
-    for (var i = 0; i < rows.length; i++) {
-      rows[i].classList.remove('is-error');
-    }
-  }
-
-  function highlightDinhMucRows(indexes) {
-    clearDinhMucRowHighlights();
-    $.each(indexes || [], function (_, index) {
-      var row = document.querySelector('#kh-dm-rule-body tr[data-index="' + index + '"]');
-      if (row) row.classList.add('is-error');
-    });
-  }
-
-  function highlightDinhMucDuplicateRows() {
-    var seen = {};
-    var duplicateIndexes = [];
-    $.each(DINH_MUC_STATE.data.routes || [], function (index, route) {
-      route = normalizeDinhMucRule(route);
-      if (!route) {
-        if (duplicateIndexes.indexOf(index) === -1) duplicateIndexes.push(index);
-        return;
-      }
-      if (hasDinhMucSameLocation(route) && duplicateIndexes.indexOf(index) === -1) {
-        duplicateIndexes.push(index);
-      }
-      $.each(route.from || [], function (_, from) {
-        $.each(route.to || [], function (_, to) {
-          var key = dinhMucRoutePairKey(from, to);
-          if (typeof seen[key] !== 'undefined') {
-            if (duplicateIndexes.indexOf(seen[key]) === -1) duplicateIndexes.push(seen[key]);
-            if (duplicateIndexes.indexOf(index) === -1) duplicateIndexes.push(index);
-          }
-          else {
-            seen[key] = index;
-          }
-        });
-      });
-    });
-    highlightDinhMucRows(duplicateIndexes);
-    return duplicateIndexes;
-  }
-
-  function updateDinhMucRuleCount() {
-    var el = document.getElementById('kh-dm-rule-count');
-    if (!el) return;
-    var routes = DINH_MUC_STATE.data.routes || [];
-    var totalRoutes = 0;
-    $.each(routes, function (_, route) {
-      totalRoutes += (route.from || []).length * (route.to || []).length;
-    });
-    el.textContent = routes.length + ' rule · ' + totalRoutes + ' tuyến';
-  }
-
-  function refreshDinhMucTagWhitelists() {
-    initDinhMucLocationTags();
-    var inputs = document.querySelectorAll('#kh-dm-rule-body .kh-dm-row-tags');
-    for (var i = 0; i < inputs.length; i++) {
-      if (inputs[i].__tagify) updateDinhMucRowTagWhitelists(parseInt(inputs[i].getAttribute('data-index'), 10));
-    }
-  }
-
-  function validateDinhMucRulesBeforeSave() {
-    var seen = {};
-    var message = '';
-    var errorIndexes = [];
-    $.each(DINH_MUC_STATE.data.routes || [], function (index, route) {
-      route = normalizeDinhMucRule(route);
-      if (!route) {
-        message = 'Thiếu dữ liệu định mức';
-        errorIndexes.push(index);
-      }
-      if (!message) {
-        $.each(route.from || [], function (_, from) {
-          $.each(route.to || [], function (_, to) {
-            if ($.trim(String(from || '')).toLowerCase() === $.trim(String(to || '')).toLowerCase()) {
-              message = 'Hai nhóm địa điểm không được trùng';
-              errorIndexes.push(index);
-              return false;
-            }
-            var key = dinhMucRoutePairKey(from, to);
-            if (typeof seen[key] !== 'undefined') {
-              message = 'Trùng tuyến định mức';
-              errorIndexes.push(seen[key]);
-              errorIndexes.push(index);
-              return false;
-            }
-            seen[key] = index;
-          });
-          if (message) return false;
-        });
-      }
-      if (message) {
-        return false;
-      }
-    });
-    if (message) {
-      highlightDinhMucRows(errorIndexes);
-      setDinhMucStatus(message, 'error');
-      if (notyf) notyf.error(message);
-      return false;
-    }
-    clearDinhMucRowHighlights();
-    return true;
-  }
-
-  function exportDinhMucExcel() {
-    if (typeof XLSX === 'undefined') {
-      if (notyf) notyf.error('Chưa tải được thư viện Excel');
-      return;
-    }
-    var rows = buildDinhMucExportRows();
-    var aoa = [['STT', 'Địa điểm 1', 'Địa điểm 2', 'KM', 'Trống', 'Vỏ', 'Hàng']];
-    for (var i = 0; i < rows.length; i++) {
-      aoa.push([
-        i + 1,
-        rows[i].from,
-        rows[i].to,
-        rows[i].km,
-        rows[i].t,
-        rows[i].v,
-        rows[i].h
-      ]);
-    }
-    var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [
-      { wch: 8 },
-      { wch: 32 },
-      { wch: 32 },
-      { wch: 10 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 14 }
-    ];
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'DinhMuc');
-    XLSX.writeFile(wb, 'dinh-muc-' + safeFilename(DINH_MUC_STATE.customerName || 'khach-hang') + '.xlsx');
-  }
-
-  function buildDinhMucExportRows() {
-    var rows = [];
-    $.each(DINH_MUC_STATE.data.routes || [], function (_, route) {
-      rows.push({
-        from: (route.from || []).join('; '),
-        to: (route.to || []).join('; '),
-        km: route.km === '' ? '' : route.km,
-        t: route.t || '',
-        v: route.v || '',
-        h: route.h || ''
-      });
-    });
-    return rows;
-  }
-
-  function handleDinhMucImportFile(e) {
-    var file = e.target.files && e.target.files[0];
-    if (!file) return;
-    if (!/\.xlsx$/i.test(file.name)) {
-      if (notyf) notyf.error('Chỉ hỗ trợ file .xlsx');
-      return;
-    }
-    if (typeof XLSX === 'undefined') {
-      if (notyf) notyf.error('Chưa tải được thư viện Excel');
-      return;
-    }
-
-    var reader = new FileReader();
-    reader.onload = function (evt) {
-      var rows = parseDinhMucXlsxRows(evt.target.result);
-      var stats = rows._stats || { total: rows.length, valid: rows.length, invalid: 0, duplicate: 0 };
-      if (!rows.length) {
-        if (notyf) notyf.error('File import không có dữ liệu hợp lệ');
-        return;
-      }
-      stats = applyDinhMucImportRows(rows, stats);
-      if (notyf) {
-        var msg = 'Đã đọc ' + stats.total + ' dòng, áp dụng ' + stats.applied + ' tuyến';
-        if (stats.duplicate) msg += ', trùng ' + stats.duplicate;
-        if (stats.invalid) msg += ', lỗi ' + stats.invalid;
-        notyf.success(msg);
-      }
-    };
-    reader.onerror = function () {
-      if (notyf) notyf.error('Không đọc được file import');
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
-  function parseDinhMucXlsxRows(buffer) {
-    var workbook = XLSX.read(buffer, { type: 'array' });
-    var sheetName = workbook.SheetNames.indexOf('DinhMuc') !== -1 ? 'DinhMuc' : workbook.SheetNames[0];
-    if (!sheetName) return [];
-    var sheet = workbook.Sheets[sheetName];
-    var rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
-    return normalizeDinhMucImportRows(rawRows);
-  }
-
-  function normalizeDinhMucImportRows(rawRows) {
-    if (!rawRows.length) return [];
-    var header = rawRows[0].map(normalizeExcelHeader);
-    var fromHeader = header.indexOf('diadiem1') !== -1 ? 'diadiem1' : 'diemdi';
-    var toHeader = header.indexOf('diadiem2') !== -1 ? 'diadiem2' : 'diemden';
-    var hasHeader = header.indexOf(fromHeader) !== -1 && header.indexOf(toHeader) !== -1;
-    var map = {};
-    if (hasHeader) {
-      for (var i = 0; i < header.length; i++) {
-        map[header[i]] = i;
-      }
-      map.from = map[fromHeader];
-      map.to = map[toHeader];
-    }
-    else {
-      map = { from: 1, to: 2, km: 3, trong: 4, vo: 5, hang: 6 };
-    }
-
-    var result = [];
-    var start = hasHeader ? 1 : 0;
-    var stats = { total: Math.max(0, rawRows.length - start), valid: 0, invalid: 0, duplicate: 0, applied: 0 };
-    for (var r = start; r < rawRows.length; r++) {
-      var row = rawRows[r];
-      var from = splitDinhMucPlaces(row[map.from]);
-      var to = splitDinhMucPlaces(row[map.to]);
-      if (!from.length || !to.length) {
-        stats.invalid++;
-        continue;
-      }
-      var route = {
-        from: from,
-        to: to,
-        km: parseDistanceValue(row[map.km]),
-        t: parseMoney(row[map.trong]),
-        v: parseMoney(row[map.vo]),
-        h: parseMoney(row[map.hang])
-      };
-      route = normalizeDinhMucRule(route);
-      if (!route) {
-        stats.invalid++;
-        continue;
-      }
-      result.push(route);
-      stats.valid++;
-    }
-    result._stats = stats;
-    return result;
-  }
-
-  function applyDinhMucImportRows(rows, stats) {
-    stats = stats || { total: rows.length, valid: rows.length, invalid: 0, duplicate: 0, applied: 0 };
-    var routes = [];
-    var seen = {};
-    for (var i = 0; i < rows.length; i++) {
-      var duplicated = false;
-      $.each(rows[i].from || [], function (_, from) {
-        $.each(rows[i].to || [], function (_, to) {
-          if (seen[dinhMucRoutePairKey(from, to)]) duplicated = true;
-        });
-      });
-      if (duplicated) {
-        stats.duplicate++;
-        continue;
-      }
-      addDinhMucRouteKeys(seen, rows[i]);
-      routes.push(rows[i]);
-    }
-    DINH_MUC_STATE.data.routes = routes;
-    markDinhMucChanged();
-    renderDinhMucRules();
-    stats.applied = routes.length;
-    return stats;
-  }
-
-  function splitDinhMucPlaces(value) {
-    return uniqueStringList(String(value || '').split(';'));
-  }
-
-  function normalizeExcelHeader(value) {
-    value = removeVietnameseMarks(String(value || '').toLowerCase());
-    return value.replace(/[^a-z0-9]/g, '');
-  }
-
-  function removeVietnameseMarks(value) {
-    var map = {
-      a: /[àáạảãâầấậẩẫăằắặẳẵ]/g,
-      e: /[èéẹẻẽêềếệểễ]/g,
-      i: /[ìíịỉĩ]/g,
-      o: /[òóọỏõôồốộổỗơờớợởỡ]/g,
-      u: /[ùúụủũưừứựửữ]/g,
-      y: /[ỳýỵỷỹ]/g,
-      d: /đ/g
-    };
-    for (var key in map) {
-      if (Object.prototype.hasOwnProperty.call(map, key)) {
-        value = value.replace(map[key], key);
-      }
-    }
-    return value;
-  }
-
-  function parseDistanceValue(value) {
-    value = String(value || '').replace(',', '.').replace(/[^0-9.]/g, '');
-    var dotIndex = value.indexOf('.');
-    if (dotIndex !== -1) {
-      value = value.slice(0, dotIndex + 1) + value.slice(dotIndex + 1).replace(/\./g, '');
-    }
-    return value === '' ? '' : Number(value);
-  }
-
-  function safeFilename(value) {
-    value = removeVietnameseMarks(String(value || '').toLowerCase());
-    value = value.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    return value || 'khach-hang';
-  }
-
-  function saveDinhMucData() {
-    if (!DINH_MUC_STATE.customerId) return;
-    if (!validateDinhMucRulesBeforeSave()) return;
-    setDinhMucLoading(true);
-    $.ajax({
-      url: '/api/khach-hang/' + DINH_MUC_STATE.customerId + '/dinh-muc',
-      type: 'PUT',
-      contentType: 'application/json',
-      dataType: 'json',
-      data: JSON.stringify(DINH_MUC_STATE.data),
-      success: function (res) {
-        setDinhMucLoading(false);
-        if (res.status !== 'success' || !res.data) {
-          if (notyf) notyf.error(res.message || 'Lưu định mức thất bại');
-          return;
-        }
-        DINH_MUC_STATE.data = normalizeDinhMucPayload(res.data);
-        DINH_MUC_STATE.original = cloneData(DINH_MUC_STATE.data);
-        markDinhMucSaved();
-        renderDinhMucRules();
-        window.setTimeout(markDinhMucSaved, 300);
-        if (notyf) notyf.success('Đã lưu định mức');
-      },
-      error: function (jqXHR) {
-        setDinhMucLoading(false);
-        if (notyf) notyf.error(apiMsg(jqXHR));
-      }
-    });
-  }
-
-  /* =====================================================
      Helpers
      ===================================================== */
+
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
+  }
 
   function apiMsg(jqXHR) {
     try {

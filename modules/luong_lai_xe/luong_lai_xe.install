@@ -370,3 +370,41 @@ function luong_lai_xe_update_7011() {
   }
   return 'Đã xóa sạch và convert sang utf8mb4_unicode_ci các bảng: ' . implode(', ', $converted) . '. Chạy cron để đánh search index lại.';
 }
+
+/**
+ * Khấu trừ tạm ứng chuyển sang chỉ bù trừ (không tạo phiếu thu vào quỹ). Gỡ các phiếu thu khấu trừ đã tạo tự động trước đây
+ * khỏi sổ quỹ (xoá mềm phiếu + bỏ hiệu lực sổ cái + tính lại số dư quỹ) — trước đây quỹ bị cộng thừa đúng bằng số khấu trừ.
+ * Dòng khấu trừ ở màn lương giữ nguyên (vẫn "đã trừ").
+ */
+function luong_lai_xe_update_7012() {
+  if (!db_table_exists('bcllx_tam_ung_khau_tru') || !db_field_exists('bcllx_tam_ung_khau_tru', 'nid_phieu_thu_khau_tru') || !db_table_exists('qltc_phieu_thu_chi')) {
+    return 'Không có phiếu thu khấu trừ cần gỡ.';
+  }
+  module_load_include('module', 'thu_chi');
+  $ids = db_query("SELECT DISTINCT nid_phieu_thu_khau_tru FROM {bcllx_tam_ung_khau_tru} WHERE nid_phieu_thu_khau_tru > 0")->fetchCol();
+  $done = 0;
+  $quy_ids = array();
+  foreach ($ids as $nid) {
+    $nid = (int) $nid;
+    $row = db_query("SELECT nid, nid_quy, hoat_dong, ref_type, thong_tin_json FROM {qltc_phieu_thu_chi} WHERE nid = :nid", array(':nid' => $nid))->fetchObject();
+    if (!$row || !(int) $row->hoat_dong) continue;
+    $json = json_decode((string) $row->thong_tin_json, TRUE);
+    $json = is_array($json) ? $json : array();
+    $json['deleted_time'] = REQUEST_TIME;
+    $json['ghi_chu_he_thong'] = 'Gỡ khỏi quỹ: khấu trừ tạm ứng chỉ là bù trừ lương, không phải tiền thu thật (luong_lai_xe_update_7012).';
+    db_update('qltc_phieu_thu_chi')->fields(array('hoat_dong' => 0, 'status' => 0, 'thong_tin_json' => json_encode($json), 'changed' => REQUEST_TIME))->condition('nid', $nid)->execute();
+    if (function_exists('thu_chi_giao_dich_load') && function_exists('thu_chi_sync_so_cai_quy_from_item')) {
+      $gd = thu_chi_giao_dich_load($nid, TRUE);
+      if ($gd) thu_chi_sync_so_cai_quy_from_item($gd, 'khong_duyet');
+    }
+    if (function_exists('quan_ly_tai_chinh_void_so_cai_source')) {
+      quan_ly_tai_chinh_void_so_cai_source('phieu_thu_chi', $nid);
+    }
+    $quy_ids[(int) $row->nid_quy] = (int) $row->nid_quy;
+    $done++;
+  }
+  foreach (array_filter($quy_ids) as $qid) {
+    if (function_exists('thu_chi_rebuild_quy_balance')) thu_chi_rebuild_quy_balance($qid);
+  }
+  return 'Đã gỡ ' . $done . ' phiếu thu khấu trừ tạm ứng khỏi sổ quỹ, tính lại ' . count(array_filter($quy_ids)) . ' quỹ.';
+}

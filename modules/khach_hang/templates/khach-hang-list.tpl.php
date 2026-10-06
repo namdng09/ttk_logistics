@@ -1,6 +1,6 @@
 <div class="card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <h4 class="card-title">Danh sách khách hàng</h4>
+    <h4 class="card-title">Danh sách đối tác</h4>
   </div>
 
   <div class="card-body">
@@ -24,9 +24,11 @@
       </div>
       <div class="col-6 col-md-5">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
+          <?php if (api_has_permission('khach_hang_create')): ?>
           <button type="button" class="btn btn-primary btn-them-khach-hang" data-bs-toggle="modal" data-bs-target="#khach-hang-modal">
             <i class="ti tabler-plus me-1"></i>Thêm
           </button>
+          <?php endif; ?>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-khach-hang">
             <i class="ti tabler-refresh"></i>
           </button>
@@ -79,86 +81,13 @@
   </div>
 </div>
 
-<div class="modal fade" id="khach-hang-dinh-muc-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-fullscreen">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          <h5 class="modal-title" id="khach-hang-dinh-muc-title">Định mức khách hàng</h5>
-          <span class="kh-dm-header-meta">
-            <span id="kh-dm-rule-count">0 rule · 0 tuyến</span>
-            <span id="kh-dm-status" class="kh-dm-status">Đã lưu</span>
-          </span>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-0 position-relative">
-        <div id="khach-hang-dinh-muc-loading" class="kh-dm-loading" style="display:none;">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Đang tải...</span>
-          </div>
-        </div>
-        <div class="kh-dm-rule-app">
-          <div class="kh-dm-rule-toolbar">
-            <input type="text" class="form-control kh-dm-customer" id="kh-dm-customer-name" readonly>
-            <input type="text" class="form-control kh-dm-tag-input" id="kh-dm-from-tags" placeholder="Địa điểm 1">
-            <input type="text" class="form-control kh-dm-tag-input" id="kh-dm-to-tags" placeholder="Địa điểm 2">
-            <input type="text" class="form-control kh-dm-rule-number" id="kh-dm-rule-km" placeholder="KM" inputmode="decimal">
-            <input type="text" class="form-control kh-dm-rule-number money-input" id="kh-dm-rule-t" placeholder="Trống" inputmode="numeric">
-            <input type="text" class="form-control kh-dm-rule-number money-input" id="kh-dm-rule-v" placeholder="Vỏ" inputmode="numeric">
-            <input type="text" class="form-control kh-dm-rule-number money-input" id="kh-dm-rule-h" placeholder="Hàng" inputmode="numeric">
-            <button type="button" class="btn btn-primary" id="kh-dm-add-rule">
-              <i class="ti tabler-plus me-1"></i>Thêm
-            </button>
-            <button type="button" class="btn btn-label-secondary" id="kh-dm-reset-rule">
-              <i class="ti tabler-reload me-1"></i>Reset
-            </button>
-          </div>
-          <div class="kh-dm-table-topbar">
-            <div class="kh-dm-rule-search input-group input-group-sm">
-              <span class="input-group-text"><i class="ti tabler-search"></i></span>
-              <input type="text" class="form-control" id="kh-dm-rule-search" placeholder="Tìm định mức">
-            </div>
-          </div>
-          <div class="kh-dm-rule-card">
-            <div class="kh-dm-rule-table-wrap">
-              <table class="kh-dm-rule-table" id="kh-dm-rule-table">
-                <thead>
-                  <tr>
-                    <th class="kh-dm-col-stt">STT</th>
-                    <th class="kh-dm-col-place">Địa điểm 1</th>
-                    <th class="kh-dm-col-place">Địa điểm 2</th>
-                    <th class="kh-dm-col-number">KM</th>
-                    <th class="kh-dm-col-number">Trống</th>
-                    <th class="kh-dm-col-number">Vỏ</th>
-                    <th class="kh-dm-col-number">Hàng</th>
-                    <th class="kh-dm-col-actions">CN</th>
-                  </tr>
-                </thead>
-                <tbody id="kh-dm-rule-body"></tbody>
-              </table>
-            </div>
-          </div>
-          <div class="kh-dm-rule-footer"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <input type="file" id="kh-dm-import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="d-none">
-        <button type="button" class="btn btn-label-secondary me-auto" id="kh-dm-import"><i class="ti tabler-file-import me-1"></i>Import Excel</button>
-        <button type="button" class="btn btn-label-secondary" id="kh-dm-export"><i class="ti tabler-file-export me-1"></i>Export Excel</button>
-        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
-        <button type="button" class="btn btn-primary" id="kh-dm-save"><i class="ti tabler-device-floppy me-1"></i>Lưu</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Create/Edit/View Modal -->
 <div class="modal fade" id="khach-hang-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="khach-hang-modal-title">Thêm khách hàng</h5>
+        <h5 class="modal-title" id="khach-hang-modal-title">Thêm đối tác</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" style="position:relative;">
@@ -173,7 +102,7 @@
           <!-- Customer Info -->
           <div class="row g-3">
             <div class="col-lg-6">
-              <label class="form-label">Tên công ty / Khách hàng <span class="text-danger">*</span></label>
+              <label class="form-label">Tên công ty / Đối tác <span class="text-danger">*</span></label>
               <input type="text" class="form-control" name="ten" required placeholder="Công ty TNHH ABC">
               <div class="invalid-feedback">Vui lòng nhập tên</div>
             </div>

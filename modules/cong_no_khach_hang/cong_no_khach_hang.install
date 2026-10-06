@@ -6,6 +6,73 @@
  */
 
 function cong_no_khach_hang_schema() {
-  return array();
+  $schema = array();
+  // Phân bổ 1 lần thu công nợ (1 phiếu thu bên Thu chi) vào từng phiếu trả khách hàng.
+  // Số "đã thu" của phiếu trả = tổng so_tien các dòng còn hiệu lực mà phiếu thu còn hiệu lực (xem _cnkh_paid_map()).
+  $schema['cong_no_khach_hang_phan_bo'] = array(
+    'description' => 'Phân bổ phiếu thu công nợ vào phiếu trả khách hàng.',
+    'fields' => array(
+      'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'nid_phieu_thu_chi' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_phieu_tra_khach_hang' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'nid_khach_hang' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'so_tien' => array('type' => 'int', 'size' => 'big', 'not null' => TRUE, 'default' => 0),
+      'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'created' => array('type' => 'varchar', 'length' => 19, 'not null' => FALSE),
+      'hoat_dong' => array('type' => 'int', 'size' => 'tiny', 'not null' => TRUE, 'default' => 1),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'nid_phieu_thu_chi' => array('nid_phieu_thu_chi'),
+      'nid_phieu_tra_khach_hang' => array('nid_phieu_tra_khach_hang'),
+      'nid_khach_hang' => array('nid_khach_hang'),
+    ),
+  );
+  return $schema;
 }
 
+/**
+ * Tạo bảng phân bổ thanh toán công nợ và chuyển dữ liệu cũ (phân bổ đang nằm trong thong_tin_json của phiếu thu)
+ * sang bảng mới, rồi tính lại số đã thu / còn lại của các phiếu trả khách hàng từ bảng mới.
+ */
+function cong_no_khach_hang_update_7001() {
+  if (!db_table_exists('cong_no_khach_hang_phan_bo')) {
+    $schema = cong_no_khach_hang_schema();
+    db_create_table('cong_no_khach_hang_phan_bo', $schema['cong_no_khach_hang_phan_bo']);
+  }
+  if (!db_table_exists('qltc_phieu_thu_chi')) return t('Đã tạo bảng phân bổ (chưa có phiếu thu nào để chuyển).');
+
+  $moved = 0;
+  $vouchers = array();
+  $done = array_flip(db_query("SELECT DISTINCT nid_phieu_thu_chi FROM {cong_no_khach_hang_phan_bo}")->fetchCol());
+  $rows = db_query("SELECT nid, nid_khach_hang, uid, created, thong_tin_json FROM {qltc_phieu_thu_chi} WHERE thong_tin_json LIKE :a OR thong_tin_json LIKE :b",
+    array(':a' => '%phan_bo_phieu_tra_khach_hang%', ':b' => '%voucher_allocations%'));
+  foreach ($rows as $row) {
+    if (isset($done[(int) $row->nid])) continue;
+    $json = json_decode((string) $row->thong_tin_json, TRUE);
+    if (!is_array($json)) continue;
+    $allocs = !empty($json['phan_bo_phieu_tra_khach_hang']) ? $json['phan_bo_phieu_tra_khach_hang'] : (!empty($json['voucher_allocations']) ? $json['voucher_allocations'] : array());
+    foreach ((array) $allocs as $a) {
+      if (!is_array($a)) continue;
+      $vid = !empty($a['phieu_tra_khach_hang_nid']) ? (int) $a['phieu_tra_khach_hang_nid'] : (!empty($a['voucher_nid']) ? (int) $a['voucher_nid'] : 0);
+      $amount = isset($a['so_tien_thanh_toan']) ? (int) round((float) $a['so_tien_thanh_toan']) : (isset($a['so_tien']) ? (int) round((float) $a['so_tien']) : 0);
+      if (!$vid || $amount <= 0) continue;
+      db_insert('cong_no_khach_hang_phan_bo')->fields(array(
+        'nid_phieu_thu_chi' => (int) $row->nid,
+        'nid_phieu_tra_khach_hang' => $vid,
+        'nid_khach_hang' => (int) $row->nid_khach_hang,
+        'so_tien' => $amount,
+        'uid' => (int) $row->uid,
+        'created' => $row->created ? date('Y-m-d H:i:s', (int) $row->created) : date('Y-m-d H:i:s'),
+        'hoat_dong' => 1,
+      ))->execute();
+      $vouchers[$vid] = $vid;
+      $moved++;
+    }
+  }
+  if ($vouchers) {
+    module_load_include('module', 'cong_no_khach_hang');
+    if (function_exists('_cnkh_sync_voucher_payment_status')) _cnkh_sync_voucher_payment_status(array_values($vouchers));
+  }
+  return t('Đã tạo bảng phân bổ, chuyển @n dòng phân bổ cũ của @v phiếu trả.', array('@n' => $moved, '@v' => count($vouchers)));
+}

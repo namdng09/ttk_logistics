@@ -20,9 +20,11 @@
       </div>
       <div class="col-12 col-md-4">
         <div class="d-flex gap-2 justify-content-md-end justify-content-center">
+          <?php if (api_has_permission(!empty($is_employee_contract) ? 'hop_dong_nhan_vien_create' : 'hop_dong_create')): ?>
           <button type="button" class="btn btn-primary btn-them-hop-dong" data-bs-toggle="modal" data-bs-target="#hop-dong-modal">
             <i class="ti tabler-plus me-1"></i>Thêm
           </button>
+          <?php endif; ?>
           <button type="button" class="btn btn-icon btn-label-secondary btn-reload-hop-dong">
             <i class="ti tabler-refresh"></i>
           </button>

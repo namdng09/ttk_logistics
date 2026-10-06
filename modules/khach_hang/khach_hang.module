@@ -1,8 +1,14 @@
 <?php
 
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
 /**
  * @file
- * Khách Hàng — Customer management.
+ * Đối Tác — Customer management.
  * RESTful API + Modal CRUD.
  */
 
@@ -11,9 +17,9 @@
  */
 function khach_hang_permission() {
   return array(
-    'khach_hang_view' => array('title' => t('Xem khách hàng')),
-    'khach_hang_create' => array('title' => t('Tạo/sửa khách hàng')),
-    'khach_hang_delete' => array('title' => t('Xoá khách hàng')),
+    'khach_hang_view' => array('title' => t('Xem đối tác')),
+    'khach_hang_create' => array('title' => t('Tạo/sửa đối tác')),
+    'khach_hang_delete' => array('title' => t('Xoá đối tác')),
   );
 }
 
@@ -46,13 +52,6 @@ function khach_hang_menu() {
     'type' => MENU_CALLBACK,
     'delivery callback' => 'drupal_json_output',
   );
-  $items['api/khach-hang/%/dinh-muc'] = array(
-    'page callback' => 'khach_hang_dinh_muc_rest_item',
-    'page arguments' => array(2),
-    'access callback' => TRUE,
-    'type' => MENU_CALLBACK,
-    'delivery callback' => 'drupal_json_output',
-  );
   $items['api/khach-hang/%'] = array(
     'page callback' => 'khach_hang_rest_item',
     'page arguments' => array(2),
@@ -62,7 +61,7 @@ function khach_hang_menu() {
   );
 
   $items['khach-hang'] = array(
-    'title' => 'Danh sách khách hàng',
+    'title' => 'Danh sách đối tác',
     'page callback' => 'khach_hang_page_list',
     'access callback' => 'user_is_logged_in',
     'type' => MENU_NORMAL_ITEM,
@@ -93,7 +92,7 @@ function khach_hang_theme() {
  ******************************************************************************/
 
 function _khach_hang_input() {
-  return json_decode(file_get_contents('php://input'), TRUE) ?: array();
+  return api_request_input();
 }
 
 function khach_hang_modal_html() {
@@ -115,7 +114,7 @@ function khach_hang_modal_html() {
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="khach-hang-modal-title">Thêm khách hàng</h5>
+        <h5 class="modal-title" id="khach-hang-modal-title">Thêm đối tác</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" style="position:relative;">
@@ -128,7 +127,7 @@ function khach_hang_modal_html() {
           <input type="hidden" name="nid" value="">
           <div class="row g-3">
             <div class="col-lg-6">
-              <label class="form-label">Tên công ty / Khách hàng <span class="text-danger">*</span></label>
+              <label class="form-label">Tên công ty / Đối tác <span class="text-danger">*</span></label>
               <input type="text" class="form-control" name="ten" required placeholder="Công ty TNHH ABC">
               <div class="invalid-feedback">Vui lòng nhập tên</div>
             </div>
@@ -205,37 +204,27 @@ HTML;
 }
 
 function _khach_hang_success($data = NULL) {
-  $response = array('status' => 'success');
-  if ($data !== NULL) {
-    $response['data'] = $data;
-  }
-  return $response;
+  return api_response_success($data);
 }
 
 function _khach_hang_fail($message) {
-  drupal_add_http_header('Status', '400 Bad Request');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_fail($message);
 }
 
 function _khach_hang_unauthorized($message) {
-  drupal_add_http_header('Status', '401 Unauthorized');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_denied($message);
 }
 
 function _khach_hang_not_found($message) {
-  drupal_add_http_header('Status', '404 Not Found');
-  return array('status' => 'fail', 'message' => $message);
+  return api_response_not_found($message);
 }
 
 function _khach_hang_error($message) {
-  drupal_add_http_header('Status', '500 Internal Server Error');
-  return array('status' => 'error', 'message' => $message);
+  return api_response_error($message);
 }
 
 function _khach_hang_method_not_allowed($allowed) {
-  drupal_add_http_header('Status', '405 Method Not Allowed');
-  drupal_add_http_header('Allow', $allowed);
-  return array('status' => 'fail', 'message' => 'Method không được hỗ trợ. Allowed: ' . $allowed);
+  return api_response_method_not_allowed($allowed);
 }
 
 function _khach_hang_now() {
@@ -299,7 +288,7 @@ function _khach_hang_check_unique_ma($value, $exclude_nid = NULL) {
   $query->range(0, 1);
   $exists = $query->execute()->fetchObject();
   if ($exists && $exists->hoat_dong) {
-    return _khach_hang_fail('Mã khách hàng "' . $value . '" đã tồn tại');
+    return _khach_hang_fail('Mã đối tác "' . $value . '" đã tồn tại');
   }
   return NULL;
 }
@@ -493,16 +482,28 @@ function khach_hang_rest_collection() {
 }
 
 function _khach_hang_rest_list() {
-  if (!user_access('khach_hang_view')) {
-    return _khach_hang_unauthorized('Bạn không có quyền xem khách hàng');
+  if (!api_has_permission('khach_hang_view')) {
+    return _khach_hang_unauthorized('Bạn không có quyền xem đối tác');
   }
 
-  $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-  $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 20;
+  // select=a,b,-c (module api_common): chỉ lấy/loại trừ trường; không có thì trả như cũ.
+  $sel = _khach_hang_select_request();
+  if (!empty($sel['error'])) {
+    return _khach_hang_fail($sel['error']);
+  }
+  $select = !empty($sel['active']) ? $sel['fields'] : NULL;
+
+  $page = api_page_number();
+  $limit = $select !== NULL ? api_select_limit(TRUE, 100) : api_page_limit(20, 100);
   $offset = ($page - 1) * $limit;
 
   $query = db_select('khach_hang', 'kh');
-  $query->fields('kh');
+  if ($select !== NULL) {
+    $query->fields('kh', _khach_hang_select_columns($select));
+  }
+  else {
+    $query->fields('kh');
+  }
 
   $query->condition('kh.hoat_dong', 1);
   if (!empty($_GET['keyword'])) {
@@ -526,10 +527,15 @@ function _khach_hang_rest_list() {
   $query->range($offset, $limit);
   $rows = $query->execute()->fetchAll();
 
-  $items = array();
-  foreach ($rows as $kh) {
-    $row = _khach_hang_load_row($kh->nid, FALSE);
-    $items[] = $row;
+  if ($select !== NULL) {
+    $items = _khach_hang_select_rows($rows, $select);
+  }
+  else {
+    $items = array();
+    foreach ($rows as $kh) {
+      $row = _khach_hang_load_row($kh->nid, FALSE);
+      $items[] = $row;
+    }
   }
 
   $total_pages = (int) ceil($total / $limit);
@@ -543,15 +549,124 @@ function _khach_hang_rest_list() {
   ));
 }
 
+/**
+ * Danh sách trắng cho ?select=: trường trong JSON → cột SQL (NULL = trường tính thêm, chỉ tính khi được chọn).
+ * Thứ tự = thứ tự trả về. Chỉ gồm trường list đang trả; bảng giá cước / ngân hàng chỉ có ở API chi tiết.
+ */
+function _khach_hang_select_map() {
+  return array(
+    'nid' => 'nid',
+    'ten' => 'ten',
+    'ma_kh' => 'ma_kh',
+    'phan_loai' => 'phan_loai',
+    'cccd_mst' => 'cccd_mst',
+    'sdt' => 'sdt',
+    'email' => 'email',
+    'thong_tin_lien_he' => 'thong_tin_lien_he',
+    'dia_chi' => 'dia_chi',
+    'nv_kinh_doanh' => NULL,
+    'dob' => 'dob',
+    'ghi_chu' => 'ghi_chu',
+    'hoat_dong' => 'hoat_dong',
+  );
+}
+
+function _khach_hang_select_request() {
+  $raw = isset($_GET['select']) ? $_GET['select'] : '';
+  if (is_array($raw) ? !$raw : trim((string) $raw) === '') {
+    return array('active' => FALSE);
+  }
+  // Module api_common chưa bật (vd đưa JS lên trước khi bật module): bỏ qua select, trả như cũ thay vì làm hỏng màn hình.
+  if (!function_exists('api_select_parse')) {
+    return array('active' => FALSE);
+  }
+  return api_select_parse($raw, array_keys(_khach_hang_select_map()), 'nid');
+}
+
+function _khach_hang_select_columns(array $fields) {
+  $map = _khach_hang_select_map();
+  $cols = array('nid');
+  foreach ($fields as $f) {
+    if (!empty($map[$f])) {
+      $cols[] = $map[$f];
+    }
+  }
+  return api_select_existing_columns('khach_hang', array_values(array_unique($cols)));
+}
+
+/** Nhân viên kinh doanh đầu tiên của từng khách hàng (giống _khach_hang_load_row nhưng 1 truy vấn cho cả trang). */
+function _khach_hang_first_sales(array $nids) {
+  $out = array();
+  if (!$nids) {
+    return $out;
+  }
+  $q = db_query("SELECT nv.nid AS kh_nid, nv.uid, u.name, u.ten, u.ma_nhan_vien FROM {nhan_vien_khach_hang} nv INNER JOIN {users} u ON u.uid = nv.uid WHERE nv.nid IN (:nids) AND nv.hoat_dong = 1 ORDER BY nv.id ASC", array(':nids' => $nids));
+  foreach ($q as $nv) {
+    $k = (int) $nv->kh_nid;
+    if (isset($out[$k])) {
+      continue;
+    }
+    $out[$k] = array(
+      'uid' => (int) $nv->uid,
+      'ten' => isset($nv->ten) ? $nv->ten : $nv->name,
+      'username' => $nv->name,
+      'ma_nhan_vien' => isset($nv->ma_nhan_vien) ? $nv->ma_nhan_vien : '',
+    );
+  }
+  return $out;
+}
+
+/** Dựng dòng theo ?select= trực tiếp từ kết quả list (không SELECT * lại từng dòng); giá trị giống _khach_hang_load_row(). */
+function _khach_hang_select_rows(array $rows, array $fields) {
+  $sales = array();
+  if (in_array('nv_kinh_doanh', $fields, TRUE)) {
+    $nids = array();
+    foreach ($rows as $kh) {
+      $nids[] = (int) $kh->nid;
+    }
+    $sales = _khach_hang_first_sales($nids);
+  }
+  $items = array();
+  foreach ($rows as $kh) {
+    $row = array();
+    foreach ($fields as $f) {
+      switch ($f) {
+        case 'nid':
+        case 'hoat_dong':
+          $row[$f] = (int) $kh->$f;
+          break;
+
+        case 'ten':
+          $row[$f] = isset($kh->ten) ? $kh->ten : '';
+          break;
+
+        case 'thong_tin_lien_he':
+          $decoded = !empty($kh->thong_tin_lien_he) ? json_decode($kh->thong_tin_lien_he, TRUE) : NULL;
+          $row[$f] = is_array($decoded) ? $decoded : array();
+          break;
+
+        case 'nv_kinh_doanh':
+          $row[$f] = isset($sales[(int) $kh->nid]) ? $sales[(int) $kh->nid] : NULL;
+          break;
+
+        default:
+          $row[$f] = !empty($kh->$f) ? $kh->$f : '';
+      }
+    }
+    $items[] = $row;
+  }
+  return $items;
+}
+
 function _khach_hang_rest_create() {
-  if (!user_access('khach_hang_create')) {
-    return _khach_hang_unauthorized('Bạn không có quyền tạo khách hàng');
+  if (!api_has_permission('khach_hang_create')) {
+    return _khach_hang_unauthorized('Bạn không có quyền tạo đối tác');
   }
 
   $input = _khach_hang_input();
 
   if (empty($input['ten'])) {
-    return _khach_hang_fail('Tên khách hàng bắt buộc');
+    return _khach_hang_fail('Tên đối tác bắt buộc');
   }
   $input['ma_kh'] = isset($input['ma_kh']) ? trim((string) $input['ma_kh']) : '';
   if ($input['ma_kh'] === '') {
@@ -610,7 +725,7 @@ function _khach_hang_rest_create() {
     // Sync nv_kinh_doanh junction table
     _khach_hang_sync_nv_kinh_doanh($nid, isset($input['nv_kinh_doanh']) ? $input['nv_kinh_doanh'] : array());
 
-    watchdog('khach_hang', 'Tạo khách hàng #%id: %ten', array(
+    watchdog('khach_hang', 'Tạo đối tác #%id: %ten', array(
       '%id' => $nid,
       '%ten' => $input['ten'],
     ));
@@ -619,8 +734,8 @@ function _khach_hang_rest_create() {
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog('khach_hang', 'Lỗi tạo khách hàng: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _khach_hang_error('Lỗi hệ thống khi tạo khách hàng');
+    watchdog('khach_hang', 'Lỗi tạo đối tác: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _khach_hang_error('Lỗi hệ thống khi tạo đối tác');
   }
 }
 
@@ -647,31 +762,31 @@ function khach_hang_rest_item($id) {
 }
 
 function _khach_hang_rest_get($id) {
-  if (!user_access('khach_hang_view')) {
-    return _khach_hang_unauthorized('Bạn không có quyền xem khách hàng');
+  if (!api_has_permission('khach_hang_view')) {
+    return _khach_hang_unauthorized('Bạn không có quyền xem đối tác');
   }
 
   $row = _khach_hang_load_row($id, TRUE);
   if (!$row) {
-    return _khach_hang_not_found('Khách hàng không tồn tại');
+    return _khach_hang_not_found('Đối tác không tồn tại');
   }
   return _khach_hang_success($row);
 }
 
 function _khach_hang_rest_update($id) {
-  if (!user_access('khach_hang_create')) {
-    return _khach_hang_unauthorized('Bạn không có quyền sửa khách hàng');
+  if (!api_has_permission('khach_hang_create')) {
+    return _khach_hang_unauthorized('Bạn không có quyền sửa đối tác');
   }
 
   $existing = db_query("SELECT nid FROM {khach_hang} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetchField();
   if (!$existing) {
-    return _khach_hang_not_found('Khách hàng không tồn tại');
+    return _khach_hang_not_found('Đối tác không tồn tại');
   }
 
   $input = _khach_hang_input();
 
   if (empty($input['ten'])) {
-    return _khach_hang_fail('Tên khách hàng bắt buộc');
+    return _khach_hang_fail('Tên đối tác bắt buộc');
   }
   $input['ma_kh'] = isset($input['ma_kh']) ? trim((string) $input['ma_kh']) : '';
   if ($input['ma_kh'] === '') {
@@ -739,25 +854,25 @@ function _khach_hang_rest_update($id) {
       _khach_hang_sync_nv_kinh_doanh($id, $input['nv_kinh_doanh'] ? $input['nv_kinh_doanh'] : array());
     }
 
-    watchdog('khach_hang', 'Cập nhật khách hàng #%id', array('%id' => $id));
+    watchdog('khach_hang', 'Cập nhật đối tác #%id', array('%id' => $id));
 
     return _khach_hang_success(_khach_hang_load_row($id, TRUE));
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog('khach_hang', 'Lỗi cập nhật khách hàng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _khach_hang_error('Lỗi hệ thống khi cập nhật khách hàng');
+    watchdog('khach_hang', 'Lỗi cập nhật đối tác #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _khach_hang_error('Lỗi hệ thống khi cập nhật đối tác');
   }
 }
 
 function _khach_hang_rest_delete($id) {
-  if (!user_access('khach_hang_delete')) {
-    return _khach_hang_unauthorized('Bạn không có quyền xoá khách hàng');
+  if (!api_has_permission('khach_hang_delete')) {
+    return _khach_hang_unauthorized('Bạn không có quyền xoá đối tác');
   }
 
   $existing = db_query("SELECT nid, ten FROM {khach_hang} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
   if (!$existing) {
-    return _khach_hang_not_found('Khách hàng không tồn tại');
+    return _khach_hang_not_found('Đối tác không tồn tại');
   }
 
   $transaction = db_transaction();
@@ -774,7 +889,7 @@ function _khach_hang_rest_delete($id) {
       ->condition('hoat_dong', 1)
       ->execute();
 
-    watchdog('khach_hang', 'Xoá (soft) khách hàng #%id: %ten', array(
+    watchdog('khach_hang', 'Xoá (soft) đối tác #%id: %ten', array(
       '%id' => $id,
       '%ten' => $existing->ten,
     ));
@@ -783,173 +898,23 @@ function _khach_hang_rest_delete($id) {
   }
   catch (Exception $e) {
     $transaction->rollback();
-    watchdog('khach_hang', 'Lỗi xoá khách hàng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _khach_hang_error('Lỗi hệ thống khi xoá khách hàng');
+    watchdog('khach_hang', 'Lỗi xoá đối tác #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    return _khach_hang_error('Lỗi hệ thống khi xoá đối tác');
   }
 }
 
-/*******************************************************************************
- * REST: ĐỊNH MỨC KHÁCH HÀNG — GET/PUT /api/khach-hang/{id}/dinh-muc
- ******************************************************************************/
-
-function khach_hang_dinh_muc_rest_item($id) {
-  $id = (int) $id;
-  if (!$id) {
-    return _khach_hang_fail('ID không hợp lệ');
-  }
-
-  switch ($_SERVER['REQUEST_METHOD']) {
-    case 'GET':
-      return _khach_hang_dinh_muc_rest_get($id);
-    case 'PUT':
-      return _khach_hang_dinh_muc_rest_update($id);
-    default:
-      return _khach_hang_method_not_allowed('GET, PUT');
-  }
-}
-
-function _khach_hang_dinh_muc_customer($id) {
-  return db_query("SELECT nid, ten, ma_kh FROM {khach_hang} WHERE nid = :id AND hoat_dong = 1", array(':id' => $id))->fetch();
-}
-
-function _khach_hang_dinh_muc_load($id) {
-  $json = db_query("SELECT bang_gia_cuoc FROM {khach_hang} WHERE nid = :id", array(':id' => $id))->fetchField();
-  $bang_gia_cuoc = _khach_hang_bang_gia_decode($json);
-  $data = $bang_gia_cuoc['dinh_muc'];
-  $routes = !empty($data['routes']) && is_array($data['routes']) ? $data['routes'] : array();
-
-  return array(
-    'routes' => $routes,
-  );
-}
-
-function _khach_hang_dinh_muc_rest_get($id) {
-  if (!user_access('khach_hang_view')) {
-    return _khach_hang_unauthorized('Bạn không có quyền xem khách hàng');
-  }
-
-  $customer = _khach_hang_dinh_muc_customer($id);
-  if (!$customer) {
-    return _khach_hang_not_found('Khách hàng không tồn tại');
-  }
-
-  $data = _khach_hang_dinh_muc_load($id);
-  return _khach_hang_success(array(
-    'khach_hang' => array(
-      'nid' => (int) $customer->nid,
-      'ten' => $customer->ten,
-      'ma_kh' => $customer->ma_kh ? $customer->ma_kh : '',
-    ),
-    'routes' => $data['routes'],
-  ));
-}
-
-function _khach_hang_dinh_muc_rest_update($id) {
-  if (!user_access('khach_hang_create')) {
-    return _khach_hang_unauthorized('Bạn không có quyền cấu hình định mức khách hàng');
-  }
-
-  $customer = _khach_hang_dinh_muc_customer($id);
-  if (!$customer) {
-    return _khach_hang_not_found('Khách hàng không tồn tại');
-  }
-
-  $input = _khach_hang_input();
-  $routes = !empty($input['routes']) && is_array($input['routes']) ? $input['routes'] : array();
-
-  $transaction = db_transaction();
-  try {
-    $now = _khach_hang_now();
-    $clean_routes = array();
-    $seen_pairs = array();
-    foreach ($routes as $route) {
-      if (!is_array($route)) continue;
-      $from = !empty($route['from']) && is_array($route['from']) ? $route['from'] : array();
-      $to = !empty($route['to']) && is_array($route['to']) ? $route['to'] : array();
-      $clean_from = array();
-      $clean_to = array();
-
-      foreach ($from as $name) {
-        $name = trim((string) $name);
-        if ($name !== '' && !in_array($name, $clean_from, TRUE)) {
-          $clean_from[] = $name;
-        }
-      }
-      foreach ($to as $name) {
-        $name = trim((string) $name);
-        if ($name !== '' && !in_array($name, $clean_to, TRUE)) {
-          $clean_to[] = $name;
-        }
-      }
-      if (empty($clean_from) || empty($clean_to)) continue;
-
-      $km = _khach_hang_num_or_null(isset($route['km']) ? $route['km'] : NULL);
-      $t = _khach_hang_int_value(isset($route['t']) ? $route['t'] : 0);
-      $v = _khach_hang_int_value(isset($route['v']) ? $route['v'] : 0);
-      $h = _khach_hang_int_value(isset($route['h']) ? $route['h'] : 0);
-
-      $has_duplicate_pair = FALSE;
-      foreach ($clean_from as $from_name) {
-        foreach ($clean_to as $to_name) {
-          $pair_key = drupal_strtolower($from_name) . '=>' . drupal_strtolower($to_name);
-          if (!empty($seen_pairs[$pair_key])) {
-            $has_duplicate_pair = TRUE;
-            break 2;
-          }
-        }
-      }
-      if ($has_duplicate_pair) continue;
-
-      foreach ($clean_from as $from_name) {
-        foreach ($clean_to as $to_name) {
-          $seen_pairs[drupal_strtolower($from_name) . '=>' . drupal_strtolower($to_name)] = TRUE;
-        }
-      }
-
-      $clean_routes[] = array(
-        'from' => $clean_from,
-        'to' => $clean_to,
-        'km' => $km === NULL ? 0 : (float) $km,
-        't' => $t,
-        'v' => $v,
-        'h' => $h,
-      );
-    }
-
-    $current_config = _khach_hang_bang_gia_decode(db_query("SELECT bang_gia_cuoc FROM {khach_hang} WHERE nid = :id", array(':id' => $id))->fetchField());
-    $next_config = _khach_hang_bang_gia_encode($current_config['bang_gia_cuoc'], array('routes' => $clean_routes));
-    db_update('khach_hang')
-      ->fields(array(
-        'bang_gia_cuoc' => json_encode($next_config),
-        'changed' => $now,
-      ))
-      ->condition('nid', $id)
-      ->execute();
-
-    watchdog('khach_hang', 'Cập nhật định mức khách hàng #%id', array('%id' => $id));
-    $data = _khach_hang_dinh_muc_load($id);
-    return _khach_hang_success(array(
-      'khach_hang' => array(
-        'nid' => (int) $customer->nid,
-        'ten' => $customer->ten,
-        'ma_kh' => $customer->ma_kh ? $customer->ma_kh : '',
-      ),
-      'routes' => $data['routes'],
-    ));
-  }
-  catch (Exception $e) {
-    $transaction->rollback();
-    watchdog('khach_hang', 'Lỗi cập nhật định mức khách hàng #%id: @msg', array('%id' => $id, '@msg' => $e->getMessage()), WATCHDOG_ERROR);
-    return _khach_hang_error('Lỗi hệ thống khi cập nhật định mức');
-  }
-}
 
 /*******************************************************************************
  * UI PAGE CALLBACKS
  ******************************************************************************/
 
 function khach_hang_page_list() {
-  khach_hang_add_modal_assets(FALSE, TRUE);
+  if (!api_has_permission('khach_hang_view')) {
+    return api_denied_page('Bạn không có quyền xem đối tác');
+  }
+  // $with_xlsx = FALSE: XLSX chỉ dùng cho import/export định mức theo đối tác
+  // (đã bỏ, định mức giờ dùng chung toàn hệ thống — xem module dinh_muc_khoan).
+  khach_hang_add_modal_assets(FALSE, FALSE);
   return theme('khach_hang_list_page');
 }
 
@@ -990,9 +955,9 @@ function khach_hang_add_modal_assets($with_modal_html = TRUE, $with_xlsx = FALSE
   drupal_add_js(array('khach_hang' => array(
     'modal_html' => $with_modal_html ? khach_hang_modal_html() : '',
     'permissions' => array(
-      'khach_hang_view' => user_access('khach_hang_view'),
-      'khach_hang_create' => user_access('khach_hang_create'),
-      'khach_hang_delete' => user_access('khach_hang_delete'),
+      'khach_hang_view' => api_has_permission('khach_hang_view'),
+      'khach_hang_create' => api_has_permission('khach_hang_create'),
+      'khach_hang_delete' => api_has_permission('khach_hang_delete'),
     ),
   )), 'setting');
 }

@@ -11,7 +11,7 @@
 
 .cnkh-filter-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1.35fr) minmax(180px, 0.9fr) minmax(180px, 0.9fr) minmax(210px, 1fr) minmax(220px, 0.9fr);
+  grid-template-columns: minmax(240px, 1.2fr) minmax(220px, 1fr) minmax(190px, 0.9fr) minmax(200px, 0.8fr);
   gap: 10px;
   align-items: end;
 }
@@ -27,11 +27,6 @@
   color: #5d596c;
 }
 
-.cnkh-month-range {
-  display: grid;
-  grid-template-columns: minmax(72px, 0.85fr) minmax(86px, 1fr);
-  gap: 8px;
-}
 
 .cnkh-filter-actions {
   display: grid;
@@ -480,3 +475,25 @@
     padding: 12px;
   }
 }
+
+/* Ô "Kỳ công nợ": chọn khoảng tháng (thay cho 4 ô Từ tháng/năm – Đến tháng/năm). */
+.cnkh-period { position: relative; }
+.cnkh-period-input { display: flex; align-items: center; width: 100%; text-align: left; background-color: #fff; cursor: pointer; font-size: .9rem; }
+.cnkh-period-input .ti { color: #7367f0; }
+.cnkh-period-pop {
+  position: absolute; z-index: 1060; top: calc(100% + 6px); left: 0; width: 300px;
+  background: #fff; border: 1px solid #e6e6e8; border-radius: .5rem; box-shadow: 0 .5rem 1.5rem rgba(47, 43, 61, .14); padding: .75rem;
+}
+.cnkh-period-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+.cnkh-period-head strong { font-size: 1rem; color: #444050; }
+.cnkh-period-nav { border: 0; background: transparent; width: 30px; height: 30px; border-radius: .375rem; color: #6d6b77; cursor: pointer; }
+.cnkh-period-nav:hover { background: #f1f0f2; }
+.cnkh-period-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.cnkh-period-month { border: 1px solid transparent; background: #f8f7fa; border-radius: .375rem; padding: .4rem 0; font-size: .82rem; color: #444050; cursor: pointer; }
+.cnkh-period-month:hover { border-color: #7367f0; }
+.cnkh-period-month.is-range { background: #eeecfd; color: #5d55c9; }
+.cnkh-period-month.is-edge { background: #7367f0; color: #fff; font-weight: 600; }
+.cnkh-period-month.is-current { box-shadow: inset 0 0 0 1px #7367f0; }
+.cnkh-period-hint { margin: .5rem 0; font-size: .75rem; color: #8a8794; min-height: 1em; }
+.cnkh-period-quick { display: flex; flex-wrap: wrap; gap: 4px; border-top: 1px solid #eef0f4; padding-top: .5rem; }
+.cnkh-period-quick .btn { padding: .2rem .5rem; font-size: .75rem; }

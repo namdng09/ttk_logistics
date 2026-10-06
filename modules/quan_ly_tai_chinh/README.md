@@ -1,57 +1,16 @@
-# Module Quản lý tài chính
+# Module Quản lý tài chính — màn `/quan-ly-quy`
 
-## Chức năng chính
+Kiến trúc như các màn mới (xem AGENTS.md): template rỗng `templates/quan-ly-quy-list.tpl.php` + `assets/js/quan_ly_quy.js`
++ `assets/css/quan_ly_quy.css` (tiền tố `qq-`), dữ liệu qua API ở `quan_ly_tai_chinh.api.inc`.
 
-- `/quan-ly-tai-chinh`: Trang tổng quan nhanh.
-- `/quan-ly-quy`: Quản lý quỹ tiền mặt/ngân hàng/ví nội bộ.
-  - Thêm, sửa, xóa quỹ.
-  - Theo dõi số dư đầu kỳ, thu, chi, chuyển đến, chuyển đi, số dư cuối kỳ.
-  - Chuyển tiền nội bộ giữa các quỹ.
-- `/thu-chi`: Quản lý giao dịch thu chi.
-  - Thu công nợ khách hàng.
-  - Chi phí cố định.
-  - Chi phí lương.
-  - Tạm ứng lái xe.
-  - Khấu trừ tạm ứng lương.
-  - Chi nhà cung cấp/xe ngoài.
-  - Cược vỏ hàng nhập.
+## Dữ liệu
 
-## Lưu trữ dữ liệu quỹ
+- `qltc_quy`: quỹ. `so_du_dau_ky` = số dư lúc tạo quỹ (không sửa sau đó), `so_du_hien_tai` chỉ là bản lưu tạm.
+- `qltc_so_cai_quy`: sổ cái — nguồn duy nhất tính số dư (`so_du_dau_ky` + tổng `bien_dong` các dòng còn hiệu lực).
+- `qltc_giao_dich`: giao dịch nội bộ của module (`chuyen_quy`, `dieu_chinh`); dòng `ref_type = phieu_thu_chi` là bản sao cũ, bỏ qua.
 
-Quỹ được lưu bằng content type `quy_tai_chinh`, không lưu trực tiếp ở bảng `qltc_quy` nữa.
+Phiếu thu/chi (module `thu_chi`) đã duyệt tự đồng bộ vào sổ cái; công nợ, lương, ĐNTT đều đi qua phiếu thu chi.
 
-- `title`: mã quỹ, đóng vai trò khóa chính nghiệp vụ và không được trùng.
-- `field_thong_tin_json`: lưu thông tin text như `ten_quy`, `loai_quy`, `ghi_chu`.
-- `field_so_du_dau_ky`: số dư đầu kỳ.
-- `field_so_du_hien_tai`: số dư hiện tại.
-- `field_hoat_dong`: 1 là đang tồn tại, 0 là đã xóa mềm.
-- `status`: luôn lưu bằng 0 theo yêu cầu nghiệp vụ.
+## API
 
-Bảng `qltc_giao_dich` vẫn dùng `nid_quy` và `nid_quy_nhan`, nhưng giá trị là `nid` của node quỹ.
-
-## Bài toán tạm ứng lái xe
-
-Khi tạo giao dịch `Tạm ứng lái xe`, số tiền được cộng vào công nợ/ví tạm ứng của lái xe.
-
-Khi tính lương, module `bao_cao_luong_lai_xe` gọi sang module này để lấy:
-
-```json
-{
-  "so_du_dau_ky": 3000000,
-  "phat_sinh_ung_trong_ky": 0,
-  "khau_tru_trong_ky": 2000000,
-  "so_du_cuoi_ky": 1000000,
-  "tong_luong": 8500000,
-  "thuc_linh": 6500000
-}
-```
-
-Khoản `Khấu trừ tạm ứng lương` không làm thay đổi tiền trong quỹ, vì đây là nghiệp vụ bù trừ công nợ khi tính lương. Khi thực trả lương bằng tiền mặt/ngân hàng, tạo giao dịch `Chi` nhóm `Chi phí lương` theo số thực lĩnh.
-
-## Cài đặt
-
-Copy thư mục `quan_ly_tai_chinh` vào `sites/all/modules/custom/`, bật module và clear cache.
-
-```bash
-drush cc all
-```
+Xem đầu file `quan_ly_tai_chinh.api.inc`.

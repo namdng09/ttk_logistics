@@ -124,6 +124,47 @@
     });
   }
 
+  // Tải đủ mọi trang của 1 API danh sách: trang 1 cho biết total_pages, các trang còn lại gọi song song (mỗi lần tối đa 100 dòng
+  // khi dùng select, tối đa 50 trang). done(items) khi đủ, fail(jqXHR|undefined) nếu có trang lỗi.
+  function fetchAllPages(url, params, done, fail) {
+    function request(page) {
+      return $.ajax({ url: url, type: 'GET', dataType: 'json', data: $.extend({ page: page }, params) });
+    }
+    request(1).done(function (res) {
+      if (!(res && res.status === 'success' && res.data && res.data.items)) {
+        fail();
+        return;
+      }
+      var first = res.data.items;
+      var pages = Math.min(50, Math.max(1, parseInt(res.data.total_pages, 10) || 1));
+      if (pages === 1) {
+        done(first);
+        return;
+      }
+      var chunks = [];
+      var left = pages - 1;
+      var failed = false;
+      for (var page = 2; page <= pages; page++) {
+        (function (p) {
+          request(p).done(function (r) {
+            if (r && r.status === 'success' && r.data && r.data.items) chunks[p - 2] = r.data.items; else failed = true;
+          }).fail(function () {
+            failed = true;
+          }).always(function () {
+            left -= 1;
+            if (left > 0) return;
+            if (failed) { fail(); return; }
+            var all = first;
+            for (var c = 0; c < chunks.length; c++) all = all.concat(chunks[c]);
+            done(all);
+          });
+        })(page);
+      }
+    }).fail(function (jqXHR) {
+      fail(jqXHR);
+    });
+  }
+
   function loadRefs(done) {
     var remaining = 2;
     function finish() {
@@ -134,25 +175,20 @@
         if (done) done();
       }
     }
-    $.ajax({
-      url: '/api/phuong-tien',
-      type: 'GET',
-      dataType: 'json',
-      data: { limit: 500 },
-      success: function (res) {
-        vehicles = res.status === 'success' && res.data ? (res.data.items || []) : [];
-      },
-      complete: finish
+    // Chỉ các trường dựng nhãn/ô chọn; tải đủ mọi trang, mỗi lần 100 dòng.
+    fetchAllPages('/api/phuong-tien', { limit: 100, select: 'nid,bks,loai_phuong_tien,hang_xe,ma_tai_san' }, function (items) {
+      vehicles = items;
+      finish();
+    }, function () {
+      vehicles = [];
+      finish();
     });
-    $.ajax({
-      url: '/api/lai-xe',
-      type: 'GET',
-      dataType: 'json',
-      data: { limit: 500 },
-      success: function (res) {
-        drivers = res.status === 'success' && res.data ? (res.data.items || []) : [];
-      },
-      complete: finish
+    fetchAllPages('/api/lai-xe', { limit: 100, select: 'nid,ten,sdt' }, function (items) {
+      drivers = items;
+      finish();
+    }, function () {
+      drivers = [];
+      finish();
     });
   }
 
@@ -207,7 +243,7 @@
         renderList(res.data);
       },
       error: function (jqXHR) {
-        tbody.html('<tr><td colspan="9" class="text-center text-danger py-3">Lỗi tải dữ liệu</td></tr>');
+        tbody.html(loadErrorRow(9, jqXHR));
         toastError(apiMsg(jqXHR));
       }
     });
@@ -964,6 +1000,14 @@
 
   function escSelectorValue(value) {
     return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  // Dòng báo lỗi khi tải danh sách: hiện đúng lý do server trả về; 401/403 (không có quyền) thì chữ vàng + icon ổ khoá.
+  function loadErrorRow(colspan, jqXHR) {
+    var denied = !!jqXHR && (jqXHR.status === 401 || jqXHR.status === 403);
+    var msg = String(apiMsg(jqXHR)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<tr><td colspan="' + colspan + '" class="text-center py-4 ' + (denied ? 'text-warning' : 'text-danger') + '">' +
+      (denied ? '<i class="ti tabler-lock me-1"></i>' : '') + msg + '</td></tr>';
   }
 
   function apiMsg(jqXHR) {

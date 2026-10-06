@@ -103,3 +103,24 @@ function hop_dong_update_7003() {
   if (!db_index_exists('hop_dong', 'nhan_vien')) db_add_index('hop_dong', 'nhan_vien', array('nhan_vien'));
   if (!db_index_exists('hop_dong', 'loai_doi_tuong')) db_add_index('hop_dong', 'loai_doi_tuong', array('loai_doi_tuong'));
 }
+
+/**
+ * Tách quyền hợp đồng nhân viên khỏi hợp đồng khách hàng: vai trò nào đang có hop_dong_view/_create/_delete thì được
+ * cấp luôn hop_dong_nhan_vien_view/_create/_delete tương ứng, để không ai mất quyền đang dùng sau khi nâng cấp.
+ */
+function hop_dong_update_7004() {
+  $map = array(
+    'hop_dong_view' => 'hop_dong_nhan_vien_view',
+    'hop_dong_create' => 'hop_dong_nhan_vien_create',
+    'hop_dong_delete' => 'hop_dong_nhan_vien_delete',
+  );
+  $n = 0;
+  foreach ($map as $old => $new) {
+    foreach (db_query("SELECT rid FROM {role_permission} WHERE permission = :p", array(':p' => $old))->fetchCol() as $rid) {
+      db_merge('role_permission')->key(array('rid' => (int) $rid, 'permission' => $new))->fields(array('module' => 'hop_dong'))->execute();
+      $n++;
+    }
+  }
+  drupal_static_reset('user_access');
+  return t('Đã cấp @n quyền hợp đồng nhân viên theo quyền hợp đồng đang có.', array('@n' => $n));
+}

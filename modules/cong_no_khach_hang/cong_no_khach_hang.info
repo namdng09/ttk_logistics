@@ -3,4 +3,4 @@ description = Theo dõi công nợ khách hàng từ phiếu trả khách hàng 
 core = 7.x
 package = ANDIN JSC API
 version = 7.x-1.0
-
+dependencies[] = api_common

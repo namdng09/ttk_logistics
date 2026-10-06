@@ -52,6 +52,19 @@
     return 'tmp_' + Date.now() + '_' + state.tempIndex;
   }
 
+  /* Điểm mở rộng: 1 màn (vd hàng cảng) có thể đăng ký Drupal.keHoachChiPhi.extension từ file JS riêng của
+   * màn đó — file này không biết gì về đề nghị thanh toán và không rẽ nhánh theo loại kế hoạch. Màn không
+   * đăng ký thì mọi hook là no-op. Các hook: normalizeRow, leadCell, afterNameCell, beforeActionCell,
+   * isLocked, payload, afterRenderTable, afterRender, afterBusy. */
+  function ext() {
+    return (Drupal.keHoachChiPhi && Drupal.keHoachChiPhi.extension) || null;
+  }
+
+  function isRowLocked(row) {
+    var x = ext();
+    return !!(x && x.isLocked && x.isLocked(row));
+  }
+
   /* Chi phí có thể chạy trong modal riêng cũ hoặc được gắn vào tab của
    * modal xếp xe hàng cảng. Chỉ có một bộ DOM/ID tại một thời điểm để tránh
    * hai bảng cùng ghi vào một state. */
@@ -95,8 +108,10 @@
     state.rows = [];
     state.presetAutofillDismissed = false;
     state.dinhMucRows = [];
+    state.dinhMucSavedSig = null;
     state.dinhMucRoutes = [];
     state.oilRows = [];
+    state.oilSavedSig = null;
     state.driverPayMode = 'khoan';
     $('#khcp-plan-code').text('#' + state.nidKeHoach);
     clearPlanInfo();
@@ -105,8 +120,9 @@
   function loadCurrentPlanCosts() {
     setBusy(true);
     renderAll();
-    var planChain = loadPlanInfo().then(loadCustomerDinhMuc);
-    return $.when(loadDanhMuc(), loadPresetCosts(), planChain, loadOilRows(), fetchRows())
+    // Thông tin kế hoạch và định mức không phụ thuộc nhau (định mức chỉ dùng sau khi mọi thứ đã tải xong ở .done bên dưới)
+    // nên gọi song song thay vì nối tiếp.
+    return $.when(loadDanhMuc(), loadPresetCosts(), loadPlanInfo(), loadDinhMucKhoan(), loadOilRows(), fetchRows(true))
       .done(function () {
         // Danh mục và mẫu tải song song. Nạp lại tên mẫu sau cùng để không bị
         // loadDanhMuc() ghi đè danh sách Select2, khiến dòng mẫu bị báo sai.
@@ -214,6 +230,13 @@
 
   function formatMoney(value) {
     return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(roundMoney(value));
+  }
+
+  // Ô nhập tiền (định mức, doanh thu khách hàng, đơn giá): bằng 0 thì để trống,
+  // chỉ hiện placeholder "0" — không set sẵn giá trị 0 trong ô (đúng quy ước
+  // number field placeholder="0" của dự án).
+  function formatMoneyOrEmpty(value) {
+    return roundMoney(value) ? formatMoney(value) : '';
   }
 
   function formatMoneyInputKeepingCaret(input) {
@@ -377,24 +400,94 @@
     });
   }
 
+  // Nguồn danh mục dùng chung của màn hàng cảng (ke_hoach_hang_cang_master.js, chỉ nạp ở màn hàng cảng; tuyến xa không có
+  // nên vẫn dùng loadDanhMucOwn). Bộ lọc/modal xếp xe đã nạp sẵn kho/bãi/cảng/chi phí nên tab Chi phí không gọi lại.
+  function danhMucMaster() {
+    // Mỗi màn có nguồn riêng (hàng cảng / tuyến xa), một trang chỉ nạp 1 trong 2.
+    var master = window.Drupal && (Drupal.keHoachHangCangMaster || Drupal.keHoachTuyenXaMaster);
+    if (master && master.use) master.use($);
+    return master || null;
+  }
+
+  // Vừa tạo danh mục mới trong tab: bỏ bản dùng chung để lần mở sau tải lại (có tên mới).
+  function invalidateDanhMucMaster() {
+    var master = window.Drupal && (Drupal.keHoachHangCangMaster || Drupal.keHoachTuyenXaMaster);
+    if (master && master.invalidate) master.invalidate('diaDiem');
+  }
+
   function loadDanhMuc() {
-    return $.getJSON('/api/danh-muc', { phan_loai: 'Chi phí,Kho,Bãi,Cảng', limit: 500 })
-      .done(function (response) {
-        var items = response && response.data && response.data.items ? response.data.items : [];
-        state.expenseNames = [];
-        state.expenseCatalogNames = [];
-        state.locationNames = [];
-        $.each(items, function (_, item) {
-          if (!item || !item.ten) return;
-          if (String(item.phan_loai || '').toLowerCase() === 'chi phí') {
-            state.expenseCatalogNames.push(item.ten);
-            addExpenseName(item.ten);
-          }
-          else {
-            addLocationName(item.ten);
-          }
-        });
+    var master = danhMucMaster();
+    if (!master) return loadDanhMucOwn();
+    var deferred = $.Deferred();
+    master.load(['diaDiem']).done(function () {
+      var dd = master.get('diaDiem');
+      state.expenseNames = [];
+      state.expenseCatalogNames = [];
+      state.locationNames = [];
+      $.each(dd.chiPhi || [], function (_, ten) {
+        state.expenseCatalogNames.push(ten);
+        addExpenseName(ten);
       });
+      $.each([].concat(dd.kho || [], dd.bai || [], dd.cang || []), function (_, ten) {
+        addLocationName(ten);
+      });
+      deferred.resolve();
+    }).fail(function () {
+      loadDanhMucOwn().done(function () { deferred.resolve.apply(deferred, arguments); }).fail(function () { deferred.reject.apply(deferred, arguments); });
+    });
+    return deferred.promise();
+  }
+
+  // Danh mục (chi phí, kho, bãi, cảng) cho tab Chi phí: chỉ lấy nid/ten/phan_loai, mỗi lần gọi 100 dòng; trang 1 cho total_pages
+  // rồi gọi song song các trang còn lại (tối đa 50 trang) để không bị cắt ở 100 dòng.
+  function loadDanhMucOwn() {
+    var deferred = $.Deferred();
+    var params = { phan_loai: 'Chi phí,Kho,Bãi,Cảng', select: 'nid,ten,phan_loai', limit: 100 };
+    function itemsOf(response) {
+      return response && response.data && response.data.items ? response.data.items : [];
+    }
+    function apply(items) {
+      state.expenseNames = [];
+      state.expenseCatalogNames = [];
+      state.locationNames = [];
+      $.each(items, function (_, item) {
+        if (!item || !item.ten) return;
+        if (String(item.phan_loai || '').toLowerCase() === 'chi phí') {
+          state.expenseCatalogNames.push(item.ten);
+          addExpenseName(item.ten);
+        }
+        else {
+          addLocationName(item.ten);
+        }
+      });
+    }
+    $.getJSON('/api/danh-muc', $.extend({ page: 1 }, params)).done(function (response) {
+      var all = itemsOf(response).slice();
+      var pages = Math.min(50, Math.max(1, parseInt(response && response.data && response.data.total_pages, 10) || 1));
+      if (pages === 1) {
+        apply(all);
+        deferred.resolve(response);
+        return;
+      }
+      var chunks = [];
+      var left = pages - 1;
+      for (var page = 2; page <= pages; page++) {
+        (function (p) {
+          $.getJSON('/api/danh-muc', $.extend({ page: p }, params)).done(function (r) {
+            chunks[p - 2] = itemsOf(r);
+          }).always(function () {
+            left -= 1;
+            if (left > 0) return;
+            for (var c = 0; c < chunks.length; c++) if (chunks[c]) all = all.concat(chunks[c]);
+            apply(all);
+            deferred.resolve(response);
+          });
+        })(page);
+      }
+    }).fail(function () {
+      deferred.reject.apply(deferred, arguments);
+    });
+    return deferred.promise();
   }
 
   function normalizePreset(item, index) {
@@ -410,8 +503,23 @@
     };
   }
 
+  // Dữ liệu cấu hình ít đổi (chi phí mẫu, định mức khoán): giữ trong bộ nhớ trang 5 phút để mỗi lần mở tab không gọi lại.
+  // Không lưu sessionStorage; F5 luôn tải mới. Lỗi thì không nhớ.
+  var configCache = {};
+  var CONFIG_TTL_MS = 5 * 60 * 1000;
+
+  function cachedConfigGet(url) {
+    var entry = configCache[url];
+    var now = new Date().getTime();
+    if (entry && now - entry.at < CONFIG_TTL_MS && entry.request.state() !== 'rejected') return entry.request;
+    var request = $.getJSON(url);
+    configCache[url] = { at: now, request: request };
+    request.fail(function () { delete configCache[url]; });
+    return request;
+  }
+
   function loadPresetCosts() {
-    return $.getJSON(PRESET_API_BASE)
+    return cachedConfigGet(PRESET_API_BASE)
       .done(function (response) {
         var items = response && response.data && $.isArray(response.data.items) ? response.data.items : [];
         state.presetCosts = $.map(items, function (item, index) { return normalizePreset(item, index); });
@@ -441,11 +549,13 @@
     });
   }
 
-  function loadCustomerDinhMuc() {
+  // Định mức khoán dùng chung toàn hệ thống, không theo từng khách hàng nữa
+  // (trước lấy theo /api/khach-hang/{id}/dinh-muc — module dinh_muc_khoan thay thế).
+  // Áp dụng như nhau cho cả hàng cảng lẫn tuyến xa vì findDinhMucAmount()/applyDinhMuc()
+  // bên dưới vốn đã dùng chung, chỉ cần đổi đúng chỗ nạp dữ liệu này.
+  function loadDinhMucKhoan() {
     state.dinhMucRoutes = [];
-    var nidKhachHang = state.plan && state.plan.khach_hang && state.plan.khach_hang.nid ? Number(state.plan.khach_hang.nid) : 0;
-    if (!nidKhachHang) return $.Deferred().resolve().promise();
-    return $.getJSON('/api/khach-hang/' + nidKhachHang + '/dinh-muc')
+    return cachedConfigGet('/api/dinh-muc-khoan/tuyen')
       .done(function (response) {
         state.dinhMucRoutes = response && response.data && response.data.routes ? response.data.routes : [];
       });
@@ -480,6 +590,7 @@
       });
       attachCreateOption($select, '', function (ten) {
         addLocationName(ten);
+        invalidateDanhMucMaster();
       }, ['Kho', 'Bãi']);
     });
   }
@@ -756,7 +867,10 @@
   }
 
   function rebuildDinhMucRows(useSaved) {
-    state.dinhMucRows = useSaved ? getSavedDinhMucRows() : [];
+    var savedRows = useSaved ? getSavedDinhMucRows() : [];
+    // Bản đang lưu ở DB (trước khi applyDinhMuc tính lại): NULL = chưa có / đang dựng lại nên lần lưu đầu phải ghi.
+    state.dinhMucSavedSig = savedRows.length ? dinhMucSignature(dinhMucPayloadOf(savedRows)) : null;
+    state.dinhMucRows = savedRows;
     if (!state.dinhMucRows.length) {
       state.dinhMucRows = buildDefaultDinhMucRows();
     }
@@ -798,7 +912,7 @@
 
   function reloadAndRecalcDinhMuc(rebuildFromPlan, targetRow) {
     setBusy(true);
-    return loadCustomerDinhMuc()
+    return loadDinhMucKhoan()
       .done(function () {
         if (targetRow) {
           applyDinhMuc(targetRow, true);
@@ -843,7 +957,7 @@
     var source = item.source || fallbackSource || resolveSource($.extend({}, item, { loai_chi_phi: type }));
     if (type === DRIVER_COST_TYPE || type === DRIVER_SALARY_TYPE) source = 'lai_xe';
     else source = 'ke_hoach';
-    return {
+    var normalized = {
       key: item.key || (item.nid ? 'nid_' + item.nid : uid()),
       nid: Number(item.nid) || 0,
       nid_ke_hoach: Number(item.nid_ke_hoach) || state.nidKeHoach,
@@ -861,6 +975,9 @@
       override_before: before > 0 && before !== roundMoney(unitPrice * quantity),
       override_after: after > 0 && after !== roundMoney(before * (1 + vat / 100))
     };
+    var extension = ext();
+    if (extension && extension.normalizeRow) extension.normalizeRow(normalized, item);
+    return normalized;
   }
 
   function createEmptyRow(type) {
@@ -961,6 +1078,7 @@
       attachCreateOption($select, 'Chi phí', function (ten) {
         addExpenseName(ten);
         if (state.expenseCatalogNames.indexOf(ten) === -1) state.expenseCatalogNames.push(ten);
+        invalidateDanhMucMaster();
       });
     });
   }
@@ -969,7 +1087,7 @@
     return '' +
       '<div class="col">' +
         '<label class="form-label small mb-1">' + escHtml(row.ten_chi_phi) + '</label>' +
-        '<input type="text" inputmode="decimal" class="form-control form-control-sm khcp-revenue-field money-input" data-row-key="' + escHtml(row.key) + '" value="' + formatMoney(row.don_gia) + '" placeholder="0">' +
+        '<input type="text" inputmode="decimal" class="form-control form-control-sm khcp-revenue-field money-input" data-row-key="' + escHtml(row.key) + '" value="' + formatMoneyOrEmpty(row.don_gia) + '" placeholder="0">' +
       '</div>';
   }
 
@@ -988,11 +1106,17 @@
       return '<td class="khcp-cost-type-cell is-' + type + '"><label class="khcp-cost-type-toggle' + (active ? ' is-active' : '') + '" title="' + escHtml(title) + '">' +
         '<input type="checkbox" class="khcp-cost-type-check" data-cost-type="' + type + '"' + (active ? ' checked' : '') + '><span>' + short + '</span></label></td>';
     }
+    var extension = ext();
+    var extLead = extension && extension.leadCell ? extension.leadCell(row) : '';
+    var extAfterName = extension && extension.afterNameCell ? extension.afterNameCell(row) : '';
+    var extBeforeAction = extension && extension.beforeActionCell ? extension.beforeActionCell(row) : '';
     return '' +
       '<tr data-row-key="' + escHtml(row.key) + '">' +
+        extLead +
         '<td class="khcp-col-index"><span class="khcp-row-number">' + (index + 1) + '</span></td>' +
         '<td><select class="form-select form-select-sm row-field cost-name cost-name-select" data-field="ten_chi_phi">' + expenseNameOptions(row.ten_chi_phi) + '</select></td>' +
-        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field money-input" data-field="don_gia" value="' + formatMoney(row.don_gia) + '"></td>' +
+        extAfterName +
+        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field money-input" data-field="don_gia" value="' + formatMoneyOrEmpty(row.don_gia) + '" placeholder="0"></td>' +
         '<td><input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control form-control-sm row-field qty-input" data-field="so_luong" value="' + Math.max(1, parseInt(row.so_luong, 10) || 1) + '"></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm money-input calculated-input ' + (row.override_before ? 'is-overridden' : '') + '" data-field="tong_truoc_vat" value="' + formatMoney(row.tong_truoc_vat) + '" readonly disabled></td>' +
         '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field decimal-input vat-input" data-field="vat_percent" value="' + formatDecimal(row.vat_percent) + '"></td>' +
@@ -1001,6 +1125,7 @@
         typeCheck('tinh_cho_khach', 'KH', 'Chi hộ khách hàng') +
         typeCheck('cong_ty_chi_tra', 'CT', 'Công ty chi trả') +
         typeCheck(DRIVER_COST_TYPE, 'LX', 'Lái xe chi trả') +
+        extBeforeAction +
         '<td><div class="khcp-row-actions">' +
           '<button type="button" class="btn btn-label-primary btn-sm btn-add-cost-row" title="Thêm dòng"><i class="ti tabler-plus"></i></button>' +
           '<button type="button" class="btn btn-label-danger btn-sm btn-delete-row" title="Xoá dòng"><i class="ti tabler-trash"></i></button>' +
@@ -1035,6 +1160,27 @@
     for (var i = 0; i < rows.length; i++) html += rowTemplate(rows[i], i);
     $('#khcp-cost-table-body').html(html);
     initExpenseSelect2('#khcp-cost-table-body');
+    var extension = ext();
+    if (extension && extension.afterRenderTable) extension.afterRenderTable();
+  }
+
+  // Thêm dòng chi phí, giữ nguyên vị trí cuộn của bảng và KHÔNG focus/cuộn tới dòng mới: người dùng thường bấm "+" liên tiếp,
+  // nếu bảng nhảy theo dòng mới thì nút "+" trôi khỏi con trỏ chuột (focus vào ô Select2 ẩn còn làm cuộn cả modal).
+  function insertCostRow(row, at) {
+    var $wrap = $('#khcp-cost-table-body').closest('.khcp-table-wrap');
+    var top = $wrap.length ? $wrap[0].scrollTop : 0;
+    var left = $wrap.length ? $wrap[0].scrollLeft : 0;
+    if (at < 0 || at > state.rows.length) state.rows.push(row);
+    else state.rows.splice(at, 0, row);
+    renderTable();
+    updateSummary();
+    var restore = function () {
+      if (!$wrap.length) return;
+      $wrap[0].scrollTop = top;
+      $wrap[0].scrollLeft = left;
+    };
+    restore();
+    if (window.requestAnimationFrame) window.requestAnimationFrame(restore);
   }
 
   // Debug tạm cho tab Chi phí trong modal xếp xe hàng cảng. Ghi lại toàn bộ
@@ -1086,7 +1232,7 @@
         '<td><select class="form-select form-select-sm khcp-dm-field" data-field="trang_thai_xe" disabled title="Trạng thái xe được xác định theo hình thức vận tải">' + statusOptions(row.trang_thai_xe) + '</select></td>' +
         '<td><select class="form-select form-select-sm khcp-dm-field khcp-dm-place-select" data-field="diem_dau">' + locationOptions(row.diem_dau) + '</select></td>' +
         '<td><select class="form-select form-select-sm khcp-dm-field khcp-dm-place-select" data-field="diem_cuoi">' + locationOptions(row.diem_cuoi) + '</select></td>' +
-        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-dm-field money-input" data-field="dinh_muc" value="' + formatMoney(row.dinh_muc) + '"></td>' +
+        '<td><input type="text" inputmode="decimal" class="form-control form-control-sm khcp-dm-field money-input" data-field="dinh_muc" value="' + formatMoneyOrEmpty(row.dinh_muc) + '" placeholder="0"></td>' +
         '<td><div class="khcp-row-actions">' +
           '<button type="button" class="btn btn-label-primary btn-sm btn-dm-recalc-row" title="Tính lại định mức"><i class="ti tabler-refresh"></i></button>' +
           '<button type="button" class="btn btn-label-danger btn-sm btn-dm-delete-row" title="Xoá chặng"><i class="ti tabler-trash"></i></button>' +
@@ -1262,6 +1408,8 @@
     state.plan = plan || {};
     state.driverPayMode = state.plan.hinh_thuc_tinh_luong_lai_xe || (state.plan.thong_tin_json && state.plan.thong_tin_json.hinh_thuc_tinh_luong_lai_xe) || 'khoan';
     if ($.inArray(state.driverPayMode, ['khoan', 'theo_chuyen']) === -1) state.driverPayMode = 'khoan';
+    // Hình thức tính lương đang lưu ở DB (tuyến xa: so với bản đang chọn để biết có cần lưu lại không).
+    state.driverPayModeSaved = state.driverPayMode;
     var customer = state.plan.khach_hang && state.plan.khach_hang.ten ? state.plan.khach_hang.ten : '';
     var vehicle = state.plan.phuong_tien && state.plan.phuong_tien.bks ? state.plan.phuong_tien.bks : '';
     var driver = state.plan.lai_xe && state.plan.lai_xe.ten ? state.plan.lai_xe.ten : '';
@@ -1289,6 +1437,8 @@
     renderOilTable();
     updateSummary();
     setBusy(state.busy);
+    var extension = ext();
+    if (extension && extension.afterRender) extension.afterRender();
   }
 
   function updateRowDom(row, preserveField) {
@@ -1344,6 +1494,8 @@
       : $root.find('input');
     $controls.prop('disabled', state.busy);
     $inputs.not('[readonly]').prop('disabled', state.busy);
+    var extension = ext();
+    if (extension && extension.afterBusy) extension.afterBusy();
   }
 
   function payloadFromRow(row) {
@@ -1355,7 +1507,7 @@
     }
     var json = $.extend({}, row.thong_tin_json || {});
     delete json.nguon_nhap;
-    return {
+    var payload = {
       nid_ke_hoach: state.nidKeHoach,
       loai_ke_hoach: state.loaiKeHoach || 'thuong',
       nid_lai_xe: row.source === 'lai_xe' ? (row.nid_lai_xe || state.nidLaiXe || 0) : (row.nid_lai_xe || 0),
@@ -1369,6 +1521,9 @@
       ghi_chu: String(row.ghi_chu || '').trim(),
       thong_tin_json: json
     };
+    var extension = ext();
+    if (extension && extension.payload) extension.payload(row, payload);
+    return payload;
   }
 
   function loadRows() {
@@ -1380,13 +1535,39 @@
       });
   }
 
-  function fetchRows() {
+  // Danh sách chi phí của kế hoạch có thể đã được modal xếp xe gọi sẵn lúc mở (để tính tổng ở cột bên): tab Chi phí dùng lại đúng
+  // lần gọi đó thay vì gọi lần 2. Chỉ dùng 1 lần và trong 60 giây; lưu/xoá/tải lại sau đó luôn gọi mới.
+  var rowsSeed = null;
+
+  function requestRows(planId) {
+    return $.getJSON(API_BASE, { nid_ke_hoach: planId, limit: 100 });
+  }
+
+  function prefetchRows(planId) {
+    planId = Number(planId) || 0;
+    if (!planId) return $.Deferred().reject().promise();
+    var request = requestRows(planId);
+    rowsSeed = { planId: planId, at: new Date().getTime(), request: request };
+    return request;
+  }
+
+  function takeRowsSeed(planId) {
+    var seed = rowsSeed;
+    rowsSeed = null;
+    if (!seed || seed.planId !== Number(planId) || new Date().getTime() - seed.at > 60000) return null;
+    return seed.request.state() === 'rejected' ? null : seed.request;
+  }
+
+  function applyRows(items) {
+    state.rows = $.map(items, function (item) { return normalizeRow(item); });
+    renderAll();
+  }
+
+  function fetchRows(useSeed) {
     if (!state.nidKeHoach) return $.Deferred().resolve().promise();
-    return $.getJSON(API_BASE, { nid_ke_hoach: state.nidKeHoach, limit: 100 })
+    return ((useSeed && takeRowsSeed(state.nidKeHoach)) || requestRows(state.nidKeHoach))
       .done(function (response) {
-        var items = response && response.data && response.data.items ? response.data.items : [];
-        state.rows = $.map(items, function (item) { return normalizeRow(item); });
-        renderAll();
+        applyRows(response && response.data && response.data.items ? response.data.items : []);
       })
       .fail(function (jqXHR) {
         state.rows = [];
@@ -1434,11 +1615,17 @@
       .done(function (response) {
         var items = response && response.data && response.data.items ? response.data.items : [];
         state.oilRows = $.map(items, function (item) { return normalizeOilRow(item); });
+        // Bản đang lưu ở DB, để lần lưu sau biết nhật ký dầu có đổi không.
+        state.oilSavedSig = JSON.stringify(oilPayload());
       });
   }
 
   function dinhMucPayload() {
-    var items = $.map(state.dinhMucRows || [], function (row, index) {
+    return dinhMucPayloadOf(state.dinhMucRows || []);
+  }
+
+  function dinhMucPayloadOf(rows) {
+    var items = $.map(rows, function (row, index) {
       return {
         ten_chang: row.ten_chang || ('Chặng ' + (index + 1)),
         trang_thai_xe: row.trang_thai_xe || 'v',
@@ -1448,10 +1635,17 @@
         manual: row.manual ? 1 : 0
       };
     });
+    var total = 0;
+    $.each(rows, function (_, row) { total += toNumber(row.dinh_muc); });
     return {
       items: items,
-      tong_khoan: dinhMucTotal()
+      tong_khoan: total
     };
+  }
+
+  // Chữ ký của bảng định mức, để chỉ gọi PUT .../dinh-muc khi bảng đã đổi so với bản đang lưu ở DB (hàng cảng).
+  function dinhMucSignature(payload) {
+    return JSON.stringify(payload);
   }
 
   function resolvedNoop() {
@@ -1467,28 +1661,57 @@
   // Hàng cảng: endpoint riêng của kế hoạch hàng cảng.
   function persistPortDinhMucRows() {
     if (!state.nidKeHoach) return resolvedNoop();
+    var payload = dinhMucPayload();
+    var signature = dinhMucSignature(payload);
+    // Bảng định mức không đổi so với bản đang lưu: không gọi lại (kế hoạch và chi phí lưu ở API khác).
+    if (state.dinhMucSavedSig === signature) return resolvedNoop();
     return $.ajax({
-      url: '/api/ke-hoach-xep-xe/' + state.nidKeHoach + '/dinh-muc',
+      url: '/api/ke-hoach-xep-xe/' + state.nidKeHoach + '/dinh-muc?response=min',
       method: 'PUT',
       contentType: 'application/json; charset=utf-8',
       dataType: 'json',
-      data: JSON.stringify(dinhMucPayload())
-    }).done(applyPlanResponse);
+      data: JSON.stringify(payload)
+    }).done(function (response) {
+      state.dinhMucSavedSig = signature;
+      // Chỉ nhận lại bảng định mức vừa lưu và ghép vào state.plan (không dựng lại cả kế hoạch ở server).
+      var saved = response && response.status === 'success' && response.data ? response.data.dinh_muc_khoan_lai_xe : null;
+      if (saved && state.plan) {
+        var json = parseJson(state.plan.thong_tin_json);
+        json.dinh_muc_khoan_lai_xe = saved;
+        state.plan.thong_tin_json = json;
+      }
+    });
   }
 
   // Tuyến xa: giữ nguyên đường lưu hiện có (kèm hình thức tính lương lái xe).
   function persistTuyenXaDinhMucRows() {
     if (!state.nidKeHoach) return resolvedNoop();
+    var payload = dinhMucPayload();
+    // Chữ ký gồm cả hình thức tính lương (lưu cùng lệnh). Không đổi so với bản đang lưu thì không gọi lại.
+    var signature = dinhMucSignature(payload) + '|' + state.driverPayMode;
+    if (state.dinhMucSavedSig !== null && state.dinhMucSavedSig !== undefined && (state.dinhMucSavedSig + '|' + state.driverPayModeSaved) === signature) return resolvedNoop();
     return $.ajax({
-      url: '/api/quan-ly-cont/' + state.nidKeHoach,
+      url: '/api/quan-ly-cont/' + state.nidKeHoach + '?response=min',
       method: 'PUT',
       contentType: 'application/json; charset=utf-8',
       dataType: 'json',
       data: JSON.stringify({
-        dinh_muc_khoan_lai_xe: dinhMucPayload(),
+        dinh_muc_khoan_lai_xe: payload,
         hinh_thuc_tinh_luong_lai_xe: state.driverPayMode
       })
-    }).done(applyPlanResponse);
+    }).done(function (response) {
+      state.dinhMucSavedSig = dinhMucSignature(payload);
+      state.driverPayModeSaved = state.driverPayMode;
+      // Chỉ nhận lại phần vừa lưu và ghép vào state.plan (server không dựng lại cả kế hoạch).
+      var data = response && response.status === 'success' && response.data ? response.data : null;
+      if (data && state.plan) {
+        var json = parseJson(state.plan.thong_tin_json);
+        if (data.dinh_muc_khoan_lai_xe) json.dinh_muc_khoan_lai_xe = data.dinh_muc_khoan_lai_xe;
+        if (data.hinh_thuc_tinh_luong_lai_xe) json.hinh_thuc_tinh_luong_lai_xe = data.hinh_thuc_tinh_luong_lai_xe;
+        state.plan.thong_tin_json = json;
+        if (data.hinh_thuc_tinh_luong_lai_xe) state.plan.hinh_thuc_tinh_luong_lai_xe = data.hinh_thuc_tinh_luong_lai_xe;
+      }
+    });
   }
 
   function persistDinhMucRows() {
@@ -1517,6 +1740,9 @@
   // Nhật ký dầu chỉ có ở tuyến xa; hàng cảng không gọi hàm này.
   function persistOilRows() {
     if (!state.nidKeHoach) return resolvedNoop();
+    // Nhật ký dầu không đổi so với bản đang lưu thì không gọi lại (lệnh này ghi đè cả danh sách).
+    var oilSignature = JSON.stringify(oilPayload());
+    if (state.oilSavedSig === oilSignature) return resolvedNoop();
     return $.ajax({
       url: '/api/ke-hoach-tuyen-xa-dau',
       method: 'POST',
@@ -1526,6 +1752,7 @@
     }).done(function (response) {
       var items = response && response.data && response.data.items ? response.data.items : [];
       state.oilRows = $.map(items, function (item) { return normalizeOilRow(item); });
+      state.oilSavedSig = JSON.stringify(oilPayload());
     });
   }
 
@@ -1559,8 +1786,10 @@
       method: 'POST',
       contentType: 'application/json; charset=utf-8',
       dataType: 'json',
-      data: JSON.stringify({ items: items })
+      data: JSON.stringify({ nid_ke_hoach: state.nidKeHoach, items: items })
     }).done(function (response) {
+      // Server trả sẵn danh sách chi phí mới nhất của kế hoạch (nếu có quyền xem): dùng luôn, khỏi gọi GET tải lại.
+      state.bulkRows = response && response.data && $.isArray(response.data.rows) ? response.data.rows : null;
       var savedItems = response && response.data && $.isArray(response.data.items) ? response.data.items : [];
       $.each(savedItems, function (_, item) {
         if (!item || !item.client_key || !item.nid) return;
@@ -1574,7 +1803,7 @@
 
   function saveAllRows(options) {
     options = options || {};
-    var rows = $.grep(state.rows, function (row) { return !isBlankRow(row) || row.nid > 0; });
+    var rows = $.grep(state.rows, function (row) { return (!isBlankRow(row) || row.nid > 0) && !isRowLocked(row); });
     var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
     if (invalidRows.length) {
       if (!options.silent) notify('Vui lòng chọn tên chi phí và một phân loại chi trả cho các dòng có số tiền.', 'error');
@@ -1586,6 +1815,7 @@
       return options.allowEmpty ? $.Deferred().resolve().promise() : $.Deferred().reject({ message: 'Chưa có dữ liệu cần lưu.' }).promise();
     }
     setBusy(true);
+    state.bulkRows = null;
     var persistExtras = state.loaiKeHoach === 'tuyen_xa' ? persistOilRows : resolvedNoop;
     var chain = persistDinhMucRows().then(function () {
       return saveRowsBulk(rows);
@@ -1594,7 +1824,11 @@
     });
     chain.done(function () {
       if (!options.silent) notify('Đã lưu toàn bộ dữ liệu chi phí.', 'success');
-      loadRows();
+      // Lệnh lưu hàng loạt đã trả sẵn danh sách mới nhất thì dùng luôn; không thì tải lại như trước.
+      var fresh = state.bulkRows;
+      state.bulkRows = null;
+      if (fresh) applyRows(fresh);
+      else loadRows();
     }).fail(function (error) {
       if (!options.silent) notify(error && error.responseText ? apiMsg(error) : (error && error.message ? error.message : 'Lưu dữ liệu chi phí thất bại.'), 'error');
     }).always(function () {
@@ -1679,7 +1913,7 @@
 
   function validatePortTab() {
     if (!embedded.mounted) return true;
-    var rows = $.grep(state.rows, function (row) { return !isBlankRow(row) || row.nid > 0; });
+    var rows = $.grep(state.rows, function (row) { return (!isBlankRow(row) || row.nid > 0) && !isRowLocked(row); });
     var invalidRows = $.grep(rows, function (row) { return !validateRow(row, true); });
     if (!invalidRows.length) return true;
     notify('Vui lòng chọn tên chi phí và một phân loại chi trả cho các dòng có số tiền.', 'error');
@@ -1701,21 +1935,12 @@
     });
     $(document).on('click', '.btn-add-row', function () {
       var type = String($(this).data('cost-type') || 'cong_ty_chi_tra');
-      var row = createEmptyRow(type);
-      state.rows.push(row);
-      renderTable();
-      updateSummary();
-      $('tr[data-row-key="' + row.key + '"] .cost-name').trigger('focus');
+      insertCostRow(createEmptyRow(type), -1);
     });
     $(document).on('click', '.btn-add-cost-row', function () {
       logPortCostTableLayout('before-add-cost-row');
-      var row = createEmptyRow();
       var current = getRow($(this).closest('tr').data('row-key'));
-      var at = current ? state.rows.indexOf(current) + 1 : state.rows.length;
-      state.rows.splice(at, 0, row);
-      renderTable();
-      updateSummary();
-      $('tr[data-row-key="' + row.key + '"] .cost-name').trigger('focus');
+      insertCostRow(createEmptyRow(), current ? state.rows.indexOf(current) + 1 : -1);
       logPortCostTableLayout('after-add-cost-row', true);
     });
     $(document).on('change', '.khcp-cost-type-check', function () {
@@ -1800,7 +2025,7 @@
       updateDinhMucSummary();
       if ($.inArray(field, ['diem_dau', 'diem_cuoi', 'trang_thai_xe']) !== -1) {
         var $tr = $input.closest('tr');
-        $tr.find('[data-field="dinh_muc"]').val(formatMoney(row.dinh_muc));
+        $tr.find('[data-field="dinh_muc"]').val(formatMoneyOrEmpty(row.dinh_muc));
       }
     });
     $(document).on('input change', '.khcp-revenue-field', function () {
@@ -1849,7 +2074,9 @@
       this.select();
     });
     $(document).on('blur', '.money-input', function () {
-      $(this).val(formatMoney(toNumber($(this).val())));
+      // Bỏ trống thì giữ trống (chỉ hiện placeholder "0"), không tự điền số 0 vào ô.
+      var raw = String($(this).val() || '').trim();
+      $(this).val(raw === '' ? '' : formatMoney(toNumber(raw)));
     });
     $(document).on('blur', '.decimal-input', function () {
       var val = $(this).hasClass('vat-input') ? clampPercent($(this).val()) : toNumber($(this).val());
@@ -1873,11 +2100,29 @@
 
   Drupal.keHoachChiPhi = Drupal.keHoachChiPhi || {};
   Drupal.keHoachChiPhi.mountPortTab = mountPortTab;
+  Drupal.keHoachChiPhi.prefetchRows = prefetchRows;
   Drupal.keHoachChiPhi.unmountPortTab = unmountPortTab;
   Drupal.keHoachChiPhi.savePortTab = savePortTab;
   Drupal.keHoachChiPhi.validatePortTab = validatePortTab;
   Drupal.keHoachChiPhi.updatePortPlanDraft = updatePortPlanDraft;
   Drupal.keHoachChiPhi.hasPortTab = function () { return embedded.mounted; };
+
+  // Tiện ích cho phần mở rộng theo màn (Drupal.keHoachChiPhi.extension). Chỉ đọc/gọi lại các hàm sẵn có.
+  Drupal.keHoachChiPhi.api = {
+    state: state,
+    notify: notify,
+    apiMsg: apiMsg,
+    escHtml: escHtml,
+    formatMoney: formatMoney,
+    getRow: getRow,
+    select2Parent: select2DropdownParent,
+    reload: fetchRows,
+    rerender: renderAll,
+    saveAll: function () { return saveAllRows({ allowEmpty: true, silent: true }); },
+    // Nút "Thêm chi phí" ở đầu card (ke_hoach_chi_phi_dntt.js): thêm 1 dòng trống cuối bảng, dùng chung insertCostRow()
+    // với nút "+" trên từng dòng nên cũng chỉ cuộn trong bảng, không cuộn cả modal/trang.
+    addBlankRow: function () { insertCostRow(createEmptyRow(), -1); }
+  };
 
   Drupal.behaviors.keHoachChiPhi = {
     attach: function (context) {

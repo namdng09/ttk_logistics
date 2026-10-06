@@ -1,0 +1,2011 @@
+<?php
+
+// Tiện ích dùng chung (khuôn phản hồi, xác thực bằng token, phân trang): module api_common. Nạp thẳng file khi module chưa bật để
+// API không hỏng nếu quên bật (bật module vẫn cần để xác thực bằng token hoạt động ở hook_init).
+if (!function_exists('api_response_success')) {
+  require_once dirname(__FILE__) . '/../api_common/api_common.module';
+}
+
+/**
+ * @file
+ * Đề nghị thanh toán chi phí kế hoạch (gom nhiều dòng ke_hoach_chi_phi) → duyệt 2 bước → thanh toán từng đợt.
+ *
+ * Nguyên tắc (đã chốt với người dùng, tham khảo crm_dntt):
+ * - GỘP THEO BÊN NHẬN TIỀN (loai_ben_nhan_tien + id_ben_nhan_tien) — KHÔNG còn theo "1 NCC/1 hoá đơn"
+ *   như trước: 1 đề nghị có thể chứa nhiều dòng chi phí thuộc nhiều hoá đơn của nhiều NCC khác nhau,
+ *   miễn mọi dòng có cùng bên nhận tiền HIỆU LỰC với đề nghị (_de_nghi_thanh_toan_line_effective_payee(),
+ *   _de_nghi_thanh_toan_payee_matches() — kiểm tra lại ở cả tạo/sửa/thêm-bớt dòng).
+ * - "Hoá đơn" không có bảng riêng: là cặp (nid_ncc, so_hoa_don) lưu trên TỪNG DÒNG ke_hoach_chi_phi
+ *   (không còn ở bảng đề nghị). _de_nghi_thanh_toan_hoa_don_summaries() là NGUỒN DUY NHẤT gom các dòng
+ *   của 1 đề nghị thành danh sách hoá đơn (dùng cho cả danh sách và chi tiết).
+ * - Hạn thanh toán + hình thức thanh toán vẫn là 1 giá trị DÙNG CHUNG cho cả đề nghị, không tách theo
+ *   từng hoá đơn (đã chốt với PO — xem de_nghi_thanh_toan.install).
+ * - Sửa nội dung dòng chi phí (tên/đơn giá/SL/VAT/ghi chú/số+ngày hoá đơn) ngay trong modal đề nghị
+ *   (_de_nghi_thanh_toan_apply_line_edits()) chỉ cần quyền de_nghi_thanh_toan_create, KHÔNG cần
+ *   ke_hoach_xep_xe_create — mục đích chính là để kế toán không phải mở lại kế hoạch xếp xe. Chỉ đúng
+ *   danh sách trường đó; nid_ncc/loai_chi_phi/nid_ke_hoach/bên nhận tiền không đổi được từ đây.
+ * - Tổng tiền không lưu cột: luôn tính từ các dòng chi phí. Dòng trỏ về đề nghị bằng
+ *   ke_hoach_chi_phi.nid_de_nghi_chi_phi, trạng thái mirror ở ke_hoach_chi_phi.trang_thai_duyet.
+ * - MỘT nguồn duy nhất cho hành động hợp lệ: _de_nghi_thanh_toan_actions(). Giao diện chỉ
+ *   hiển thị 'hanh_dong' do server trả về; các endpoint hành động cũng kiểm tra lại qua hàm này.
+ * - Thanh toán chỉ lưu quỹ đã chi (nid_quy), chưa tạo giao dịch/trừ số dư quỹ.
+ * - Nguồn của đề nghị (cột loai_nguon): 'chi_phi' (dòng ke_hoach_chi_phi, luồng đầy đủ nháp → duyệt → duyệt thanh
+ *   toán → thanh toán, ĐÚNG mô hình nhiều hoá đơn ở trên) hoặc 'do_dau' (1 phiếu đổ dầu, do_dau.nid_de_nghi trỏ về
+ *   đây — LUÔN đúng 1 hoá đơn, lấy trực tiếp từ phiếu, không qua ke_hoach_chi_phi). Phiếu đổ dầu tự duyệt phiếu và
+ *   duyệt thanh toán ở màn của nó; đề nghị chỉ được TẠO khi phiếu được "Duyệt TT", vào thẳng "Chờ thanh toán" để kế
+ *   toán ghi nhận thanh toán / trả lại ở màn đề nghị. Trả lại (chưa trả đồng nào) thì đề nghị bị huỷ, phiếu về "Từ chối".
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function de_nghi_thanh_toan_permission() {
+  return array(
+    'de_nghi_thanh_toan_view_own' => array('title' => t('Xem đề nghị thanh toán của mình'), 'entry' => array('/de-nghi-thanh-toan', 'GET /api/de-nghi-thanh-toan')),
+    'de_nghi_thanh_toan_view_all' => array('title' => t('Xem tất cả đề nghị thanh toán'), 'entry' => array('/de-nghi-thanh-toan', 'GET /api/de-nghi-thanh-toan')),
+    'de_nghi_thanh_toan_create' => array('title' => t('Tạo/sửa/gửi duyệt đề nghị thanh toán'), 'entry' => array('POST /api/de-nghi-thanh-toan', 'PUT /api/de-nghi-thanh-toan/{id}', 'POST …/{id}/gui-duyet|thu-hoi|rut-dong')),
+    'de_nghi_thanh_toan_approve' => array('title' => t('Duyệt đề nghị thanh toán (bước 1)'), 'entry' => array('POST …/{id}/duyet|tu-choi')),
+    'de_nghi_thanh_toan_approve_payment' => array('title' => t('Duyệt thanh toán (bước 2)'), 'entry' => array('POST …/{id}/duyet-thanh-toan|tu-choi-thanh-toan', 'Duyệt TT phiếu đổ dầu')),
+    'de_nghi_thanh_toan_pay' => array('title' => t('Ghi nhận thanh toán'), 'entry' => array('POST …/{id}/thanh-toan')),
+    'de_nghi_thanh_toan_delete' => array('title' => t('Xoá đề nghị thanh toán nháp'), 'entry' => array('DELETE /api/de-nghi-thanh-toan/{id}')),
+  );
+}
+
+/**
+ * Implements hook_init() — CORS cho route API.
+ */
+function de_nghi_thanh_toan_init() {
+  $path = current_path();
+  if (strpos($path, 'api/de-nghi-thanh-toan') === 0) {
+    drupal_add_http_header('Access-Control-Allow-Origin', '*');
+    drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    drupal_add_http_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    drupal_add_http_header('Access-Control-Max-Age', '86400');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+      drupal_add_http_header('Status', '204 No Content');
+      drupal_exit();
+    }
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function de_nghi_thanh_toan_menu() {
+  $items = array();
+
+  $items['api/de-nghi-thanh-toan'] = array(
+    'page callback' => 'de_nghi_thanh_toan_rest_collection',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  // Đường dẫn literal nên Drupal ưu tiên khớp trước api/de-nghi-thanh-toan/%.
+  $items['api/de-nghi-thanh-toan/tuy-chon'] = array(
+    'page callback' => 'de_nghi_thanh_toan_rest_options',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['api/de-nghi-thanh-toan/%'] = array(
+    'page callback' => 'de_nghi_thanh_toan_rest_item',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+  // Hành động chuyển trạng thái: POST api/de-nghi-thanh-toan/{id}/{hanh-dong}.
+  $items['api/de-nghi-thanh-toan/%/%'] = array(
+    'page callback' => 'de_nghi_thanh_toan_rest_action',
+    'page arguments' => array(2, 3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  $items['de-nghi-thanh-toan'] = array(
+    'title' => 'Đề nghị thanh toán',
+    'page callback' => 'de_nghi_thanh_toan_page_list',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function de_nghi_thanh_toan_theme() {
+  $path = drupal_get_path('module', 'de_nghi_thanh_toan') . '/templates';
+  return array(
+    'de_nghi_thanh_toan_list_page' => array(
+      'template' => 'de-nghi-thanh-toan-list',
+      'path' => $path,
+    ),
+  );
+}
+
+function de_nghi_thanh_toan_page_list() {
+  if (!_de_nghi_thanh_toan_can_view_any($GLOBALS['user'])) {
+    return api_denied_page('Bạn không có quyền xem đề nghị thanh toán');
+  }
+  $path = drupal_get_path('module', 'de_nghi_thanh_toan');
+  // version theo thời điểm sửa file: upload bản mới là trình duyệt lấy file mới.
+  foreach (array('css', 'js') as $t) {
+    $file = $path . '/assets/' . $t . '/de_nghi_thanh_toan.' . $t;
+    $v = file_exists($file) ? filemtime($file) . '-' . filesize($file) : REQUEST_TIME;
+    if ($t === 'css') drupal_add_css($file, array('preprocess' => FALSE, 'version' => $v));
+    else drupal_add_js($file, array('preprocess' => FALSE, 'version' => $v));
+  }
+  drupal_add_js(array('de_nghi_thanh_toan' => array(
+    'permissions' => array(
+      'view_own' => api_has_permission('de_nghi_thanh_toan_view_own'),
+      'view_all' => api_has_permission('de_nghi_thanh_toan_view_all'),
+      'create' => api_has_permission('de_nghi_thanh_toan_create'),
+      'approve' => api_has_permission('de_nghi_thanh_toan_approve'),
+      'approve_payment' => api_has_permission('de_nghi_thanh_toan_approve_payment'),
+      'pay' => api_has_permission('de_nghi_thanh_toan_pay'),
+      'delete' => api_has_permission('de_nghi_thanh_toan_delete'),
+    ),
+    'uid' => (int) $GLOBALS['user']->uid,
+  )), 'setting');
+  return theme('de_nghi_thanh_toan_list_page');
+}
+
+/*******************************************************************************
+ * AUTH — mẫu hybrid: phiên trình duyệt trước, không có phiên thì Bearer token/?token=.
+ ******************************************************************************/
+
+
+/**
+ * Tài khoản đang gọi API (phiên đăng nhập hoặc Bearer token), NULL nếu là khách vãng lai. Xem api_common.module.
+ */
+function _de_nghi_thanh_toan_current_account() {
+  return api_current_account();
+}
+
+/*******************************************************************************
+ * HELPERS
+ ******************************************************************************/
+
+function _de_nghi_thanh_toan_input() {
+  return api_request_input();
+}
+
+function _de_nghi_thanh_toan_now() {
+  return date('Y-m-d H:i:s', REQUEST_TIME);
+}
+
+/**
+ * Mã đề nghị: DNTT-yymmdd-NNNN, NNNN tăng dần theo NGÀY tạo (sang ngày mới về 0001). Kể cả đề nghị đã xoá mềm
+ * vẫn giữ số của nó (không dùng lại mã). Mã cũ dạng DNTT-NNNN giữ nguyên.
+ */
+function _de_nghi_thanh_toan_next_code($now) {
+  $prefix = 'DNTT-' . date('ymd', strtotime($now)) . '-';
+  $max = 0;
+  $rows = db_query("SELECT ma_de_nghi FROM {de_nghi_thanh_toan} WHERE ma_de_nghi LIKE :p", array(':p' => db_like($prefix) . '%'));
+  foreach ($rows as $r) {
+    $max = max($max, (int) substr($r->ma_de_nghi, strlen($prefix)));
+  }
+  return $prefix . str_pad((string) ($max + 1), 4, '0', STR_PAD_LEFT);
+}
+
+/** Thêm đề nghị kèm mã mới; 2 người tạo cùng lúc trùng mã (khoá duy nhất) thì lấy số kế tiếp rồi thử lại. */
+function _de_nghi_thanh_toan_insert_with_code(array $record, $now) {
+  $last = NULL;
+  for ($try = 0; $try < 5; $try++) {
+    $record['ma_de_nghi'] = _de_nghi_thanh_toan_next_code($now);
+    try {
+      return db_insert('de_nghi_thanh_toan')->fields($record)->execute();
+    }
+    catch (PDOException $e) {
+      $last = $e;
+    }
+  }
+  throw $last;
+}
+
+function _de_nghi_thanh_toan_success($data = NULL) {
+  return api_response_success($data);
+}
+
+function _de_nghi_thanh_toan_fail($message) {
+  return api_response_fail($message);
+}
+
+function _de_nghi_thanh_toan_unauthorized($message) {
+  return api_response_denied($message);
+}
+
+function _de_nghi_thanh_toan_forbidden($message) {
+  return api_response_forbidden($message);
+}
+
+function _de_nghi_thanh_toan_not_found($message) {
+  return api_response_not_found($message);
+}
+
+function _de_nghi_thanh_toan_error($message) {
+  return api_response_error($message);
+}
+
+function _de_nghi_thanh_toan_method_not_allowed($allowed) {
+  return api_response_method_not_allowed($allowed);
+}
+
+function _de_nghi_thanh_toan_json_decode($value) {
+  if (is_array($value)) return $value;
+  $decoded = json_decode((string) $value, TRUE);
+  return is_array($decoded) ? $decoded : array();
+}
+
+function _de_nghi_thanh_toan_json_encode($value) {
+  return json_encode(is_array($value) ? $value : array(), JSON_UNESCAPED_UNICODE);
+}
+
+function _de_nghi_thanh_toan_money($value) {
+  $digits = preg_replace('/[^\d]/', '', (string) $value);
+  return $digits === '' ? 0 : (int) $digits;
+}
+
+/** Ngày dạng Y-m-d hoặc rỗng; chuỗi khác trả FALSE. */
+function _de_nghi_thanh_toan_date($value) {
+  $value = trim((string) $value);
+  if ($value === '') return '';
+  if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m) || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+    return FALSE;
+  }
+  return $value;
+}
+
+/*******************************************************************************
+ * TRẠNG THÁI, QUYỀN, HÀNH ĐỘNG
+ ******************************************************************************/
+
+function _de_nghi_thanh_toan_statuses() {
+  return array(
+    'nhap' => 'Nháp',
+    'cho_duyet' => 'Chờ duyệt',
+    'cho_duyet_thanh_toan' => 'Chờ duyệt TT',
+    'cho_thanh_toan' => 'Chờ thanh toán',
+    'hoan_thanh' => 'Hoàn thành',
+    'tu_choi' => 'Từ chối',
+    'tu_choi_thanh_toan' => 'Từ chối TT',
+  );
+}
+
+/** Nguồn dòng của đề nghị. Cột loai_nguon chưa có (chưa chạy update database) thì coi là chi phí kế hoạch. */
+function _de_nghi_thanh_toan_is_do_dau($row) {
+  return isset($row->loai_nguon) && $row->loai_nguon === 'do_dau';
+}
+
+function _de_nghi_thanh_toan_source_labels() {
+  return array('chi_phi' => 'Chi phí kế hoạch', 'do_dau' => 'Đổ dầu');
+}
+
+/** Bảng phiếu đổ dầu đã có (module do_dau đã bật và có cột nid_de_nghi). */
+function _de_nghi_thanh_toan_do_dau_ready() {
+  static $ready = NULL;
+  if ($ready === NULL) {
+    $ready = db_table_exists('do_dau') && db_field_exists('do_dau', 'nid_de_nghi');
+  }
+  return $ready;
+}
+
+/** Trạng thái còn cho sửa nội dung / thêm-bớt dòng chi phí. */
+function _de_nghi_thanh_toan_editable_states() {
+  return array('nhap', 'tu_choi', 'tu_choi_thanh_toan');
+}
+
+/** Trạng thái đang chờ xử lý (dùng cho lọc quá hạn). */
+function _de_nghi_thanh_toan_open_states() {
+  return array('cho_duyet', 'cho_duyet_thanh_toan', 'cho_thanh_toan');
+}
+
+// Quyền XEM chỉ đến từ 2 quyền xem (đã chốt với PO): quyền tạo/duyệt/duyệt TT/ghi nhận TT KHÔNG tự cho xem. Người duyệt
+// muốn thấy đề nghị của người khác để duyệt thì phải được cấp thêm "Xem tất cả đề nghị thanh toán".
+function _de_nghi_thanh_toan_can_view_all($account) {
+  return user_access('de_nghi_thanh_toan_view_all', $account);
+}
+
+function _de_nghi_thanh_toan_can_view_any($account) {
+  return _de_nghi_thanh_toan_can_view_all($account) || user_access('de_nghi_thanh_toan_view_own', $account);
+}
+
+function _de_nghi_thanh_toan_can_view_row($row, $account) {
+  if (_de_nghi_thanh_toan_can_view_all($account)) return TRUE;
+  return (int) $row->uid_nguoi_tao === (int) $account->uid && user_access('de_nghi_thanh_toan_view_own', $account);
+}
+
+/** Người tạo hoặc người xem được tất cả (quản lý) mới thao tác thay được. */
+function _de_nghi_thanh_toan_is_owner_or_manager($row, $account) {
+  return (int) $row->uid_nguoi_tao === (int) $account->uid || user_access('de_nghi_thanh_toan_view_all', $account);
+}
+
+/**
+ * Hành động hợp lệ của 1 đề nghị với tài khoản hiện tại — NGUỒN DUY NHẤT (giao diện chỉ hiển thị
+ * kết quả này; các endpoint hành động cũng kiểm tra lại bằng hàm này).
+ *
+ * @param object $row Dòng de_nghi_thanh_toan.
+ * @param object $account
+ * @param int $so_dong Số dòng chi phí đang gắn.
+ * @param int $da_thanh_toan Tổng đã trả (VNĐ).
+ * @return array key => array(label, style, can_reason)
+ */
+function _de_nghi_thanh_toan_actions($row, $account, $so_dong, $da_thanh_toan) {
+  $actions = array();
+  $status = $row->trang_thai;
+  $mine = _de_nghi_thanh_toan_is_owner_or_manager($row, $account);
+  $can_create = user_access('de_nghi_thanh_toan_create', $account) && $mine;
+  // Đề nghị đổ dầu bắt đầu ở bước duyệt thanh toán (phiếu đã được duyệt): không có nháp/gửi duyệt/duyệt bước 1.
+  $is_dd = _de_nghi_thanh_toan_is_do_dau($row);
+
+  if (!$is_dd && in_array($status, array('nhap', 'tu_choi', 'tu_choi_thanh_toan'), TRUE) && $can_create && $so_dong > 0) {
+    $actions['gui-duyet'] = array('label' => $status === 'nhap' ? 'Gửi duyệt' : 'Gửi lại', 'style' => 'primary');
+  }
+  if (!$is_dd && $status === 'cho_duyet') {
+    if ($can_create) {
+      $actions['thu-hoi'] = array('label' => 'Thu hồi', 'style' => 'secondary');
+    }
+    if (user_access('de_nghi_thanh_toan_approve', $account)) {
+      $actions['duyet'] = array('label' => 'Duyệt', 'style' => 'primary');
+      $actions['tu-choi'] = array('label' => 'Từ chối', 'style' => 'danger', 'can_reason' => TRUE);
+    }
+  }
+  if ($status === 'cho_duyet_thanh_toan' && user_access('de_nghi_thanh_toan_approve_payment', $account)) {
+    $actions['duyet-thanh-toan'] = array('label' => 'Duyệt TT', 'style' => 'primary');
+    $actions['tu-choi-thanh-toan'] = array('label' => 'Từ chối', 'style' => 'danger', 'can_reason' => TRUE);
+  }
+  if ($status === 'cho_thanh_toan' && user_access('de_nghi_thanh_toan_pay', $account)) {
+    $actions['thanh-toan'] = array('label' => 'Ghi nhận TT', 'style' => 'primary');
+    if ($da_thanh_toan <= 0) {
+      $actions['tu-choi-thanh-toan'] = array('label' => 'Trả lại', 'style' => 'danger', 'can_reason' => TRUE);
+    }
+  }
+  return $actions;
+}
+
+function _de_nghi_thanh_toan_can_edit($row, $account) {
+  return !_de_nghi_thanh_toan_is_do_dau($row)
+    && in_array($row->trang_thai, _de_nghi_thanh_toan_editable_states(), TRUE)
+    && user_access('de_nghi_thanh_toan_create', $account)
+    && _de_nghi_thanh_toan_is_owner_or_manager($row, $account);
+}
+
+function _de_nghi_thanh_toan_can_delete($row, $account) {
+  return !_de_nghi_thanh_toan_is_do_dau($row)
+    && $row->trang_thai === 'nhap'
+    && user_access('de_nghi_thanh_toan_delete', $account)
+    && _de_nghi_thanh_toan_is_owner_or_manager($row, $account);
+}
+
+/*******************************************************************************
+ * TRA CỨU DỮ LIỆU PHỤ (tên NCC, nhân viên, quỹ)
+ ******************************************************************************/
+
+/** Nhãn hiển thị của nhà cung cấp (khách hàng): mã KH (tên ngắn gọn), không có mã thì dùng tên. */
+function _de_nghi_thanh_toan_ncc_label($ma_kh, $ten) {
+  return trim((string) $ma_kh) !== '' ? trim((string) $ma_kh) : (string) $ten;
+}
+
+function _de_nghi_thanh_toan_ncc_names(array $ids) {
+  $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+  $names = array();
+  if ($ids) {
+    foreach (db_query("SELECT nid, ten, ma_kh FROM {khach_hang} WHERE nid IN (:ids)", array(':ids' => $ids)) as $r) {
+      $names[(int) $r->nid] = _de_nghi_thanh_toan_ncc_label($r->ma_kh, $r->ten);
+    }
+  }
+  return $names;
+}
+
+function _de_nghi_thanh_toan_lai_xe_names(array $ids) {
+  $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+  $names = array();
+  if ($ids) {
+    foreach (db_query("SELECT nid, ten FROM {lai_xe} WHERE nid IN (:ids)", array(':ids' => $ids)) as $r) {
+      $names[(int) $r->nid] = $r->ten;
+    }
+  }
+  return $names;
+}
+
+/** Tên bên nhận tiền theo loại của nó (ncc → khách hàng, lai_xe → lái xe, còn lại → tài khoản). */
+function _de_nghi_thanh_toan_payee_name($r, array $ncc_names, array $user_names, array $lx_names = array()) {
+  $id = (int) $r->id_ben_nhan_tien;
+  if ($r->loai_ben_nhan_tien === 'ncc') {
+    return isset($ncc_names[$id]) ? $ncc_names[$id] : '';
+  }
+  if ($r->loai_ben_nhan_tien === 'lai_xe') {
+    return isset($lx_names[$id]) ? $lx_names[$id] : '';
+  }
+  return isset($user_names[$id]) ? $user_names[$id] : '';
+}
+
+/**
+ * Tên hiển thị của tài khoản. {users}.name là tên đăng nhập (thường là số điện thoại) nên chỉ là phương án cuối:
+ * ưu tiên {users}.ten (nhân viên), rồi tên lái xe gắn với tài khoản ({lai_xe}.uid_nguoi_dung).
+ */
+function _de_nghi_thanh_toan_user_names(array $uids = NULL) {
+  $has_ten = db_field_exists('users', 'ten');
+  $sql = $has_ten ? "SELECT uid, name, ten FROM {users}" : "SELECT uid, name, '' AS ten FROM {users}";
+  $args = array();
+  if ($uids !== NULL) {
+    $uids = array_values(array_unique(array_filter(array_map('intval', $uids))));
+    if (!$uids) {
+      return array();
+    }
+    $sql .= " WHERE uid IN (:ids)";
+    $args[':ids'] = $uids;
+  }
+  else {
+    $sql .= " WHERE status = 1 AND uid > 0 ORDER BY name ASC";
+  }
+  $driver = array();
+  if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
+    foreach (db_query("SELECT uid_nguoi_dung, ten FROM {lai_xe} WHERE hoat_dong = 1 AND uid_nguoi_dung > 0") as $lx) {
+      if (trim((string) $lx->ten) !== '') {
+        $driver[(int) $lx->uid_nguoi_dung] = trim((string) $lx->ten);
+      }
+    }
+  }
+  $names = array();
+  foreach (db_query($sql, $args) as $r) {
+    $uid = (int) $r->uid;
+    if (trim((string) $r->ten) !== '') {
+      $names[$uid] = trim((string) $r->ten);
+    }
+    elseif (isset($driver[$uid])) {
+      $names[$uid] = $driver[$uid];
+    }
+    else {
+      $names[$uid] = (string) $r->name;
+    }
+  }
+  return $names;
+}
+
+/** Các uid là tài khoản lái xe: gắn với hồ sơ lái xe ({lai_xe}.uid_nguoi_dung) hoặc có vai trò tên "Lái xe" (tra theo tên, không theo rid vì rid khác nhau giữa các site). Trả mảng uid => uid. */
+function _de_nghi_thanh_toan_driver_uids() {
+  $uids = array();
+  if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung')) {
+    foreach (db_query("SELECT uid_nguoi_dung FROM {lai_xe} WHERE hoat_dong = 1 AND uid_nguoi_dung > 0") as $r) {
+      $uids[(int) $r->uid_nguoi_dung] = (int) $r->uid_nguoi_dung;
+    }
+  }
+  foreach (db_query("SELECT ur.uid FROM {users_roles} ur INNER JOIN {role} r ON r.rid = ur.rid WHERE r.name IN (:n)", array(':n' => array('Lái xe', 'Lai xe'))) as $r) {
+    $uids[(int) $r->uid] = (int) $r->uid;
+  }
+  return $uids;
+}
+
+/**
+ * Số điện thoại thật của tài khoản: {users}.sdt (nhân viên), không có thì {lai_xe}.sdt của lái xe gắn tài khoản.
+ * Không dùng tên đăng nhập làm số điện thoại. Chỉ trả các uid có số.
+ */
+function _de_nghi_thanh_toan_user_phones() {
+  $phones = array();
+  if (db_table_exists('lai_xe') && db_field_exists('lai_xe', 'uid_nguoi_dung') && db_field_exists('lai_xe', 'sdt')) {
+    foreach (db_query("SELECT uid_nguoi_dung, sdt FROM {lai_xe} WHERE hoat_dong = 1 AND uid_nguoi_dung > 0") as $lx) {
+      if (trim((string) $lx->sdt) !== '') {
+        $phones[(int) $lx->uid_nguoi_dung] = trim((string) $lx->sdt);
+      }
+    }
+  }
+  if (db_field_exists('users', 'sdt')) {
+    foreach (db_query("SELECT uid, sdt FROM {users} WHERE status = 1 AND uid > 0 AND sdt IS NOT NULL AND sdt <> ''") as $u) {
+      if (trim((string) $u->sdt) !== '') {
+        $phones[(int) $u->uid] = trim((string) $u->sdt);
+      }
+    }
+  }
+  return $phones;
+}
+
+/** Quỹ (node của quan_ly_tai_chinh): mảng nid => array(nid, ten, loai, so_du). Rỗng nếu chưa bật module quỹ. */
+function _de_nghi_thanh_toan_quy_map() {
+  static $map = NULL;
+  if ($map !== NULL) {
+    return $map;
+  }
+  $map = array();
+  if (function_exists('quan_ly_tai_chinh_quy_get_all')) {
+    foreach (quan_ly_tai_chinh_quy_get_all(TRUE) as $quy) {
+      $map[(int) $quy->nid_quy] = array(
+        'nid' => (int) $quy->nid_quy,
+        'ten' => (string) $quy->ten_quy,
+        'loai' => (string) $quy->loai_quy,
+        'so_du' => (float) $quy->so_du_hien_tai,
+      );
+    }
+  }
+  return $map;
+}
+
+/** Hình thức thanh toán ↔ loại quỹ. */
+function _de_nghi_thanh_toan_hinh_thuc_options() {
+  return array(
+    'CK' => array('label' => 'Chuyển khoản', 'loai_quy' => 'ngan_hang'),
+    'TM' => array('label' => 'Tiền mặt', 'loai_quy' => 'tien_mat'),
+  );
+}
+
+/**
+ * Bên nhận tiền của ĐỀ NGHỊ — giờ là khoá gộp bắt buộc (không còn "trùng bên phát hành" mặc định vì
+ * không có 1 bên phát hành duy nhất nữa). $fallback = giá trị đang lưu (khi sửa, không gửi lại thì giữ
+ * nguyên). Trả array(loai, id) hoặc chuỗi lỗi.
+ */
+function _de_nghi_thanh_toan_resolve_payee_required(array $input, $fallback = NULL) {
+  $loai = isset($input['loai_ben_nhan_tien']) ? trim((string) $input['loai_ben_nhan_tien']) : ($fallback ? $fallback['loai'] : '');
+  $id = isset($input['id_ben_nhan_tien']) ? (int) $input['id_ben_nhan_tien'] : ($fallback ? (int) $fallback['id'] : 0);
+  // lai_xe (nid bảng lai_xe, lái xe chưa có tài khoản vẫn được): dòng chi phí có thể đặt bên nhận là lái xe
+  // (tab Chi phí hàng cảng) nên đề nghị chi phí cũng phải gộp được theo lái xe.
+  if (!in_array($loai, array('ncc', 'nhan_vien', 'lai_xe'), TRUE) || !$id) {
+    return 'Vui lòng chọn bên nhận tiền.';
+  }
+  if (!_ke_hoach_chi_phi_payee_is_valid($loai, $id)) {
+    $msg = array(
+      'ncc' => 'Bên nhận tiền (nhà cung cấp) không hợp lệ.',
+      'nhan_vien' => 'Nhân viên nhận tiền không tồn tại hoặc đã bị khoá.',
+      'lai_xe' => 'Lái xe nhận tiền không tồn tại hoặc đã ngưng hoạt động.',
+    );
+    return $msg[$loai];
+  }
+  return array('loai' => $loai, 'id' => $id);
+}
+
+/**
+ * Bên nhận tiền HIỆU LỰC của 1 dòng chi phí: có chọn riêng thì theo lựa chọn đó, không thì trùng nhà
+ * cung cấp của dòng (nid_ncc) — cùng quy tắc với _ke_hoach_chi_phi_payee_normalize() phía lưu dòng.
+ * Trả NULL nếu dòng không có bên nhận tiền nào xác định được (chưa chọn NCC, chưa chọn riêng).
+ */
+function _de_nghi_thanh_toan_line_effective_payee($line) {
+  if (!empty($line->loai_ben_nhan_tien) && !empty($line->id_ben_nhan_tien)) {
+    return array('loai' => (string) $line->loai_ben_nhan_tien, 'id' => (int) $line->id_ben_nhan_tien);
+  }
+  if (!empty($line->nid_ncc)) {
+    return array('loai' => 'ncc', 'id' => (int) $line->nid_ncc);
+  }
+  return NULL;
+}
+
+/** Dòng chi phí có được gộp vào đề nghị có bên nhận tiền $target hay không (đúng cả loại lẫn id). */
+function _de_nghi_thanh_toan_payee_matches($line, array $target) {
+  $eff = _de_nghi_thanh_toan_line_effective_payee($line);
+  return $eff && $eff['loai'] === $target['loai'] && (int) $eff['id'] === (int) $target['id'];
+}
+
+/**
+ * Sửa nhanh 1 dòng chi phí NGAY TỪ modal đề nghị thanh toán, không cần vào kế hoạch xếp xe (chỉ cần
+ * quyền de_nghi_thanh_toan_create — xem docblock đầu file). CHỈ nhận đúng danh sách trường dưới đây;
+ * không đụng nid_ncc/loai_chi_phi/nid_ke_hoach/bên nhận tiền của dòng (đổi các trường đó vẫn phải qua
+ * kế hoạch xếp xe, hoặc rút dòng khỏi đề nghị trước nếu cần đổi bên nhận tiền).
+ *
+ * @param object $existing Dòng ke_hoach_chi_phi hiện tại.
+ * @param array $edit Các trường muốn sửa (chỉ áp trường có mặt trong mảng — giống PATCH).
+ * @return string|NULL Chuỗi lỗi, hoặc NULL nếu hợp lệ (kể cả khi không có gì để sửa).
+ */
+function _de_nghi_thanh_toan_apply_line_edits($existing, array $edit, $now) {
+  $fields = array();
+  if (array_key_exists('ten_chi_phi', $edit)) {
+    $ten = trim((string) $edit['ten_chi_phi']);
+    if ($ten === '') {
+      return 'Tên chi phí không được để trống.';
+    }
+    if (mb_strlen($ten) > 255) {
+      return 'Tên chi phí tối đa 255 ký tự.';
+    }
+    $fields['ten_chi_phi'] = $ten;
+  }
+  if (array_key_exists('don_gia', $edit) || array_key_exists('so_luong', $edit) || array_key_exists('vat_percent', $edit)) {
+    $don_gia = array_key_exists('don_gia', $edit) ? _ke_hoach_xep_xe_parse_money($edit['don_gia']) : (int) $existing->don_gia;
+    $so_luong = array_key_exists('so_luong', $edit) && $edit['so_luong'] !== '' ? (float) $edit['so_luong'] : (float) $existing->so_luong;
+    $vat = array_key_exists('vat_percent', $edit) && $edit['vat_percent'] !== '' ? _ke_hoach_xep_xe_normalize_percent($edit['vat_percent']) : (float) $existing->vat_percent;
+    if ($so_luong <= 0) {
+      return 'Số lượng phải lớn hơn 0.';
+    }
+    $fields['don_gia'] = $don_gia;
+    $fields['so_luong'] = $so_luong;
+    $fields['vat_percent'] = $vat;
+    $fields['tong_truoc_vat'] = (int) round($don_gia * $so_luong);
+    $fields['tong_sau_vat'] = (int) round($fields['tong_truoc_vat'] * (1 + $vat / 100));
+  }
+  if (array_key_exists('ghi_chu', $edit)) {
+    $fields['ghi_chu'] = trim((string) $edit['ghi_chu']);
+  }
+  if (array_key_exists('so_hoa_don', $edit)) {
+    $so = trim((string) $edit['so_hoa_don']);
+    if (mb_strlen($so) > 50) {
+      return 'Số hoá đơn tối đa 50 ký tự.';
+    }
+    $fields['so_hoa_don'] = $so;
+  }
+  if (array_key_exists('ngay_hoa_don', $edit)) {
+    $d = _ke_hoach_chi_phi_valid_date($edit['ngay_hoa_don']);
+    if ($d === FALSE) {
+      return 'Ngày hoá đơn không hợp lệ (định dạng YYYY-MM-DD).';
+    }
+    $fields['ngay_hoa_don'] = $d;
+  }
+  if (!$fields) {
+    return NULL;
+  }
+  $fields['changed'] = $now;
+  db_update('ke_hoach_chi_phi')->fields($fields)->condition('nid', (int) $existing->nid)->execute();
+  return NULL;
+}
+
+/*******************************************************************************
+ * TỔNG HỢP SỐ LIỆU
+ ******************************************************************************/
+
+/** nid_de_nghi => array(so_dong, so_chuyen, truoc, sau, da_tt). Tính động, không lưu cột. */
+function _de_nghi_thanh_toan_aggregates(array $ids) {
+  $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+  $out = array();
+  foreach ($ids as $id) {
+    $out[$id] = array('so_dong' => 0, 'so_chuyen' => 0, 'truoc' => 0, 'sau' => 0, 'da_tt' => 0);
+  }
+  if (!$ids) {
+    return $out;
+  }
+  $rows = db_query(
+    "SELECT nid_de_nghi_chi_phi AS nid, COUNT(*) AS so_dong, COUNT(DISTINCT nid_ke_hoach) AS so_chuyen,
+            COALESCE(SUM(tong_truoc_vat), 0) AS truoc, COALESCE(SUM(tong_sau_vat), 0) AS sau
+     FROM {ke_hoach_chi_phi}
+     WHERE nid_de_nghi_chi_phi IN (:ids) AND hoat_dong = 1
+     GROUP BY nid_de_nghi_chi_phi",
+    array(':ids' => $ids)
+  );
+  foreach ($rows as $r) {
+    $out[(int) $r->nid]['so_dong'] = (int) $r->so_dong;
+    $out[(int) $r->nid]['so_chuyen'] = (int) $r->so_chuyen;
+    $out[(int) $r->nid]['truoc'] = (int) $r->truoc;
+    $out[(int) $r->nid]['sau'] = (int) $r->sau;
+  }
+  if (_de_nghi_thanh_toan_do_dau_ready()) {
+    $dd = db_query(
+      "SELECT nid_de_nghi AS nid, COUNT(*) AS so_dong, COALESCE(SUM(tong_truoc_vat), 0) AS truoc, COALESCE(SUM(tong_sau_vat), 0) AS sau
+       FROM {do_dau}
+       WHERE nid_de_nghi IN (:ids) AND hoat_dong = 1
+       GROUP BY nid_de_nghi",
+      array(':ids' => $ids)
+    );
+    foreach ($dd as $r) {
+      // so_chuyen giữ 0: phiếu đổ dầu không thuộc chuyến nào.
+      $out[(int) $r->nid]['so_dong'] += (int) $r->so_dong;
+      $out[(int) $r->nid]['truoc'] += (int) $r->truoc;
+      $out[(int) $r->nid]['sau'] += (int) $r->sau;
+    }
+  }
+  $paid = db_query(
+    "SELECT nid_de_nghi AS nid, COALESCE(SUM(so_tien), 0) AS da_tt FROM {de_nghi_thanh_toan_thanh_toan} WHERE nid_de_nghi IN (:ids) GROUP BY nid_de_nghi",
+    array(':ids' => $ids)
+  );
+  foreach ($paid as $r) {
+    $out[(int) $r->nid]['da_tt'] = (int) $r->da_tt;
+  }
+  return $out;
+}
+
+/**
+ * "Hoá đơn" (cặp nid_ncc + so_hoa_don) đang gộp trong mỗi đề nghị — MỘT NGUỒN DUY NHẤT cho danh sách
+ * hoá đơn liên quan (chip ở danh sách + chi tiết) và cho bộ lọc "chưa có số hoá đơn" / "gồm nhiều hoá
+ * đơn". Đề nghị nguồn đổ dầu luôn đúng 1 hoá đơn, lấy trực tiếp từ phiếu (không qua ke_hoach_chi_phi).
+ *
+ * @return array nid_de_nghi => array(
+ *   'hoa_dons' => array({nid_ncc, ncc_ten, so_hoa_don, ngay_hoa_don, so_dong, tong_sau_vat}),
+ *   'so_hoa_don_count' => int, 'co_dong_chua_hd' => bool)
+ */
+function _de_nghi_thanh_toan_hoa_don_summaries(array $ids) {
+  $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+  $out = array();
+  foreach ($ids as $id) {
+    $out[$id] = array('hoa_dons' => array(), 'so_hoa_don_count' => 0, 'co_dong_chua_hd' => FALSE);
+  }
+  if (!$ids) {
+    return $out;
+  }
+  $groups = array();
+  $ncc_ids = array();
+  $rows = db_query(
+    "SELECT nid_de_nghi_chi_phi AS nid, nid_ncc, so_hoa_don, ngay_hoa_don, COUNT(*) AS so_dong,
+            COALESCE(SUM(tong_sau_vat), 0) AS sau, MIN(nid) AS first_nid
+     FROM {ke_hoach_chi_phi}
+     WHERE nid_de_nghi_chi_phi IN (:ids) AND hoat_dong = 1
+     GROUP BY nid_de_nghi_chi_phi, nid_ncc, so_hoa_don, ngay_hoa_don
+     ORDER BY nid_de_nghi_chi_phi ASC, first_nid ASC",
+    array(':ids' => $ids)
+  );
+  foreach ($rows as $r) {
+    $nid = (int) $r->nid;
+    $groups[$nid][] = array(
+      'nid_ncc' => (int) $r->nid_ncc, 'so_hoa_don' => (string) $r->so_hoa_don, 'ngay_hoa_don' => (string) $r->ngay_hoa_don,
+      'so_dong' => (int) $r->so_dong, 'tong_sau_vat' => (int) $r->sau,
+    );
+    if ($r->nid_ncc) $ncc_ids[] = (int) $r->nid_ncc;
+    if ((string) $r->so_hoa_don === '') $out[$nid]['co_dong_chua_hd'] = TRUE;
+  }
+  if (_de_nghi_thanh_toan_do_dau_ready()) {
+    $dd = db_query(
+      "SELECT d.nid_de_nghi AS nid, d.nid_ncc, d.so_hoa_don, d.ngay_do AS ngay_hoa_don, d.tong_sau_vat AS sau
+       FROM {do_dau} d WHERE d.nid_de_nghi IN (:ids) AND d.hoat_dong = 1",
+      array(':ids' => $ids)
+    );
+    foreach ($dd as $r) {
+      $nid = (int) $r->nid;
+      if (!isset($out[$nid])) continue;
+      $groups[$nid][] = array(
+        'nid_ncc' => (int) $r->nid_ncc, 'so_hoa_don' => (string) $r->so_hoa_don, 'ngay_hoa_don' => (string) $r->ngay_hoa_don,
+        'so_dong' => 1, 'tong_sau_vat' => (int) $r->sau,
+      );
+      if ($r->nid_ncc) $ncc_ids[] = (int) $r->nid_ncc;
+      if ((string) $r->so_hoa_don === '') $out[$nid]['co_dong_chua_hd'] = TRUE;
+    }
+  }
+  $ncc_names = _de_nghi_thanh_toan_ncc_names($ncc_ids);
+  foreach ($groups as $nid => $gs) {
+    foreach ($gs as &$g) {
+      $g['ncc_ten'] = isset($ncc_names[$g['nid_ncc']]) ? $ncc_names[$g['nid_ncc']] : '';
+    }
+    unset($g);
+    $out[$nid]['hoa_dons'] = $gs;
+    $out[$nid]['so_hoa_don_count'] = count($gs);
+  }
+  return $out;
+}
+
+/**
+ * Mức cảnh báo hạn thanh toán cho giao diện (một nguồn duy nhất): '' | 'sap_den_han' (còn 1..N ngày, N =
+ * DE_NGHI_THANH_TOAN_SAP_DEN_HAN_NGAY) | 'den_han' (hạn là hôm nay hoặc đã quá). Chỉ tính khi đề nghị còn
+ * đang xử lý và còn tiền chưa trả — cùng điều kiện với _de_nghi_thanh_toan_qua_han_ngay().
+ */
+define('DE_NGHI_THANH_TOAN_SAP_DEN_HAN_NGAY', 3);
+function _de_nghi_thanh_toan_han_tt_muc($row, $con_lai) {
+  if ($row->han_thanh_toan === '' || !in_array($row->trang_thai, _de_nghi_thanh_toan_open_states(), TRUE) || $con_lai <= 0) {
+    return '';
+  }
+  $han = strtotime($row->han_thanh_toan . ' 00:00:00');
+  $today = strtotime(date('Y-m-d', REQUEST_TIME) . ' 00:00:00');
+  if (!$han) return '';
+  $con = (int) floor(($han - $today) / 86400);
+  if ($con <= 0) return 'den_han';
+  return $con <= DE_NGHI_THANH_TOAN_SAP_DEN_HAN_NGAY ? 'sap_den_han' : '';
+}
+
+function _de_nghi_thanh_toan_qua_han_ngay($row, $con_lai) {
+  if ($row->han_thanh_toan === '' || !in_array($row->trang_thai, _de_nghi_thanh_toan_open_states(), TRUE) || $con_lai <= 0) {
+    return 0;
+  }
+  $han = strtotime($row->han_thanh_toan . ' 00:00:00');
+  $today = strtotime(date('Y-m-d', REQUEST_TIME) . ' 00:00:00');
+  if (!$han || $han >= $today) return 0;
+  return (int) floor(($today - $han) / 86400);
+}
+
+/** Danh sách dòng DB → mảng API (dùng cho list). */
+function _de_nghi_thanh_toan_rows_to_items(array $rows, $account) {
+  if (!$rows) return array();
+  $ids = array();
+  $uids = array();
+  $lx_ids = array();
+  $dd_ids = array();
+  foreach ($rows as $r) {
+    $ids[] = (int) $r->nid;
+    if ($r->loai_ben_nhan_tien === 'lai_xe') $lx_ids[] = (int) $r->id_ben_nhan_tien;
+    elseif ($r->loai_ben_nhan_tien !== 'ncc') $uids[] = (int) $r->id_ben_nhan_tien;
+    $uids[] = (int) $r->uid_nguoi_tao;
+    if (_de_nghi_thanh_toan_is_do_dau($r)) $dd_ids[] = (int) $r->nid;
+  }
+  $agg = _de_nghi_thanh_toan_aggregates($ids);
+  $hd = _de_nghi_thanh_toan_hoa_don_summaries($ids);
+  // Tên NCC của bên nhận tiền (loai=ncc) lấy chung 1 lần từ hoá đơn: id_ben_nhan_tien có thể KHÔNG
+  // trùng bất kỳ nid_ncc nào trong hoá đơn của đề nghị (NCC khác thu hộ) nên vẫn cần tra riêng.
+  $ncc_ids = array();
+  foreach ($rows as $r) {
+    if ($r->loai_ben_nhan_tien === 'ncc') $ncc_ids[] = (int) $r->id_ben_nhan_tien;
+  }
+  $ncc_names = _de_nghi_thanh_toan_ncc_names($ncc_ids);
+  $user_names = _de_nghi_thanh_toan_user_names($uids);
+  $lx_names = _de_nghi_thanh_toan_lai_xe_names($lx_ids);
+  $refs = _de_nghi_thanh_toan_do_dau_refs($dd_ids);
+  $items = array();
+  foreach ($rows as $r) {
+    $item = _de_nghi_thanh_toan_row_to_array($r, $account, $agg[(int) $r->nid], $hd[(int) $r->nid], $ncc_names, $user_names, $lx_names);
+    if (isset($refs[(int) $r->nid])) {
+      $item['nguon_ref'] = $refs[(int) $r->nid];
+    }
+    $items[] = $item;
+  }
+  return $items;
+}
+
+/**
+ * Phiếu đổ dầu của các đề nghị nguồn đổ dầu: nid_de_nghi => array(nid, ma, ngay, bks, lai_xe, nid_ncc,
+ * so_hoa_don). Mỗi đề nghị 1 phiếu (1-1); nid_ncc/so_hoa_don của phiếu KHÔNG lấy từ bảng đề nghị nữa
+ * (đã bỏ 2 cột đó) mà lấy thẳng ở đây, dùng để hiển thị trong 'nguon_ref' (không đi qua hoa_don_summaries
+ * vì nguồn đổ dầu không có dòng ke_hoach_chi_phi để nhóm).
+ */
+function _de_nghi_thanh_toan_do_dau_refs(array $ids) {
+  $out = array();
+  if (!$ids || !_de_nghi_thanh_toan_do_dau_ready()) {
+    return $out;
+  }
+  $rows = db_query(
+    "SELECT d.nid, d.nid_de_nghi, d.ma_phieu, d.ngay_do, d.nid_ncc, d.so_hoa_don, pt.bks, lx.ten AS lai_xe
+     FROM {do_dau} d
+     LEFT JOIN {phuong_tien} pt ON pt.nid = d.nid_phuong_tien
+     LEFT JOIN {lai_xe} lx ON lx.nid = d.nid_lai_xe
+     WHERE d.nid_de_nghi IN (:ids) AND d.hoat_dong = 1 ORDER BY d.nid ASC",
+    array(':ids' => $ids)
+  );
+  foreach ($rows as $r) {
+    if (!isset($out[(int) $r->nid_de_nghi])) {
+      $out[(int) $r->nid_de_nghi] = array(
+        'nid' => (int) $r->nid, 'ma' => $r->ma_phieu, 'ngay' => $r->ngay_do, 'bks' => (string) $r->bks, 'lai_xe' => (string) $r->lai_xe,
+        'nid_ncc' => (int) $r->nid_ncc, 'so_hoa_don' => (string) $r->so_hoa_don,
+      );
+    }
+  }
+  return $out;
+}
+
+function _de_nghi_thanh_toan_row_to_array($r, $account, array $a, array $hd, array $ncc_names, array $user_names, array $lx_names = array()) {
+  $statuses = _de_nghi_thanh_toan_statuses();
+  $con_lai = max(0, $a['sau'] - $a['da_tt']);
+  $ten_nhan = _de_nghi_thanh_toan_payee_name($r, $ncc_names, $user_names, $lx_names);
+  $loai_nguon = _de_nghi_thanh_toan_is_do_dau($r) ? 'do_dau' : 'chi_phi';
+  $nguon = _de_nghi_thanh_toan_source_labels();
+  $actions = array();
+  foreach (_de_nghi_thanh_toan_actions($r, $account, $a['so_dong'], $a['da_tt']) as $key => $act) {
+    $act['key'] = $key;
+    $actions[] = $act;
+  }
+  return array(
+    'nid' => (int) $r->nid,
+    'ma_de_nghi' => $r->ma_de_nghi,
+    'loai_nguon' => $loai_nguon,
+    'nguon_label' => $nguon[$loai_nguon],
+    'ben_nhan_tien' => array(
+      'loai' => $r->loai_ben_nhan_tien,
+      'id' => (int) $r->id_ben_nhan_tien,
+      'ten' => $ten_nhan,
+    ),
+    // "Hoá đơn liên quan" — có thể nhiều hoá đơn của nhiều NCC (xem docblock đầu file).
+    'hoa_dons' => $hd['hoa_dons'],
+    'so_hoa_don_count' => $hd['so_hoa_don_count'],
+    'co_dong_chua_hd' => $hd['co_dong_chua_hd'],
+    'han_thanh_toan' => $r->han_thanh_toan,
+    'hinh_thuc_tt' => $r->hinh_thuc_tt,
+    'ghi_chu' => (string) $r->ghi_chu,
+    'trang_thai' => $r->trang_thai,
+    'trang_thai_label' => isset($statuses[$r->trang_thai]) ? $statuses[$r->trang_thai] : $r->trang_thai,
+    'ly_do_tu_choi' => $r->ly_do_tu_choi,
+    'nguoi_tao' => isset($user_names[(int) $r->uid_nguoi_tao]) ? $user_names[(int) $r->uid_nguoi_tao] : '',
+    'uid_nguoi_tao' => (int) $r->uid_nguoi_tao,
+    'created' => $r->created,
+    'so_dong' => $a['so_dong'],
+    'so_chuyen' => $a['so_chuyen'],
+    'tong_truoc_vat' => $a['truoc'],
+    'tong_vat' => $a['sau'] - $a['truoc'],
+    'tong_sau_vat' => $a['sau'],
+    'da_thanh_toan' => $a['da_tt'],
+    'con_lai' => $con_lai,
+    'qua_han_ngay' => _de_nghi_thanh_toan_qua_han_ngay($r, $con_lai),
+    'han_tt_muc' => _de_nghi_thanh_toan_han_tt_muc($r, $con_lai),
+    'hanh_dong' => $actions,
+    'co_the_sua' => _de_nghi_thanh_toan_can_edit($r, $account),
+    'co_the_xoa' => _de_nghi_thanh_toan_can_delete($r, $account),
+  );
+}
+
+/** Chi tiết đầy đủ: thêm các dòng chi phí, đợt thanh toán, lịch sử. */
+function _de_nghi_thanh_toan_detail($row, $account) {
+  $items = _de_nghi_thanh_toan_rows_to_items(array($row), $account);
+  $data = $items[0];
+
+  $lines = array();
+  $plan_ids = array();
+  $line_rows = array();
+  if (!_de_nghi_thanh_toan_is_do_dau($row)) {
+    $line_rows = db_query(
+      "SELECT nid, nid_ke_hoach, ten_chi_phi, loai_chi_phi, don_gia, so_luong, tong_truoc_vat, vat_percent, tong_sau_vat, ghi_chu, nid_ncc, so_hoa_don, ngay_hoa_don
+       FROM {ke_hoach_chi_phi} WHERE nid_de_nghi_chi_phi = :id AND hoat_dong = 1 ORDER BY nid ASC",
+      array(':id' => (int) $row->nid)
+    )->fetchAll();
+  }
+  foreach ($line_rows as $l) {
+    $plan_ids[(int) $l->nid_ke_hoach] = (int) $l->nid_ke_hoach;
+  }
+  $plans = array();
+  if ($plan_ids) {
+    foreach (db_query("SELECT nid, so_bkg, so_cont, ngay_gio_ke_hoach FROM {ke_hoach_xep_xe} WHERE nid IN (:ids)", array(':ids' => array_values($plan_ids))) as $p) {
+      $plans[(int) $p->nid] = $p;
+    }
+  }
+  // Tên NCC của từng hoá đơn.
+  $line_ncc_ids = array();
+  foreach ($line_rows as $l) {
+    if (!empty($l->nid_ncc)) $line_ncc_ids[] = (int) $l->nid_ncc;
+  }
+  $ncc_names_lines = _de_nghi_thanh_toan_ncc_names($line_ncc_ids);
+  foreach ($line_rows as $l) {
+    $p = isset($plans[(int) $l->nid_ke_hoach]) ? $plans[(int) $l->nid_ke_hoach] : NULL;
+    $lines[] = array(
+      'nid' => (int) $l->nid,
+      'nid_ke_hoach' => (int) $l->nid_ke_hoach,
+      'ke_hoach_label' => '#' . (int) $l->nid_ke_hoach . ($p && trim((string) $p->so_bkg) !== '' ? ' · ' . $p->so_bkg : ''),
+      'so_cont' => $p ? (string) $p->so_cont : '',
+      'ngay_ke_hoach' => $p ? (string) $p->ngay_gio_ke_hoach : '',
+      'ten_chi_phi' => $l->ten_chi_phi,
+      'loai_chi_phi' => $l->loai_chi_phi,
+      'don_gia' => (int) $l->don_gia,
+      'so_luong' => (float) $l->so_luong,
+      'tong_truoc_vat' => (int) $l->tong_truoc_vat,
+      'vat_percent' => (float) $l->vat_percent,
+      'tong_sau_vat' => (int) $l->tong_sau_vat,
+      'ghi_chu' => (string) $l->ghi_chu,
+      'nid_ncc' => (int) $l->nid_ncc,
+      'ncc_ten' => isset($ncc_names_lines[(int) $l->nid_ncc]) ? $ncc_names_lines[(int) $l->nid_ncc] : '',
+      'so_hoa_don' => (string) $l->so_hoa_don,
+      'ngay_hoa_don' => (string) $l->ngay_hoa_don,
+    );
+  }
+  if (_de_nghi_thanh_toan_is_do_dau($row) && _de_nghi_thanh_toan_do_dau_ready()) {
+    // Phiếu đổ dầu trình bày cùng dạng "dòng" để bảng chi tiết dùng chung; kèm bản đầy đủ ở phieu_do_dau.
+    $phieus = array();
+    $pr = db_query(
+      "SELECT d.*, pt.bks, lx.ten AS lai_xe_ten FROM {do_dau} d
+       LEFT JOIN {phuong_tien} pt ON pt.nid = d.nid_phuong_tien
+       LEFT JOIN {lai_xe} lx ON lx.nid = d.nid_lai_xe
+       WHERE d.nid_de_nghi = :id AND d.hoat_dong = 1 ORDER BY d.nid ASC",
+      array(':id' => (int) $row->nid)
+    )->fetchAll();
+    foreach ($pr as $p) {
+      if (!empty($p->nid_ncc)) $line_ncc_ids[] = (int) $p->nid_ncc;
+    }
+    $ncc_names_lines = _de_nghi_thanh_toan_ncc_names($line_ncc_ids);
+    foreach ($pr as $p) {
+      $lit = (float) $p->so_lit;
+      $lines[] = array(
+        'nid' => (int) $p->nid,
+        'nid_ke_hoach' => 0,
+        'ke_hoach_label' => $p->ma_phieu . ' · ' . $p->bks . ($p->lai_xe_ten ? ' · ' . $p->lai_xe_ten : ''),
+        'so_cont' => '',
+        'ten_chi_phi' => 'Đổ dầu ' . rtrim(rtrim(number_format($lit, 2, ',', '.'), '0'), ','),
+        'loai_chi_phi' => 'do_dau',
+        'don_gia' => (int) $p->don_gia,
+        'so_luong' => $lit,
+        'tong_truoc_vat' => (int) $p->tong_truoc_vat,
+        'vat_percent' => (float) $p->vat_percent,
+        'tong_sau_vat' => (int) $p->tong_sau_vat,
+        'ghi_chu' => (string) $p->ghi_chu,
+        'nid_ncc' => (int) $p->nid_ncc,
+        'ncc_ten' => isset($ncc_names_lines[(int) $p->nid_ncc]) ? $ncc_names_lines[(int) $p->nid_ncc] : '',
+        'so_hoa_don' => (string) $p->so_hoa_don,
+        'ngay_hoa_don' => (string) $p->ngay_do,
+      );
+      $phieus[] = array(
+        'nid' => (int) $p->nid, 'ma_phieu' => $p->ma_phieu, 'ngay_do' => $p->ngay_do, 'bks' => (string) $p->bks,
+        'lai_xe_ten' => (string) $p->lai_xe_ten, 'so_hoa_don' => $p->so_hoa_don,
+        'so_cong_to_met' => $p->so_cong_to_met === NULL ? NULL : (int) $p->so_cong_to_met,
+        'so_lit' => $lit, 'don_gia' => (int) $p->don_gia, 'vat_percent' => (float) $p->vat_percent,
+        'tong_truoc_vat' => (int) $p->tong_truoc_vat, 'tong_sau_vat' => (int) $p->tong_sau_vat,
+      );
+    }
+    $data['phieu_do_dau'] = $phieus;
+  }
+  $data['dong_chi_phi'] = $lines;
+
+  $pay_rows = db_query("SELECT * FROM {de_nghi_thanh_toan_thanh_toan} WHERE nid_de_nghi = :id ORDER BY nid ASC", array(':id' => (int) $row->nid))->fetchAll();
+  $quys = _de_nghi_thanh_toan_quy_map();
+  $hinh_thuc = _de_nghi_thanh_toan_hinh_thuc_options();
+  $pay_uids = array();
+  foreach ($pay_rows as $p) {
+    $pay_uids[] = (int) $p->uid_nguoi_thanh_toan;
+  }
+  $pay_names = _de_nghi_thanh_toan_user_names($pay_uids);
+  // Mã phiếu chi ở Thu chi của từng đợt (đợt ghi nhận trước khi nối quỹ không có phiếu).
+  $phieu_ma = array();
+  $phieu_ids = array();
+  foreach ($pay_rows as $p) {
+    if (!empty($p->nid_phieu_thu_chi)) $phieu_ids[] = (int) $p->nid_phieu_thu_chi;
+  }
+  if ($phieu_ids && db_table_exists('qltc_phieu_thu_chi')) {
+    $phieu_ma = db_query("SELECT nid, ma_giao_dich FROM {qltc_phieu_thu_chi} WHERE nid IN (:ids)", array(':ids' => $phieu_ids))->fetchAllKeyed();
+  }
+  $payments = array();
+  foreach ($pay_rows as $i => $p) {
+    $payments[] = array(
+      'dot' => $i + 1,
+      'so_tien' => (int) $p->so_tien,
+      'hinh_thuc_tt' => $p->hinh_thuc_tt,
+      'hinh_thuc_label' => isset($hinh_thuc[$p->hinh_thuc_tt]) ? $hinh_thuc[$p->hinh_thuc_tt]['label'] : $p->hinh_thuc_tt,
+      'nid_quy' => (int) $p->nid_quy,
+      'quy_ten' => isset($quys[(int) $p->nid_quy]) ? $quys[(int) $p->nid_quy]['ten'] : '',
+      'ghi_chu' => $p->ghi_chu,
+      'nid_phieu_thu_chi' => !empty($p->nid_phieu_thu_chi) ? (int) $p->nid_phieu_thu_chi : 0,
+      'ma_phieu_chi' => !empty($p->nid_phieu_thu_chi) && isset($phieu_ma[(int) $p->nid_phieu_thu_chi]) ? (string) $phieu_ma[(int) $p->nid_phieu_thu_chi] : '',
+      'nguoi_thanh_toan' => isset($pay_names[(int) $p->uid_nguoi_thanh_toan]) ? $pay_names[(int) $p->uid_nguoi_thanh_toan] : '',
+      'created' => $p->created,
+    );
+  }
+  $data['thanh_toan'] = $payments;
+
+  $history = _de_nghi_thanh_toan_json_decode($row->lich_su_json);
+  $h_uids = array();
+  foreach ($history as $h) {
+    if (!empty($h['uid'])) $h_uids[] = (int) $h['uid'];
+  }
+  $h_names = _de_nghi_thanh_toan_user_names($h_uids);
+  foreach ($history as &$h) {
+    $h['nguoi'] = !empty($h['uid']) && isset($h_names[(int) $h['uid']]) ? $h_names[(int) $h['uid']] : '';
+  }
+  unset($h);
+  $data['lich_su'] = $history;
+  $data['hinh_anh_chung_tu'] = _de_nghi_thanh_toan_json_decode($row->hinh_anh_chung_tu);
+  return $data;
+}
+
+/** Ghi 1 dòng nhật ký vào lich_su_json (giữ tối đa 200). */
+function _de_nghi_thanh_toan_log($nid, $account, $text) {
+  $json = db_query("SELECT lich_su_json FROM {de_nghi_thanh_toan} WHERE nid = :id", array(':id' => (int) $nid))->fetchField();
+  $list = _de_nghi_thanh_toan_json_decode($json);
+  $list[] = array('at' => _de_nghi_thanh_toan_now(), 'uid' => (int) $account->uid, 'text' => $text);
+  if (count($list) > 200) $list = array_slice($list, -200);
+  db_update('de_nghi_thanh_toan')->fields(array('lich_su_json' => _de_nghi_thanh_toan_json_encode($list)))->condition('nid', (int) $nid)->execute();
+}
+
+/** Đổi trạng thái đề nghị + mirror sang các dòng chi phí (một chỗ duy nhất đổi trạng thái). */
+function _de_nghi_thanh_toan_set_status($nid, $status, array $extra = array()) {
+  $fields = $extra + array('trang_thai' => $status, 'changed' => _de_nghi_thanh_toan_now());
+  $fields['trang_thai'] = $status;
+  db_update('de_nghi_thanh_toan')->fields($fields)->condition('nid', (int) $nid)->execute();
+  db_update('ke_hoach_chi_phi')
+    ->fields(array('trang_thai_duyet' => $status, 'changed' => _de_nghi_thanh_toan_now()))
+    ->condition('nid_de_nghi_chi_phi', (int) $nid)
+    ->execute();
+}
+
+/** Trả các dòng chi phí về trạng thái chưa gộp. */
+function _de_nghi_thanh_toan_release_lines($nid, array $chi_phi_ids = array()) {
+  $q = db_update('ke_hoach_chi_phi')
+    ->fields(array('nid_de_nghi_chi_phi' => 0, 'trang_thai_duyet' => 'khong_can_duyet', 'changed' => _de_nghi_thanh_toan_now()))
+    ->condition('nid_de_nghi_chi_phi', (int) $nid);
+  if ($chi_phi_ids) {
+    $q->condition('nid', $chi_phi_ids, 'IN');
+  }
+  $q->execute();
+}
+
+function _de_nghi_thanh_toan_load($id) {
+  return db_query("SELECT * FROM {de_nghi_thanh_toan} WHERE nid = :id AND hoat_dong = 1", array(':id' => (int) $id))->fetch();
+}
+
+/**
+ * Tóm tắt đề nghị cho tab Chi phí của ke_hoach_xep_xe (gọi qua function_exists). Kèm các hành
+ * động của người dùng hiện tại trên dòng chi phí: thu hồi / gửi lại / rút khỏi đề nghị.
+ *
+ * @return array nid_de_nghi => array
+ */
+function de_nghi_thanh_toan_chi_phi_summaries(array $ids) {
+  $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+  if (!$ids) return array();
+  $account = _de_nghi_thanh_toan_current_account();
+  $rows = db_query("SELECT * FROM {de_nghi_thanh_toan} WHERE nid IN (:ids) AND hoat_dong = 1", array(':ids' => $ids))->fetchAll();
+  $agg = _de_nghi_thanh_toan_aggregates($ids);
+  $ncc_ids = array();
+  $uids = array();
+  $lx_ids = array();
+  foreach ($rows as $r) {
+    if ($r->loai_ben_nhan_tien === 'ncc') $ncc_ids[] = (int) $r->id_ben_nhan_tien;
+    elseif ($r->loai_ben_nhan_tien === 'lai_xe') $lx_ids[] = (int) $r->id_ben_nhan_tien;
+    else $uids[] = (int) $r->id_ben_nhan_tien;
+  }
+  $ncc_names = _de_nghi_thanh_toan_ncc_names($ncc_ids);
+  $user_names = _de_nghi_thanh_toan_user_names($uids);
+  $lx_names = _de_nghi_thanh_toan_lai_xe_names($lx_ids);
+  $statuses = _de_nghi_thanh_toan_statuses();
+  $out = array();
+  foreach ($rows as $r) {
+    $a = $agg[(int) $r->nid];
+    // Không còn "bên phát hành" của cả đề nghị để so trùng/khác — luôn trả thẳng bên nhận tiền của đề
+    // nghị (số/ngày hoá đơn nay xem trực tiếp trên chính dòng chi phí, không cần lặp lại ở đây).
+    $ten = _de_nghi_thanh_toan_payee_name($r, $ncc_names, $user_names, $lx_names);
+    $hanh_dong = array();
+    if ($account) {
+      $actions = _de_nghi_thanh_toan_actions($r, $account, $a['so_dong'], $a['da_tt']);
+      foreach (array('thu-hoi', 'gui-duyet') as $key) {
+        if (isset($actions[$key])) $hanh_dong[] = array('key' => $key, 'label' => $actions[$key]['label']);
+      }
+      if (_de_nghi_thanh_toan_can_edit($r, $account)) {
+        $hanh_dong[] = array('key' => 'rut-dong', 'label' => 'Rút khỏi ĐN');
+      }
+    }
+    $out[(int) $r->nid] = array(
+      'nid' => (int) $r->nid,
+      'ma_de_nghi' => $r->ma_de_nghi,
+      'trang_thai' => $r->trang_thai,
+      'trang_thai_label' => isset($statuses[$r->trang_thai]) ? $statuses[$r->trang_thai] : $r->trang_thai,
+      'ly_do_tu_choi' => $r->ly_do_tu_choi,
+      'ben_nhan_tien_ten' => $ten,
+      'ben_nhan_tien_loai' => $r->loai_ben_nhan_tien,
+      'hanh_dong' => $hanh_dong,
+    );
+  }
+  return $out;
+}
+
+/*******************************************************************************
+ * API CHO MODULE do_dau (đề nghị thanh toán nguồn đổ dầu)
+ ******************************************************************************/
+
+/**
+ * Tạo đề nghị thanh toán từ 1 phiếu đổ dầu vừa được "Duyệt TT" ở màn phiếu. Gọi trong giao dịch của module do_dau
+ * (module đó tự cập nhật do_dau.nid_de_nghi). Đề nghị vào thẳng "Chờ thanh toán": bước duyệt phiếu và duyệt thanh
+ * toán đã làm ở phiếu. Bên phát hành / bên nhận tiền / số hoá đơn / ngày hoá đơn lấy theo phiếu; người tạo đề nghị là
+ * người tạo phiếu, người duyệt bước 1 là người duyệt phiếu, người duyệt thanh toán là người bấm "Duyệt TT".
+ *
+ * @return array|string array(nid, ma_de_nghi) hoặc chuỗi lỗi.
+ */
+function de_nghi_thanh_toan_create_from_do_dau($phieu, $account) {
+  if (!db_field_exists('de_nghi_thanh_toan', 'loai_nguon')) {
+    return 'Chưa chạy update database cho module đề nghị thanh toán (thiếu cột loai_nguon).';
+  }
+  if (!_ke_hoach_chi_phi_ncc_is_valid((int) $phieu->nid_ncc)) {
+    return 'Bên phát hành của phiếu không còn hợp lệ.';
+  }
+  $now = _de_nghi_thanh_toan_now();
+  // nid_ncc/so_hoa_don/ngay_hoa_don của phiếu KHÔNG lưu lặp ở đây nữa — đề nghị nguồn đổ dầu lấy thẳng
+  // từ do_dau (1-1 qua nid_de_nghi), xem _de_nghi_thanh_toan_do_dau_refs()/_hoa_don_summaries().
+  $record = array(
+    'loai_ben_nhan_tien' => $phieu->loai_ben_nhan_tien,
+    'id_ben_nhan_tien' => (int) $phieu->id_ben_nhan_tien,
+    'han_thanh_toan' => '',
+    'hinh_thuc_tt' => '',
+    'ghi_chu' => (string) $phieu->ghi_chu,
+    'loai_nguon' => 'do_dau',
+    'trang_thai' => 'cho_thanh_toan',
+    'uid_nguoi_duyet' => (int) $phieu->uid_nguoi_duyet,
+    'ngay_duyet' => $phieu->ngay_duyet,
+    'uid_nguoi_duyet_tt' => (int) $account->uid,
+    'ngay_duyet_tt' => $now,
+    'uid_nguoi_tao' => (int) $phieu->uid_nguoi_tao,
+    'created' => $now,
+    'changed' => $now,
+    'hoat_dong' => 1,
+  );
+  $nid = _de_nghi_thanh_toan_insert_with_code($record, $now);
+  _de_nghi_thanh_toan_log($nid, $account, 'Lập từ phiếu đổ dầu ' . $phieu->ma_phieu . ' (đã duyệt phiếu và duyệt thanh toán), chờ ghi nhận thanh toán');
+  $ma = db_query("SELECT ma_de_nghi FROM {de_nghi_thanh_toan} WHERE nid = :id", array(':id' => $nid))->fetchField();
+  return array('nid' => $nid, 'ma_de_nghi' => $ma);
+}
+
+/**
+ * Duyệt thanh toán 1 đề nghị nguồn đổ dầu đang "Chờ duyệt TT" (đề nghị lập từ luồng cũ), thực hiện từ màn phiếu.
+ * Cùng điều kiện với hành động duyet-thanh-toan ở màn đề nghị.
+ *
+ * @return string|NULL chuỗi lỗi hoặc NULL nếu thành công.
+ */
+function de_nghi_thanh_toan_approve_payment_do_dau($nid, $account) {
+  $row = _de_nghi_thanh_toan_load((int) $nid);
+  if (!$row || !_de_nghi_thanh_toan_is_do_dau($row)) {
+    return 'Đề nghị thanh toán không tồn tại.';
+  }
+  if (!in_array('duyet-thanh-toan', de_nghi_thanh_toan_allowed_actions((int) $nid, $account), TRUE)) {
+    return 'Không duyệt thanh toán được đề nghị ở trạng thái hiện tại hoặc bạn không có quyền.';
+  }
+  _de_nghi_thanh_toan_set_status((int) $nid, 'cho_thanh_toan', array('uid_nguoi_duyet_tt' => (int) $account->uid, 'ngay_duyet_tt' => _de_nghi_thanh_toan_now()));
+  _de_nghi_thanh_toan_log((int) $nid, $account, 'Duyệt thanh toán');
+  return NULL;
+}
+
+/**
+ * Các hành động (key) mà tài khoản được làm với 1 đề nghị — dùng cho màn phiếu đổ dầu hỏi lại đúng nguồn duy nhất
+ * (_de_nghi_thanh_toan_actions) để hiện nút Từ chối / Trả lại.
+ */
+function de_nghi_thanh_toan_allowed_actions($nid, $account) {
+  $row = _de_nghi_thanh_toan_load((int) $nid);
+  if (!$row) {
+    return array();
+  }
+  $agg = _de_nghi_thanh_toan_aggregates(array((int) $nid));
+  $a = $agg[(int) $nid];
+  return array_keys(_de_nghi_thanh_toan_actions($row, $account, $a['so_dong'], $a['da_tt']));
+}
+
+/**
+ * Từ chối duyệt thanh toán / kế toán trả lại đề nghị nguồn đổ dầu, thực hiện từ màn phiếu đổ dầu. Cùng điều kiện với
+ * hành động tu-choi-thanh-toan ở màn đề nghị (đúng trạng thái, đúng quyền, chưa trả đồng nào). Đề nghị bị huỷ (xoá mềm,
+ * giữ mã); module do_dau tự đưa phiếu về "Từ chối".
+ *
+ * @return string|NULL chuỗi lỗi hoặc NULL nếu thành công.
+ */
+function de_nghi_thanh_toan_reject_do_dau($nid, $account, $text) {
+  $row = _de_nghi_thanh_toan_load((int) $nid);
+  if (!$row || !_de_nghi_thanh_toan_is_do_dau($row)) {
+    return 'Đề nghị thanh toán không tồn tại.';
+  }
+  if (!in_array('tu-choi-thanh-toan', de_nghi_thanh_toan_allowed_actions((int) $nid, $account), TRUE)) {
+    return 'Không từ chối / trả lại được đề nghị ở trạng thái hiện tại hoặc bạn không có quyền (đã thanh toán một phần thì không trả lại được).';
+  }
+  _de_nghi_thanh_toan_log((int) $nid, $account, $text);
+  db_update('de_nghi_thanh_toan')->fields(array('hoat_dong' => 0, 'changed' => _de_nghi_thanh_toan_now()))->condition('nid', (int) $nid)->execute();
+  return NULL;
+}
+
+/*******************************************************************************
+ * REST: collection / item / options / action
+ ******************************************************************************/
+
+function de_nghi_thanh_toan_rest_collection() {
+  if (!db_table_exists('de_nghi_thanh_toan')) {
+    return _de_nghi_thanh_toan_error('Bảng de_nghi_thanh_toan chưa được tạo. Hãy chạy update database.');
+  }
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _de_nghi_thanh_toan_rest_list();
+    case 'POST':
+      return _de_nghi_thanh_toan_rest_create();
+    default:
+      return _de_nghi_thanh_toan_method_not_allowed('GET, POST');
+  }
+}
+
+function de_nghi_thanh_toan_rest_item($id) {
+  if (!db_table_exists('de_nghi_thanh_toan')) {
+    return _de_nghi_thanh_toan_error('Bảng de_nghi_thanh_toan chưa được tạo. Hãy chạy update database.');
+  }
+  $id = (int) $id;
+  if (!$id) {
+    return _de_nghi_thanh_toan_fail('ID không hợp lệ');
+  }
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+      return _de_nghi_thanh_toan_rest_get($id);
+    case 'PUT':
+      return _de_nghi_thanh_toan_rest_update($id);
+    case 'DELETE':
+      return _de_nghi_thanh_toan_rest_delete($id);
+    default:
+      return _de_nghi_thanh_toan_method_not_allowed('GET, PUT, DELETE');
+  }
+}
+
+/** Query danh sách theo bộ lọc + tab (chưa phân trang). */
+function _de_nghi_thanh_toan_list_query(array $f, $account, $tab) {
+  $q = db_select('de_nghi_thanh_toan', 'd')->fields('d')->condition('d.hoat_dong', 1);
+  if (!_de_nghi_thanh_toan_can_view_all($account)) {
+    $q->condition('d.uid_nguoi_tao', (int) $account->uid);
+  }
+  switch ($tab) {
+    case 'mine':
+      $q->condition('d.uid_nguoi_tao', (int) $account->uid);
+      break;
+    case 'tu_choi':
+      $q->condition('d.trang_thai', array('tu_choi', 'tu_choi_thanh_toan'), 'IN');
+      break;
+    case 'nhap':
+    case 'cho_duyet':
+    case 'cho_duyet_thanh_toan':
+    case 'cho_thanh_toan':
+    case 'hoan_thanh':
+      $q->condition('d.trang_thai', $tab);
+      break;
+  }
+  // Không dùng tên 'q': Drupal 7 luôn gán $_GET['q'] = đường dẫn trang hiện tại.
+  // Số hoá đơn/NCC không còn ở bảng này — lọc qua EXISTS trên ke_hoach_chi_phi (nguồn chi_phi) và
+  // do_dau (nguồn đổ dầu), 2 nơi thật sự giữ dữ liệu hoá đơn từ khi bỏ nid_ncc/so_hoa_don/ngay_hoa_don.
+  if (!empty($f['keyword'])) {
+    $like = '%' . db_like(trim((string) $f['keyword'])) . '%';
+    $cond = db_or()->condition('d.ma_de_nghi', $like, 'LIKE');
+    $cp_ids = db_select('ke_hoach_chi_phi', 'c')->fields('c', array('nid_de_nghi_chi_phi'))
+      ->condition('c.hoat_dong', 1)->condition('c.so_hoa_don', $like, 'LIKE');
+    $cond->condition('d.nid', $cp_ids, 'IN');
+    if (_de_nghi_thanh_toan_do_dau_ready()) {
+      $dd_ids = db_select('do_dau', 'dd')->fields('dd', array('nid_de_nghi'))
+        ->condition('dd.hoat_dong', 1)->condition('dd.so_hoa_don', $like, 'LIKE');
+      $cond->condition('d.nid', $dd_ids, 'IN');
+    }
+    $q->condition($cond);
+  }
+  if (!empty($f['nid_ncc_phat_hanh'])) {
+    $ncc = (int) $f['nid_ncc_phat_hanh'];
+    $cond = db_or();
+    $cp_ids = db_select('ke_hoach_chi_phi', 'c')->fields('c', array('nid_de_nghi_chi_phi'))
+      ->condition('c.hoat_dong', 1)->condition('c.nid_ncc', $ncc);
+    $cond->condition('d.nid', $cp_ids, 'IN');
+    if (_de_nghi_thanh_toan_do_dau_ready()) {
+      $dd_ids = db_select('do_dau', 'dd')->fields('dd', array('nid_de_nghi'))
+        ->condition('dd.hoat_dong', 1)->condition('dd.nid_ncc', $ncc);
+      $cond->condition('d.nid', $dd_ids, 'IN');
+    }
+    $q->condition($cond);
+  }
+  if (!empty($f['ben_nhan_tien']) && preg_match('/^(ncc|nhan_vien|lai_xe)\|(\d+)$/', (string) $f['ben_nhan_tien'], $bm)) {
+    $cond = db_or()->condition(db_and()->condition('d.loai_ben_nhan_tien', $bm[1])->condition('d.id_ben_nhan_tien', (int) $bm[2]));
+    if ($bm[1] === 'lai_xe') {
+      // Lái xe có tài khoản có thể được lưu là nhân viên (uid) ở đề nghị chi phí: khớp cả hai cách lưu.
+      $uid_lx = (int) db_query("SELECT uid_nguoi_dung FROM {lai_xe} WHERE nid = :n", array(':n' => (int) $bm[2]))->fetchField();
+      if ($uid_lx) {
+        $cond->condition(db_and()->condition('d.loai_ben_nhan_tien', 'nhan_vien')->condition('d.id_ben_nhan_tien', $uid_lx));
+      }
+    }
+    $q->condition($cond);
+  }
+  if (!empty($f['hinh_thuc'])) {
+    $q->condition('d.hinh_thuc_tt', trim((string) $f['hinh_thuc']));
+  }
+  if (!empty($f['loai_nguon']) && in_array($f['loai_nguon'], array('chi_phi', 'do_dau'), TRUE)) {
+    $q->condition('d.loai_nguon', $f['loai_nguon']);
+  }
+  if (!empty($f['qua_han'])) {
+    $q->condition('d.han_thanh_toan', '', '<>');
+    $q->condition('d.han_thanh_toan', date('Y-m-d', REQUEST_TIME), '<');
+    $q->condition('d.trang_thai', _de_nghi_thanh_toan_open_states(), 'IN');
+  }
+  if (!empty($f['chua_hd'])) {
+    $cond = db_or();
+    $cp_ids = db_select('ke_hoach_chi_phi', 'c')->fields('c', array('nid_de_nghi_chi_phi'))
+      ->condition('c.hoat_dong', 1)->condition('c.so_hoa_don', '');
+    $cond->condition('d.nid', $cp_ids, 'IN');
+    if (_de_nghi_thanh_toan_do_dau_ready()) {
+      $dd_ids = db_select('do_dau', 'dd')->fields('dd', array('nid_de_nghi'))
+        ->condition('dd.hoat_dong', 1)->condition('dd.so_hoa_don', '');
+      $cond->condition('d.nid', $dd_ids, 'IN');
+    }
+    $q->condition($cond);
+  }
+  if (!empty($f['nhieu_hd'])) {
+    // Gồm từ 2 hoá đơn (cặp nid_ncc + so_hoa_don) khác nhau trở lên — chỉ nguồn chi_phi có thể có
+    // (nguồn đổ dầu luôn đúng 1 hoá đơn).
+    $sub = db_select('ke_hoach_chi_phi', 'c2')->fields('c2', array('nid_de_nghi_chi_phi'))
+      ->condition('c2.hoat_dong', 1)->groupBy('c2.nid_de_nghi_chi_phi');
+    $sub->having('COUNT(DISTINCT CONCAT(c2.nid_ncc, :nhieu_hd_sep, c2.so_hoa_don)) > 1', array(':nhieu_hd_sep' => '|'));
+    $q->condition('d.nid', $sub, 'IN');
+  }
+  return $q;
+}
+
+function _de_nghi_thanh_toan_rest_list() {
+  $account = _de_nghi_thanh_toan_current_account();
+  if (!$account || !_de_nghi_thanh_toan_can_view_any($account)) {
+    return _de_nghi_thanh_toan_unauthorized('Bạn không có quyền xem đề nghị thanh toán');
+  }
+  $filters = array();
+  foreach (array('keyword', 'nid_ncc_phat_hanh', 'ben_nhan_tien', 'hinh_thuc', 'loai_nguon', 'qua_han', 'chua_hd', 'nhieu_hd') as $key) {
+    if (isset($_GET[$key]) && $_GET[$key] !== '') $filters[$key] = $_GET[$key];
+  }
+  $tab = isset($_GET['tab']) ? trim((string) $_GET['tab']) : 'all';
+  $page = api_page_number();
+  $limit = api_page_limit(20, 100);
+
+  $query = _de_nghi_thanh_toan_list_query($filters, $account, $tab);
+  $all_ids = array();
+  $id_query = clone $query;
+  foreach ($id_query->execute() as $r) {
+    $all_ids[] = (int) $r->nid;
+  }
+  $total = count($all_ids);
+  $rows = $query->orderBy('d.created', 'DESC')->orderBy('d.nid', 'DESC')->range(($page - 1) * $limit, $limit)->execute()->fetchAll();
+  $items = _de_nghi_thanh_toan_rows_to_items($rows, $account);
+
+  $tab_counts = array();
+  foreach (array('all', 'mine', 'nhap', 'cho_duyet', 'cho_duyet_thanh_toan', 'cho_thanh_toan', 'hoan_thanh', 'tu_choi') as $t) {
+    $tab_counts[$t] = (int) _de_nghi_thanh_toan_list_query($filters, $account, $t)->countQuery()->execute()->fetchField();
+  }
+
+  $sum = array('tong_sau_vat' => 0, 'da_thanh_toan' => 0, 'con_lai' => 0);
+  foreach (_de_nghi_thanh_toan_aggregates($all_ids) as $a) {
+    $sum['tong_sau_vat'] += $a['sau'];
+    $sum['da_thanh_toan'] += $a['da_tt'];
+  }
+  $sum['con_lai'] = max(0, $sum['tong_sau_vat'] - $sum['da_thanh_toan']);
+
+  $total_pages = (int) ceil($total / $limit);
+  return _de_nghi_thanh_toan_success(array(
+    'items' => $items,
+    'total' => $total,
+    'current_page' => $total_pages > 0 ? $page : 0,
+    'total_pages' => $total_pages,
+    'limit' => $limit,
+    'tab_counts' => $tab_counts,
+    'tong' => $sum,
+  ));
+}
+
+function _de_nghi_thanh_toan_rest_get($id) {
+  $account = _de_nghi_thanh_toan_current_account();
+  if (!$account) {
+    return _de_nghi_thanh_toan_unauthorized('Thiếu hoặc sai thông tin xác thực');
+  }
+  $row = _de_nghi_thanh_toan_load($id);
+  if (!$row || !_de_nghi_thanh_toan_can_view_row($row, $account)) {
+    return _de_nghi_thanh_toan_not_found('Đề nghị thanh toán không tồn tại');
+  }
+  return _de_nghi_thanh_toan_success(_de_nghi_thanh_toan_detail($row, $account));
+}
+
+/** Trường thông tin chung nhận từ client khi tạo/sửa (đã kiểm tra). Trả array(fields) hoặc chuỗi lỗi. */
+function _de_nghi_thanh_toan_common_fields(array $input, $existing = NULL) {
+  $fields = array();
+  // Số/ngày hoá đơn không còn ở đây — sửa trên từng dòng chi phí, xem chi_phi_edits ở rest_create/rest_update.
+  if (array_key_exists('han_thanh_toan', $input)) {
+    $d = _de_nghi_thanh_toan_date($input['han_thanh_toan']);
+    if ($d === FALSE) return 'Hạn thanh toán không hợp lệ (định dạng YYYY-MM-DD).';
+    $fields['han_thanh_toan'] = $d;
+  }
+  if (array_key_exists('hinh_thuc_tt', $input)) {
+    $ht = trim((string) $input['hinh_thuc_tt']);
+    $options = _de_nghi_thanh_toan_hinh_thuc_options();
+    if ($ht !== '' && !isset($options[$ht])) return 'Hình thức thanh toán không hợp lệ.';
+    $fields['hinh_thuc_tt'] = $ht;
+  }
+  if (array_key_exists('ghi_chu', $input)) {
+    $fields['ghi_chu'] = trim((string) $input['ghi_chu']);
+  }
+  return $fields;
+}
+
+function _de_nghi_thanh_toan_rest_create() {
+  $account = _de_nghi_thanh_toan_current_account();
+  if (!$account || !user_access('de_nghi_thanh_toan_create', $account)) {
+    return _de_nghi_thanh_toan_unauthorized('Bạn không có quyền tạo đề nghị thanh toán');
+  }
+  $input = _de_nghi_thanh_toan_input();
+  $ids = !empty($input['chi_phi_ids']) && is_array($input['chi_phi_ids']) ? array_values(array_unique(array_filter(array_map('intval', $input['chi_phi_ids'])))) : array();
+  if (!$ids) {
+    return _de_nghi_thanh_toan_fail('Vui lòng chọn ít nhất 1 dòng chi phí.');
+  }
+  $lines = db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid IN (:ids) AND hoat_dong = 1", array(':ids' => $ids))->fetchAll();
+  if (count($lines) !== count($ids)) {
+    return _de_nghi_thanh_toan_fail('Có dòng chi phí không tồn tại hoặc đã bị xoá.');
+  }
+  $lines_by_id = array();
+  foreach ($lines as $l) {
+    $lines_by_id[(int) $l->nid] = $l;
+    // Hiện chỉ hàng cảng: lưu kế hoạch tuyến xa xoá mềm rồi tạo lại toàn bộ dòng chi phí nên sẽ làm mất liên kết đề nghị.
+    if (!empty($l->loai_ke_hoach) && $l->loai_ke_hoach !== 'thuong') {
+      return _de_nghi_thanh_toan_fail('Chi phí kế hoạch tuyến xa chưa hỗ trợ đề nghị thanh toán.');
+    }
+    if (!empty($l->nid_de_nghi_chi_phi)) {
+      return _de_nghi_thanh_toan_fail('Dòng "' . $l->ten_chi_phi . '" đã thuộc một đề nghị thanh toán.');
+    }
+    if (!in_array($l->loai_chi_phi, array('tinh_cho_khach', 'cong_ty_chi_tra'), TRUE)) {
+      return _de_nghi_thanh_toan_fail('Dòng "' . $l->ten_chi_phi . '" (Lái xe chi trả) không đưa vào đề nghị thanh toán được.');
+    }
+  }
+
+  $common = _de_nghi_thanh_toan_common_fields($input);
+  if (is_string($common)) {
+    return _de_nghi_thanh_toan_fail($common);
+  }
+  $now = _de_nghi_thanh_toan_now();
+  $edits = !empty($input['chi_phi_edits']) && is_array($input['chi_phi_edits']) ? $input['chi_phi_edits'] : array();
+
+  $add_to = !empty($input['nid_de_nghi']) ? (int) $input['nid_de_nghi'] : 0;
+  $target = NULL;
+  if ($add_to) {
+    $row = _de_nghi_thanh_toan_load($add_to);
+    if (!$row || !_de_nghi_thanh_toan_can_view_row($row, $account)) {
+      return _de_nghi_thanh_toan_fail('Đề nghị thanh toán không tồn tại.');
+    }
+    if ($row->trang_thai !== 'nhap' || !_de_nghi_thanh_toan_is_owner_or_manager($row, $account)) {
+      return _de_nghi_thanh_toan_fail('Chỉ thêm được vào đề nghị đang ở trạng thái Nháp của bạn.');
+    }
+    // Đề nghị nháp có sẵn giữ nguyên bên nhận tiền của nó — dòng thêm vào phải khớp đúng bên đó.
+    $target = array('loai' => $row->loai_ben_nhan_tien, 'id' => (int) $row->id_ben_nhan_tien);
+  }
+  else {
+    $payee = _de_nghi_thanh_toan_resolve_payee_required($input);
+    if (is_string($payee)) {
+      return _de_nghi_thanh_toan_fail($payee);
+    }
+    $target = $payee;
+  }
+
+  // Khoá gộp duy nhất: mọi dòng phải có bên nhận tiền HIỆU LỰC trùng bên nhận tiền của đề nghị
+  // (không còn ràng buộc "cùng NCC" như model cũ — xem docblock đầu file).
+  foreach ($lines as $l) {
+    if (!_de_nghi_thanh_toan_payee_matches($l, $target)) {
+      return _de_nghi_thanh_toan_fail('Dòng "' . $l->ten_chi_phi . '" không cùng bên nhận tiền với đề nghị.');
+    }
+  }
+
+  $transaction = db_transaction();
+  try {
+    if ($add_to) {
+      $nid = $add_to;
+      $log = 'Thêm ' . count($ids) . ' dòng chi phí vào đề nghị';
+    }
+    else {
+      $record = $common + array('han_thanh_toan' => '', 'hinh_thuc_tt' => '', 'ghi_chu' => '');
+      $record += array(
+        'loai_ben_nhan_tien' => $target['loai'],
+        'id_ben_nhan_tien' => $target['id'],
+        'trang_thai' => 'nhap',
+        'uid_nguoi_tao' => (int) $account->uid,
+        'created' => $now,
+        'changed' => $now,
+        'hoat_dong' => 1,
+      );
+      $nid = _de_nghi_thanh_toan_insert_with_code($record, $now);
+      $log = 'Tạo đề nghị (nháp) với ' . count($ids) . ' dòng chi phí';
+    }
+    db_update('ke_hoach_chi_phi')
+      ->fields(array('nid_de_nghi_chi_phi' => $nid, 'trang_thai_duyet' => 'nhap', 'changed' => $now))
+      ->condition('nid', $ids, 'IN')
+      ->execute();
+    // Điền bù/sửa nhanh dòng chi phí ngay lúc tạo đề nghị (số hoá đơn, đơn giá, ...) — không cần vào kế hoạch xếp xe.
+    foreach ($ids as $cp_id) {
+      if (isset($edits[$cp_id]) && is_array($edits[$cp_id])) {
+        $err = _de_nghi_thanh_toan_apply_line_edits($lines_by_id[$cp_id], $edits[$cp_id], $now);
+        if ($err) {
+          throw new Exception($err);
+        }
+      }
+    }
+    _de_nghi_thanh_toan_log($nid, $account, $log);
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('de_nghi_thanh_toan', 'Tạo đề nghị lỗi: @m', array('@m' => $e->getMessage()), WATCHDOG_ERROR);
+    return _de_nghi_thanh_toan_fail($e->getMessage());
+  }
+  return _de_nghi_thanh_toan_success(_de_nghi_thanh_toan_detail(_de_nghi_thanh_toan_load($nid), $account));
+}
+
+/**
+ * Sửa đề nghị (chỉ khi Nháp/Từ chối, bởi người tạo). Ngoài các trường chung (hạn TT/hình thức/ghi
+ * chú) và đổi bên nhận tiền, còn hỗ trợ:
+ * - chi_phi_ids: danh sách ĐẦY ĐỦ các dòng muốn giữ (không gửi = giữ nguyên như cũ; gửi thì so với
+ *   danh sách hiện tại để biết dòng nào thêm/rút — đúng thao tác "tick thêm/bỏ tick" ở modal).
+ * - chi_phi_edits: sửa nhanh nội dung dòng (tên/đơn giá/SL/VAT/ghi chú/số+ngày hoá đơn), áp cho cả
+ *   dòng đang giữ lẫn dòng mới thêm.
+ * Đổi bên nhận tiền hoặc thêm dòng mới đều phải kiểm tra lại MỌI dòng sẽ còn trong đề nghị khớp đúng
+ * bên nhận tiền cuối cùng (_de_nghi_thanh_toan_payee_matches()).
+ */
+function _de_nghi_thanh_toan_rest_update($id) {
+  $account = _de_nghi_thanh_toan_current_account();
+  $row = $account ? _de_nghi_thanh_toan_load($id) : NULL;
+  if (!$account || !$row || !_de_nghi_thanh_toan_can_view_row($row, $account)) {
+    return _de_nghi_thanh_toan_not_found('Đề nghị thanh toán không tồn tại');
+  }
+  if (!_de_nghi_thanh_toan_can_edit($row, $account)) {
+    return _de_nghi_thanh_toan_forbidden('Đề nghị chỉ sửa được khi đang Nháp hoặc bị Từ chối, và bởi người tạo.');
+  }
+  $input = _de_nghi_thanh_toan_input();
+  $fields = _de_nghi_thanh_toan_common_fields($input, $row);
+  if (is_string($fields)) {
+    return _de_nghi_thanh_toan_fail($fields);
+  }
+
+  $target = array('loai' => $row->loai_ben_nhan_tien, 'id' => (int) $row->id_ben_nhan_tien);
+  if (array_key_exists('loai_ben_nhan_tien', $input) || array_key_exists('id_ben_nhan_tien', $input)) {
+    $payee = _de_nghi_thanh_toan_resolve_payee_required($input, $target);
+    if (is_string($payee)) {
+      return _de_nghi_thanh_toan_fail($payee);
+    }
+    $target = $payee;
+    $fields['loai_ben_nhan_tien'] = $target['loai'];
+    $fields['id_ben_nhan_tien'] = $target['id'];
+  }
+
+  $current_ids = array();
+  foreach (db_query("SELECT nid FROM {ke_hoach_chi_phi} WHERE nid_de_nghi_chi_phi = :id AND hoat_dong = 1", array(':id' => (int) $id)) as $r) {
+    $current_ids[] = (int) $r->nid;
+  }
+  $desired_ids = $current_ids;
+  if (array_key_exists('chi_phi_ids', $input) && is_array($input['chi_phi_ids'])) {
+    $desired_ids = array_values(array_unique(array_filter(array_map('intval', $input['chi_phi_ids']))));
+    if (!$desired_ids) {
+      return _de_nghi_thanh_toan_fail('Đề nghị phải có ít nhất 1 dòng chi phí.');
+    }
+  }
+  $to_add = array_values(array_diff($desired_ids, $current_ids));
+  $to_remove = array_values(array_diff($current_ids, $desired_ids));
+  $to_keep = array_values(array_intersect($current_ids, $desired_ids));
+
+  $new_lines = array();
+  if ($to_add) {
+    $new_lines = db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid IN (:ids) AND hoat_dong = 1", array(':ids' => $to_add))->fetchAll();
+    if (count($new_lines) !== count($to_add)) {
+      return _de_nghi_thanh_toan_fail('Có dòng chi phí không tồn tại hoặc đã bị xoá.');
+    }
+    foreach ($new_lines as $l) {
+      if (!empty($l->loai_ke_hoach) && $l->loai_ke_hoach !== 'thuong') {
+        return _de_nghi_thanh_toan_fail('Chi phí kế hoạch tuyến xa chưa hỗ trợ đề nghị thanh toán.');
+      }
+      if (!empty($l->nid_de_nghi_chi_phi)) {
+        return _de_nghi_thanh_toan_fail('Dòng "' . $l->ten_chi_phi . '" đã thuộc một đề nghị thanh toán khác.');
+      }
+      if (!in_array($l->loai_chi_phi, array('tinh_cho_khach', 'cong_ty_chi_tra'), TRUE)) {
+        return _de_nghi_thanh_toan_fail('Dòng "' . $l->ten_chi_phi . '" (Lái xe chi trả) không đưa vào đề nghị thanh toán được.');
+      }
+    }
+  }
+  $keep_lines = $to_keep ? db_query("SELECT * FROM {ke_hoach_chi_phi} WHERE nid IN (:ids)", array(':ids' => $to_keep))->fetchAll() : array();
+  $lines_by_id = array();
+  foreach (array_merge($keep_lines, $new_lines) as $l) {
+    $lines_by_id[(int) $l->nid] = $l;
+    if (!_de_nghi_thanh_toan_payee_matches($l, $target)) {
+      return _de_nghi_thanh_toan_fail('Dòng "' . $l->ten_chi_phi . '" không cùng bên nhận tiền với đề nghị.');
+    }
+  }
+
+  $now = _de_nghi_thanh_toan_now();
+  $edits = !empty($input['chi_phi_edits']) && is_array($input['chi_phi_edits']) ? $input['chi_phi_edits'] : array();
+
+  $transaction = db_transaction();
+  try {
+    if ($fields) {
+      $fields['changed'] = $now;
+      db_update('de_nghi_thanh_toan')->fields($fields)->condition('nid', (int) $id)->execute();
+    }
+    if ($to_add) {
+      db_update('ke_hoach_chi_phi')->fields(array('nid_de_nghi_chi_phi' => (int) $id, 'trang_thai_duyet' => 'nhap', 'changed' => $now))
+        ->condition('nid', $to_add, 'IN')->execute();
+    }
+    if ($to_remove) {
+      _de_nghi_thanh_toan_release_lines((int) $id, $to_remove);
+    }
+    foreach ($desired_ids as $cp_id) {
+      if (isset($edits[$cp_id]) && is_array($edits[$cp_id]) && isset($lines_by_id[$cp_id])) {
+        $err = _de_nghi_thanh_toan_apply_line_edits($lines_by_id[$cp_id], $edits[$cp_id], $now);
+        if ($err) {
+          throw new Exception($err);
+        }
+      }
+    }
+    if ($fields || $to_add || $to_remove || $edits) {
+      _de_nghi_thanh_toan_log($id, $account, 'Cập nhật thông tin đề nghị');
+    }
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('de_nghi_thanh_toan', 'Sửa đề nghị lỗi: @m', array('@m' => $e->getMessage()), WATCHDOG_ERROR);
+    return _de_nghi_thanh_toan_fail($e->getMessage());
+  }
+  return _de_nghi_thanh_toan_success(_de_nghi_thanh_toan_detail(_de_nghi_thanh_toan_load($id), $account));
+}
+
+function _de_nghi_thanh_toan_rest_delete($id) {
+  $account = _de_nghi_thanh_toan_current_account();
+  $row = $account ? _de_nghi_thanh_toan_load($id) : NULL;
+  if (!$account || !$row || !_de_nghi_thanh_toan_can_view_row($row, $account)) {
+    return _de_nghi_thanh_toan_not_found('Đề nghị thanh toán không tồn tại');
+  }
+  if (!_de_nghi_thanh_toan_can_delete($row, $account)) {
+    return _de_nghi_thanh_toan_forbidden('Chỉ xoá được đề nghị đang Nháp của bạn và cần quyền xoá.');
+  }
+  $transaction = db_transaction();
+  try {
+    _de_nghi_thanh_toan_release_lines($id);
+    db_update('de_nghi_thanh_toan')->fields(array('hoat_dong' => 0, 'changed' => _de_nghi_thanh_toan_now()))->condition('nid', (int) $id)->execute();
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('de_nghi_thanh_toan', 'Xoá đề nghị lỗi: @m', array('@m' => $e->getMessage()), WATCHDOG_ERROR);
+    return _de_nghi_thanh_toan_error('Không xoá được đề nghị.');
+  }
+  return _de_nghi_thanh_toan_success(array('nid' => (int) $id, 'deleted' => TRUE));
+}
+
+/** Tuỳ chọn cho form: NCC, nhân viên, hình thức thanh toán, quỹ, lái xe của chuyến. */
+function de_nghi_thanh_toan_rest_options() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    return _de_nghi_thanh_toan_method_not_allowed('GET');
+  }
+  $account = _de_nghi_thanh_toan_current_account();
+  // Chỉ là danh sách NCC/nhân viên/lái xe/quỹ (không phải dữ liệu đề nghị): tab Chi phí kế hoạch cũng dùng cho popup
+  // Bên nhận tiền, nên người lập kế hoạch (không có quyền xem đề nghị) vẫn gọi được.
+  if (!$account || !(_de_nghi_thanh_toan_can_view_any($account) || user_access('de_nghi_thanh_toan_create', $account) || user_access('ke_hoach_xep_xe_create', $account))) {
+    return _de_nghi_thanh_toan_unauthorized('Bạn không có quyền xem đề nghị thanh toán');
+  }
+  $nccs = array();
+  $has_kh_sdt = db_field_exists('khach_hang', 'sdt');
+  $rows = db_query("SELECT nid, ten, ma_kh" . ($has_kh_sdt ? ", sdt" : "") . " FROM {khach_hang} WHERE hoat_dong = 1 AND phan_loai LIKE :pl ORDER BY ten ASC", array(':pl' => '%' . db_like('Nhà cung cấp') . '%'));
+  foreach ($rows as $r) {
+    // 'ten' là NHÃN hiển thị (mã KH, không có mã thì tên); tên đầy đủ ở 'ten_day_du'.
+    $nccs[] = array('nid' => (int) $r->nid, 'ten' => _de_nghi_thanh_toan_ncc_label($r->ma_kh, $r->ten), 'ten_day_du' => $r->ten, 'ma_kh' => $r->ma_kh, 'sdt' => $has_kh_sdt ? trim((string) $r->sdt) : '');
+  }
+  usort($nccs, function ($a, $b) { return strcasecmp($a['ten'], $b['ten']); });
+  // Danh sách lái xe (cho bộ lọc Bên nhận tiền).
+  $lai_xe_ds = array();
+  $has_lx_sdt = db_field_exists('lai_xe', 'sdt');
+  $has_lx_uid = db_field_exists('lai_xe', 'uid_nguoi_dung');
+  foreach (db_query("SELECT nid, ten" . ($has_lx_sdt ? ", sdt" : "") . ($has_lx_uid ? ", uid_nguoi_dung" : "") . " FROM {lai_xe} WHERE hoat_dong = 1 ORDER BY ten ASC") as $lx0) {
+    // uid = tài khoản đăng nhập của lái xe (0 nếu chưa có): client tự suy ra "lái xe của chuyến" từ danh sách này, khỏi gọi lại theo từng lái xe.
+    $lai_xe_ds[] = array('nid' => (int) $lx0->nid, 'ten' => $lx0->ten, 'sdt' => $has_lx_sdt ? trim((string) $lx0->sdt) : '', 'uid' => $has_lx_uid ? (int) $lx0->uid_nguoi_dung : 0);
+  }
+  $lai_xe = NULL;
+  if (!empty($_GET['nid_lai_xe'])) {
+    $lx = db_query("SELECT nid, ten, uid_nguoi_dung FROM {lai_xe} WHERE nid = :nid AND hoat_dong = 1", array(':nid' => (int) $_GET['nid_lai_xe']))->fetch();
+    if ($lx) {
+      $lai_xe = array('nid' => (int) $lx->nid, 'ten' => $lx->ten, 'uid' => (int) $lx->uid_nguoi_dung);
+    }
+  }
+  // Nhóm "Nhân viên": bỏ tài khoản lái xe — chỉ giữ lái xe của chuyến đang làm đề nghị (nếu có), các lái xe khác không hiện.
+  $driver_uids = _de_nghi_thanh_toan_driver_uids();
+  if ($lai_xe && $lai_xe['uid']) {
+    unset($driver_uids[$lai_xe['uid']]);
+  }
+  $staff = array();
+  $staff_names = _de_nghi_thanh_toan_user_names();
+  $staff_phones = _de_nghi_thanh_toan_user_phones();
+  asort($staff_names, SORT_LOCALE_STRING);
+  foreach ($staff_names as $uid => $ten) {
+    if (isset($driver_uids[$uid])) {
+      continue;
+    }
+    $staff[] = array('uid' => (int) $uid, 'ten' => $ten, 'sdt' => isset($staff_phones[$uid]) ? $staff_phones[$uid] : '');
+  }
+  $hinh_thuc = array();
+  foreach (_de_nghi_thanh_toan_hinh_thuc_options() as $key => $opt) {
+    $hinh_thuc[] = array('value' => $key, 'label' => $opt['label'], 'loai_quy' => $opt['loai_quy']);
+  }
+  $quy = array_values(_de_nghi_thanh_toan_quy_map());
+  return _de_nghi_thanh_toan_success(array(
+    'ncc' => $nccs,
+    'nhan_vien' => $staff,
+    'hinh_thuc' => $hinh_thuc,
+    'quy' => $quy,
+    'lai_xe' => $lai_xe,
+    'lai_xe_ds' => $lai_xe_ds,
+  ));
+}
+
+/** Hành động chuyển trạng thái. Đường: POST api/de-nghi-thanh-toan/{id}/{hanh-dong}. */
+function de_nghi_thanh_toan_rest_action($id, $action) {
+  if (!db_table_exists('de_nghi_thanh_toan')) {
+    return _de_nghi_thanh_toan_error('Bảng de_nghi_thanh_toan chưa được tạo. Hãy chạy update database.');
+  }
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    return _de_nghi_thanh_toan_method_not_allowed('POST');
+  }
+  $id = (int) $id;
+  $action = (string) $action;
+  $account = _de_nghi_thanh_toan_current_account();
+  $row = $account && $id ? _de_nghi_thanh_toan_load($id) : NULL;
+  if (!$account || !$row || !_de_nghi_thanh_toan_can_view_row($row, $account)) {
+    return _de_nghi_thanh_toan_not_found('Đề nghị thanh toán không tồn tại');
+  }
+  $input = _de_nghi_thanh_toan_input();
+  $agg = _de_nghi_thanh_toan_aggregates(array($id));
+  $a = $agg[$id];
+
+  // rút dòng khỏi đề nghị: không nằm trong bảng hành động (theo từng dòng, không theo trạng thái đề nghị).
+  if ($action === 'rut-dong') {
+    return _de_nghi_thanh_toan_action_remove_line($row, $account, $input);
+  }
+
+  $actions = _de_nghi_thanh_toan_actions($row, $account, $a['so_dong'], $a['da_tt']);
+  if (!isset($actions[$action])) {
+    return _de_nghi_thanh_toan_forbidden('Hành động không hợp lệ ở trạng thái hiện tại hoặc bạn không có quyền.');
+  }
+
+  $reason = isset($input['ly_do']) ? trim((string) $input['ly_do']) : '';
+  if (!empty($actions[$action]['can_reason']) && $reason === '') {
+    return _de_nghi_thanh_toan_fail('Vui lòng nhập lý do.');
+  }
+  if ($reason !== '' && mb_strlen($reason) > 255) {
+    return _de_nghi_thanh_toan_fail('Lý do tối đa 255 ký tự.');
+  }
+
+  $now = _de_nghi_thanh_toan_now();
+  $transaction = db_transaction();
+  try {
+    switch ($action) {
+      case 'gui-duyet':
+        _de_nghi_thanh_toan_set_status($id, 'cho_duyet', array('ly_do_tu_choi' => ''));
+        _de_nghi_thanh_toan_log($id, $account, $row->trang_thai === 'nhap' ? 'Gửi duyệt' : 'Sửa và gửi duyệt lại');
+        break;
+
+      case 'thu-hoi':
+        _de_nghi_thanh_toan_set_status($id, 'nhap');
+        _de_nghi_thanh_toan_log($id, $account, 'Thu hồi về Nháp để chỉnh sửa');
+        break;
+
+      case 'duyet':
+        _de_nghi_thanh_toan_set_status($id, 'cho_duyet_thanh_toan', array('uid_nguoi_duyet' => (int) $account->uid, 'ngay_duyet' => $now));
+        _de_nghi_thanh_toan_log($id, $account, 'Duyệt đề nghị');
+        break;
+
+      case 'tu-choi':
+        _de_nghi_thanh_toan_set_status($id, 'tu_choi', array('ly_do_tu_choi' => $reason));
+        _de_nghi_thanh_toan_log($id, $account, 'Từ chối: ' . $reason);
+        break;
+
+      case 'duyet-thanh-toan':
+        _de_nghi_thanh_toan_set_status($id, 'cho_thanh_toan', array('uid_nguoi_duyet_tt' => (int) $account->uid, 'ngay_duyet_tt' => $now));
+        _de_nghi_thanh_toan_log($id, $account, 'Duyệt thanh toán');
+        break;
+
+      case 'tu-choi-thanh-toan':
+        $who = $row->trang_thai === 'cho_thanh_toan' ? 'Kế toán trả lại: ' : 'Từ chối duyệt thanh toán: ';
+        if (_de_nghi_thanh_toan_is_do_dau($row)) {
+          // Đề nghị đổ dầu không sửa lại được: huỷ đề nghị (giữ mã, không dùng lại) và trả phiếu về "Từ chối".
+          _de_nghi_thanh_toan_log($id, $account, $who . $reason . ' — đề nghị bị huỷ, phiếu đổ dầu quay về Từ chối');
+          db_update('de_nghi_thanh_toan')->fields(array('hoat_dong' => 0, 'ly_do_tu_choi' => $reason, 'changed' => $now))->condition('nid', $id)->execute();
+          $error = function_exists('do_dau_on_de_nghi_rejected') ? do_dau_on_de_nghi_rejected($id, $reason, $account, $who, $row->ma_de_nghi) : 'Module đổ dầu chưa bật, không trả được phiếu.';
+          if ($error) {
+            throw new Exception($error);
+          }
+          return _de_nghi_thanh_toan_success(array('nid' => $id, 'deleted' => TRUE, 'phieu_do_dau_tu_choi' => TRUE));
+        }
+        _de_nghi_thanh_toan_set_status($id, 'tu_choi_thanh_toan', array('ly_do_tu_choi' => $reason));
+        _de_nghi_thanh_toan_log($id, $account, $who . $reason);
+        break;
+
+      case 'thanh-toan':
+        $error = _de_nghi_thanh_toan_record_payment($row, $account, $input, $a);
+        if ($error) {
+          throw new Exception($error);
+        }
+        break;
+    }
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('de_nghi_thanh_toan', 'Hành động @a đề nghị #@id lỗi: @m', array('@a' => $action, '@id' => $id, '@m' => $e->getMessage()), WATCHDOG_ERROR);
+    return _de_nghi_thanh_toan_fail($e->getMessage());
+  }
+  return _de_nghi_thanh_toan_success(_de_nghi_thanh_toan_detail(_de_nghi_thanh_toan_load($id), $account));
+}
+
+/** Ghi 1 đợt thanh toán. Trả chuỗi lỗi hoặc NULL nếu thành công. */
+function _de_nghi_thanh_toan_record_payment($row, $account, array $input, array $agg) {
+  $so_tien = _de_nghi_thanh_toan_money(isset($input['so_tien']) ? $input['so_tien'] : 0);
+  $con_lai = max(0, $agg['sau'] - $agg['da_tt']);
+  if ($so_tien <= 0) {
+    return 'Số tiền thanh toán phải lớn hơn 0.';
+  }
+  if ($so_tien > $con_lai) {
+    return 'Số tiền vượt quá số còn lại (' . number_format($con_lai, 0, ',', '.') . ' đ).';
+  }
+  $ht = isset($input['hinh_thuc_tt']) ? trim((string) $input['hinh_thuc_tt']) : '';
+  $options = _de_nghi_thanh_toan_hinh_thuc_options();
+  if (!isset($options[$ht])) {
+    return 'Vui lòng chọn hình thức thanh toán.';
+  }
+  $nid_quy = isset($input['nid_quy']) ? (int) $input['nid_quy'] : 0;
+  $quys = _de_nghi_thanh_toan_quy_map();
+  if (!$nid_quy || !isset($quys[$nid_quy])) {
+    return 'Vui lòng chọn quỹ chi tiền.';
+  }
+  if ($quys[$nid_quy]['loai'] !== $options[$ht]['loai_quy']) {
+    return 'Quỹ đã chọn không đúng loại của hình thức thanh toán.';
+  }
+  $ghi_chu = isset($input['ghi_chu']) ? trim((string) $input['ghi_chu']) : '';
+  if (mb_strlen($ghi_chu) > 255) {
+    return 'Ghi chú tối đa 255 ký tự.';
+  }
+  // Tiền ra quỹ: mỗi đợt = 1 phiếu chi ở Thu chi, tự duyệt (đề nghị đã qua duyệt + duyệt TT), quỹ trừ ngay. Không đủ tiền thì chặn.
+  if (!function_exists('thu_chi_giao_dich_save_values') || !function_exists('thu_chi_approve_giao_dich')) {
+    return 'Module Thu chi chưa bật nên chưa ghi nhận thanh toán được (cần tạo phiếu chi trừ quỹ).';
+  }
+  $so_du = function_exists('thu_chi_get_quy_current_balance') ? (float) thu_chi_get_quy_current_balance($nid_quy) : (float) $quys[$nid_quy]['so_du'];
+  if ($so_du < $so_tien) {
+    return 'Quỹ "' . $quys[$nid_quy]['ten'] . '" không đủ tiền: số dư ' . number_format($so_du, 0, ',', '.') . ' đ, cần chi ' . number_format($so_tien, 0, ',', '.') . ' đ.';
+  }
+  $phieu = _de_nghi_thanh_toan_create_phieu_chi($row, $account, $so_tien, $nid_quy, $options[$ht]['label'], $ghi_chu);
+  if (is_string($phieu)) {
+    return $phieu;
+  }
+
+  $now = _de_nghi_thanh_toan_now();
+  $fields = array(
+    'nid_de_nghi' => (int) $row->nid,
+    'so_tien' => $so_tien,
+    'hinh_thuc_tt' => $ht,
+    'nid_quy' => $nid_quy,
+    'ghi_chu' => $ghi_chu,
+    'uid_nguoi_thanh_toan' => (int) $account->uid,
+    'created' => $now,
+  );
+  if (db_field_exists('de_nghi_thanh_toan_thanh_toan', 'nid_phieu_thu_chi')) {
+    $fields['nid_phieu_thu_chi'] = (int) $phieu['nid'];
+  }
+  db_insert('de_nghi_thanh_toan_thanh_toan')->fields($fields)->execute();
+  $da_tt = $agg['da_tt'] + $so_tien;
+  $text = 'Ghi nhận thanh toán ' . number_format($so_tien, 0, ',', '.') . ' đ (' . $options[$ht]['label'] . ' — ' . $quys[$nid_quy]['ten'] . ', phiếu chi ' . $phieu['ma'] . ')';
+  if ($da_tt >= $agg['sau']) {
+    _de_nghi_thanh_toan_set_status((int) $row->nid, 'hoan_thanh');
+    $text .= ' — đã đủ';
+  }
+  else {
+    // Vẫn ở Chờ thanh toán; chỉ cập nhật thời điểm.
+    db_update('de_nghi_thanh_toan')->fields(array('changed' => $now))->condition('nid', (int) $row->nid)->execute();
+    $text .= ' — còn lại ' . number_format($agg['sau'] - $da_tt, 0, ',', '.') . ' đ';
+  }
+  _de_nghi_thanh_toan_log((int) $row->nid, $account, $text);
+  return NULL;
+}
+
+/**
+ * Tạo + tự duyệt phiếu chi ở Thu chi cho 1 đợt thanh toán (ref_type = de_nghi_thanh_toan, nid_ref = đề nghị). Phiếu bị khoá ở Thu chi
+ * (thu_chi_locked_reason) vì số tiền đã chốt ở đề nghị. Gọi trong transaction của hành động. Trả array(nid, ma) hoặc chuỗi lỗi.
+ */
+function _de_nghi_thanh_toan_create_phieu_chi($row, $account, $so_tien, $nid_quy, $hinh_thuc_label, $ghi_chu) {
+  $is_do_dau = _de_nghi_thanh_toan_is_do_dau($row);
+  $id = (int) $row->id_ben_nhan_tien;
+  $payee = _de_nghi_thanh_toan_payee_name($row,
+    $row->loai_ben_nhan_tien === 'ncc' ? _de_nghi_thanh_toan_ncc_names(array($id)) : array(),
+    $row->loai_ben_nhan_tien === 'nhan_vien' ? _de_nghi_thanh_toan_user_names(array($id)) : array(),
+    $row->loai_ben_nhan_tien === 'lai_xe' ? _de_nghi_thanh_toan_lai_xe_names(array($id)) : array());
+  $phan_loai = $is_do_dau ? 'Đổ dầu' : 'Đề nghị thanh toán';
+  $category_id = function_exists('thu_chi_get_or_create_category_node') ? (int) thu_chi_get_or_create_category_node($phan_loai) : 0;
+  $noi_dung = 'Thanh toán ' . $row->ma_de_nghi . ($payee !== '' ? ' — ' . $payee : '');
+  $values = array(
+    'loai_phieu' => 'chi',
+    'loai_giao_dich' => $category_id ? array($category_id) : array($phan_loai),
+    'nid_quy' => (int) $nid_quy,
+    'ngay_giao_dich' => date('d/m/Y', REQUEST_TIME),
+    'thang_luong' => date('Ym', REQUEST_TIME),
+    'uid_nguoi_de_xuat' => (int) $account->uid,
+    'nhom_giao_dich' => 'de_nghi_thanh_toan',
+    'ref_type' => 'de_nghi_thanh_toan',
+    'nid_ref' => (int) $row->nid,
+    'ghi_chu' => trim($hinh_thuc_label . ($ghi_chu !== '' ? ' — ' . $ghi_chu : '')),
+    'chi_tiet' => array(array('noi_dung' => $noi_dung, 'don_gia' => (int) $so_tien, 'so_luong' => 1, 'don_vi_tinh' => 'lần', 'vat' => 0)),
+  );
+  if ($row->loai_ben_nhan_tien === 'ncc' && $id) {
+    $values['nid_nha_cung_cap'] = $id;
+  }
+  $result = thu_chi_giao_dich_save_values($values);
+  if (empty($result['success']) || empty($result['gd_id'])) {
+    return 'Không tạo được phiếu chi: ' . (!empty($result['message']) ? $result['message'] : 'lỗi không rõ');
+  }
+  $gd_id = (int) $result['gd_id'];
+  $gd = thu_chi_giao_dich_load($gd_id, TRUE);
+  $json = _de_nghi_thanh_toan_json_decode($gd ? $gd->thong_tin_json : '');
+  $json['created_from'] = 'de_nghi_thanh_toan';
+  $json['de_nghi_thanh_toan'] = array(
+    'nid' => (int) $row->nid,
+    'ma_de_nghi' => (string) $row->ma_de_nghi,
+    'loai_nguon' => $is_do_dau ? 'do_dau' : 'chi_phi',
+    'loai_ben_nhan_tien' => (string) $row->loai_ben_nhan_tien,
+    'id_ben_nhan_tien' => $id,
+    'ben_nhan_tien' => $payee,
+  );
+  db_update('qltc_phieu_thu_chi')->fields(array('thong_tin_json' => json_encode($json), 'changed' => REQUEST_TIME))->condition('nid', $gd_id)->execute();
+  $approve = thu_chi_approve_giao_dich($gd_id, 'duyet');
+  if (empty($approve['success'])) {
+    return 'Không duyệt được phiếu chi: ' . (!empty($approve['message']) ? $approve['message'] : 'lỗi không rõ');
+  }
+  return array('nid' => $gd_id, 'ma' => $gd && !empty($gd->ma_giao_dich) ? (string) $gd->ma_giao_dich : ('#' . $gd_id));
+}
+
+/** Rút 1 dòng chi phí ra khỏi đề nghị (đề nghị còn ở trạng thái sửa được). Hết dòng thì xoá mềm đề nghị. */
+function _de_nghi_thanh_toan_action_remove_line($row, $account, array $input) {
+  if (_de_nghi_thanh_toan_is_do_dau($row)) {
+    return _de_nghi_thanh_toan_forbidden('Đề nghị của phiếu đổ dầu không rút dòng được. Dùng "Thu hồi đề nghị" ở màn Theo dõi đổ dầu.');
+  }
+  if (!_de_nghi_thanh_toan_can_edit($row, $account)) {
+    return _de_nghi_thanh_toan_forbidden('Chỉ rút được dòng khi đề nghị đang Nháp hoặc bị Từ chối, và bởi người tạo.');
+  }
+  $cp = !empty($input['chi_phi_id']) ? (int) $input['chi_phi_id'] : 0;
+  $line = $cp ? db_query("SELECT nid, ten_chi_phi FROM {ke_hoach_chi_phi} WHERE nid = :id AND nid_de_nghi_chi_phi = :dn AND hoat_dong = 1", array(':id' => $cp, ':dn' => (int) $row->nid))->fetch() : NULL;
+  if (!$line) {
+    return _de_nghi_thanh_toan_fail('Dòng chi phí không thuộc đề nghị này.');
+  }
+  $transaction = db_transaction();
+  try {
+    _de_nghi_thanh_toan_release_lines((int) $row->nid, array($cp));
+    $left = (int) db_query("SELECT COUNT(*) FROM {ke_hoach_chi_phi} WHERE nid_de_nghi_chi_phi = :dn AND hoat_dong = 1", array(':dn' => (int) $row->nid))->fetchField();
+    _de_nghi_thanh_toan_log((int) $row->nid, $account, 'Rút dòng "' . $line->ten_chi_phi . '" khỏi đề nghị');
+    if ($left === 0) {
+      db_update('de_nghi_thanh_toan')->fields(array('hoat_dong' => 0, 'changed' => _de_nghi_thanh_toan_now()))->condition('nid', (int) $row->nid)->execute();
+    }
+  }
+  catch (Exception $e) {
+    $transaction->rollback();
+    watchdog('de_nghi_thanh_toan', 'Rút dòng lỗi: @m', array('@m' => $e->getMessage()), WATCHDOG_ERROR);
+    return _de_nghi_thanh_toan_error('Không rút được dòng chi phí.');
+  }
+  if ($left === 0) {
+    return _de_nghi_thanh_toan_success(array('nid' => (int) $row->nid, 'deleted' => TRUE));
+  }
+  return _de_nghi_thanh_toan_success(_de_nghi_thanh_toan_detail(_de_nghi_thanh_toan_load((int) $row->nid), $account));
+}
