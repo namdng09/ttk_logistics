@@ -693,7 +693,14 @@
    * và PUT thay vì POST) ─────────── */
 
   var CP_API = '/api/ke-hoach-chi-phi';
-  var createState = { rows: {}, selected: {}, edits: {}, mode: 'create', editId: 0, ownLines: [], suppressPayeeChange: false };
+  // picked = dòng đang CHỌN để sắp xếp hoá đơn (tách khỏi selected = dòng đưa vào đề nghị); newInvoices = hoá đơn
+  // vừa tạo trên modal chưa có dòng; collapsed/editingKey/editDraft/editConflict = trạng thái dòng hoá đơn.
+  function newCreateState() {
+    return { rows: {}, selected: {}, edits: {}, mode: 'create', editId: 0, ownLines: [], suppressPayeeChange: false,
+      picked: {}, anchor: null, renderOrder: [], collapsed: {}, newInvoices: [], newSeq: 0, model: null,
+      editingKey: null, editDraft: null, editConflict: null, dragIds: null, undo: null };
+  }
+  var createState = newCreateState();
   var suppressLineEditChange = false;
 
   // Dòng chi phí sau khi áp mọi lần sửa tại chỗ (so_hoa_don/ngay_hoa_don/ghi_chu) — createState.edits[nid]
@@ -773,13 +780,68 @@
     return html;
   }
 
+  /* ── Bảng chọn dòng: hoá đơn là DÒNG NHÓM, không còn 2 cột nhập Số HĐ / Ngày HĐ trên từng dòng ──
+   * Bảng chia 2 tầng: NCC → hoá đơn (nid_ncc + so_hoa_don, giống groupLinesByHoaDon()) → dòng chi phí.
+   * Đổi hoá đơn của dòng bằng: chọn dòng (bấm vào dòng, Shift = chọn dải) rồi dùng thanh chọn
+   * (#dn-create-selbar: Chuyển vào hoá đơn / Tạo HĐ mới / Bỏ hoá đơn), hoặc kéo dòng thả lên dòng hoá đơn.
+   * Sửa số/ngày ngay trên dòng hoá đơn = đổi cho cả nhóm; trùng số HĐ đã có của cùng NCC thì hỏi gộp.
+   * Mọi thay đổi vẫn là sửa so_hoa_don/ngay_hoa_don của từng dòng (createState.edits → chi_phi_edits),
+   * server không đổi. Vì server chỉ nhận chi_phi_edits của dòng nằm trong đề nghị, dòng nào bị đổi hoá
+   * đơn thì tự được tick (đưa vào đề nghị). Ô tick = đưa vào đề nghị, TÁCH khỏi việc chọn để sắp xếp. */
+
+  function createInvKey(nidNcc, so) { return (parseInt(nidNcc, 10) || 0) + '|' + (so || ''); }
+
+  // Dựng mô hình NCC → hoá đơn → dòng từ các dòng đang tải; lưu vào createState.model để thanh chọn/kéo thả tra cứu.
+  function buildCreateModel(lines) {
+    var nccMap = {}, nccOrder = [], i, k;
+    function nccOf(nid, ten) {
+      var key = String(parseInt(nid, 10) || 0);
+      if (!nccMap[key]) { nccMap[key] = { nid_ncc: parseInt(nid, 10) || 0, ten: ten || '—', none: null, groups: {}, order: [] }; nccOrder.push(key); }
+      if (ten && nccMap[key].ten === '—') nccMap[key].ten = ten;
+      return nccMap[key];
+    }
+    for (i = 0; i < lines.length; i++) {
+      var l = lines[i];
+      var n = nccOf(l.nid_ncc, l.ncc_ten);
+      if (!l.so_hoa_don) {
+        if (!n.none) n.none = { key: createInvKey(l.nid_ncc, ''), nid_ncc: n.nid_ncc, ncc_ten: n.ten, so_hoa_don: '', ngay_hoa_don: '', none: true, lines: [], sau: 0 };
+        n.none.lines.push(l); n.none.sau += Number(l.tong_sau_vat) || 0;
+        continue;
+      }
+      k = createInvKey(l.nid_ncc, l.so_hoa_don);
+      if (!n.groups[k]) { n.groups[k] = { key: k, nid_ncc: n.nid_ncc, ncc_ten: n.ten, so_hoa_don: l.so_hoa_don, ngay_hoa_don: l.ngay_hoa_don || '', lines: [], sau: 0 }; n.order.push(k); }
+      if (!n.groups[k].ngay_hoa_don && l.ngay_hoa_don) n.groups[k].ngay_hoa_don = l.ngay_hoa_don;
+      n.groups[k].lines.push(l); n.groups[k].sau += Number(l.tong_sau_vat) || 0;
+    }
+    // Hoá đơn vừa tạo trên modal mà chưa có dòng nào: hiện nhóm trống để kéo dòng vào.
+    var keep = [];
+    for (i = 0; i < createState.newInvoices.length; i++) {
+      var ni = createState.newInvoices[i];
+      var nn = nccOf(ni.nid_ncc, ni.ncc_ten);
+      if (ni.so_hoa_don && nn.groups[createInvKey(ni.nid_ncc, ni.so_hoa_don)]) continue; // đã có dòng → thành nhóm thật
+      keep.push(ni);
+      nn.groups[ni.key] = { key: ni.key, nid_ncc: nn.nid_ncc, ncc_ten: nn.ten, so_hoa_don: ni.so_hoa_don, ngay_hoa_don: ni.ngay_hoa_don, lines: [], sau: 0, isNew: true };
+      nn.order.push(ni.key);
+    }
+    createState.newInvoices = keep;
+    var model = { nccs: [], byKey: {} };
+    for (i = 0; i < nccOrder.length; i++) {
+      var x = nccMap[nccOrder[i]], groups = [];
+      if (x.none) groups.push(x.none);
+      for (var j = 0; j < x.order.length; j++) groups.push(x.groups[x.order[j]]);
+      for (j = 0; j < groups.length; j++) model.byKey[groups[j].key] = groups[j];
+      model.nccs.push({ nid_ncc: x.nid_ncc, ten: x.ten, groups: groups, invCount: x.order.length });
+    }
+    return model;
+  }
+
   function createRowHtml(l, names) {
     var tagCls = l.loai_chi_phi === 'tinh_cho_khach' ? 'kh' : 'ct';
     var tagTxt = l.loai_chi_phi === 'tinh_cho_khach' ? 'KH' : 'CT';
     var checked = !!createState.selected[l.nid];
-    return '<tr class="dn-create-row" data-nid="' + l.nid + '">' +
-      '<td class="text-center"><input type="checkbox" class="dn-create-check" data-nid="' + l.nid + '"' + (checked ? ' checked' : '') + '></td>' +
-      '<td>' + esc(l.ncc_ten || '—') + '</td>' +
+    var picked = !!createState.picked[l.nid];
+    return '<tr class="dn-create-row' + (picked ? ' dn-picked' : '') + '" data-nid="' + l.nid + '" data-ncc="' + (parseInt(l.nid_ncc, 10) || 0) + '">' +
+      '<td class="text-center text-nowrap"><span class="dn-grip" title="Kéo thả lên dòng hoá đơn"></span><input type="checkbox" class="dn-create-check" data-nid="' + l.nid + '"' + (checked ? ' checked' : '') + ' title="Đưa vào đề nghị"></td>' +
       '<td>' + planCellHtml(l) + '</td>' +
       '<td><select class="form-select form-select-sm dn-create-edit dn-name-select" data-nid="' + l.nid + '" data-field="ten_chi_phi">' + expenseSelectOptionsHtml(l.ten_chi_phi, names) + '</select></td>' +
       '<td><span class="dn-tag ' + tagCls + '">' + tagTxt + '</span></td>' +
@@ -788,78 +850,147 @@
       '<td><input type="text" inputmode="decimal" class="form-control form-control-sm row-field decimal-input dn-create-edit" data-nid="' + l.nid + '" data-field="vat_percent" value="' + (Number(l.vat_percent) ? esc(formatQty(l.vat_percent)) : '') + '" placeholder="0"></td>' +
       '<td class="text-end fw-semibold">' + money(l.tong_sau_vat) + '</td>' +
       '<td><input type="text" class="form-control form-control-sm row-field dn-create-edit" data-nid="' + l.nid + '" data-field="ghi_chu" value="' + esc(l.ghi_chu || '') + '" placeholder="Ghi chú"></td>' +
-      '<td><input type="text" class="form-control form-control-sm row-field dn-create-edit" data-nid="' + l.nid + '" data-field="so_hoa_don" placeholder="Chưa có" value="' + esc(l.so_hoa_don || '') + '"></td>' +
-      '<td><input type="text" class="form-control form-control-sm row-field dn-create-edit dn-hd-date" autocomplete="off" data-nid="' + l.nid + '" data-field="ngay_hoa_don" placeholder="dd/mm/yyyy" value="' + esc(toView(l.ngay_hoa_don)) + '"></td>' +
       '</tr>';
+  }
+
+  function createNccRowHtml(n) {
+    var lineCount = 0, noneCount = 0;
+    for (var i = 0; i < n.groups.length; i++) { lineCount += n.groups[i].lines.length; if (n.groups[i].none) noneCount = n.groups[i].lines.length; }
+    return '<tr class="dn-ncc-row"><td colspan="9"><div class="d-flex align-items-center gap-3">' +
+      '<span class="dn-ncc-name">' + esc(n.ten) + '</span>' +
+      '<span class="small text-muted">' + n.invCount + ' hoá đơn · ' + lineCount + ' dòng' + (noneCount ? ' · ' + noneCount + ' dòng chưa có HĐ' : '') + '</span>' +
+      '<button type="button" class="dn-link ms-auto dn-inv-add" data-ncc="' + n.nid_ncc + '" data-ncc-ten="' + esc(n.ten) + '"><i class="ti tabler-file-plus me-1"></i>Tạo hoá đơn mới cho ' + esc(n.ten) + '</button>' +
+      '</div></td></tr>';
   }
 
   function createGroupHeaderHtml(grp) {
     var ids = $.map(grp.lines, function (l) { return l.nid; });
     var uncheckedCount = $.grep(ids, function (id) { return !createState.selected[id]; }).length;
-    var hdText = grp.so_hoa_don ? ('Hoá đơn: ' + esc(grp.so_hoa_don) + (grp.ngay_hoa_don ? ' · ' + esc(toView(grp.ngay_hoa_don)) : '')) : 'Chưa có số hoá đơn';
-    return '<tr class="dn-hdrow"><td colspan="12"><label style="cursor:pointer;display:flex;align-items:center;gap:6px;margin:0;">' +
-      '<input type="checkbox" class="dn-create-group-check" data-ids="' + ids.join(',') + '"' + (uncheckedCount === 0 ? ' checked' : '') + '>' +
-      '<i class="ti tabler-file-invoice"></i>' + hdText + '<span class="dn-hdrow-count">(' + grp.lines.length + ' dòng)</span><span class="dn-hdrow-sum">' + money(grp.sau) + ' đ</span></label></td></tr>';
+    var collapsed = !!createState.collapsed[grp.key];
+    var editing = createState.editingKey === grp.key;
+    var label = grp.none ? 'Chưa có hoá đơn' : (grp.so_hoa_don ? ('HĐ ' + esc(grp.so_hoa_don) + (grp.ngay_hoa_don ? ' · ' + esc(toView(grp.ngay_hoa_don)) : '')) : 'Hoá đơn mới (chưa nhập số)');
+    var html = '<tr class="dn-hdrow' + (grp.none ? ' dn-hdrow-none' : '') + '" data-key="' + esc(grp.key) + '" data-ncc="' + grp.nid_ncc + '"><td colspan="9">' +
+      '<div class="d-flex align-items-center gap-2 dn-hdrow-inner">' +
+      '<input type="checkbox" class="dn-create-group-check" data-ids="' + ids.join(',') + '"' + (ids.length && uncheckedCount === 0 ? ' checked' : '') + (ids.length ? '' : ' disabled') + ' title="Đưa cả hoá đơn vào đề nghị">' +
+      '<button type="button" class="dn-link dn-link-dim dn-inv-collapse" title="Thu gọn / mở rộng"><i class="ti tabler-chevron-right dn-chev' + (collapsed ? '' : ' open') + '"></i></button>' +
+      '<i class="ti ' + (grp.none ? 'tabler-alert-triangle' : 'tabler-file-invoice') + '"></i>';
+    if (editing) {
+      var ed = createState.editDraft || {};
+      html += '<span class="d-flex align-items-center gap-2 dn-inv-editor">' +
+        '<input type="text" class="form-control form-control-sm dn-inv-ed-so" maxlength="50" placeholder="Số hoá đơn" value="' + esc(ed.so) + '">' +
+        '<input type="text" class="form-control form-control-sm dn-inv-ed-ngay" autocomplete="off" placeholder="dd/mm/yyyy" value="' + esc(ed.ngay) + '">' +
+        '<button type="button" class="btn btn-sm btn-primary dn-inv-ed-save"><i class="ti tabler-check me-1"></i>Lưu</button>' +
+        '<button type="button" class="btn btn-sm btn-label-secondary dn-inv-ed-cancel">Huỷ</button>';
+      if (createState.editConflict) {
+        var c = createState.model.byKey[createState.editConflict];
+        html += '<span class="small dn-warn-text"><i class="ti tabler-alert-triangle me-1"></i>' + esc(grp.ncc_ten) + ' đã có HĐ ' + esc(ed.so) + ' (' + (c ? c.lines.length : 0) + ' dòng).</span>' +
+          '<button type="button" class="btn btn-sm btn-warning dn-inv-ed-merge">Gộp vào HĐ đó</button>';
+      }
+      html += '</span>';
+    } else {
+      html += '<span class="dn-hdrow-label">' + label + '</span>';
+      if (!grp.none) html += '<button type="button" class="dn-link dn-inv-edit" title="Sửa số / ngày hoá đơn cho cả nhóm"><i class="ti tabler-pencil me-1"></i>Sửa số/ngày HĐ</button>';
+      html += '<span class="dn-hdrow-count">' + ids.length + ' dòng</span>';
+      if (grp.isNew && !ids.length) html += '<span class="small text-muted fst-italic">· kéo dòng vào đây hoặc dùng "Chuyển vào hoá đơn"</span><button type="button" class="dn-link text-danger dn-inv-remove"><i class="ti tabler-x"></i>Xoá HĐ trống</button>';
+    }
+    html += '<span class="ms-auto d-flex align-items-center gap-3">' +
+      (ids.length ? '<button type="button" class="dn-link dn-inv-pick" data-ids="' + ids.join(',') + '">Chọn ' + ids.length + ' dòng</button>' : '') +
+      '<span class="dn-hdrow-sum">' + money(grp.sau) + ' đ</span></span></div></td></tr>';
+    return html;
   }
 
   function updateCreateSummary() {
-    var count = 0, sum = 0;
+    var count = 0, sum = 0, noHd = 0;
     for (var nid in createState.selected) {
       if (createState.selected.hasOwnProperty(nid) && createState.selected[nid] && createState.rows[nid]) {
         count++;
-        sum += Number(createEffectiveLine(createState.rows[nid]).tong_sau_vat) || 0;
+        var eff = createEffectiveLine(createState.rows[nid]);
+        sum += Number(eff.tong_sau_vat) || 0;
+        if (!eff.so_hoa_don) noHd++;
       }
     }
     $('#dn-create-count').text(count);
     $('#dn-create-total').text(money(sum) + ' đ');
+    $('#dn-create-nohd').toggleClass('d-none', !noHd).text(noHd ? (noHd + ' dòng đưa vào đề nghị chưa có hoá đơn') : '');
   }
 
-  // Từ 2 dòng đã tick trở lên cùng 1 NCC mà còn thiếu số hoá đơn: hiện thanh gán nhanh riêng cho NCC đó
-  // (không gộp chung mọi NCC vào 1 ô vì 1 hoá đơn chỉ thuộc đúng 1 NCC).
-  function updateCreateBulkBar() {
-    var byNcc = {};
-    for (var nid in createState.selected) {
-      if (!createState.selected.hasOwnProperty(nid) || !createState.selected[nid] || !createState.rows[nid]) continue;
-      var eff = createEffectiveLine(createState.rows[nid]);
-      if (eff.so_hoa_don) continue;
-      var key = eff.nid_ncc || 0;
-      if (!byNcc[key]) byNcc[key] = { ncc_ten: eff.ncc_ten || '—', ids: [] };
-      byNcc[key].ids.push(parseInt(nid, 10));
+  function pickedIds() {
+    var out = [];
+    for (var nid in createState.picked) { if (createState.picked.hasOwnProperty(nid) && createState.picked[nid] && createState.rows[nid]) out.push(parseInt(nid, 10)); }
+    return out;
+  }
+
+  // Thanh chọn dính đáy modal-body: hiện khi có dòng được chọn để sắp xếp hoá đơn.
+  function updateCreateSelBar() {
+    var ids = pickedIds();
+    var $bar = $('#dn-create-selbar');
+    if (!ids.length) { $bar.addClass('d-none').html(''); return; }
+    var nccs = {}, nccCount = 0, nccId = 0, nccTen = '';
+    for (var i = 0; i < ids.length; i++) {
+      var l = createEffectiveLine(createState.rows[ids[i]]);
+      var k = parseInt(l.nid_ncc, 10) || 0;
+      if (!nccs[k]) { nccs[k] = true; nccCount++; nccId = k; nccTen = l.ncc_ten || '—'; }
     }
-    var html = '';
-    for (var k in byNcc) {
-      if (!byNcc.hasOwnProperty(k) || byNcc[k].ids.length < 2) continue;
-      var grp = byNcc[k];
-      html += '<div class="dn-bulk-hd">' +
-        '<i class="ti tabler-bolt text-warning"></i>' +
-        '<span class="txt">' + grp.ids.length + ' dòng đã tick của <strong>' + esc(grp.ncc_ten) + '</strong> chưa có số hoá đơn — gán chung 1 lần:</span>' +
-        '<input type="text" class="form-control form-control-sm row-field dn-bulk-so" placeholder="Số hoá đơn">' +
-        '<input type="text" class="form-control form-control-sm row-field dn-bulk-ngay" autocomplete="off" placeholder="dd/mm/yyyy">' +
-        '<button type="button" class="btn btn-sm btn-warning dn-bulk-apply" data-ids="' + grp.ids.join(',') + '"><i class="ti tabler-check me-1"></i>Áp dụng cho ' + grp.ids.length + ' dòng</button>' +
-        '</div>';
+    var mixed = nccCount > 1;
+    var menu = '';
+    if (!mixed && createState.model) {
+      var groups = [];
+      for (var g in createState.model.byKey) {
+        if (!createState.model.byKey.hasOwnProperty(g)) continue;
+        var grp = createState.model.byKey[g];
+        if (grp.nid_ncc === nccId && (grp.so_hoa_don || grp.none)) groups.push(grp);
+      }
+      if (!createState.model.byKey[createInvKey(nccId, '')]) groups.unshift({ key: createInvKey(nccId, ''), none: true, lines: [] });
+      groups.sort(function (a, b) { return (a.none ? 0 : 1) - (b.none ? 0 : 1); });
+      for (i = 0; i < groups.length; i++) {
+        menu += '<button type="button" class="dn-pop-item dn-sel-move-to" data-key="' + esc(groups[i].key) + '">' +
+          '<i class="ti ' + (groups[i].none ? 'tabler-unlink' : 'tabler-file-invoice') + '"></i><span>' +
+          (groups[i].none ? 'Chưa có hoá đơn (bỏ HĐ)' : ('HĐ ' + esc(groups[i].so_hoa_don) + (groups[i].ngay_hoa_don ? ' · ' + esc(toView(groups[i].ngay_hoa_don)) : ''))) +
+          '</span><span class="ms-auto small text-muted">' + groups[i].lines.length + ' dòng</span></button>';
+      }
     }
-    $('#dn-create-bulk').html(html);
-    // Ô ngày của thanh gán nhanh dùng cùng flatpickr với cột Ngày HĐ trong bảng (vẽ lại mỗi lần tick nên phải khởi tạo lại).
-    if (typeof flatpickr !== 'undefined') {
-      $('#dn-create-bulk .dn-bulk-ngay').each(function () {
-        flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, appendTo: document.body });
-      });
-    }
+    var dis = mixed ? ' disabled' : '';
+    $bar.removeClass('d-none').html(
+      '<span class="fw-semibold">Đã chọn ' + ids.length + ' dòng</span>' +
+      (mixed ? '<span class="dn-selbar-warn"><i class="ti tabler-alert-triangle me-1"></i>Đang chọn lẫn ' + nccCount + ' NCC — 1 hoá đơn chỉ thuộc 1 NCC, hãy chọn theo từng NCC.</span>'
+             : '<span class="dn-selbar-muted">· ' + esc(nccTen) + '</span>') +
+      '<span class="ms-auto d-flex align-items-center gap-2 position-relative">' +
+        '<button type="button" class="btn btn-sm btn-primary dn-sel-open-move"' + dis + '><i class="ti tabler-arrows-exchange me-1"></i>Chuyển vào hoá đơn</button>' +
+        '<button type="button" class="btn btn-sm btn-label-primary dn-selbar-light dn-sel-open-new"' + dis + '><i class="ti tabler-file-plus me-1"></i>Tạo HĐ mới từ ' + ids.length + ' dòng</button>' +
+        '<button type="button" class="btn btn-sm btn-label-secondary dn-selbar-light dn-sel-unassign"><i class="ti tabler-unlink me-1"></i>Bỏ hoá đơn</button>' +
+        '<button type="button" class="btn btn-sm dn-selbar-ghost dn-sel-clear">Bỏ chọn</button>' +
+        '<div class="dn-pop dn-sel-pop-move d-none" data-ncc="' + nccId + '"><div class="dn-pop-hd">Chuyển ' + ids.length + ' dòng vào hoá đơn của ' + esc(nccTen) + '</div>' + menu + '</div>' +
+        '<div class="dn-pop dn-sel-pop-new d-none" data-ncc="' + nccId + '"><div class="dn-pop-hd">Hoá đơn mới · ' + esc(nccTen) + ' · ' + ids.length + ' dòng</div>' +
+          '<div class="dn-pop-form">' +
+            '<input type="text" class="form-control form-control-sm dn-sel-new-so" maxlength="50" placeholder="Số hoá đơn">' +
+            '<input type="text" class="form-control form-control-sm dn-sel-new-ngay" autocomplete="off" placeholder="Ngày HĐ dd/mm/yyyy">' +
+            '<div class="d-flex gap-2 justify-content-end"><button type="button" class="btn btn-sm btn-label-secondary dn-sel-pop-close">Huỷ</button><button type="button" class="btn btn-sm btn-primary dn-sel-new-ok">Tạo &amp; chuyển</button></div>' +
+          '</div></div>' +
+      '</span>');
   }
 
   function renderCreateLines(items) {
     var lines = $.map(items, function (it) { return createEffectiveLine(it); });
-    var groups = groupLinesByHoaDon(lines);
+    var model = buildCreateModel(lines);
+    createState.model = model;
     var names = distinctExpenseNames();
-    var html = '';
-    for (var g = 0; g < groups.length; g++) {
-      html += createGroupHeaderHtml(groups[g]);
-      for (var i = 0; i < groups[g].lines.length; i++) html += createRowHtml(groups[g].lines[i], names);
+    var html = '', order = [];
+    for (var n = 0; n < model.nccs.length; n++) {
+      var ncc = model.nccs[n];
+      html += createNccRowHtml(ncc);
+      for (var g = 0; g < ncc.groups.length; g++) {
+        var grp = ncc.groups[g];
+        html += createGroupHeaderHtml(grp);
+        if (createState.collapsed[grp.key]) continue;
+        for (var i = 0; i < grp.lines.length; i++) { html += createRowHtml(grp.lines[i], names); order.push(grp.lines[i].nid); }
+      }
     }
+    createState.renderOrder = order;
     $('#dn-create-lines').html(html);
     initCreateRowWidgets();
     var hasPayee = !!$('#dn-create-payee').val();
-    $('#dn-create-table-wrap').toggleClass('d-none', !lines.length);
+    var hasAny = model.nccs.length > 0;
+    $('#dn-create-table-wrap, #dn-create-tools').toggleClass('d-none', !hasAny);
     if (!hasPayee) {
       $('#dn-create-empty').removeClass('d-none').text('Chọn bên nhận tiền để hiện các dòng chi phí khả dụng.');
     } else if (!lines.length) {
@@ -867,12 +998,16 @@
     } else {
       $('#dn-create-empty').addClass('d-none');
     }
-    updateCreateBulkBar();
+    var anyCollapsed = false;
+    for (var ck in createState.collapsed) { if (createState.collapsed.hasOwnProperty(ck) && createState.collapsed[ck]) anyCollapsed = true; }
+    $('#dn-create-collapse-all').text(anyCollapsed ? 'Mở rộng tất cả' : 'Thu gọn tất cả');
+    $('#dn-create-pick-all').text('Chọn tất cả ' + order.length + ' dòng đang hiện').toggleClass('d-none', !order.length);
+    updateCreateSelBar();
     updateCreateSummary();
   }
 
-  // Select2 (tên chi phí) + flatpickr (ngày hoá đơn) cho các ô trong bảng — bảng được vẽ lại toàn bộ mỗi
-  // lần sửa 1 ô (giống các cột khác), nên phải khởi tạo lại 2 plugin này sau mỗi lần render.
+  // Select2 (tên chi phí) + flatpickr (ngày hoá đơn ở ô sửa dòng hoá đơn) — bảng được vẽ lại toàn bộ mỗi
+  // lần sửa 1 ô, nên phải khởi tạo lại sau mỗi lần render.
   function initCreateRowWidgets() {
     if ($.fn && $.fn.select2) {
       $('#dn-create-lines .dn-name-select').each(function () {
@@ -881,14 +1016,112 @@
         $s.select2({ placeholder: 'Tên chi phí', tags: true, allowClear: true, width: '100%', dropdownParent: $('#dn-create-modal') });
       });
     }
+    // appendTo body (không static:true): trong bảng cuộn của modal, static:true bị overflow cắt mất lịch.
     if (typeof flatpickr !== 'undefined') {
-      // appendTo body (không static:true): trong bảng cuộn ngang/dọc của modal, static:true đặt lịch
-      // position:absolute NGAY TRONG bảng nên bị overflow của .table-responsive/.modal-body cắt mất.
-      $('#dn-create-lines .dn-hd-date').each(function () {
+      $('#dn-create-lines .dn-inv-ed-ngay').each(function () {
         flatpickr(this, { dateFormat: 'd/m/Y', allowInput: true, appendTo: document.body });
       });
     }
+    var $so = $('#dn-create-lines .dn-inv-ed-so');
+    if ($so.length && !createState.editConflict) { $so[0].focus(); }
   }
+
+  /* ── Thao tác đổi hoá đơn (chỉ đổi createState.edits, gửi qua chi_phi_edits khi Lưu) ── */
+
+  function createSnapshot() {
+    return { edits: $.extend({}, createState.edits), selected: $.extend({}, createState.selected), newInvoices: createState.newInvoices.slice(0) };
+  }
+
+  // Dải "Hoàn tác" trong modal (Notyf không có nút bấm): giữ 8 giây.
+  var createUndoTimer = null;
+  function showCreateUndo(text, snap) {
+    createState.undo = snap || null;
+    var $u = $('#dn-create-undo');
+    $u.html('<i class="ti tabler-circle-check me-1"></i><span>' + esc(text) + '</span>' + (snap ? '<button type="button" class="dn-undo-btn"><i class="ti tabler-history me-1"></i>Hoàn tác</button>' : '')).removeClass('d-none');
+    if (createUndoTimer) window.clearTimeout(createUndoTimer);
+    createUndoTimer = window.setTimeout(function () { $u.addClass('d-none'); createState.undo = null; }, 8000);
+  }
+
+  // Gán (so, ngay) cho các dòng cùng NCC; dòng khác NCC bị bỏ qua. Trả về {ok, skip, ticked}.
+  function assignInvoice(nids, nidNcc, so, ngay) {
+    var res = { ok: 0, skip: 0, ticked: 0 };
+    for (var i = 0; i < nids.length; i++) {
+      var nid = nids[i];
+      if (!createState.rows[nid]) continue;
+      var cur = createEffectiveLine(createState.rows[nid]);
+      if ((parseInt(cur.nid_ncc, 10) || 0) !== nidNcc) { res.skip++; continue; }
+      if ((cur.so_hoa_don || '') !== so || (cur.ngay_hoa_don || '') !== ngay) {
+        setCreateEdit(nid, 'so_hoa_don', so);
+        setCreateEdit(nid, 'ngay_hoa_don', ngay);
+      }
+      if (!createState.selected[nid]) { createState.selected[nid] = true; res.ticked++; }
+      res.ok++;
+    }
+    return res;
+  }
+
+  function moveSummary(res, where) {
+    return 'Đã chuyển ' + res.ok + ' dòng vào ' + where +
+      (res.ticked ? ' · tự tick ' + res.ticked + ' dòng vào đề nghị' : '') +
+      (res.skip ? ' · bỏ qua ' + res.skip + ' dòng khác NCC' : '');
+  }
+
+  function moveToKey(nids, key) {
+    var grp = createState.model && createState.model.byKey[key];
+    var nidNcc = parseInt(String(key).split('|')[0], 10) || (grp ? grp.nid_ncc : 0);
+    var so = grp ? (grp.so_hoa_don || '') : '';
+    var ngay = grp ? (grp.ngay_hoa_don || '') : '';
+    if (grp && grp.isNew && !so) { toast('Nhập số hoá đơn cho hoá đơn mới trước.', false); return; }
+    var snap = createSnapshot();
+    var res = assignInvoice(nids, nidNcc, so, ngay);
+    createState.picked = {};
+    renderCreateLines(createRowsArray());
+    showCreateUndo(moveSummary(res, so ? ('HĐ ' + so) : '"Chưa có hoá đơn"'), snap);
+  }
+
+  function invoiceExists(nidNcc, so, exceptKey) {
+    var key = createInvKey(nidNcc, so);
+    if (key === exceptKey) return null;
+    var g = createState.model && createState.model.byKey[key];
+    return g && g.lines.length ? key : null;
+  }
+
+  function saveInvoiceEditor(forceMerge) {
+    var key = createState.editingKey;
+    var grp = createState.model && createState.model.byKey[key];
+    if (!grp) return;
+    var so = $.trim($('#dn-create-lines .dn-inv-ed-so').val());
+    var ngayView = $.trim($('#dn-create-lines .dn-inv-ed-ngay').val());
+    createState.editDraft = { so: so, ngay: ngayView };
+    if (!so) { toast('Vui lòng nhập số hoá đơn.', false); return; }
+    var ngay = toApi(ngayView);
+    if (ngay === null) { toast('Ngày hoá đơn phải có dạng dd/mm/yyyy.', false); return; }
+    var conflict = invoiceExists(grp.nid_ncc, so, key);
+    if (conflict && !forceMerge) {
+      createState.editConflict = conflict;
+      renderCreateLines(createRowsArray());
+      return;
+    }
+    var snap = createSnapshot();
+    if (grp.isNew) {
+      // Hoá đơn trống vừa tạo: chỉ đổi thông tin nhóm trống; trùng số thì bỏ nhóm trống (dòng sẽ vào HĐ đã có).
+      createState.newInvoices = $.grep(createState.newInvoices, function (x) { return x.key !== key; });
+      if (!conflict) createState.newInvoices.push({ key: createInvKey(grp.nid_ncc, so), nid_ncc: grp.nid_ncc, ncc_ten: grp.ncc_ten, so_hoa_don: so, ngay_hoa_don: ngay || '' });
+      createState.editingKey = null; createState.editDraft = null; createState.editConflict = null;
+      renderCreateLines(createRowsArray());
+      showCreateUndo(conflict ? ('HĐ ' + so + ' đã có — dùng luôn hoá đơn đó') : ('Đã tạo HĐ ' + so + ' cho ' + grp.ncc_ten), null);
+      return;
+    }
+    var target = conflict ? createState.model.byKey[conflict] : null;
+    var ids = $.map(grp.lines, function (l) { return l.nid; });
+    var res = assignInvoice(ids, grp.nid_ncc, so, target ? (target.ngay_hoa_don || ngay || '') : (ngay || ''));
+    createState.editingKey = null; createState.editDraft = null; createState.editConflict = null;
+    renderCreateLines(createRowsArray());
+    showCreateUndo((conflict ? 'Đã gộp ' + res.ok + ' dòng vào HĐ ' + so : 'Đã đổi số/ngày HĐ cho ' + res.ok + ' dòng') +
+      (res.ticked ? ' · tự tick ' + res.ticked + ' dòng vào đề nghị' : ''), snap);
+  }
+
+  function closeCreatePops() { $('#dn-create-selbar .dn-pop').addClass('d-none'); }
 
   // Đề nghị đang sửa: dòng đã gộp sẵn (nid_de_nghi_chi_phi = đề nghị này) bị chua_gop=1 loại khỏi bể chọn
   // phía dưới, nên phải gộp thủ công vào items để vẫn thấy/được bỏ tick — không trùng nid với bể chọn
@@ -915,6 +1148,9 @@
     for (i = 0; i < items.length; i++) createState.rows[items[i].nid] = items[i];
     for (nid in createState.selected) {
       if (createState.selected.hasOwnProperty(nid) && !createState.rows[nid]) delete createState.selected[nid];
+    }
+    for (nid in createState.picked) {
+      if (createState.picked.hasOwnProperty(nid) && !createState.rows[nid]) delete createState.picked[nid];
     }
     renderCreateLines(items);
   }
@@ -965,7 +1201,8 @@
   }
 
   function resetCreateState() {
-    createState = { rows: {}, selected: {}, edits: {}, mode: 'create', editId: 0, ownLines: [], suppressPayeeChange: false };
+    createState = newCreateState();
+    $('#dn-create-undo').addClass('d-none');
   }
 
   // Vietnamese locale + 3 nút chọn nhanh, giống hệt khoảng ngày ở bộ lọc /ke-hoach-xep-xe (#filter-date-range).
@@ -1051,7 +1288,7 @@
     $('#dn-create-lines').html('');
     $('#dn-create-table-wrap').addClass('d-none');
     $('#dn-create-empty').removeClass('d-none').text('Chọn bên nhận tiền để hiện các dòng chi phí khả dụng.');
-    $('#dn-create-bulk').html('');
+    $('#dn-create-selbar').addClass('d-none').html('');
     $('#dn-create-payee').removeClass('is-invalid');
     updateCreateSummary();
     modalOf('dn-create-modal').show();
@@ -1074,7 +1311,7 @@
     $('#dn-create-lines').html('');
     $('#dn-create-table-wrap').addClass('d-none');
     $('#dn-create-empty').removeClass('d-none').text('Đang tải…');
-    $('#dn-create-bulk').html('');
+    $('#dn-create-selbar').addClass('d-none').html('');
     $('#dn-create-payee').removeClass('is-invalid');
     $('#dn-create-loading').show();
     modalOf('dn-create-modal').show();
@@ -1377,6 +1614,12 @@
       if (createState.suppressPayeeChange) return;
       createState.selected = {};
       createState.edits = {};
+      createState.picked = {};
+      createState.newInvoices = [];
+      createState.collapsed = {};
+      createState.editingKey = null;
+      createState.editConflict = null;
+      $('#dn-create-undo').addClass('d-none');
       $('#dn-create-payee').removeClass('is-invalid');
       fetchCreateLines();
     });
@@ -1390,24 +1633,44 @@
     $('.dn-create-filter').keydown(function (e) { if (e.which === 13) { e.preventDefault(); filterRefetch.call(this); } });
     $('.dn-create-filter').bind('blur', filterRefetch);
     $('#dn-create-lines').delegate('.money-input', 'input', function () { formatMoneyKeepCaret(this); });
-    // Click vào dòng (chỗ không phải ô nhập/select2/nút) = tick/bỏ tick dòng đó.
-    // Bôi đen chữ (kéo chuột / có vùng chọn) thì không tính là click chọn dòng.
+    // Click vào dòng (chỗ không phải ô nhập/select2/nút) = CHỌN dòng để sắp xếp hoá đơn (tô tím), không phải tick.
+    // Shift + click = chọn cả dải từ dòng chọn trước đó. Bôi đen chữ (kéo chuột / có vùng chọn) không tính là click.
     var rowDownX = 0, rowDownY = 0;
-    $('#dn-create-lines').delegate('tr.dn-create-row', 'mousedown', function (e) { rowDownX = e.pageX; rowDownY = e.pageY; });
+    // Chỉ cho kéo khi nhấn chuột ngoài ô nhập/select2 (tr luôn draggable thì không bôi đen được chữ trong ô nhập).
+    $('#dn-create-lines').delegate('tr.dn-create-row', 'mousedown', function (e) {
+      rowDownX = e.pageX; rowDownY = e.pageY;
+      this.draggable = !$(e.target).closest('input, select, textarea, button, .select2-container').length;
+    });
     $('#dn-create-lines').delegate('tr.dn-create-row', 'click', function (e) {
       if ($(e.target).closest('input, select, textarea, button, a, label, .select2-container').length) return;
       if (Math.abs(e.pageX - rowDownX) > 4 || Math.abs(e.pageY - rowDownY) > 4) return;
       var sel = window.getSelection ? String(window.getSelection()) : '';
-      if (sel) return;
-      var cb = $(this).find('.dn-create-check')[0];
-      if (!cb) return;
-      cb.checked = !cb.checked;
-      $(cb).trigger('change');
+      if (sel && !e.shiftKey) return;
+      if (e.shiftKey && window.getSelection) { try { window.getSelection().removeAllRanges(); } catch (x) {} }
+      var nid = parseInt($(this).attr('data-nid'), 10);
+      var order = createState.renderOrder;
+      if (e.shiftKey && createState.anchor !== null) {
+        var a = $.inArray(createState.anchor, order), b = $.inArray(nid, order);
+        if (a >= 0 && b >= 0) {
+          for (var k = Math.min(a, b); k <= Math.max(a, b); k++) createState.picked[order[k]] = true;
+        }
+      } else {
+        if (createState.picked[nid]) delete createState.picked[nid]; else createState.picked[nid] = true;
+        createState.anchor = nid;
+      }
+      $('#dn-create-lines tr.dn-create-row').each(function () {
+        $(this).toggleClass('dn-picked', !!createState.picked[parseInt($(this).attr('data-nid'), 10)]);
+      });
+      updateCreateSelBar();
     });
     $('#dn-create-lines').delegate('.dn-create-check', 'change', function () {
       var nid = parseInt($(this).data('nid'), 10);
       if ($(this).is(':checked')) createState.selected[nid] = true; else delete createState.selected[nid];
-      updateCreateBulkBar();
+      $('#dn-create-lines .dn-create-group-check').each(function () {
+        var ids = String($(this).attr('data-ids') || '').split(','), all = !!ids[0];
+        for (var i = 0; i < ids.length && all; i++) if (!createState.selected[parseInt(ids[i], 10)]) all = false;
+        this.checked = all;
+      });
       updateCreateSummary();
     });
     $('#dn-create-lines').delegate('.dn-create-group-check', 'change', function () {
@@ -1474,23 +1737,170 @@
       }
       renderCreateLines(createRowsArray());
     });
-    $('#dn-create-bulk').delegate('.dn-bulk-apply', 'click', function () {
-      var $bar = $(this).closest('.dn-bulk-hd');
-      var ids = String($(this).data('ids')).split(',');
-      var so = $.trim($bar.find('.dn-bulk-so').val());
-      if (!so) return;
-      var ngay = toApi($bar.find('.dn-bulk-ngay').val());
-      if (ngay === null) { toast('Ngày hoá đơn phải có dạng dd/mm/yyyy.', false); return; }
-      var n = 0;
-      for (var i = 0; i < ids.length; i++) {
-        var nid = parseInt(ids[i], 10);
-        if (createEffectiveLine(createState.rows[nid]).so_hoa_don) continue;
-        setCreateEdit(nid, 'so_hoa_don', so);
-        setCreateEdit(nid, 'ngay_hoa_don', ngay);
-        n++;
-      }
-      toast('Đã gán hoá đơn ' + so + ' cho ' + n + ' dòng');
+    /* ── Dòng NCC / dòng hoá đơn ── */
+    $('#dn-create-lines').delegate('.dn-inv-add', 'click', function () {
+      createState.newSeq++;
+      var key = 'new:' + createState.newSeq;
+      createState.newInvoices.push({ key: key, nid_ncc: parseInt($(this).attr('data-ncc'), 10) || 0, ncc_ten: $(this).attr('data-ncc-ten') || '', so_hoa_don: '', ngay_hoa_don: '' });
+      createState.editingKey = key; createState.editDraft = { so: '', ngay: '' }; createState.editConflict = null;
       renderCreateLines(createRowsArray());
+    });
+    $('#dn-create-lines').delegate('.dn-inv-collapse', 'click', function () {
+      var key = $(this).closest('tr.dn-hdrow').attr('data-key');
+      createState.collapsed[key] = !createState.collapsed[key];
+      renderCreateLines(createRowsArray());
+    });
+    $('#dn-create-lines').delegate('.dn-inv-pick', 'click', function () {
+      var ids = String($(this).attr('data-ids')).split(',');
+      createState.picked = {};
+      for (var i = 0; i < ids.length; i++) createState.picked[parseInt(ids[i], 10)] = true;
+      createState.anchor = parseInt(ids[0], 10);
+      renderCreateLines(createRowsArray());
+    });
+    $('#dn-create-lines').delegate('.dn-inv-edit', 'click', function () {
+      var key = $(this).closest('tr.dn-hdrow').attr('data-key');
+      var grp = createState.model && createState.model.byKey[key];
+      if (!grp) return;
+      createState.editingKey = key; createState.editConflict = null;
+      createState.editDraft = { so: grp.so_hoa_don || '', ngay: toView(grp.ngay_hoa_don) };
+      renderCreateLines(createRowsArray());
+    });
+    $('#dn-create-lines').delegate('.dn-inv-ed-save', 'click', function () { saveInvoiceEditor(false); });
+    $('#dn-create-lines').delegate('.dn-inv-ed-merge', 'click', function () { saveInvoiceEditor(true); });
+    $('#dn-create-lines').delegate('.dn-inv-ed-so, .dn-inv-ed-ngay', 'keydown', function (e) {
+      if (e.which === 13) { e.preventDefault(); saveInvoiceEditor(false); }
+      else if (e.which === 27) { e.preventDefault(); e.stopPropagation(); $('#dn-create-lines .dn-inv-ed-cancel').click(); }
+    });
+    $('#dn-create-lines').delegate('.dn-inv-ed-cancel', 'click', function () {
+      var key = createState.editingKey;
+      var grp = createState.model && createState.model.byKey[key];
+      if (grp && grp.isNew && !grp.so_hoa_don) createState.newInvoices = $.grep(createState.newInvoices, function (x) { return x.key !== key; });
+      createState.editingKey = null; createState.editDraft = null; createState.editConflict = null;
+      renderCreateLines(createRowsArray());
+    });
+    $('#dn-create-lines').delegate('.dn-inv-remove', 'click', function () {
+      var key = $(this).closest('tr.dn-hdrow').attr('data-key');
+      createState.newInvoices = $.grep(createState.newInvoices, function (x) { return x.key !== key; });
+      renderCreateLines(createRowsArray());
+    });
+
+    /* ── Kéo dòng thả lên dòng hoá đơn (kéo 1 dòng, hoặc mọi dòng đang chọn nếu kéo từ 1 dòng đang chọn) ── */
+    $('#dn-create-lines').delegate('tr.dn-create-row', 'dragstart', function (e) {
+      if ($(e.target).closest('input, select, textarea, .select2-container').length) { e.preventDefault(); return; }
+      var nid = parseInt($(this).attr('data-nid'), 10);
+      createState.dragIds = createState.picked[nid] ? pickedIds() : [nid];
+      var dt = e.originalEvent && e.originalEvent.dataTransfer;
+      if (dt) { try { dt.setData('text/plain', String(nid)); dt.effectAllowed = 'move'; } catch (x) {} }
+      var ids = createState.dragIds;
+      $('#dn-create-lines tr.dn-create-row').each(function () {
+        $(this).toggleClass('dn-dragging', $.inArray(parseInt($(this).attr('data-nid'), 10), ids) >= 0);
+      });
+    });
+    $('#dn-create-lines').delegate('tr.dn-create-row', 'dragend', function () {
+      createState.dragIds = null;
+      $('#dn-create-lines tr').removeClass('dn-dragging dn-drop-over');
+    });
+    $('#dn-create-lines').delegate('tr.dn-hdrow', 'dragover', function (e) {
+      if (!createState.dragIds) return;
+      e.preventDefault();
+      if (e.originalEvent && e.originalEvent.dataTransfer) e.originalEvent.dataTransfer.dropEffect = 'move';
+      $('#dn-create-lines tr.dn-hdrow').not(this).removeClass('dn-drop-over');
+      $(this).addClass('dn-drop-over');
+    });
+    $('#dn-create-lines').delegate('tr.dn-hdrow', 'dragleave', function (e) {
+      if (this.contains && e.relatedTarget && this.contains(e.relatedTarget)) return;
+      $(this).removeClass('dn-drop-over');
+    });
+    $('#dn-create-lines').delegate('tr.dn-hdrow', 'drop', function (e) {
+      e.preventDefault();
+      var ids = createState.dragIds;
+      createState.dragIds = null;
+      $('#dn-create-lines tr').removeClass('dn-dragging dn-drop-over');
+      if (ids && ids.length) moveToKey(ids, $(this).attr('data-key'));
+    });
+
+    /* ── Thanh công cụ trên bảng + thanh chọn dính đáy ── */
+    $('#dn-create-pick-all').click(function () {
+      createState.picked = {};
+      for (var i = 0; i < createState.renderOrder.length; i++) createState.picked[createState.renderOrder[i]] = true;
+      renderCreateLines(createRowsArray());
+    });
+    $('#dn-create-collapse-all').click(function () {
+      var any = false, k;
+      for (k in createState.collapsed) { if (createState.collapsed.hasOwnProperty(k) && createState.collapsed[k]) any = true; }
+      createState.collapsed = {};
+      if (!any && createState.model) { for (k in createState.model.byKey) { if (createState.model.byKey.hasOwnProperty(k)) createState.collapsed[k] = true; } }
+      renderCreateLines(createRowsArray());
+    });
+    $('#dn-create-selbar').delegate('.dn-sel-open-move', 'click', function (e) {
+      e.stopPropagation();
+      var $p = $('#dn-create-selbar .dn-sel-pop-move'), open = $p.hasClass('d-none');
+      closeCreatePops();
+      $p.toggleClass('d-none', !open);
+    });
+    $('#dn-create-selbar').delegate('.dn-sel-open-new', 'click', function (e) {
+      e.stopPropagation();
+      var $p = $('#dn-create-selbar .dn-sel-pop-new'), open = $p.hasClass('d-none');
+      closeCreatePops();
+      $p.toggleClass('d-none', !open);
+      if (open) {
+        var dateEl = $p.find('.dn-sel-new-ngay')[0];
+        if (dateEl && typeof flatpickr !== 'undefined' && !dateEl._flatpickr) flatpickr(dateEl, { dateFormat: 'd/m/Y', allowInput: true, appendTo: document.body });
+        $p.find('.dn-sel-new-so')[0].focus();
+      }
+    });
+    $('#dn-create-selbar').delegate('.dn-pop', 'click', function (e) { e.stopPropagation(); });
+    $('#dn-create-selbar').delegate('.dn-sel-pop-close', 'click', function () { closeCreatePops(); });
+    $('#dn-create-selbar').delegate('.dn-sel-move-to', 'click', function () { moveToKey(pickedIds(), $(this).attr('data-key')); });
+    var selNewOk = function () {
+      var $p = $('#dn-create-selbar .dn-sel-pop-new');
+      var nidNcc = parseInt($p.attr('data-ncc'), 10) || 0;
+      var so = $.trim($p.find('.dn-sel-new-so').val());
+      if (!so) { toast('Vui lòng nhập số hoá đơn.', false); return; }
+      var ngay = toApi($p.find('.dn-sel-new-ngay').val());
+      if (ngay === null) { toast('Ngày hoá đơn phải có dạng dd/mm/yyyy.', false); return; }
+      var exist = createState.model && createState.model.byKey[createInvKey(nidNcc, so)];
+      // Trùng số HĐ đã có của NCC này: đưa dòng vào chính hoá đơn đó (lấy ngày của hoá đơn đó nếu có).
+      if (exist && exist.ngay_hoa_don) ngay = exist.ngay_hoa_don;
+      var snap = createSnapshot();
+      var res = assignInvoice(pickedIds(), nidNcc, so, ngay || '');
+      createState.picked = {};
+      renderCreateLines(createRowsArray());
+      showCreateUndo((exist ? 'HĐ ' + so + ' đã có · ' : '') + moveSummary(res, 'HĐ ' + so), snap);
+    };
+    $('#dn-create-selbar').delegate('.dn-sel-new-ok', 'click', selNewOk);
+    $('#dn-create-selbar').delegate('.dn-sel-new-so, .dn-sel-new-ngay', 'keydown', function (e) {
+      if (e.which === 13) { e.preventDefault(); selNewOk(); }
+    });
+    $('#dn-create-selbar').delegate('.dn-sel-unassign', 'click', function () {
+      var ids = pickedIds(), snap = createSnapshot(), n = 0;
+      for (var i = 0; i < ids.length; i++) {
+        var cur = createEffectiveLine(createState.rows[ids[i]]);
+        if (cur.so_hoa_don || cur.ngay_hoa_don) {
+          setCreateEdit(ids[i], 'so_hoa_don', '');
+          setCreateEdit(ids[i], 'ngay_hoa_don', '');
+          if (!createState.selected[ids[i]]) createState.selected[ids[i]] = true;
+          n++;
+        }
+      }
+      createState.picked = {};
+      renderCreateLines(createRowsArray());
+      showCreateUndo('Đã bỏ hoá đơn của ' + n + ' dòng', snap);
+    });
+    $('#dn-create-selbar').delegate('.dn-sel-clear', 'click', function () {
+      createState.picked = {};
+      renderCreateLines(createRowsArray());
+    });
+    $('#dn-create-modal').bind('click', function (e) {
+      if (!$(e.target).closest('#dn-create-selbar').length) closeCreatePops();
+    });
+    $('#dn-create-undo').delegate('.dn-undo-btn', 'click', function () {
+      var u = createState.undo;
+      if (!u) return;
+      createState.edits = u.edits; createState.selected = u.selected; createState.newInvoices = u.newInvoices;
+      createState.undo = null;
+      renderCreateLines(createRowsArray());
+      $('#dn-create-undo').html('<i class="ti tabler-history me-1"></i><span>Đã hoàn tác</span>');
     });
   }
 

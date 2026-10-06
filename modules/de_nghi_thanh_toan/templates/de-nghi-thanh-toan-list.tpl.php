@@ -136,7 +136,7 @@
           <div class="modal-body" style="position:relative;max-height:78vh;overflow-y:auto;overflow-x:hidden;">
             <div class="dn-loading" id="dn-create-loading"><div class="spinner-border text-primary" role="status"></div></div>
             <div class="alert alert-danger py-2 d-none" id="dn-create-reject"></div>
-            <div class="alert alert-primary py-2 mb-3" id="dn-create-alert-hint">Chọn <strong>bên nhận tiền</strong> trước — hệ thống liệt kê mọi dòng chi phí (của bất kỳ NCC/hoá đơn nào) đang chờ gộp mà có bên nhận tiền này. Dòng chưa có số hoá đơn điền bù ngay tại đây.</div>
+            <div class="alert alert-primary py-2 mb-3" id="dn-create-alert-hint">Chọn <strong>bên nhận tiền</strong> trước — hệ thống liệt kê mọi dòng chi phí (của bất kỳ NCC/hoá đơn nào) đang chờ gộp mà có bên nhận tiền này. Hoá đơn hiện thành dòng nhóm: chọn dòng rồi chuyển vào hoá đơn, hoặc kéo thả lên dòng hoá đơn.</div>
             <div class="row g-3 mb-2">
               <div class="col-md-4">
                 <label class="form-label" for="dn-create-payee">Bên nhận tiền <span class="text-danger">*</span></label>
@@ -160,26 +160,26 @@
                 <input type="text" class="form-control" id="dn-create-daterange" placeholder="Chọn khoảng ngày" autocomplete="off" readonly>
               </div>
             </div>
-            <div id="dn-create-bulk"></div>
+            <div class="d-flex justify-content-end align-items-center gap-2 mb-2 d-none" id="dn-create-tools">
+              <button type="button" class="btn btn-sm btn-label-primary" id="dn-create-pick-all">Chọn tất cả dòng đang hiện</button>
+              <button type="button" class="btn btn-sm btn-label-secondary" id="dn-create-collapse-all">Thu gọn tất cả</button>
+            </div>
             <div id="dn-create-empty" class="text-muted small">Chọn bên nhận tiền để hiện các dòng chi phí khả dụng.</div>
-            <div class="table-responsive d-none" id="dn-create-table-wrap">
-              <table class="table table-sm table-bordered dn-lines mb-0">
+            <div class="d-none" id="dn-create-table-wrap">
+              <table class="table table-sm dn-lines dn-create-table mb-0">
                 <thead><tr>
-                  <th style="width:3%;"></th>
-                  <th style="width:9%;">NCC</th>
-                  <th style="width:10%;">Kế hoạch</th>
-                  <th style="width:16%;">Tên chi phí</th>
-                  <th style="width:5%;">Loại</th>
-                  <th class="text-end" style="width:9%;">Đơn giá</th>
-                  <th class="text-end" style="width:5%;">SL</th>
-                  <th class="text-end" style="width:5%;">VAT%</th>
-                  <th class="text-end" style="width:9%;">Sau VAT</th>
-                  <th style="width:13%;">Ghi chú</th>
-                  <th style="width:9%;">Số HĐ</th>
-                  <th style="width:9%;">Ngày HĐ</th>
+                  <th style="width:56px;"><span class="visually-hidden">Đưa vào đề nghị</span></th>
+                  <th style="width:12%;">Kế hoạch</th>
+                  <th style="width:19%;">Tên chi phí</th>
+                  <th style="width:60px;">Loại</th>
+                  <th class="text-end" style="width:10%;">Đơn giá</th>
+                  <th class="text-end" style="width:6%;">SL</th>
+                  <th class="text-end" style="width:6%;">VAT%</th>
+                  <th class="text-end" style="width:10%;">Sau VAT</th>
+                  <th>Ghi chú</th>
                 </tr></thead>
                 <tbody id="dn-create-lines"></tbody>
-                <tfoot><tr class="table-light"><td colspan="8" class="text-end fw-semibold">Đã chọn <span id="dn-create-count">0</span> dòng · Tổng sau VAT</td><td class="text-end fw-semibold" id="dn-create-total">0 đ</td><td colspan="3"></td></tr></tfoot>
+                <tfoot><tr class="table-light"><td colspan="7"><span class="small dn-warn-text d-none" id="dn-create-nohd"></span><span class="float-end fw-semibold">Đã chọn <span id="dn-create-count">0</span> dòng · Tổng sau VAT</span></td><td class="text-end fw-semibold" id="dn-create-total">0 đ</td><td></td></tr></tfoot>
               </table>
             </div>
             <div class="row g-3 mt-1">
@@ -200,6 +200,8 @@
                 <input type="text" class="form-control" id="dn-create-ghi-chu" placeholder="Ghi chú thêm (nếu có)">
               </div>
             </div>
+            <div class="dn-undo d-none" id="dn-create-undo" role="status"></div>
+            <div class="dn-selbar d-none" id="dn-create-selbar"></div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Đóng</button>
